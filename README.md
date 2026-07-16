@@ -71,3 +71,16 @@ python3 tests/validate_static_ui.py
 python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
 python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
 ```
+
+## Local Private Library Search API
+
+Run the read-only private library search UI and API wrapper locally:
+
+```bash
+python3 server/private_library_search_server.py --host 127.0.0.1 --port 8091
+```
+
+The browser client calls `/api/private-library/search`. The wrapper is
+localhost-only by default, clamps result limits, and only allows the
+`operations` collection. If `EDGE1_LIBRARY_SEARCH_URL` is set, the wrapper
+forwards searches to that backend; otherwise it returns fixture-backed results.

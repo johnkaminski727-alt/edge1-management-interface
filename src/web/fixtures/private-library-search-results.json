@@ -1,0 +1,53 @@
+{
+  "query": "",
+  "collection": "operations",
+  "mode": "fixture",
+  "results": [
+    {
+      "id": "fixture-vpn-self-enrollment",
+      "title": "VPN self-enrollment runbook",
+      "collection": "operations",
+      "path": "operations/vpn-self-enrollment-runbook.md",
+      "updated_at": "2026-07-16T00:00:00Z",
+      "score": 0.94,
+      "snippet": "Self-enrollment steps for private VPN access, including device checks, identity verification, and rollback criteria."
+    },
+    {
+      "id": "fixture-companion-file-archive",
+      "title": "Companion file archive notes",
+      "collection": "operations",
+      "path": "operations/companion-file-archive-notes.md",
+      "updated_at": "2026-07-16T00:00:00Z",
+      "score": 0.89,
+      "snippet": "Archive structure, naming rules, retention guidance, and restore notes for companion files."
+    },
+    {
+      "id": "fixture-rollback-package",
+      "title": "Rollback package checklist",
+      "collection": "operations",
+      "path": "operations/rollback-package-checklist.md",
+      "updated_at": "2026-07-16T00:00:00Z",
+      "score": 0.86,
+      "snippet": "Checklist for preparing, verifying, and using rollback packages during Edge1 changes."
+    },
+    {
+      "id": "fixture-private-library-import",
+      "title": "Private library import controls",
+      "collection": "operations",
+      "path": "operations/private-library-import-controls.md",
+      "updated_at": "2026-07-16T00:00:00Z",
+      "score": 0.83,
+      "snippet": "Import staging, approval, validation, and commit controls for the private operations library."
+    },
+    {
+      "id": "fixture-reg-edge1-181",
+      "title": "REG-EDGE1-181 implementation record",
+      "collection": "operations",
+      "path": "operations/reg-edge1-181-implementation-record.md",
+      "updated_at": "2026-07-16T00:00:00Z",
+      "score": 0.79,
+      "snippet": "Implementation record for REG-EDGE1-181 with scope, verification evidence, and follow-up notes."
+    }
+  ]
+}
+

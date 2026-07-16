@@ -1,255 +1,235 @@
 (function () {
   "use strict";
 
-  const fallbackData = {
-    query: "private library search",
-    collections: ["operations"],
-    results: [
-      {
-        source_id: "S1",
-        document_id: "ce465ba7e29f049d35f7ea86108647be",
-        collection: "operations",
-        title: "edge1-private-library-search-module-realistic-build-20260716",
-        source_path: "operations/edge1-private-library-search-module-realistic-build-20260716.md",
-        classification: "internal",
-        chunk_index: 2,
-        locator: "document",
-        excerpt: "Phone layout uses cards, not a wide table. Each card shows title, source path, classification, and a short excerpt.",
-        score: -54.82
-      },
-      {
-        source_id: "S2",
-        document_id: "7376ea3add8e63c737934695f4715462",
-        collection: "operations",
-        title: "edge1-build-backlog-20260716",
-        source_path: "operations/edge1-build-backlog-20260716.md",
-        classification: "internal",
-        chunk_index: 0,
-        locator: "document",
-        excerpt: "Phase 2: Private Library Module. Add library search page, collection list, source/document detail view, and import queue page.",
-        score: -17.33
-      }
-    ]
-  };
+  const API_PATH = "/api/private-library/search";
+  const FIXTURE_PATH = "./fixtures/private-library-search-results.json";
+  const DEFAULT_COLLECTION = "operations";
+  const DEFAULT_LIMIT = 10;
 
   const state = {
-    allResults: [],
-    visibleResults: [],
-    selectedIndex: -1
+    query: "",
+    collection: DEFAULT_COLLECTION,
+    limit: DEFAULT_LIMIT,
+    mode: "loading",
+    results: [],
+    error: "",
   };
 
-  const els = {
-    form: document.getElementById("search-form"),
-    query: document.getElementById("query"),
-    collection: document.getElementById("collection"),
-    limit: document.getElementById("limit"),
-    resultCount: document.getElementById("result-count"),
-    resultsTitle: document.getElementById("results-title"),
-    stateMessage: document.getElementById("state-message"),
-    results: document.getElementById("results"),
-    detailTitle: document.getElementById("detail-title"),
-    detailSourcePath: document.getElementById("detail-source-path"),
-    detailClassification: document.getElementById("detail-classification"),
-    detailDocumentId: document.getElementById("detail-document-id"),
-    detailChunk: document.getElementById("detail-chunk"),
-    detailLocator: document.getElementById("detail-locator"),
-    detailExcerpt: document.getElementById("detail-excerpt"),
-    copyCitation: document.getElementById("copy-citation"),
-    copySource: document.getElementById("copy-source")
+  const elements = {
+    form: document.querySelector("form"),
+    searchInput:
+      document.querySelector('input[type="search"]') ||
+      document.querySelector('input[name="q"]') ||
+      document.querySelector("#search"),
+    collection:
+      document.querySelector('select[name="collection"]') ||
+      document.querySelector("#collection"),
+    results:
+      document.querySelector("#results") ||
+      document.querySelector('[data-results]') ||
+      document.querySelector(".results"),
+    count:
+      document.querySelector("[data-result-count]") ||
+      document.querySelector(".result-count"),
+    status:
+      document.querySelector("[data-search-status]") ||
+      document.querySelector(".search-status"),
   };
 
-  function text(value) {
-    if (value === null || value === undefined || value === "") {
-      return "Not available";
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function normalizeResult(item, index) {
+    return {
+      id: String(item.id || item.document_id || `result-${index + 1}`),
+      title: String(item.title || item.name || "Untitled result"),
+      collection: String(item.collection || DEFAULT_COLLECTION),
+      path: String(item.path || item.source || ""),
+      updated_at: String(item.updated_at || item.updated || ""),
+      score: Number(item.score || 0),
+      snippet: String(item.snippet || item.summary || ""),
+    };
+  }
+
+  function setStatus(message) {
+    if (elements.status) {
+      elements.status.textContent = message;
     }
-    return String(value);
   }
 
-  function normalize(value) {
-    return text(value).toLowerCase();
-  }
-
-  function resultMatchesQuery(result, query) {
-    if (!query) {
-      return true;
-    }
-
-    const haystack = [
-      result.title,
-      result.source_path,
-      result.classification,
-      result.locator,
-      result.excerpt,
-      result.document_id,
-      result.source_id
-    ].map(normalize).join(" ");
-
-    return query.split(/\s+/).filter(Boolean).every((part) => haystack.includes(part));
-  }
-
-  function setMessage(message) {
-    els.stateMessage.textContent = message || "";
-  }
-
-  function setCount(count) {
-    els.resultCount.textContent = count === 1 ? "1 result" : `${count} results`;
-  }
-
-  function renderResults() {
-    els.results.replaceChildren();
-    setCount(state.visibleResults.length);
-
-    if (state.visibleResults.length === 0) {
-      setMessage("No results matched the current query and collection.");
-      clearDetail();
+  function render() {
+    if (!elements.results) {
       return;
     }
 
-    setMessage("");
+    if (elements.count) {
+      elements.count.textContent = String(state.results.length);
+    }
 
-    state.visibleResults.forEach((result, index) => {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "result-card";
-      card.setAttribute("aria-selected", String(index === state.selectedIndex));
-      card.dataset.index = String(index);
-
-      const title = document.createElement("h3");
-      title.textContent = text(result.title);
-
-      const path = document.createElement("p");
-      path.className = "result-path";
-      path.textContent = text(result.source_path);
-
-      const meta = document.createElement("p");
-      meta.className = "result-meta";
-      meta.textContent = `${text(result.collection)} | ${text(result.classification)} | chunk ${text(result.chunk_index)}`;
-
-      const excerpt = document.createElement("p");
-      excerpt.className = "result-excerpt";
-      excerpt.textContent = text(result.excerpt);
-
-      card.append(title, path, meta, excerpt);
-      card.addEventListener("click", () => selectResult(index));
-      els.results.appendChild(card);
-    });
-  }
-
-  function clearDetail() {
-    state.selectedIndex = -1;
-    els.detailTitle.textContent = "Select a result";
-    els.detailSourcePath.textContent = "Not selected";
-    els.detailClassification.textContent = "Not selected";
-    els.detailDocumentId.textContent = "Not selected";
-    els.detailChunk.textContent = "Not selected";
-    els.detailLocator.textContent = "Not selected";
-    els.detailExcerpt.textContent = "Choose a search result to inspect the retrieved passage and trace metadata.";
-    els.copyCitation.disabled = true;
-    els.copySource.disabled = true;
-  }
-
-  function selectResult(index) {
-    const result = state.visibleResults[index];
-    if (!result) {
-      clearDetail();
+    if (state.mode === "loading") {
+      elements.results.innerHTML = '<p class="empty-state">Searching private library...</p>';
+      setStatus("Searching");
       return;
     }
 
-    state.selectedIndex = index;
-    els.detailTitle.textContent = text(result.title);
-    els.detailSourcePath.textContent = text(result.source_path);
-    els.detailClassification.textContent = text(result.classification);
-    els.detailDocumentId.textContent = text(result.document_id);
-    els.detailChunk.textContent = text(result.chunk_index);
-    els.detailLocator.textContent = text(result.locator);
-    els.detailExcerpt.textContent = text(result.excerpt);
-    els.copyCitation.disabled = false;
-    els.copySource.disabled = false;
+    if (state.error) {
+      elements.results.innerHTML = `<p class="empty-state">${escapeHtml(state.error)}</p>`;
+      setStatus("Search unavailable");
+      return;
+    }
 
-    Array.from(els.results.querySelectorAll(".result-card")).forEach((card, cardIndex) => {
-      card.setAttribute("aria-selected", String(cardIndex === index));
-    });
+    if (!state.results.length) {
+      elements.results.innerHTML = '<p class="empty-state">No matching operations records found.</p>';
+      setStatus("No results");
+      return;
+    }
+
+    elements.results.innerHTML = state.results
+      .map((result) => {
+        const score = result.score ? `${Math.round(result.score * 100)}% match` : "Match";
+        const path = result.path ? `<p class="result-path">${escapeHtml(result.path)}</p>` : "";
+        const updated = result.updated_at
+          ? `<span>${escapeHtml(result.updated_at.replace("T", " ").replace("Z", " UTC"))}</span>`
+          : "";
+
+        return `
+          <article class="result-card" data-result-id="${escapeHtml(result.id)}">
+            <div class="result-card__header">
+              <h2>${escapeHtml(result.title)}</h2>
+              <span class="score">${escapeHtml(score)}</span>
+            </div>
+            ${path}
+            <p>${escapeHtml(result.snippet)}</p>
+            <footer>
+              <span>${escapeHtml(result.collection)}</span>
+              ${updated}
+            </footer>
+          </article>
+        `;
+      })
+      .join("");
+
+    setStatus(state.mode === "live" ? "Live results" : "Fixture fallback");
   }
 
-  function applySearch() {
-    const query = normalize(els.query.value).trim();
-    const collection = els.collection.value;
-    const limit = Math.max(1, Math.min(Number(els.limit.value) || 5, 20));
+  async function loadFixture(query, collection, limit) {
+    const response = await fetch(FIXTURE_PATH, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Fixture request failed with ${response.status}`);
+    }
 
-    state.visibleResults = state.allResults
+    const payload = await response.json();
+    const terms = query
+      .toLowerCase()
+      .split(/\s+/)
+      .map((term) => term.trim())
+      .filter(Boolean);
+
+    const results = (payload.results || [])
+      .map(normalizeResult)
       .filter((result) => result.collection === collection)
-      .filter((result) => resultMatchesQuery(result, query))
+      .filter((result) => {
+        if (!terms.length) {
+          return true;
+        }
+        const haystack = `${result.title} ${result.path} ${result.snippet} ${result.id}`.toLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      })
       .slice(0, limit);
 
-    els.resultsTitle.textContent = query ? `Results for "${els.query.value.trim()}"` : "All Results";
-    state.selectedIndex = state.visibleResults.length ? 0 : -1;
-    renderResults();
-
-    if (state.selectedIndex >= 0) {
-      selectResult(state.selectedIndex);
-    }
+    return {
+      mode: "fixture",
+      results,
+    };
   }
 
-  async function copyText(value) {
-    if (!navigator.clipboard) {
-      return;
-    }
-    await navigator.clipboard.writeText(value);
-  }
+  async function search(query, collection, limit) {
+    state.mode = "loading";
+    state.error = "";
+    render();
 
-  function selectedResult() {
-    return state.visibleResults[state.selectedIndex] || null;
-  }
+    const params = new URLSearchParams({
+      q: query,
+      collection,
+      limit: String(limit),
+    });
 
-  async function loadFixture() {
-    setMessage("Loading fixture data.");
     try {
-      const response = await fetch("./private-library-search.fixture.json", { cache: "no-store" });
+      const response = await fetch(`${API_PATH}?${params.toString()}`, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+
       if (!response.ok) {
-        throw new Error(`Fixture request failed: ${response.status}`);
+        throw new Error(`Search request failed with ${response.status}`);
       }
-      return await response.json();
+
+      const payload = await response.json();
+      state.mode = payload.mode || "live";
+      state.results = (payload.results || []).map(normalizeResult);
+      render();
+      return;
     } catch (error) {
-      setMessage("Using embedded fixture data because fixture JSON could not be fetched in this browser context.");
-      return fallbackData;
+      try {
+        const fallback = await loadFixture(query, collection, limit);
+        state.mode = fallback.mode;
+        state.results = fallback.results;
+        render();
+      } catch (fixtureError) {
+        state.mode = "error";
+        state.error = "Search is unavailable and fixture fallback could not be loaded.";
+        state.results = [];
+        render();
+      }
     }
+  }
+
+  function currentQuery() {
+    if (elements.searchInput) {
+      return elements.searchInput.value.trim();
+    }
+    return state.query;
+  }
+
+  function currentCollection() {
+    if (elements.collection) {
+      return elements.collection.value || DEFAULT_COLLECTION;
+    }
+    return DEFAULT_COLLECTION;
+  }
+
+  function submitSearch(query) {
+    state.query = query;
+    state.collection = currentCollection();
+    search(state.query, state.collection, state.limit);
   }
 
   function bindEvents() {
-    els.form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      applySearch();
-    });
+    if (elements.form) {
+      elements.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitSearch(currentQuery());
+      });
+    }
 
-    document.querySelectorAll("[data-query]").forEach((button) => {
+    document.querySelectorAll("[data-query], .suggested-search, .chip").forEach((button) => {
       button.addEventListener("click", () => {
-        els.query.value = button.dataset.query || "";
-        applySearch();
+        const query = button.getAttribute("data-query") || button.textContent.trim();
+        if (elements.searchInput) {
+          elements.searchInput.value = query;
+        }
+        submitSearch(query);
       });
     });
-
-    els.copyCitation.addEventListener("click", async () => {
-      const result = selectedResult();
-      if (result) {
-        await copyText(`${result.title} (${result.source_path}) chunk ${result.chunk_index}`);
-      }
-    });
-
-    els.copySource.addEventListener("click", async () => {
-      const result = selectedResult();
-      if (result) {
-        await copyText(result.source_path);
-      }
-    });
   }
 
-  async function init() {
-    bindEvents();
-    const data = await loadFixture();
-    state.allResults = Array.isArray(data.results) ? data.results : [];
-    applySearch();
-  }
-
-  init();
+  bindEvents();
+  submitSearch(currentQuery());
 })();
 
