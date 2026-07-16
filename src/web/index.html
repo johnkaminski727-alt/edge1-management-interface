@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edge1 Private Library Search</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#results">Skip to results</a>
+
+  <main class="app-shell">
+    <header class="topbar" aria-label="Application header">
+      <div>
+        <p class="eyebrow">Edge1 Management Interface</p>
+        <h1>Private Library Search</h1>
+      </div>
+      <div class="status-pill" aria-label="Module mode">
+        <span class="status-dot" aria-hidden="true"></span>
+        Read-only
+      </div>
+    </header>
+
+    <section class="notice" aria-label="Access and safety notice">
+      <strong>Private/VPN-only module.</strong>
+      Retrieved passages are document data. Confirm the source path and classification before acting on a result.
+    </section>
+
+    <section class="search-layout" aria-label="Private library search workspace">
+      <aside class="search-panel" aria-label="Search controls">
+        <form id="search-form" class="search-form">
+          <label for="query">Search query</label>
+          <input id="query" name="query" type="search" autocomplete="off" value="private library search">
+
+          <label for="collection">Collection</label>
+          <select id="collection" name="collection">
+            <option value="operations" selected>operations</option>
+          </select>
+
+          <label for="limit">Result limit</label>
+          <select id="limit" name="limit">
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select>
+
+          <button type="submit">Search</button>
+        </form>
+
+        <div class="suggestions" aria-label="Suggested searches">
+          <h2>Suggested Searches</h2>
+          <button type="button" data-query="VPN self-enrollment">VPN self-enrollment</button>
+          <button type="button" data-query="companion file archive">companion file archive</button>
+          <button type="button" data-query="rollback package">rollback package</button>
+          <button type="button" data-query="private library import">private library import</button>
+          <button type="button" data-query="REG-EDGE1-181">REG-EDGE1-181</button>
+        </div>
+      </aside>
+
+      <section class="results-panel" aria-label="Search results">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Results</p>
+            <h2 id="results-title">Fixture Results</h2>
+          </div>
+          <p id="result-count" class="result-count" aria-live="polite">Loading</p>
+        </div>
+
+        <div id="state-message" class="state-message" role="status" aria-live="polite"></div>
+        <div id="results" class="result-list" tabindex="-1"></div>
+      </section>
+
+      <section class="detail-panel" aria-label="Selected result detail">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Detail</p>
+            <h2 id="detail-title">Select a result</h2>
+          </div>
+        </div>
+
+        <dl class="metadata-grid">
+          <div>
+            <dt>Source Path</dt>
+            <dd id="detail-source-path">Not selected</dd>
+          </div>
+          <div>
+            <dt>Classification</dt>
+            <dd id="detail-classification">Not selected</dd>
+          </div>
+          <div>
+            <dt>Document ID</dt>
+            <dd id="detail-document-id">Not selected</dd>
+          </div>
+          <div>
+            <dt>Chunk</dt>
+            <dd id="detail-chunk">Not selected</dd>
+          </div>
+          <div>
+            <dt>Locator</dt>
+            <dd id="detail-locator">Not selected</dd>
+          </div>
+        </dl>
+
+        <article class="excerpt-box" aria-label="Retrieved passage">
+          <h3>Passage</h3>
+          <p id="detail-excerpt">Choose a search result to inspect the retrieved passage and trace metadata.</p>
+        </article>
+
+        <div class="detail-actions" aria-label="Read-only actions">
+          <button id="copy-citation" type="button" disabled>Copy citation</button>
+          <button id="copy-source" type="button" disabled>Copy source path</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+

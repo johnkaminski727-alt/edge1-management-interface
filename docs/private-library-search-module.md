@@ -58,3 +58,13 @@ Excluded from MVP:
 - Backend errors do not leak internals.
 - Retrieved text is visually treated as document data, not trusted UI copy.
 
+## First Static Implementation
+
+The initial implementation is dependency-free and lives in:
+
+- `src/web/index.html`
+- `src/web/styles.css`
+- `src/web/app.js`
+- `src/web/private-library-search.fixture.json`
+
+It currently searches fixture data locally. The next implementation step is to replace fixture loading with a narrow read-only local API endpoint while preserving the same result shape.

@@ -1,0 +1,374 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --panel-muted: #eef3f8;
+  --text: #182230;
+  --muted: #5d6b7a;
+  --line: #d7e0ea;
+  --accent: #1f5f99;
+  --accent-strong: #16466f;
+  --good: #1f7a4d;
+  --shadow: 0 1px 3px rgba(24, 34, 48, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+button:focus-visible:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  background: var(--text);
+  color: #fff;
+  border-radius: 6px;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.app-shell {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.topbar h1,
+.panel-heading h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.eyebrow {
+  margin: 0 0 0.2rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid #b9d5c8;
+  border-radius: 999px;
+  background: #edf8f2;
+  color: #155a38;
+  font-weight: 700;
+}
+
+.status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--good);
+}
+
+.notice {
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.notice strong {
+  color: var(--text);
+}
+
+.search-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 280px) minmax(360px, 1fr) minmax(320px, 430px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.search-panel,
+.results-panel,
+.detail-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.search-panel,
+.results-panel,
+.detail-panel {
+  padding: 1rem;
+}
+
+.search-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.search-form label {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.search-form input,
+.search-form select {
+  width: 100%;
+  min-height: 2.35rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  background: #fff;
+  color: var(--text);
+}
+
+.search-form button {
+  min-height: 2.45rem;
+  margin-top: 0.35rem;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.search-form button:hover,
+.search-form button:focus-visible {
+  background: var(--accent-strong);
+}
+
+.suggestions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.suggestions h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.98rem;
+}
+
+.suggestions button {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+}
+
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 0.85rem;
+}
+
+.result-count {
+  margin: 0;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.state-message {
+  color: var(--muted);
+}
+
+.state-message:empty {
+  display: none;
+}
+
+.result-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.result-card {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+}
+
+.result-card[aria-selected="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.result-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.result-card p {
+  margin: 0;
+}
+
+.result-path,
+.result-meta {
+  color: var(--muted);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.result-excerpt {
+  margin-top: 0.55rem;
+  color: var(--text);
+}
+
+.metadata-grid {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.metadata-grid div {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.metadata-grid dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metadata-grid dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.excerpt-box {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-muted);
+}
+
+.excerpt-box h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+}
+
+.excerpt-box p {
+  margin: 0;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.detail-actions button {
+  min-height: 2.3rem;
+  padding: 0.4rem 0.65rem;
+}
+
+@media (max-width: 1120px) {
+  .search-layout {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+
+  .detail-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    padding: 0.75rem;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .search-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-heading {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .search-panel,
+  .results-panel,
+  .detail-panel {
+    padding: 0.85rem;
+  }
+
+  .search-form button,
+  .suggestions button,
+  .result-card,
+  .detail-actions button {
+    min-height: 2.75rem;
+  }
+
+  .detail-actions {
+    display: grid;
+  }
+}
+

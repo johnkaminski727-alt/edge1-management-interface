@@ -7,4 +7,6 @@
 - Added mobile responsive behavior rules.
 - Added API contract fixture for private-library search results.
 - Added repository safety boundaries for secrets and large archive files.
-
+- Added dependency-free static Private Library Search UI.
+- Added fixture-backed search, result cards, detail panel, and copy actions.
+- Added static UI validation script.
