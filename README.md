@@ -47,6 +47,27 @@ See:
 
 - `docs/private-library-search-module.md`
 - `docs/mobile-responsive-rules.md`
+- `src/web/index.html`
+- `src/web/app.js`
+- `src/web/styles.css`
 - `src/api/private_library_search_contract.json`
 - `src/web/private-library-search.fixture.json`
 
+## Local Static Preview
+
+The first UI pass has no build step. Open `src/web/index.html` in a browser or serve the repo with a simple static server.
+
+```bash
+cd /opt/edge1-management-interface
+python3 -m http.server 8088 --directory src/web
+```
+
+Then browse to `http://127.0.0.1:8088/` from the host or through an approved private tunnel.
+
+## Validation
+
+```bash
+python3 tests/validate_static_ui.py
+python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
+python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
+```

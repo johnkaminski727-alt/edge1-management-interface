@@ -8,3 +8,8 @@ Initial test targets:
 - API wrapper clamps collection and limit
 - error responses do not leak backend internals
 
+Current validation command:
+
+```bash
+python3 tests/validate_static_ui.py
+```
