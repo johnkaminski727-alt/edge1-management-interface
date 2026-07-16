@@ -39,14 +39,31 @@ def load_fixture() -> dict[str, Any]:
 
 def normalize_result(item: dict[str, Any], index: int) -> dict[str, Any]:
     return {
-        "id": str(item.get("id") or item.get("document_id") or f"result-{index + 1}"),
-        "title": str(item.get("title") or item.get("name") or "Untitled result"),
-        "collection": str(item.get("collection") or "operations"),
-        "path": str(item.get("path") or item.get("source") or ""),
-        "updated_at": str(item.get("updated_at") or item.get("updated") or ""),
-        "score": float(item.get("score") or 0),
-        "snippet": str(item.get("snippet") or item.get("summary") or ""),
+        "id": str(item.get("id") or item.get("document_id") or item.get("file_id") or f"result-{index + 1}"),
+        "title": str(item.get("title") or item.get("name") or item.get("safe_name") or "Untitled result"),
+        "collection": str(item.get("collection") or item.get("collection_name") or "operations"),
+        "path": str(item.get("path") or item.get("committed_path") or item.get("source") or ""),
+        "updated_at": str(item.get("updated_at") or item.get("updated") or item.get("created_at") or ""),
+        "score": float(item.get("score") or item.get("rank") or 0),
+        "snippet": str(item.get("snippet") or item.get("summary") or item.get("text") or ""),
     }
+
+
+def extract_results(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+
+    for key in ("results", "documents", "items", "matches", "data"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+        if isinstance(value, dict):
+            nested = extract_results(value)
+            if nested:
+                return nested
+    return []
 
 
 def filter_fixture(query: str, collection: str, limit: int) -> dict[str, Any]:
@@ -80,20 +97,47 @@ def filter_fixture(query: str, collection: str, limit: int) -> dict[str, Any]:
     }
 
 
+def backend_headers() -> dict[str, str]:
+    headers = {"Accept": "application/json"}
+    extra = os.environ.get("EDGE1_LIBRARY_SEARCH_HEADERS", "").strip()
+    if extra:
+        try:
+            parsed = json.loads(extra)
+        except json.JSONDecodeError:
+            parsed = {}
+        if isinstance(parsed, dict):
+            headers.update({str(key): str(value) for key, value in parsed.items()})
+    return headers
+
+
 def query_backend(backend_url: str, query: str, collection: str, limit: int) -> dict[str, Any]:
-    params = urllib.parse.urlencode(
-        {"q": query, "collection": collection, "limit": str(limit)}
-    )
-    separator = "&" if "?" in backend_url else "?"
-    request = urllib.request.Request(
-        backend_url + separator + params,
-        headers={"Accept": "application/json"},
-        method="GET",
-    )
+    method = os.environ.get("EDGE1_LIBRARY_SEARCH_METHOD", "GET").strip().upper()
+    headers = backend_headers()
+
+    if method == "POST":
+        body = json.dumps({"q": query, "query": query, "collection": collection, "limit": limit}).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+        request = urllib.request.Request(
+            backend_url,
+            data=body,
+            headers=headers,
+            method="POST",
+        )
+    else:
+        params = urllib.parse.urlencode(
+            {"q": query, "query": query, "collection": collection, "limit": str(limit)}
+        )
+        separator = "&" if "?" in backend_url else "?"
+        request = urllib.request.Request(
+            backend_url + separator + params,
+            headers=headers,
+            method="GET",
+        )
+
     with urllib.request.urlopen(request, timeout=8) as response:
         body = response.read().decode("utf-8")
     payload = json.loads(body)
-    raw_results = payload.get("results", payload if isinstance(payload, list) else [])
+    raw_results = extract_results(payload)
     return {
         "query": query,
         "collection": collection,

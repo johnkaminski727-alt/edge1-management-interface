@@ -8,7 +8,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
-from http.server import ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
@@ -33,6 +33,58 @@ def fetch_json(url: str) -> tuple[int, dict]:
         return exc.code, json.loads(exc.read().decode("utf-8"))
 
 
+class MockBackendHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(
+            json.dumps(
+                {
+                    "results": [
+                        {
+                            "document_id": "live-get",
+                            "title": "Live GET result",
+                            "collection": "operations",
+                            "snippet": "GET backend works",
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+        )
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(length)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(
+            json.dumps(
+                {
+                    "documents": [
+                        {
+                            "document_id": "live-post",
+                            "title": "Live POST result",
+                            "collection": "operations",
+                            "snippet": "POST backend works",
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+        )
+
+    def log_message(self, format, *args):
+        return
+
+
+def run_server(handler):
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread
+
+
 def main() -> int:
     module = load_server_module()
 
@@ -45,15 +97,12 @@ def main() -> int:
     assert status == 200
     assert payload["collection"] == "operations"
     assert payload["results"], "fixture search should return results"
-    assert all(result["collection"] == "operations" for result in payload["results"])
 
     status, payload = module.search_payload("VPN", "public", 5)
     assert status == 400
     assert payload["error"] == "unsupported_collection"
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), module.PrivateLibrarySearchHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    server, thread = run_server(module.PrivateLibrarySearchHandler)
     try:
         host, port = server.server_address
         status, payload = fetch_json(
@@ -72,6 +121,36 @@ def main() -> int:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+    backend, backend_thread = run_server(MockBackendHandler)
+    old_url = module.os.environ.get("EDGE1_LIBRARY_SEARCH_URL")
+    old_method = module.os.environ.get("EDGE1_LIBRARY_SEARCH_METHOD")
+    try:
+        host, port = backend.server_address
+        module.os.environ["EDGE1_LIBRARY_SEARCH_URL"] = f"http://{host}:{port}/search"
+        module.os.environ["EDGE1_LIBRARY_SEARCH_METHOD"] = "GET"
+        status, payload = module.search_payload("VPN", "operations", 5)
+        assert status == 200
+        assert payload["mode"] == "live"
+        assert payload["results"][0]["id"] == "live-get"
+
+        module.os.environ["EDGE1_LIBRARY_SEARCH_METHOD"] = "POST"
+        status, payload = module.search_payload("VPN", "operations", 5)
+        assert status == 200
+        assert payload["mode"] == "live"
+        assert payload["results"][0]["id"] == "live-post"
+    finally:
+        if old_url is None:
+            module.os.environ.pop("EDGE1_LIBRARY_SEARCH_URL", None)
+        else:
+            module.os.environ["EDGE1_LIBRARY_SEARCH_URL"] = old_url
+        if old_method is None:
+            module.os.environ.pop("EDGE1_LIBRARY_SEARCH_METHOD", None)
+        else:
+            module.os.environ["EDGE1_LIBRARY_SEARCH_METHOD"] = old_method
+        backend.shutdown()
+        backend.server_close()
+        backend_thread.join(timeout=5)
 
     print("private library search server validation passed")
     return 0

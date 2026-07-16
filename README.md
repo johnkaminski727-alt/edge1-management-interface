@@ -84,3 +84,20 @@ The browser client calls `/api/private-library/search`. The wrapper is
 localhost-only by default, clamps result limits, and only allows the
 `operations` collection. If `EDGE1_LIBRARY_SEARCH_URL` is set, the wrapper
 forwards searches to that backend; otherwise it returns fixture-backed results.
+
+## Live Private Library Backend
+
+Discover a compatible local read-only library search backend:
+
+```bash
+python3 tools/discover_private_library_backend.py
+```
+
+If discovery succeeds, run the UI/API wrapper with the generated config:
+
+```bash
+bin/run_private_library_search.sh 8091
+```
+
+The wrapper supports GET and POST JSON backends through
+`config/private-library-search.env` while preserving fixture fallback behavior.
