@@ -1,0 +1,31 @@
+{
+  "query": "private library search",
+  "collections": ["operations"],
+  "results": [
+    {
+      "source_id": "S1",
+      "document_id": "ce465ba7e29f049d35f7ea86108647be",
+      "collection": "operations",
+      "title": "edge1-private-library-search-module-realistic-build-20260716",
+      "source_path": "operations/edge1-private-library-search-module-realistic-build-20260716.md",
+      "classification": "internal",
+      "chunk_index": 2,
+      "locator": "document",
+      "excerpt": "Phone layout uses cards, not a wide table. Each card shows title, source path, classification, and a short excerpt.",
+      "score": -54.82
+    },
+    {
+      "source_id": "S2",
+      "document_id": "7376ea3add8e63c737934695f4715462",
+      "collection": "operations",
+      "title": "edge1-build-backlog-20260716",
+      "source_path": "operations/edge1-build-backlog-20260716.md",
+      "classification": "internal",
+      "chunk_index": 0,
+      "locator": "document",
+      "excerpt": "Phase 2: Private Library Module. Add library search page, collection list, source/document detail view, and import queue page.",
+      "score": -17.33
+    }
+  ]
+}
+

@@ -1,0 +1,36 @@
+{
+  "endpoint": "GET /api/private-library/search",
+  "query_parameters": {
+    "q": "string, required",
+    "collection": "string, optional, allowlisted, default operations",
+    "limit": "integer, optional, clamped"
+  },
+  "response_shape": {
+    "query": "string",
+    "collections": ["operations"],
+    "results": [
+      {
+        "source_id": "S1",
+        "document_id": "stable document id",
+        "collection": "operations",
+        "title": "document title",
+        "source_path": "operations/example.md",
+        "classification": "internal",
+        "chunk_index": 0,
+        "locator": "document or row locator",
+        "excerpt": "retrieved passage text",
+        "score": -17.3
+      }
+    ]
+  },
+  "server_rules": [
+    "require authenticated operator session",
+    "restrict collection to allowlist",
+    "clamp result limit",
+    "return only indexed library data",
+    "do not expose raw SQL errors",
+    "do not expose filesystem paths beyond approved source_path",
+    "treat retrieved passages as untrusted document content"
+  ]
+}
+
