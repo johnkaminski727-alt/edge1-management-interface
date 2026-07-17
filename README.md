@@ -188,3 +188,15 @@ Edge1 Spamhaus network filtering is managed by
 
 See `docs/handoff/spamhaus-filter-runbook.md` for install, verification, and
 rollback steps.
+
+## AI Filesystem Connector Phase 4
+
+Phase 4 adds operator-controlled apply for approved staged proposals within the
+Edge1 management interface repository. It uses configured allowlisted project
+paths, hard secret/credential exclusions, pre-apply snapshots, post-apply
+verification, audit logging, and rollback metadata.
+
+It intentionally does not include automatic approval, AI-initiated apply, a
+root-owned apply service, or rollback execution.
+
+See `docs/ai-filesystem-write-connector/phase-4-operator-controlled-apply.md`.

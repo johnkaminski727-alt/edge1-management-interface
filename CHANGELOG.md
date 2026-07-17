@@ -54,3 +54,11 @@
 - Added systemd service and timer units for recurring refresh.
 - Added installer and smoke-test scripts.
 - Added operator runbook and register entries for Edge1 Spamhaus filtering.
+
+## 2026-07-17 - AI Filesystem Connector Phase 4
+
+- Added operator-controlled apply for approved staged proposals.
+- Added configurable project path allowlist and hard deny rules.
+- Added pre-apply snapshots, post-apply verification, and rollback metadata.
+- Added JSONL audit logging for apply actions.
+- Preserved the no-auto-approval/no-AI-apply/no-root-service/no-rollback-execution boundary.
