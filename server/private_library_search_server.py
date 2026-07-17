@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,10 +19,15 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = REPO_ROOT / "src" / "web"
-FIXTURE_PATH = WEB_ROOT / "fixtures" / "private-library-search-results.json"
+FIXTURE_PATHS = [
+    WEB_ROOT / "fixtures" / "private-library-search-results.json",
+    WEB_ROOT / "private-library-search.fixture.json",
+]
 ALLOWED_COLLECTIONS = {"operations"}
 DEFAULT_LIMIT = 10
-MAX_LIMIT = 25
+MAX_LIMIT = 20
+DEFAULT_GATEWAY_ROOT = Path("/opt/bigbird-ai-gateway")
+DEFAULT_LIBRARY_DB = Path("/var/lib/bigbird-ai-library/library.sqlite3")
 
 
 def clamp_limit(raw_limit: str | None) -> int:
@@ -34,31 +41,46 @@ def clamp_limit(raw_limit: str | None) -> int:
 
 
 def load_fixture() -> dict[str, Any]:
-    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    for path in FIXTURE_PATHS:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    return {"query": "", "collection": "operations", "mode": "fixture", "results": []}
 
 
-def normalize_result(item: dict[str, Any], index: int) -> dict[str, Any]:
+def result_attr(item: Any, name: str, fallback: Any = "") -> Any:
+    if isinstance(item, dict):
+        return item.get(name, fallback)
+    return getattr(item, name, fallback)
+
+
+def normalize_result(item: Any, index: int) -> dict[str, Any]:
+    document_id = result_attr(item, "document_id", "") or result_attr(item, "id", "")
+    chunk_index = result_attr(item, "chunk_index", "")
+    result_id = result_attr(item, "id", "")
+    if document_id and chunk_index != "":
+        result_id = f"{document_id}:{chunk_index}"
+    elif document_id:
+        result_id = document_id
     return {
-        "id": str(item.get("id") or item.get("document_id") or item.get("file_id") or f"result-{index + 1}"),
-        "title": str(item.get("title") or item.get("name") or item.get("safe_name") or "Untitled result"),
-        "collection": str(item.get("collection") or item.get("collection_name") or "operations"),
-        "path": str(item.get("path") or item.get("committed_path") or item.get("source") or ""),
-        "updated_at": str(item.get("updated_at") or item.get("updated") or item.get("created_at") or ""),
-        "score": float(item.get("score") or item.get("rank") or 0),
-        "snippet": str(item.get("snippet") or item.get("summary") or item.get("text") or ""),
+        "id": str(result_id or result_attr(item, "file_id", "") or f"result-{index + 1}"),
+        "title": str(result_attr(item, "title", "") or result_attr(item, "name", "") or result_attr(item, "safe_name", "") or "Untitled result"),
+        "collection": str(result_attr(item, "collection", "") or result_attr(item, "collection_name", "") or "operations"),
+        "path": str(result_attr(item, "source_path", "") or result_attr(item, "path", "") or result_attr(item, "committed_path", "") or result_attr(item, "source", "")),
+        "updated_at": str(result_attr(item, "updated_at", "") or result_attr(item, "updated", "") or result_attr(item, "created_at", "")),
+        "score": float(result_attr(item, "score", 0) or result_attr(item, "rank", 0) or 0),
+        "snippet": str(result_attr(item, "excerpt", "") or result_attr(item, "snippet", "") or result_attr(item, "summary", "") or result_attr(item, "text", "")),
     }
 
 
-def extract_results(payload: Any) -> list[dict[str, Any]]:
+def extract_results(payload: Any) -> list[Any]:
     if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)]
+        return payload
     if not isinstance(payload, dict):
         return []
-
     for key in ("results", "documents", "items", "matches", "data"):
         value = payload.get(key)
         if isinstance(value, list):
-            return [item for item in value if isinstance(item, dict)]
+            return value
         if isinstance(value, dict):
             nested = extract_results(value)
             if nested:
@@ -94,6 +116,51 @@ def filter_fixture(query: str, collection: str, limit: int) -> dict[str, Any]:
         "collection": collection,
         "mode": "fixture",
         "results": results[:limit],
+    }
+
+
+def direct_search_enabled() -> bool:
+    return os.environ.get("EDGE1_LIBRARY_DIRECT_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
+
+
+def direct_search(query: str, collection: str, limit: int) -> dict[str, Any] | None:
+    if not direct_search_enabled():
+        return None
+
+    gateway_root = Path(os.environ.get("EDGE1_BIGBIRD_GATEWAY_ROOT", str(DEFAULT_GATEWAY_ROOT)))
+    library_db = Path(os.environ.get("BB_LIBRARY_DB", str(DEFAULT_LIBRARY_DB)))
+    if not gateway_root.is_dir() or not library_db.is_file():
+        return None
+
+    gateway_root_string = str(gateway_root)
+    if gateway_root_string not in sys.path:
+        sys.path.insert(0, gateway_root_string)
+
+    try:
+        engine = importlib.import_module("app.library_engine")
+        if engine.contains_secret(query):
+            return {
+                "query": query,
+                "collection": collection,
+                "mode": "live_direct",
+                "results": [],
+                "warning": "query rejected by secret-pattern guard",
+            }
+        raw_results = engine.search_library(
+            library_db,
+            query,
+            [collection],
+            limit=limit,
+            excerpt_chars=1200,
+        )
+    except Exception:
+        return None
+
+    return {
+        "query": query,
+        "collection": collection,
+        "mode": "live_direct",
+        "results": [normalize_result(item, index) for index, item in enumerate(raw_results)],
     }
 
 
@@ -142,11 +209,7 @@ def query_backend(backend_url: str, query: str, collection: str, limit: int) -> 
         "query": query,
         "collection": collection,
         "mode": "live",
-        "results": [
-            normalize_result(item, index)
-            for index, item in enumerate(raw_results[:limit])
-            if isinstance(item, dict)
-        ],
+        "results": [normalize_result(item, index) for index, item in enumerate(raw_results[:limit])],
     }
 
 
@@ -159,6 +222,10 @@ def search_payload(query: str, collection: str, limit: int) -> tuple[int, dict[s
                 "message": "Only the operations collection is available.",
             },
         )
+
+    direct = direct_search(query, collection, limit)
+    if direct is not None:
+        return HTTPStatus.OK, direct
 
     backend_url = os.environ.get("EDGE1_LIBRARY_SEARCH_URL", "").strip()
     if backend_url:
@@ -226,4 +293,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

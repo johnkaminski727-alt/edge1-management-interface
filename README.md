@@ -101,3 +101,17 @@ bin/run_private_library_search.sh 8091
 
 The wrapper supports GET and POST JSON backends through
 `config/private-library-search.env` while preserving fixture fallback behavior.
+
+## Direct Private Library Search
+
+The local search wrapper first tries Big Bird's read-only SQLite FTS5 library
+engine directly:
+
+```bash
+bin/run_private_library_search.sh 8091
+```
+
+The direct bridge uses `/opt/bigbird-ai-gateway/app/library_engine.py` and
+`/var/lib/bigbird-ai-library/library.sqlite3` by default. Successful direct
+responses use `"mode": "live_direct"`. If the engine or DB is unavailable, the
+wrapper preserves the existing HTTP-backend and fixture fallback behavior.
