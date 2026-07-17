@@ -124,3 +124,15 @@ The Private Library Search module is wired to the local read-only Big Bird
 library engine and returns `mode: live_direct` when the SQLite library database
 is readable by the wrapper process. Fixture fallback remains available for
 offline validation.
+
+## Autonomous Completion
+
+Project controls for autonomous completion live under
+`docs/autonomous-completion/`. The master register is
+`registers/autonomous-completion-register-20260717.md`.
+
+Run the read-only verifier at any handoff point:
+
+```bash
+python3 tools/handoff/verify_handoff_state.py
+```

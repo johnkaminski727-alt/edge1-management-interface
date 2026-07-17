@@ -8,3 +8,8 @@ Authoritative operational registers should continue to be committed to the Edge1
 
 See `registers/handoff-register-20260717.md` for the current handoff index,
 open items, verification evidence, and backup artifact expectations.
+
+## Autonomous Completion Register
+
+See `registers/autonomous-completion-register-20260717.md` for the current
+project-wide completion register and restore/handoff status.

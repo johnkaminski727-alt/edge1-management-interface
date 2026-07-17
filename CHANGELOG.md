@@ -17,3 +17,9 @@
 - Documented the live-direct private library search bridge.
 - Added a restricted private library backup script and runbook.
 - Added a handoff register for operator-facing status and next actions.
+
+## 2026-07-17 - Autonomous Completion Controls
+
+- Added autonomous project charter, guardrails, restore index, and acceptance checklist.
+- Added a master autonomous completion register.
+- Added a read-only handoff verifier for repo, docs, backup, and live search state.
