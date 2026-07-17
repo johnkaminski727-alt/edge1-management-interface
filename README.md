@@ -163,3 +163,11 @@ Key references:
 - docs/handoffs/NEW-CHAT-AI-FILESYSTEM-CONNECTOR.md
 
 Safety boundary: MCP can stage docs-only proposals and read status/diff/audit. Approval, apply, and rollback remain operator/root-only.
+
+## AI Filesystem Connector Phase 2
+
+Phase 2 implements staged proposal intake, inspection, validation, and JSONL
+audit logging only. It intentionally does not include production apply,
+automatic approval, a root apply service, or rollback execution.
+
+See `docs/ai-filesystem-write-connector/phase-2-staged-proposal-intake.md`.

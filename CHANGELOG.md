@@ -31,3 +31,11 @@
   tracks.
 - Added an autonomous-completion register index.
 - Extended handoff verification to require the combined register files.
+
+## 2026-07-17 - AI Filesystem Connector Phase 2
+
+- Added `bin/bigbird-fsctl` for staged proposal intake and inspection.
+- Added conservative path/content validation for staged proposals.
+- Added JSONL audit logging for stage, list, show, diff, and validate actions.
+- Added a Phase 2 smoke validation test.
+- Preserved the no-apply/no-root-service/no-auto-approval boundary.
