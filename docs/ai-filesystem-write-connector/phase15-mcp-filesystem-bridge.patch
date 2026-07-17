@@ -1,0 +1,171 @@
+## mcp_server.py
+--- /root/mcp_server.py.phase15.20260717T064334Z.bak	2026-07-14 05:51:41.657380201 +0000
++++ /opt/bigbird-ai-gateway/app/mcp_server.py	2026-07-17 06:43:40.070448450 +0000
+@@ -3,6 +3,8 @@
+ 
+ import json
+ import os
++import subprocess
++import tempfile
+ import time
+ from pathlib import Path
+ from typing import Any
+@@ -30,6 +32,8 @@
+ IMPORT_APPROVALS_ROOT = Path(os.getenv("BB_IMPORT_APPROVALS_ROOT", "/var/lib/bigbird-ai-import/approvals"))
+ MCP_AUDIT_LOG = Path(os.getenv("BB_MCP_AUDIT_LOG", "/var/log/bigbird-ai-mcp/audit.jsonl"))
+ IMPORT_ENABLED = os.getenv("BB_MCP_IMPORT_ENABLED", "false").lower() == "true"
++FSCTL = Path(os.getenv("BB_FSCTL", "/usr/local/sbin/bigbird-fsctl"))
++FS_MCP_ENABLED = os.getenv("BB_MCP_FS_ENABLED", "true").lower() == "true"
+ MAX_IMPORT_BYTES = max(1024, min(int(os.getenv("BB_IMPORT_MAX_FILE_BYTES", str(25 * 1024 * 1024))), 100 * 1024 * 1024))
+ MAX_UNCOMPRESSED_BYTES = max(MAX_IMPORT_BYTES, min(int(os.getenv("BB_IMPORT_MAX_UNCOMPRESSED_BYTES", str(100 * 1024 * 1024))), 300 * 1024 * 1024))
+ IMPORT_TTL_SECONDS = max(900, min(int(os.getenv("BB_IMPORT_TTL_SECONDS", "86400")), 7 * 86400))
+@@ -331,5 +335,114 @@
+     return {"version": APP_VERSION, "enabled": True, **result}
+ 
+ 
++def run_fsctl(args: list[str], input_text: str | None = None) -> subprocess.CompletedProcess[str]:
++    if not FS_MCP_ENABLED:
++        raise RuntimeError("Filesystem MCP bridge is disabled")
++    if not FSCTL.is_file():
++        raise RuntimeError("bigbird-fsctl is not installed")
++    return subprocess.run(
++        [str(FSCTL), *args],
++        input=input_text,
++        text=True,
++        capture_output=True,
++        timeout=15,
++        check=False,
++    )
++
++
++def parse_json_output(proc: subprocess.CompletedProcess[str]) -> dict[str, Any]:
++    if proc.returncode != 0:
++        raise RuntimeError((proc.stderr or proc.stdout or "fsctl command failed")[:1200])
++    try:
++        return json.loads(proc.stdout)
++    except json.JSONDecodeError:
++        return {"text": proc.stdout}
++
++
++@mcp.tool(
++    name="bigbird.fs.stage",
++    title="Stage filesystem proposal",
++    description=(
++        "Stage a docs-only filesystem proposal through bigbird-fsctl. "
++        "This cannot approve, apply, or roll back changes; operator shell approval remains mandatory."
++    ),
++    annotations=BOUNDED_WRITE,
++    structured_output=True,
++)
++def fs_stage(
++    target: str = Field(pattern=r"^/opt/edge1-management-interface/docs/[A-Za-z0-9._/\-]+$"),
++    content: str = Field(min_length=1, max_length=200000),
++    actor: str = Field(default="mcp", min_length=1, max_length=80),
++    reason: str = Field(min_length=3, max_length=240),
++) -> dict[str, Any]:
++    if contains_secret(content) or contains_secret(reason):
++        raise ValueError("Filesystem proposal appears to contain sensitive credentials")
++    with tempfile.NamedTemporaryFile("w", encoding="utf-8", prefix="bigbird-fs-stage-", suffix=".md", delete=False) as handle:
++        handle.write(content)
++        source = handle.name
++    try:
++        result = parse_json_output(run_fsctl([
++            "stage",
++            "--source", source,
++            "--target", target,
++            "--actor", actor,
++            "--reason", reason,
++        ]))
++    finally:
++        try:
++            Path(source).unlink()
++        except FileNotFoundError:
++            pass
++    audit("mcp_fs_staged", {"stage_id": result.get("stage_id"), "target": target})
++    return {
++        "version": APP_VERSION,
++        "enabled": FS_MCP_ENABLED,
++        "status": result.get("status", "staged"),
++        "stage": result,
++        "next_step": "Operator must inspect/diff, approve with sudo bigbird-fsctl approve --by <name>, then apply from shell.",
++    }
++
++
++@mcp.tool(
++    name="bigbird.fs.status",
++    title="Read filesystem stage status",
++    description="Read one bigbird-fsctl stage status without changing it.",
++    annotations=READ_ONLY,
++    structured_output=True,
++)
++def fs_status(stage_id: str = Field(pattern=r"^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$")) -> dict[str, Any]:
++    result = parse_json_output(run_fsctl(["status", stage_id]))
++    audit("mcp_fs_status", {"stage_id": stage_id, "found": bool(result)})
++    return {"version": APP_VERSION, "stage": result}
++
++
++@mcp.tool(
++    name="bigbird.fs.diff",
++    title="Read filesystem stage diff",
++    description="Read one bigbird-fsctl stage diff without changing it.",
++    annotations=READ_ONLY,
++    structured_output=True,
++)
++def fs_diff(stage_id: str = Field(pattern=r"^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$")) -> dict[str, Any]:
++    proc = run_fsctl(["diff", stage_id, "--actor", "mcp"])
++    if proc.returncode != 0:
++        raise RuntimeError((proc.stderr or proc.stdout or "fsctl diff failed")[:1200])
++    audit("mcp_fs_diff", {"stage_id": stage_id, "chars": len(proc.stdout)})
++    return {"version": APP_VERSION, "stage_id": stage_id, "diff": proc.stdout}
++
++
++@mcp.tool(
++    name="bigbird.fs.audit",
++    title="Read filesystem connector audit",
++    description="Read recent bigbird-fsctl audit events.",
++    annotations=READ_ONLY,
++    structured_output=True,
++)
++def fs_audit(limit: int = Field(default=20, ge=1, le=100)) -> dict[str, Any]:
++    result = parse_json_output(run_fsctl(["audit", "--limit", str(limit)]))
++    audit("mcp_fs_audit", {"limit": limit})
++    return {"version": APP_VERSION, "audit": result}
++
++
+ if __name__ == "__main__":
+     mcp.run(transport="stdio")
+
+## mcp_smoke_test.py
+--- /root/mcp_smoke_test.py.phase15.20260717T064334Z.bak	2026-07-14 05:51:41.661380137 +0000
++++ /opt/bigbird-ai-gateway/app/mcp_smoke_test.py	2026-07-17 06:45:23.580801916 +0000
+@@ -19,6 +19,10 @@
+     "bigbird.import.inspect",
+     "bigbird.import.status",
+     "bigbird.import.commit",
++    "bigbird.fs.stage",
++    "bigbird.fs.status",
++    "bigbird.fs.diff",
++    "bigbird.fs.audit",
+ }
+ 
+ 
+@@ -38,14 +42,16 @@
+                 annotations = tool.annotations
+                 if annotations is None:
+                     raise RuntimeError(f"Missing annotations: {tool.name}")
+-                if tool.name.startswith("bigbird.import.") and tool.name in {
+-                    "bigbird.import.stage", "bigbird.import.commit"
++                if tool.name in {
++                    "bigbird.import.stage",
++                    "bigbird.import.commit",
++                    "bigbird.fs.stage",
+                 }:
+                     if annotations.readOnlyHint is not False:
+                         raise RuntimeError(f"Write tool misclassified: {tool.name}")
+                 elif annotations.readOnlyHint is not True:
+                     raise RuntimeError(f"Read tool misclassified: {tool.name}")
+-                expected_open_world = tool.name == "bigbird.import.stage"
++                expected_open_world = tool.name in {"bigbird.import.stage", "bigbird.fs.stage"}
+                 if annotations.openWorldHint is not expected_open_world:
+                     raise RuntimeError(f"Open-world annotation mismatch: {tool.name}")
+                 if annotations.destructiveHint is not False:
