@@ -110,13 +110,7 @@ drop6 = parse_networks(work_dir / "dropv6.txt", 6) if have_v6 else []
 if len(drop4) < 1:
     raise SystemExit("Spamhaus DROP list parsed as empty; refusing to change nftables")
 
-def collapse_networks(items: list[str]) -> list[str]:
-    networks = [ipaddress.ip_network(item) for item in items]
-    return [str(network) for network in ipaddress.collapse_addresses(networks)]
-
-
-all4 = collapse_networks(drop4 + edrop4)
-drop6 = collapse_networks(drop6)
+all4 = sorted(set(drop4 + edrop4), key=lambda item: ipaddress.ip_network(item))
 
 
 def elements(items: list[str]) -> str:
