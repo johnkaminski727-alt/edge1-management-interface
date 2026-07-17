@@ -15,6 +15,8 @@ import difflib
 import hashlib
 import json
 import os
+import grp
+import pwd
 import re
 import shutil
 import sys
@@ -292,6 +294,21 @@ def atomic_write(path: Path, content: bytes) -> None:
             os.unlink(tmp_name)
 
 
+def preserve_repo_ownership(path: Path) -> dict[str, str] | None:
+    repo_root = Path("/opt/edge1-management-interface").resolve()
+    try:
+        path.resolve().relative_to(repo_root)
+    except ValueError:
+        return None
+
+    user = "wwadmin"
+    group = "wwadmin"
+    uid = pwd.getpwnam(user).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    os.chown(path, uid, gid)
+    return {"user": user, "group": group}
+
+
 def cmd_apply(args: argparse.Namespace) -> None:
     policy = load_policy()
     ensure_root("apply", bool(policy.get("require_root_for_apply", True)))
@@ -317,6 +334,7 @@ def cmd_apply(args: argparse.Namespace) -> None:
         marker.write_text("target did not exist before apply\n", encoding="utf-8")
 
     atomic_write(target_path, content)
+    ownership = preserve_repo_ownership(target_path)
     written_hash = sha256_bytes(target_path.read_bytes())
     if written_hash != metadata["proposed_sha256"]:
         append_audit(policy, {"event_type": "fs.apply_failed", "actor": "root-apply-processor", "stage_id": args.stage_id, "target": str(target), "error": "written hash mismatch"})
@@ -325,6 +343,7 @@ def cmd_apply(args: argparse.Namespace) -> None:
     metadata["status"] = "applied"
     metadata["applied_at"] = utc_now()
     metadata["backup_path"] = str(backup_file) if backup_file.exists() else str(marker)
+    metadata["ownership"] = ownership
     save_stage(policy, metadata)
     append_audit(policy, {
         "event_type": "fs.apply_succeeded",
@@ -333,8 +352,9 @@ def cmd_apply(args: argparse.Namespace) -> None:
         "target": str(target),
         "written_sha256": written_hash,
         "backup_path": metadata["backup_path"],
+        "ownership": ownership,
     })
-    print(json.dumps({"status": "applied", "stage_id": args.stage_id, "verified_sha256": written_hash}, indent=2))
+    print(json.dumps({"status": "applied", "stage_id": args.stage_id, "verified_sha256": written_hash, "ownership": ownership}, indent=2))
 
 
 def cmd_rollback(args: argparse.Namespace) -> None:

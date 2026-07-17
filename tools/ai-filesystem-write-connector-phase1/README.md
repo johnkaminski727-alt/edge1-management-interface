@@ -76,8 +76,9 @@ sudo bigbird-fsctl audit --limit 10
 
 ## Git Commit After Apply
 
-For changes inside `/opt/edge1-management-interface`, commit normally after
-reviewing the working tree:
+For changes inside `/opt/edge1-management-interface`, `apply` preserves
+`wwadmin:wwadmin` ownership so the repo owner can index and commit the result.
+Commit normally after reviewing the working tree:
 
 ```bash
 cd /opt/edge1-management-interface
