@@ -62,3 +62,10 @@
 - Added pre-apply snapshots, post-apply verification, and rollback metadata.
 - Added JSONL audit logging for apply actions.
 - Preserved the no-auto-approval/no-AI-apply/no-root-service/no-rollback-execution boundary.
+
+## 2026-07-17 - Spamhaus Handoff Finalized
+
+- Added final Spamhaus completion handoff and archive checklist.
+- Updated Spamhaus runbook with verified live counts and reporting workflow.
+- Added durable Edge1-to-ww.cx Spamhaus status push script.
+- Updated Spamhaus register with final operational evidence and rotation tasks.

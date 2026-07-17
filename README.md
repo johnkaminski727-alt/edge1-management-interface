@@ -200,3 +200,9 @@ It intentionally does not include automatic approval, AI-initiated apply, a
 root-owned apply service, or rollback execution.
 
 See `docs/ai-filesystem-write-connector/phase-4-operator-controlled-apply.md`.
+
+## Spamhaus Handoff
+
+Final handoff materials for the Edge1 Spamhaus filter live in
+`docs/handoff/spamhaus-filter-completion-handoff.md` and
+`registers/spamhaus-filter-register-20260717.md`.
