@@ -47,3 +47,10 @@
 - Added approval status inspection.
 - Added JSONL audit logging for approval-state actions.
 - Preserved the no-apply/no-root-service/no-auto-approval/no-rollback boundary.
+
+## 2026-07-17 - Spamhaus Filtering
+
+- Added an nftables-based Spamhaus DROP/EDROP update script.
+- Added systemd service and timer units for recurring refresh.
+- Added installer and smoke-test scripts.
+- Added operator runbook and register entries for Edge1 Spamhaus filtering.

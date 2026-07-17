@@ -1,0 +1,10 @@
+[Unit]
+Description=Update Big Bird Spamhaus nftables filter
+Documentation=https://www.spamhaus.org/drop/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bigbird-spamhaus-nft-update
+Nice=5

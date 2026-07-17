@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Big Bird Spamhaus nftables filter
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=6h
+RandomizedDelaySec=20min
+Persistent=true
+Unit=bigbird-spamhaus-filter.service
+
+[Install]
+WantedBy=timers.target

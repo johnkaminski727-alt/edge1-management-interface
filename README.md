@@ -179,3 +179,12 @@ Approval remains metadata only; it intentionally does not include production
 apply, automatic approval, a root apply service, or rollback execution.
 
 See `docs/ai-filesystem-write-connector/phase-3-operator-approval-metadata.md`.
+
+## Spamhaus Filtering
+
+Edge1 Spamhaus network filtering is managed by
+`tools/networking/spamhaus-nft-update.sh` and the
+`bigbird-spamhaus-filter.timer` systemd timer.
+
+See `docs/handoff/spamhaus-filter-runbook.md` for install, verification, and
+rollback steps.
