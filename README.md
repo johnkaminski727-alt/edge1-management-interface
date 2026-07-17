@@ -136,3 +136,17 @@ Run the read-only verifier at any handoff point:
 ```bash
 python3 tools/handoff/verify_handoff_state.py
 ```
+
+## Combined Registers
+
+The project-wide combined register is:
+
+```text
+registers/combined-project-register-20260717.md
+```
+
+The combined register index is:
+
+```text
+docs/autonomous-completion/04-combined-register-index.md
+```

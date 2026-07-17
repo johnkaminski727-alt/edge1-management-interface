@@ -23,3 +23,11 @@
 - Added autonomous project charter, guardrails, restore index, and acceptance checklist.
 - Added a master autonomous completion register.
 - Added a read-only handoff verifier for repo, docs, backup, and live search state.
+
+## 2026-07-17 - Combined Registers
+
+- Added a combined project register covering Edge1 management, Big Bird gateway,
+  private library imports, handoff/restore files, backups, and adjacent connector
+  tracks.
+- Added an autonomous-completion register index.
+- Extended handoff verification to require the combined register files.

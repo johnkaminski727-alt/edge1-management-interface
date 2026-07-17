@@ -13,3 +13,9 @@ open items, verification evidence, and backup artifact expectations.
 
 See `registers/autonomous-completion-register-20260717.md` for the current
 project-wide completion register and restore/handoff status.
+
+## Combined Project Register
+
+Use `registers/combined-project-register-20260717.md` as the top-level register
+for restore, handoff, project status, related connectors, and open finish-line
+items.
