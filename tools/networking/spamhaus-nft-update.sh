@@ -99,8 +99,8 @@ def parse_networks(path: Path, version: int) -> list[str]:
             raise SystemExit(f"{path.name}:{line_no}: expected IPv{version}, got {network}")
         if network.is_private or network.is_loopback or network.is_link_local or network.is_multicast:
             raise SystemExit(f"{path.name}:{line_no}: refusing suspicious network {network}")
-        networks.add(str(network))
-    return sorted(networks, key=lambda item: ipaddress.ip_network(item))
+        networks.add(network)
+    return [str(network) for network in ipaddress.collapse_addresses(sorted(networks))]
 
 
 drop4 = parse_networks(work_dir / "drop.txt", 4)
