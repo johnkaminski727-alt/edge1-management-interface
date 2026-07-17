@@ -20,3 +20,7 @@ Status: proposed
 - Initial connector scope remains limited to `/opt/edge1-management-interface`.
 - Approval and apply remain operator/root controlled.
 - Raw shell and unrestricted write access remain out of scope.
+
+## 2026-07-17: Phase 17 Documentation and Register Sync
+
+Updated Phase 16 validation handoff and AI filesystem connector register references.
