@@ -10,3 +10,10 @@
 - Added dependency-free static Private Library Search UI.
 - Added fixture-backed search, result cards, detail panel, and copy actions.
 - Added static UI validation script.
+
+## 2026-07-17 - Handoff Organization
+
+- Added handoff documentation for the Edge1 management interface.
+- Documented the live-direct private library search bridge.
+- Added a restricted private library backup script and runbook.
+- Added a handoff register for operator-facing status and next actions.

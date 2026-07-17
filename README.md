@@ -115,3 +115,12 @@ The direct bridge uses `/opt/bigbird-ai-gateway/app/library_engine.py` and
 `/var/lib/bigbird-ai-library/library.sqlite3` by default. Successful direct
 responses use `"mode": "live_direct"`. If the engine or DB is unavailable, the
 wrapper preserves the existing HTTP-backend and fixture fallback behavior.
+
+## Handoff Status
+
+Current handoff materials live under `docs/handoff/`.
+
+The Private Library Search module is wired to the local read-only Big Bird
+library engine and returns `mode: live_direct` when the SQLite library database
+is readable by the wrapper process. Fixture fallback remains available for
+offline validation.
