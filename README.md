@@ -150,3 +150,16 @@ The combined register index is:
 ```text
 docs/autonomous-completion/04-combined-register-index.md
 ```
+
+## AI Filesystem Connector Status
+
+The AI Filesystem Connector is complete for Phase 1 docs-only production use.
+
+Key references:
+
+- docs/ai-filesystem-write-connector/phase18-final-completion-handoff.md
+- docs/ai-filesystem-write-connector/phase16-operational-validation-handoff.md
+- docs/registers/ai-filesystem-connector-register-20260717.md
+- docs/handoffs/NEW-CHAT-AI-FILESYSTEM-CONNECTOR.md
+
+Safety boundary: MCP can stage docs-only proposals and read status/diff/audit. Approval, apply, and rollback remain operator/root-only.
