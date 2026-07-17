@@ -171,3 +171,11 @@ audit logging only. It intentionally does not include production apply,
 automatic approval, a root apply service, or rollback execution.
 
 See `docs/ai-filesystem-write-connector/phase-2-staged-proposal-intake.md`.
+
+## AI Filesystem Connector Phase 3
+
+Phase 3 adds operator approval and rejection metadata for staged proposals.
+Approval remains metadata only; it intentionally does not include production
+apply, automatic approval, a root apply service, or rollback execution.
+
+See `docs/ai-filesystem-write-connector/phase-3-operator-approval-metadata.md`.

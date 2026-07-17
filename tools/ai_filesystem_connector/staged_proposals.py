@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Staged proposal intake for the Edge1 AI filesystem connector.
 
-Phase 2 deliberately stops at staging, inspection, validation, and audit logs.
-There is no approval, apply, rollback, or production write path in this module.
+Phase 3 adds operator approval metadata for staged proposals.
+There is still no apply, rollback, or production write path in this module.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def append_audit(paths: Paths, event: str, payload: dict[str, Any]) -> None:
     record = {
         "ts": utc_now(),
         "event": event,
-        "phase": "phase2-staged-proposal-intake",
+        "phase": "phase3-operator-approval-metadata",
         **payload,
     }
     paths.audit_log.parent.mkdir(parents=True, exist_ok=True)
@@ -232,8 +232,10 @@ def stage_proposal(paths: Paths, proposal_path: Path) -> dict[str, Any]:
             "root_apply_service": False,
             "automatic_approval": False,
             "rollback_execution": False,
+            "operator_approval_metadata": True,
         },
         "validation_ok": validation["ok"],
+        "approval_status": "pending_review",
         "proposal": proposal,
     }
     write_json(stage_dir / "manifest.json", manifest)
@@ -257,6 +259,53 @@ def find_stage(stage_root: Path, stage_id: str) -> Path:
     return stage_dir
 
 
+def load_manifest(stage_dir: Path) -> dict[str, Any]:
+    return load_json(stage_dir / "manifest.json")
+
+
+def write_manifest(stage_dir: Path, manifest: dict[str, Any]) -> None:
+    write_json(stage_dir / "manifest.json", manifest)
+
+
+def approval_payload(status: str, operator: str, note: str | None) -> dict[str, Any]:
+    payload = {
+        "status": status,
+        "operator": operator,
+        "recorded_at": utc_now(),
+        "phase_boundary": {
+            "production_apply": False,
+            "root_apply_service": False,
+            "automatic_approval": False,
+            "rollback_execution": False,
+        },
+    }
+    if note:
+        payload["note"] = note
+    return payload
+
+
+def set_approval_status(paths: Paths, stage_id: str, status: str, operator: str, note: str | None) -> dict[str, Any]:
+    if not operator.strip():
+        raise ValueError("operator name is required")
+    stage_dir = find_stage(paths.stage_root, stage_id)
+    manifest = load_manifest(stage_dir)
+    if status == "approved" and not bool(manifest.get("validation_ok")):
+        raise ValueError("cannot approve a staged proposal that failed validation")
+
+    payload = approval_payload(status, operator.strip(), note)
+    write_json(stage_dir / "approval.json", payload)
+    manifest["approval_status"] = status
+    manifest["approval_recorded_at"] = payload["recorded_at"]
+    manifest["approval_operator"] = payload["operator"]
+    write_manifest(stage_dir, manifest)
+    append_audit(
+        paths,
+        f"stage_{status}",
+        {"stage_id": stage_id, "operator": payload["operator"], "has_note": bool(note)},
+    )
+    return {"ok": True, "stage_id": stage_id, "approval": payload}
+
+
 def command_stage(args: argparse.Namespace) -> int:
     paths = make_paths(args)
     manifest = stage_proposal(paths, Path(args.proposal).resolve())
@@ -275,6 +324,7 @@ def command_list(args: argparse.Namespace) -> int:
                 "stage_id": manifest.get("stage_id"),
                 "created_at": manifest.get("created_at"),
                 "validation_ok": manifest.get("validation_ok"),
+                "approval_status": manifest.get("approval_status", "unknown"),
                 "description": manifest.get("proposal", {}).get("description", ""),
             }
         )
@@ -286,7 +336,7 @@ def command_list(args: argparse.Namespace) -> int:
 def command_show(args: argparse.Namespace) -> int:
     paths = make_paths(args)
     stage_dir = find_stage(paths.stage_root, args.stage_id)
-    manifest = load_json(stage_dir / "manifest.json")
+    manifest = load_manifest(stage_dir)
     append_audit(paths, "stage_shown", {"stage_id": args.stage_id})
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
@@ -303,15 +353,55 @@ def command_diff(args: argparse.Namespace) -> int:
 def command_validate(args: argparse.Namespace) -> int:
     paths = make_paths(args)
     stage_dir = find_stage(paths.stage_root, args.stage_id)
-    manifest = load_json(stage_dir / "manifest.json")
+    manifest = load_manifest(stage_dir)
     validation = validate_proposal(paths.repo, manifest["proposal"])
     write_json(stage_dir / "validation.json", validation)
     manifest["validation_ok"] = validation["ok"]
     manifest["validated_at"] = validation["checked_at"]
-    write_json(stage_dir / "manifest.json", manifest)
+    if not validation["ok"] and manifest.get("approval_status") == "approved":
+        manifest["approval_status"] = "pending_review"
+        manifest["approval_reset_reason"] = "validation_failed_after_recheck"
+    write_manifest(stage_dir, manifest)
     append_audit(paths, "stage_validated", {"stage_id": args.stage_id, "validation_ok": validation["ok"]})
     print(json.dumps(validation, indent=2, sort_keys=True))
     return 0 if validation["ok"] else 1
+
+
+def command_approve(args: argparse.Namespace) -> int:
+    paths = make_paths(args)
+    result = set_approval_status(paths, args.stage_id, "approved", args.by, args.note)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+def command_reject(args: argparse.Namespace) -> int:
+    paths = make_paths(args)
+    result = set_approval_status(paths, args.stage_id, "rejected", args.by, args.reason)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+def command_status(args: argparse.Namespace) -> int:
+    paths = make_paths(args)
+    stage_dir = find_stage(paths.stage_root, args.stage_id)
+    manifest = load_manifest(stage_dir)
+    approval_path = stage_dir / "approval.json"
+    approval = load_json(approval_path) if approval_path.exists() else None
+    append_audit(paths, "stage_status_viewed", {"stage_id": args.stage_id})
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "stage_id": args.stage_id,
+                "validation_ok": manifest.get("validation_ok"),
+                "approval_status": manifest.get("approval_status", "unknown"),
+                "approval": approval,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
 
 
 def make_paths(args: argparse.Namespace) -> Paths:
@@ -326,7 +416,7 @@ def make_paths(args: argparse.Namespace) -> Paths:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bigbird-fsctl",
-        description="Edge1 AI filesystem connector Phase 2 staged proposal intake.",
+        description="Edge1 AI filesystem connector staged proposal intake and approval metadata.",
     )
     parser.add_argument("--repo", default=".", help="Target repository used for validation and diff context.")
     parser.add_argument("--stage-root", help="Staging root. Defaults to EDGE1_AI_FS_STAGE_ROOT or /var/lib.")
@@ -352,13 +442,33 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("stage_id")
     validate.set_defaults(func=command_validate)
 
+    status = subparsers.add_parser("status", help="Show validation and approval status for a staged proposal.")
+    status.add_argument("stage_id")
+    status.set_defaults(func=command_status)
+
+    approve = subparsers.add_parser("approve", help="Record operator approval metadata for a staged proposal.")
+    approve.add_argument("stage_id")
+    approve.add_argument("--by", required=True, help="Operator name or identifier.")
+    approve.add_argument("--note", help="Optional approval note.")
+    approve.set_defaults(func=command_approve)
+
+    reject = subparsers.add_parser("reject", help="Record operator rejection metadata for a staged proposal.")
+    reject.add_argument("stage_id")
+    reject.add_argument("--by", required=True, help="Operator name or identifier.")
+    reject.add_argument("--reason", help="Optional rejection reason.")
+    reject.set_defaults(func=command_reject)
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

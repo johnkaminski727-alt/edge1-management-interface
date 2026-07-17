@@ -39,3 +39,11 @@
 - Added JSONL audit logging for stage, list, show, diff, and validate actions.
 - Added a Phase 2 smoke validation test.
 - Preserved the no-apply/no-root-service/no-auto-approval boundary.
+
+## 2026-07-17 - AI Filesystem Connector Phase 3
+
+- Added approval metadata commands for staged proposals.
+- Added rejection metadata commands for staged proposals.
+- Added approval status inspection.
+- Added JSONL audit logging for approval-state actions.
+- Preserved the no-apply/no-root-service/no-auto-approval/no-rollback boundary.
