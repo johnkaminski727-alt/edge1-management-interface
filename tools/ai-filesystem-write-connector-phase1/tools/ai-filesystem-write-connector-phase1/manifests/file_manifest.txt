@@ -1,8 +1,0 @@
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/EDGE1_INSTALL_COMMANDS.md
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/GIT_IDENTITY.md
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/README.md
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/etc/bigbird-fsctl-policy.json
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/install.sh
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/samples/phase1-sample.md
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/sbin/bigbird-fsctl
-Edge1_AI_Filesystem_Write_Connector_Phase1_2026-07-16/tests/run-local-tests.sh
