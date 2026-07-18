@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-18 — Branch triage and release documentation completion
+
+- Adopted the smoke-test `REQUIRE_LIVE_DIRECT` hardening from `agent/big-bird-library`.
+- Adopted the release documentation index and acceptance checklist from
+  `agent/release-engineering-foundation`.
+- Wrote the six controlled release documents the index referenced but which
+  did not yet exist: rollback procedure, release evidence, artifact
+  retention, security release policy, provenance and preservation, and the
+  release notes template.
+- Added a release-documentation validation test (index links and required set).
+- Added a branch triage register covering all 18 remote branches with
+  adopt/keep/prune determinations and operator deletion commands.
+
 ## 2026-07-18 — Time Authority rollout simulation
 
 - added an end-to-end, non-production simulation for both server installers;
