@@ -1,0 +1,22 @@
+[Unit]
+Description=WW.CX Time Authority RTT Collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bigbird-time
+Group=bigbird-time
+ExecStart=/opt/edge1-management-interface/tools/time_authority/collect-edge1.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge1-time-authority
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

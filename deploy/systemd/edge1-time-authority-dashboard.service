@@ -1,0 +1,25 @@
+[Unit]
+Description=WW.CX Time Authority Read-Only Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=bigbird-time
+Group=bigbird-time
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/time_authority_server.py --host 127.0.0.1 --port 8092
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/edge1-time-authority
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

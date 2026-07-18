@@ -20,6 +20,8 @@ The project combines responsive browser tools, narrow API wrappers, service diag
 - Managed localhost-only service deployment
 - Staged and audited filesystem-change proposals
 - Operator-controlled approval, apply, and rollback boundaries
+- Dual-observer WW.CX Time Authority monitoring
+- Longitudinal NTP RTT, offset, stratum, and source-health records
 - Validation, smoke-test, handoff, and runbook assets
 
 ## Architecture at a glance
@@ -83,12 +85,25 @@ python3 -m http.server 8088 --directory src/web
 
 Then browse to `http://127.0.0.1:8088/` from the host or through an approved private tunnel.
 
+## WW.CX Time Authority
+
+The Time Authority package records read-only NTP measurements from Edge1 and the WW.CX shared host. It tracks public source names, resolved addresses, stratum, reference ID, RTT, estimated offset, dispersion, reachability, and expected-source conformance without changing either server clock.
+
+```bash
+python3 tests/validate_time_authority.py
+python3 server/time_authority_server.py --host 127.0.0.1 --port 8092
+```
+
+Deployment profiles, source registers, baseline observations, systemd units, and shared-host cron tooling are documented in `docs/handoff/time-authority-runbook.md`.
+
 ## Validation
 
 ```bash
 python3 tests/validate_static_ui.py
 python3 tests/validate_search_service_assets.py
+python3 tests/validate_time_authority.py
 python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
+python3 -m json.tool src/api/time_authority_contract.json >/dev/null
 python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
 ```
 

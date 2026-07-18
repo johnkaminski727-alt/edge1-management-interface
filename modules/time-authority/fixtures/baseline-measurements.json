@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "captured_date_utc": "2026-07-18",
+  "timestamp_precision": "date_only",
+  "records": [
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"netnod-sth1","server_name":"sth1.ntp.se","resolved_address":"194.58.202.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":58.19},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"netnod-sth2","server_name":"sth2.ntp.se","resolved_address":"194.58.202.148","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":59.68},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"netnod-mmo1","server_name":"mmo1.ntp.se","resolved_address":"194.58.204.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":62.54},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"nist-global","server_name":"time.nist.gov","resolved_address":"132.163.97.1","reachable":true,"stratum":1,"refid":"NIST","rtt_ms":141.40},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"cloudflare-global","server_name":"time.cloudflare.com","resolved_address":"162.159.200.123","reachable":true,"stratum":3,"refid":"10.145.8.6","rtt_ms":1.20},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"netnod-sth1","server_name":"sth1.ntp.se","resolved_address":"194.58.202.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":24.48},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"netnod-sth2","server_name":"sth2.ntp.se","resolved_address":"194.58.202.148","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":22.82},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"netnod-mmo1","server_name":"mmo1.ntp.se","resolved_address":"194.58.204.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":31.73},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"nist-global","server_name":"time.nist.gov","resolved_address":"132.163.97.4","reachable":true,"stratum":1,"refid":"NIST","rtt_ms":118.76},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"cloudflare-global","server_name":"time.cloudflare.com","resolved_address":"162.159.200.123","reachable":true,"stratum":3,"refid":"10.20.8.26","rtt_ms":1.94}
+  ]
+}

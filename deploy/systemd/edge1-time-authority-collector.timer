@@ -1,0 +1,11 @@
+[Unit]
+Description=Collect WW.CX Time Authority RTT measurements every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+RandomizedDelaySec=45
+Persistent=true
+Unit=edge1-time-authority-collector.service
+
+[Install]
+WantedBy=timers.target

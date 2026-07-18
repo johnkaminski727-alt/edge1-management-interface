@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/time-authority-measurement-v1.json",
+  "title": "WW.CX Time Authority Measurement",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "observed_at_utc",
+    "observer_id",
+    "observer_host",
+    "source_id",
+    "server_name",
+    "reachable"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "observed_at_utc": {"type": "string", "format": "date-time"},
+    "observer_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "observer_host": {"type": "string", "minLength": 1, "maxLength": 255},
+    "source_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "server_name": {"type": "string", "minLength": 1, "maxLength": 255},
+    "resolved_address": {"type": ["string", "null"]},
+    "reachable": {"type": "boolean"},
+    "stratum": {"type": ["integer", "null"], "minimum": 1, "maximum": 15},
+    "refid": {"type": ["string", "null"]},
+    "rtt_ms": {"type": ["number", "null"], "minimum": 0},
+    "network_delay_ms": {"type": ["number", "null"]},
+    "clock_offset_ms": {"type": ["number", "null"]},
+    "root_delay_ms": {"type": ["number", "null"]},
+    "root_dispersion_ms": {"type": ["number", "null"], "minimum": 0},
+    "expectation_ok": {"type": "boolean"},
+    "error": {"type": ["string", "null"], "maxLength": 256}
+  },
+  "additionalProperties": true
+}

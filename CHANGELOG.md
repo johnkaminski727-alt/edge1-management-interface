@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-18 — WW.CX Time Authority
+
+- registered the Netnod, NIST, and Cloudflare sources verified from Edge1 and shared hosting;
+- added independent Edge1 and shared-host RTT collectors using a common JSONL schema;
+- added a localhost-only read API and responsive Big Bird Time Authority dashboard;
+- added baseline measurements, deployment timers, validation, and an operator runbook.
+
 ## 2026-07-18 - Private Library Search Managed Service
 
 - Added a hardened localhost-only systemd unit for the search wrapper.
