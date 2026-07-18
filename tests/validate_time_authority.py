@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import importlib.util
+import csv
+import io
 import json
 import socket
 import struct
 import tempfile
 import threading
 import time
+import os
 from pathlib import Path
 
 
@@ -81,6 +84,8 @@ def validate_probe() -> None:
     probe_text = COLLECTOR_PATH.read_text(encoding="utf-8")
     assert "from __future__ import annotations" not in probe_text
     assert "socket.socket | None" not in probe_text
+    for unsupported in ("dict[", "list[", "tuple[", "set["):
+        assert unsupported not in probe_text
 
     fake = FakeNtpServer()
     fake.start()
@@ -120,6 +125,13 @@ def validate_dashboard() -> None:
     assert len(payload["observers"]) == 2
     assert dashboard.clamp_limit("1") == 10
     assert dashboard.clamp_limit("99999") == 5000
+    csv_rows = list(csv.DictReader(io.StringIO(dashboard.csv_payload(payload["history"]).decode("utf-8"))))
+    assert len(csv_rows) == 10
+    assert csv_rows[0]["Observer ID"] in {"edge1", "shared-host"}
+    assert csv_rows[0]["Server Name"]
+    handler_text = SERVER_PATH.read_text(encoding="utf-8")
+    for header in ("Content-Security-Policy", "Permissions-Policy", "X-Frame-Options", "X-Content-Type-Options"):
+        assert header in handler_text
 
 
 def validate_web() -> None:
@@ -129,9 +141,42 @@ def validate_web() -> None:
     html = (web / "index.html").read_text(encoding="utf-8")
     for required_id in ("summary-cards", "observer-filter", "rtt-chart", "measurement-rows"):
         assert f'id="{required_id}"' in html
+    assert "/api/time-authority/export.csv?limit=5000" in html
     fixture = json.loads((web / "fixtures" / "baseline-summary.json").read_text(encoding="utf-8"))
     assert fixture["mode"] == "baseline"
     assert len(fixture["latest"]) == 10
+
+
+def validate_deployment_assets() -> None:
+    deploy = ROOT / "deploy"
+    required_executables = (
+        "install-time-authority-edge1.sh",
+        "install-time-authority-shared-host.sh",
+        "time-authority-edge1-preflight.sh",
+        "time-authority-edge1-smoke-test.sh",
+        "time-authority-shared-host-smoke-test.sh",
+    )
+    for relative in required_executables:
+        path = deploy / relative
+        assert path.is_file(), relative
+        assert os.access(path, os.X_OK), relative
+
+    shared_installer = (deploy / "install-time-authority-shared-host.sh").read_text(encoding="utf-8")
+    assert "WWCX_TIME_AUTHORITY_INSTALL_CRON" in shared_installer
+    assert "crontab -" in shared_installer
+    assert "time-authority-shared-host-smoke-test.sh" in shared_installer
+
+    edge_installer = (deploy / "install-time-authority-edge1.sh").read_text(encoding="utf-8")
+    assert "time-authority-edge1-preflight.sh" in edge_installer
+    assert "time-authority-edge1-smoke-test.sh" in edge_installer
+
+    dashboard_unit = (deploy / "systemd" / "edge1-time-authority-dashboard.service").read_text(encoding="utf-8")
+    for directive in ("NoNewPrivileges=true", "ProtectSystem=strict", "127.0.0.1", "MemoryDenyWriteExecute=true"):
+        assert directive in dashboard_unit
+
+    workflow = ROOT / ".github" / "workflows" / "validate.yml"
+    assert workflow.is_file()
+    assert "python:3.6.15-slim-buster" in workflow.read_text(encoding="utf-8")
 
 
 def main() -> int:
@@ -139,6 +184,7 @@ def main() -> int:
     validate_probe()
     validate_dashboard()
     validate_web()
+    validate_deployment_assets()
     print("time authority validation passed")
     return 0
 

@@ -30,3 +30,9 @@ python3 tests/validate_time_authority.py
 ```
 
 See `docs/handoff/time-authority-runbook.md` for deployment and operations.
+
+The dashboard exposes a spreadsheet-ready export at:
+
+```text
+GET /api/time-authority/export.csv?limit=5000
+```

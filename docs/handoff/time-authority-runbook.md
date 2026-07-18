@@ -21,10 +21,11 @@ DNS remains authoritative. Addresses are recorded per measurement because anycas
 From `/opt/edge1-management-interface`:
 
 ```bash
+deploy/time-authority-edge1-preflight.sh
 sudo deploy/install-time-authority-edge1.sh
 ```
 
-The installer validates the package, creates the unprivileged `bigbird-time` service account, schedules collection every 15 minutes, starts the localhost-only dashboard on port 8092, performs an immediate collection, and checks `/healthz`.
+The installer validates the package, creates the unprivileged `bigbird-time` service account, schedules collection every 15 minutes, starts the localhost-only dashboard on port 8092, performs an immediate collection, and runs the production smoke test.
 
 Inspect status:
 
@@ -32,6 +33,7 @@ Inspect status:
 systemctl status edge1-time-authority-collector.timer --no-pager
 systemctl status edge1-time-authority-dashboard.service --no-pager
 curl -sS http://127.0.0.1:8092/api/time-authority/summary | python3 -m json.tool
+sudo deploy/time-authority-edge1-smoke-test.sh
 ```
 
 ## Shared-host installation
@@ -42,7 +44,7 @@ Transfer or check out the package on `business159.web-hosting.com`, then run:
 deploy/install-time-authority-shared-host.sh
 ```
 
-The installer performs one immediate probe and prints the cPanel cron entry. It does not modify the crontab automatically. Measurements remain private under `$HOME/private/wwcx-time-authority/measurements.jsonl` until an authenticated transfer path to Edge1 is enabled.
+The installer requires Python 3.6 or newer, performs one immediate probe, installs the 15-minute user crontab entry idempotently, and runs a shared-host smoke test. Set `WWCX_TIME_AUTHORITY_PYTHON` when cPanel provides the desired interpreter under a non-default path. Set `WWCX_TIME_AUTHORITY_INSTALL_CRON=0` only when cPanel will manage the schedule separately. Measurements remain private under `$HOME/private/wwcx-time-authority/measurements.jsonl` until an authenticated transfer path to Edge1 is enabled.
 
 ## Big Bird integration
 
@@ -50,7 +52,10 @@ The dashboard is available from `src/web/time-authority/` and supports the read-
 
 ```text
 GET /api/time-authority/summary?limit=2000
+GET /api/time-authority/export.csv?limit=5000
 ```
+
+The CSV export uses the same columns as the companion RTT tracking workbook and can be imported or appended without reshaping the measurement data.
 
 Place the dashboard behind the same approved private/VPN boundary as the existing management interface. Do not expose the localhost service directly to the public Internet.
 
@@ -64,6 +69,12 @@ EDGE1_TIME_AUTHORITY_DATA_PATHS=/var/lib/edge1-time-authority/measurements.jsonl
 
 ```bash
 sudo systemctl disable --now edge1-time-authority-collector.timer edge1-time-authority-dashboard.service
+```
+
+On shared hosting, remove only the exact managed cron line:
+
+```bash
+crontab -l | grep -Fv "$HOME/wwcx-time-authority/collect-shared-host.sh" | crontab -
 ```
 
 Removing the units does not delete collected measurements. Keep the JSONL files for audit and spreadsheet history unless an explicit retention decision is made.

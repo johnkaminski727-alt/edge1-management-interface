@@ -10,10 +10,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-test -r "$REPO_ROOT/tools/time_authority/ntp_rtt_probe.py"
-test -r "$REPO_ROOT/modules/time-authority/config/sources.json"
-python3 -m json.tool "$REPO_ROOT/modules/time-authority/config/sources.json" >/dev/null
-python3 "$REPO_ROOT/tests/validate_time_authority.py"
+EDGE1_MANAGEMENT_ROOT=$REPO_ROOT "$REPO_ROOT/deploy/time-authority-edge1-preflight.sh"
 
 if ! id "$SERVICE_USER" >/dev/null 2>&1; then
   useradd --system --home-dir "$DATA_DIR" --shell /usr/sbin/nologin "$SERVICE_USER"
@@ -30,5 +27,5 @@ systemctl enable --now edge1-time-authority-collector.timer
 systemctl enable --now edge1-time-authority-dashboard.service
 systemctl start edge1-time-authority-collector.service
 
-curl -fsS http://127.0.0.1:8092/healthz >/dev/null
+"$REPO_ROOT/deploy/time-authority-edge1-smoke-test.sh"
 echo "WW.CX Time Authority installed on Edge1."
