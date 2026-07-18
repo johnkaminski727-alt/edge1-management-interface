@@ -1,0 +1,109 @@
+name: Build release artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Optional release label for manual artifact builds
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_name="${GITHUB_REF_NAME}"
+          requested="${{ inputs.release_name }}"
+          if [[ -n "$requested" ]]; then
+            release_name="$requested"
+          else
+            release_name="$ref_name"
+          fi
+          safe_name="$(printf '%s' "$release_name" | tr -cs 'A-Za-z0-9._-' '-')"
+          echo "release_name=$release_name" >> "$GITHUB_OUTPUT"
+          echo "safe_name=$safe_name" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Run repository validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_file in tests/validate_*.py; do
+            python3 "$test_file"
+          done
+          python3 -m compileall -q bin server tests tools
+          find modules src schemas examples -type f -name '*.json' -print0 |
+            while IFS= read -r -d '' json_file; do
+              python3 -m json.tool "$json_file" >/dev/null
+            done
+          find bin deploy tools -type f -name '*.sh' -print0 |
+            while IFS= read -r -d '' shell_file; do
+              sh -n "$shell_file"
+            done
+
+      - name: Build reproducible source archive
+        shell: bash
+        env:
+          SAFE_NAME: ${{ steps.meta.outputs.safe_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          epoch="$(git show -s --format=%ct "$GITHUB_SHA")"
+          git archive --format=tar --prefix="edge1-management-interface-${SAFE_NAME}/" "$GITHUB_SHA" > dist/source.tar
+          gzip -n -9 dist/source.tar
+          mv dist/source.tar.gz "dist/edge1-management-interface-${SAFE_NAME}.tar.gz"
+          touch -d "@$epoch" "dist/edge1-management-interface-${SAFE_NAME}.tar.gz"
+
+      - name: Generate checksums and manifest
+        shell: bash
+        env:
+          RELEASE_NAME: ${{ steps.meta.outputs.release_name }}
+          SAFE_NAME: ${{ steps.meta.outputs.safe_name }}
+          COMMIT_SHA: ${{ steps.meta.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          archive="edge1-management-interface-${SAFE_NAME}.tar.gz"
+          (
+            cd dist
+            sha256sum "$archive" > SHA256SUMS
+          )
+          cat > dist/release-manifest.json <<EOF
+          {
+            "project": "edge1-management-interface",
+            "release": "${RELEASE_NAME}",
+            "commit": "${COMMIT_SHA}",
+            "repository": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}",
+            "workflow_run": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "artifact": "${archive}",
+            "checksum_file": "SHA256SUMS"
+          }
+          EOF
+          python3 -m json.tool dist/release-manifest.json >/dev/null
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge1-management-interface-${{ steps.meta.outputs.safe_name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
