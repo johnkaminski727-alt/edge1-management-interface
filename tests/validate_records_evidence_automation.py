@@ -42,6 +42,14 @@ def main() -> int:
 
     validator.validate_package(record_path, EXAMPLE_ROOT, manifest_path)
     source = json.loads(record_path.read_text(encoding="utf-8"))
+    schema = json.loads((ROOT / "schemas" / "records-evidence.schema.json").read_text(encoding="utf-8"))
+    properties = schema["properties"]
+    assert "responsible_role" in properties["authoritative_source"]["required"]
+    assert {"trigger", "minimum_years", "legal_hold"}.issubset(properties["retention_rule"]["required"])
+    assert properties["retention_rule"]["allOf"]
+    assert "agent_role" in properties["events"]["items"]["required"]
+    assert properties["objects"]["uniqueItems"] is True
+    assert "pattern" in properties["objects"]["items"]["properties"]["path"]
 
     traversal = copy.deepcopy(source)
     traversal["objects"][0]["path"] = "../private.txt"
