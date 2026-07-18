@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-18 - Private Library Search Managed Service
+
+- Added a hardened localhost-only systemd unit for the search wrapper.
+- Added a root installer with checkout-path and prerequisite checks.
+- Added a service smoke test covering bind scope, search mode, and the
+  disallowed-collection guard.
+- Added a repo-side asset validation test (no root or systemd required).
+- Added an operator runbook with install, verify, override, and rollback steps.
+- Added a service register with pending operator actions.
+- Preserved the localhost-only/no-route-exposure/read-only boundary.
+
 ## 0.1.0 - 2026-07-16
 
 - Initialized Edge1 management interface source repo.

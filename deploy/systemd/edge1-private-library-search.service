@@ -1,0 +1,38 @@
+[Unit]
+Description=Edge1 Private Library Search UI/API wrapper (localhost-only)
+Documentation=file:/opt/edge1-management-interface/docs/handoff/private-library-search-service-runbook.md
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/opt/edge1-management-interface/bin/run_private_library_search.sh 8091
+Restart=on-failure
+RestartSec=3
+Nice=5
+
+# Network guardrail: the wrapper binds 127.0.0.1 only; deny everything else
+# at the systemd level as defense in depth. Route exposure beyond localhost
+# requires explicit operator approval per project guardrails.
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Filesystem guardrails: read-only view of /usr, /boot, /efi, /etc; the
+# wrapper needs no write access of its own. ProtectSystem=full (not strict)
+# keeps /var writable so SQLite WAL/shm access to the library database can
+# never be silently broken; tighten to strict only after verifying
+# mode=live_direct under the service.
+ProtectSystem=full
+ProtectHome=read-only
+ReadOnlyPaths=/opt/edge1-management-interface
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
