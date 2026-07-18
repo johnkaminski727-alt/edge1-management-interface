@@ -106,6 +106,7 @@ python3 tests/validate_search_service_assets.py
 python3 tests/validate_time_authority.py
 python3 tests/validate_time_authority_collector_compat.py
 python3 tests/validate_records_evidence.py
+python3 tests/validate_records_evidence_automation.py
 python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
 python3 -m json.tool src/api/time_authority_contract.json >/dev/null
 python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
@@ -165,6 +166,10 @@ The repository uses a project-defined records-and-evidence control to keep engin
 
 - [Records and Evidence Policy](docs/records-governance/RECORDS_EVIDENCE_POLICY.md)
 - [Repository Evidence Map](docs/records-governance/EVIDENCE_MAP.md)
+- [Operational Records Evidence Program](docs/records-management/06-operational-evidence-program.md)
+- [Records Evidence Schema](schemas/records-evidence.schema.json)
+- [Sanitized Evidence Package](examples/records-evidence/)
+- [Repository Evidence Quality Index](docs/records-management/07-repository-quality-index.md)
 - [Automated repository validation](.github/workflows/validate.yml)
 
 ## Maintainer
