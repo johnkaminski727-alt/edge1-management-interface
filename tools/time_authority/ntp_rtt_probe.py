@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Collect bounded, read-only NTP RTT and clock-offset observations."""
 
-from __future__ import annotations
-
 import argparse
 import datetime as dt
 import fcntl
@@ -12,7 +10,7 @@ import socket
 import struct
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -96,7 +94,7 @@ def probe_source(
         "error": None,
     }
 
-    sock: socket.socket | None = None
+    sock = None  # type: Optional[socket.socket]
     try:
         address = socket.gethostbyname(host)
         record["resolved_address"] = address

@@ -78,6 +78,10 @@ def validate_catalogs() -> None:
 
 
 def validate_probe() -> None:
+    probe_text = COLLECTOR_PATH.read_text(encoding="utf-8")
+    assert "from __future__ import annotations" not in probe_text
+    assert "socket.socket | None" not in probe_text
+
     fake = FakeNtpServer()
     fake.start()
     record = collector.probe_source(
