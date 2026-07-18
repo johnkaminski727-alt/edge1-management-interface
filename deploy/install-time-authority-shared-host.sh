@@ -4,6 +4,14 @@ set -eu
 REPO_ROOT=${1:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}
 DEST=${WWCX_TIME_AUTHORITY_ROOT:-$HOME/wwcx-time-authority}
 PRIVATE_DIR=${WWCX_TIME_AUTHORITY_PRIVATE:-$HOME/private/wwcx-time-authority}
+PYTHON_BIN=${WWCX_TIME_AUTHORITY_PYTHON:-python3}
+
+"$PYTHON_BIN" - <<'PY'
+import sys
+
+if sys.version_info < (3, 6):
+    raise SystemExit("WW.CX Time Authority requires Python 3.6 or newer")
+PY
 
 umask 077
 mkdir -p "$DEST" "$PRIVATE_DIR"
