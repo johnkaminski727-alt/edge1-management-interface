@@ -63,6 +63,7 @@ def main() -> None:
         "EDGE1_ROUTE_APPROVAL",
         "is_private",
         "is_unspecified",
+        "ip.version != 4",
         "must run as root",
         "nginx -t",
     ):

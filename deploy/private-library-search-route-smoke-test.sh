@@ -59,7 +59,7 @@ fi
 echo "5/5 route is not listening on a public/unspecified address"
 if command -v ss >/dev/null 2>&1; then
   listeners="$(ss -tln "sport = :${ROUTE_PORT}" | tail -n +2)"
-  echo "$listeners" | grep -q "${BIND_IP}:${ROUTE_PORT}" || fail "route not listening on ${BIND_IP}:${ROUTE_PORT}"
+  echo "$listeners" | grep -qF "${BIND_IP}:${ROUTE_PORT}" || fail "route not listening on ${BIND_IP}:${ROUTE_PORT}"
   if echo "$listeners" | grep -E '0\.0\.0\.0:'"${ROUTE_PORT}"'|\[::\]:'"${ROUTE_PORT}" | grep -q .; then
     fail "route port ${ROUTE_PORT} is bound to all interfaces"
   fi

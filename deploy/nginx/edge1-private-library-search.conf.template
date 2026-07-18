@@ -17,7 +17,9 @@ server {
     auth_basic_user_file /etc/nginx/edge1-search.htpasswd;
 
     # Traffic crosses the WireGuard tunnel, which provides transport
-    # encryption. To add TLS on top, uncomment and point at real certs:
+    # encryption. To add TLS on top, REPLACE the listen line above with the
+    # ssl variant below (do not keep both: nginx rejects a duplicate
+    # ip:port listen in one server block) and point at real certs:
     #
     # listen __VPN_BIND_IP__:__ROUTE_PORT__ ssl;
     # ssl_certificate     /etc/ssl/edge1/search-route.crt;

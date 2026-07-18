@@ -52,6 +52,10 @@ if getent group www-data >/dev/null 2>&1; then
   chown root:www-data "$HTPASSWD_FILE"
 elif getent group nginx >/dev/null 2>&1; then
   chown root:nginx "$HTPASSWD_FILE"
+else
+  echo "Warning: neither 'www-data' nor 'nginx' group exists; file is root:root 0640." >&2
+  echo "nginx workers must be able to read ${HTPASSWD_FILE} or every login will fail with a 500." >&2
+  echo "chown it to root:<nginx-worker-group> after identifying the worker user." >&2
 fi
 
 echo "Wrote credentials for '${USERNAME}' to ${HTPASSWD_FILE}"

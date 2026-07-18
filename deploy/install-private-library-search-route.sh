@@ -30,8 +30,8 @@ SERVER_NAME="edge1-search.internal"
 while [ $# -gt 0 ]; do
   case "$1" in
     --approve-route-exposure) APPROVED="yes"; shift ;;
-    --bind-ip) BIND_IP="${2:-}"; shift 2 ;;
-    --server-name) SERVER_NAME="${2:-}"; shift 2 ;;
+    --bind-ip) [ $# -ge 2 ] || usage; BIND_IP="$2"; shift 2 ;;
+    --server-name) [ $# -ge 2 ] || usage; SERVER_NAME="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -44,23 +44,36 @@ fi
 [ "$APPROVED" = "yes" ] || { echo "Refusing: --approve-route-exposure not given." >&2; exit 1; }
 [ -n "$BIND_IP" ] || usage
 
-for command in nginx python3; do
+for command in nginx python3 ip; do
   command -v "$command" >/dev/null 2>&1 || { echo "Missing required command: $command" >&2; exit 1; }
 done
 
-# The bind address must be a specific private address on this host.
+case "$ROUTE_PORT" in
+  ''|*[!0-9]*) echo "Refusing: EDGE1_ROUTE_PORT must be numeric, got '${ROUTE_PORT}'" >&2; exit 1 ;;
+esac
+if [ "$ROUTE_PORT" -lt 1 ] || [ "$ROUTE_PORT" -gt 65535 ]; then
+  echo "Refusing: EDGE1_ROUTE_PORT out of range: ${ROUTE_PORT}" >&2
+  exit 1
+fi
+
+# The bind address must be a specific private IPv4 address on this host.
+# IPv4-only: the template's listen syntax and the smoke test's bind-scope
+# checks assume unbracketed IPv4 (WireGuard on Edge1 uses a 10.x address).
 python3 - "$BIND_IP" <<'PY'
 import ipaddress, sys
 ip = ipaddress.ip_address(sys.argv[1])
+if ip.version != 4:
+    sys.exit("Refusing: IPv6 bind addresses are not supported by these assets "
+             "(nginx needs bracketed listen syntax these templates do not render)")
 if ip.is_unspecified:
-    sys.exit("Refusing: bind address must not be 0.0.0.0 / ::")
+    sys.exit("Refusing: bind address must not be 0.0.0.0")
 if ip.is_loopback:
     sys.exit("Refusing: for loopback use the systemd service directly")
 if not ip.is_private:
     sys.exit(f"Refusing: {ip} is not a private address; public exposure is not supported")
 PY
 
-if ! ip -o addr show 2>/dev/null | grep -qw "$BIND_IP"; then
+if ! ip -o addr show 2>/dev/null | grep -Fqw "$BIND_IP"; then
   echo "Refusing: $BIND_IP is not configured on any local interface" >&2
   exit 1
 fi

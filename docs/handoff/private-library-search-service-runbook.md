@@ -27,6 +27,12 @@ requires explicit approval.
   so that SQLite WAL/shm access to `/var/lib/bigbird-ai-library/` cannot be
   silently blocked (which would downgrade `live_direct` to fixture mode).
   Tighten only after verifying live mode under the service.
+- Note: `IPAddressDeny=any` also blocks outbound connections beyond
+  localhost. If `EDGE1_LIBRARY_SEARCH_URL` is ever pointed at a backend on
+  another host, the wrapper would silently fall back to fixture mode under
+  this unit — add that host to `IPAddressAllow=` via a drop-in first. The
+  current live-direct SQLite bridge and any localhost backend are
+  unaffected.
 
 ## Install
 

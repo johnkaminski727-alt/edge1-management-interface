@@ -28,8 +28,16 @@ Classification: internal
 ## Open Handoff Items
 
 1. Decide whether the localhost wrapper should become a managed systemd service.
+   *2026-07-18: assets merged to main
+   (`registers/private-library-search-service-register-20260718.md`);
+   Edge1 install pending operator.*
 2. Decide the approved private/VPN route for browser access.
+   *2026-07-18: approval-gated assets prepared
+   (`registers/private-library-search-route-register-20260718.md`);
+   approval explicitly not yet given.*
 3. Add operator authentication at the route boundary.
+   *2026-07-18: basic-auth-at-nginx assets prepared as part of the route
+   track; inert until the route is approved and installed.*
 4. Record the final backup artifact path and SHA-256 manifest.
 5. Perform a browser walkthrough with the receiving operator.
 

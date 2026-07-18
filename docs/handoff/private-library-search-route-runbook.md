@@ -19,8 +19,12 @@ Per the combined project register, route exposure beyond localhost requires
 explicit approval. The installer enforces that in four ways: it requires the
 `--approve-route-exposure` flag, requires a typed confirmation phrase (or a
 deliberate `EDGE1_ROUTE_APPROVAL=I_APPROVE` for non-interactive use), accepts
-only private (RFC1918/ULA) bind addresses that are actually configured on a
+only private IPv4 (RFC1918) bind addresses that are actually configured on a
 local interface, and refuses to run before operator credentials exist.
+
+IPv6 bind addresses are deliberately rejected: the template and smoke test
+assume unbracketed IPv4 listen syntax, and Edge1's WireGuard interface uses
+a 10.x address. IPv6 support would be a separate, tested change.
 
 Public exposure is not supported by these assets at all.
 
