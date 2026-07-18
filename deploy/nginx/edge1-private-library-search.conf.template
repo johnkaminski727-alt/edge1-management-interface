@@ -1,0 +1,39 @@
+# Edge1 Private Library Search - VPN route template
+#
+# Rendered and installed by deploy/install-private-library-search-route.sh.
+# Do not install this file by hand with placeholders unrendered.
+#
+# Boundary: this route must only ever bind a private VPN interface address.
+# Public exposure requires explicit operator approval per project guardrails
+# and is not supported by this template.
+
+server {
+    # Placeholder is replaced with the WireGuard/VPN interface IP.
+    listen __VPN_BIND_IP__:__ROUTE_PORT__;
+    server_name __SERVER_NAME__;
+
+    # Operator authentication at the route boundary (open handoff item 3).
+    auth_basic "Edge1 Private Library Search";
+    auth_basic_user_file /etc/nginx/edge1-search.htpasswd;
+
+    # Traffic crosses the WireGuard tunnel, which provides transport
+    # encryption. To add TLS on top, uncomment and point at real certs:
+    #
+    # listen __VPN_BIND_IP__:__ROUTE_PORT__ ssl;
+    # ssl_certificate     /etc/ssl/edge1/search-route.crt;
+    # ssl_certificate_key /etc/ssl/edge1/search-route.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 30s;
+
+        # Read-only boundary, enforced again at the route: the wrapper has
+        # no write endpoints, and none may be added through this route.
+        limit_except GET HEAD { deny all; }
+    }
+
+    access_log /var/log/nginx/edge1-search-access.log;
+    error_log /var/log/nginx/edge1-search-error.log;
+}

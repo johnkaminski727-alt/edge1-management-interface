@@ -141,6 +141,13 @@ validation runs anywhere:
 python3 tests/validate_search_service_assets.py
 ```
 
+## VPN Route (approval-gated, not installed)
+
+Assets for a VPN-only, operator-authenticated route to the search UI are
+prepared under `deploy/nginx/` but inert until an operator approves and
+installs them on Edge1. See
+`docs/handoff/private-library-search-route-runbook.md`.
+
 ## Autonomous Completion
 
 Project controls for autonomous completion live under

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-18 - VPN Route Preparation (approval-gated)
+
+- Added an nginx route template with basic auth and a GET/HEAD-only guard.
+- Added an approval-gated route installer (flag + typed confirmation +
+  private-address-only + local-interface + credentials-exist checks).
+- Added an operator credential helper using openssl apr1 hashing.
+- Added a route smoke test covering auth rejection, method blocking, and
+  bind-scope verification.
+- Added a repo-side route asset validation test and operator runbook.
+- Added a route register; exposure approval explicitly NOT given yet.
+- Nothing active until an operator runs the installer on Edge1.
+
 ## 2026-07-18 - Private Library Search Managed Service
 
 - Added a hardened localhost-only systemd unit for the search wrapper.
