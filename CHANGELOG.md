@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-18 — Time Authority readiness sweep
+
+- corrected the shared collector's remaining Python 3.6 type-annotation incompatibilities;
+- added repository CI, including a real Python 3.6 container import check;
+- added Edge1 preflight and production smoke-test scripts;
+- made shared-host cron installation idempotent and self-verifying;
+- added a spreadsheet-ready CSV endpoint and dashboard download action;
+- added stricter browser security headers, NTP response-peer validation, and deployment regression checks.
+
 ## 2026-07-18 — WW.CX Time Authority
 
 - registered the Netnod, NIST, and Cloudflare sources verified from Edge1 and shared hosting;

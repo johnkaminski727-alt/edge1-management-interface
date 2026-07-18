@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import collections
+import csv
 import datetime as dt
+import io
 import json
 import os
 import urllib.parse
@@ -20,6 +22,12 @@ WEB_ROOT = REPO_ROOT / "src" / "web" / "time-authority"
 BASELINE_PATH = REPO_ROOT / "modules" / "time-authority" / "fixtures" / "baseline-measurements.json"
 SOURCES_PATH = REPO_ROOT / "modules" / "time-authority" / "config" / "sources.json"
 DEFAULT_DATA_PATH = Path("/var/lib/edge1-time-authority/measurements.jsonl")
+CSV_COLUMNS = (
+    "Observation Date UTC", "Observed At UTC", "Timestamp Precision", "Observer ID", "Observer Host",
+    "Source ID", "Server Name", "Resolved IPv4", "Provider", "Region", "Stratum", "RefID", "RTT ms",
+    "Network Delay ms", "Clock Offset ms", "Root Delay ms", "Root Dispersion ms", "Reachable",
+    "Expectation OK", "Error", "Notes",
+)
 
 
 def utc_now() -> str:
@@ -152,13 +160,50 @@ def summary_payload(limit: int) -> dict[str, Any]:
     }
 
 
+def csv_payload(records: list[dict[str, Any]]) -> bytes:
+    stream = io.StringIO(newline="")
+    writer = csv.DictWriter(stream, fieldnames=CSV_COLUMNS, extrasaction="ignore")
+    writer.writeheader()
+    for record in records:
+        observed_at = str(record.get("observed_at_utc") or "")
+        writer.writerow(
+            {
+                "Observation Date UTC": observed_at[:10],
+                "Observed At UTC": observed_at,
+                "Timestamp Precision": "microsecond" if "." in observed_at else "second",
+                "Observer ID": record.get("observer_id"),
+                "Observer Host": record.get("observer_host"),
+                "Source ID": record.get("source_id"),
+                "Server Name": record.get("server_name"),
+                "Resolved IPv4": record.get("resolved_address"),
+                "Provider": record.get("provider"),
+                "Region": record.get("region"),
+                "Stratum": record.get("stratum"),
+                "RefID": record.get("refid"),
+                "RTT ms": record.get("rtt_ms"),
+                "Network Delay ms": record.get("network_delay_ms"),
+                "Clock Offset ms": record.get("clock_offset_ms"),
+                "Root Delay ms": record.get("root_delay_ms"),
+                "Root Dispersion ms": record.get("root_dispersion_ms"),
+                "Reachable": record.get("reachable"),
+                "Expectation OK": record.get("expectation_ok"),
+                "Error": record.get("error"),
+                "Notes": "",
+            }
+        )
+    return stream.getvalue().encode("utf-8")
+
+
 class TimeAuthorityHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Security-Policy", "default-src 'self'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
         super().end_headers()
 
@@ -168,6 +213,16 @@ class TimeAuthorityHandler(SimpleHTTPRequestHandler):
             params = urllib.parse.parse_qs(parsed.query)
             self.send_json(HTTPStatus.OK, summary_payload(clamp_limit(params.get("limit", [None])[0])))
             return
+        if parsed.path == "/api/time-authority/export.csv":
+            params = urllib.parse.parse_qs(parsed.query)
+            payload = summary_payload(clamp_limit(params.get("limit", [None])[0]))
+            self.send_bytes(
+                HTTPStatus.OK,
+                csv_payload(payload["history"]),
+                "text/csv; charset=utf-8",
+                'attachment; filename="wwcx-time-authority-rtt.csv"',
+            )
+            return
         if parsed.path == "/healthz":
             self.send_json(HTTPStatus.OK, {"ok": True, "service": "edge1-time-authority", "read_only": True})
             return
@@ -175,8 +230,13 @@ class TimeAuthorityHandler(SimpleHTTPRequestHandler):
 
     def send_json(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        self.send_bytes(status, body, "application/json; charset=utf-8")
+
+    def send_bytes(self, status: int, body: bytes, content_type: str, disposition: str | None = None) -> None:
         self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", content_type)
+        if disposition:
+            self.send_header("Content-Disposition", disposition)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

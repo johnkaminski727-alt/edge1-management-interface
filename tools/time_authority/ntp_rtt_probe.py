@@ -10,7 +10,7 @@ import socket
 import struct
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -45,7 +45,7 @@ def decode_refid(raw: bytes, stratum: int) -> str:
     return socket.inet_ntoa(raw)
 
 
-def source_expectation_ok(source: dict[str, Any], stratum: int, refid: str) -> bool:
+def source_expectation_ok(source: Dict[str, Any], stratum: int, refid: str) -> bool:
     expected = source.get("expected_stratum")
     if expected is not None and stratum != int(expected):
         return False
@@ -60,16 +60,16 @@ def source_expectation_ok(source: dict[str, Any], stratum: int, refid: str) -> b
 
 
 def probe_source(
-    source: dict[str, Any],
+    source: Dict[str, Any],
     *,
     observer_id: str,
     observer_host: str,
     timeout: float,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     observed_at = utc_now()
     host = str(source["server_name"])
     port = int(source.get("port", 123))
-    record: dict[str, Any] = {
+    record = {  # type: Dict[str, Any]
         "schema_version": SCHEMA_VERSION,
         "observed_at_utc": observed_at,
         "observer_id": observer_id,
@@ -112,6 +112,8 @@ def probe_source(
         monotonic_finished = time.monotonic()
         wall_finished = time.time()
 
+        if peer[0] != address or peer[1] != port:
+            raise ValueError("unexpected_response_peer")
         if len(response) < 48:
             raise ValueError(f"short_response_{len(response)}")
         if response[24:32] != origin:
@@ -159,7 +161,7 @@ def probe_source(
     return record
 
 
-def load_sources(path: Path) -> list[dict[str, Any]]:
+def load_sources(path: Path) -> List[Dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     sources = payload.get("sources")
     if not isinstance(sources, list) or not sources:
@@ -171,7 +173,7 @@ def load_sources(path: Path) -> list[dict[str, Any]]:
     return sources
 
 
-def append_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
+def append_jsonl(path: Path, records: List[Dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o750)
     payload = "".join(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n" for record in records)
     with path.open("a", encoding="utf-8") as handle:

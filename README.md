@@ -91,10 +91,11 @@ The Time Authority package records read-only NTP measurements from Edge1 and the
 
 ```bash
 python3 tests/validate_time_authority.py
+python3 tests/validate_time_authority_collector_compat.py
 python3 server/time_authority_server.py --host 127.0.0.1 --port 8092
 ```
 
-Deployment profiles, source registers, baseline observations, systemd units, and shared-host cron tooling are documented in `docs/handoff/time-authority-runbook.md`.
+Deployment profiles, source registers, baseline observations, preflight checks, smoke tests, systemd units, automatic shared-host cron tooling, and spreadsheet-ready CSV export are documented in `docs/handoff/time-authority-runbook.md`.
 
 ## Validation
 
@@ -102,10 +103,13 @@ Deployment profiles, source registers, baseline observations, systemd units, and
 python3 tests/validate_static_ui.py
 python3 tests/validate_search_service_assets.py
 python3 tests/validate_time_authority.py
+python3 tests/validate_time_authority_collector_compat.py
 python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
 python3 -m json.tool src/api/time_authority_contract.json >/dev/null
 python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
 ```
+
+The same validation suite runs automatically for pull requests and pushes to `main`, including a Python 3.6 container check for the shared-host collector.
 
 ## Managed service
 
