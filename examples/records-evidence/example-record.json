@@ -1,0 +1,47 @@
+{
+  "record_id": "WWCX-EDGE1-EVIDENCE-EXAMPLE-001",
+  "title": "Sanitized records evidence validation example",
+  "record_class": "public-engineering-evidence",
+  "created_utc": "2026-07-18T12:00:00Z",
+  "authoritative_source": {
+    "system": "GitHub",
+    "location": "johnkaminski727-alt/edge1-management-interface",
+    "version": "main",
+    "responsible_role": "repository maintainer"
+  },
+  "retention_rule": {
+    "schedule_id": "WWCX-ENG-PERM-001",
+    "trigger": "record creation",
+    "minimum_years": 7,
+    "disposition": "permanent",
+    "legal_hold": false
+  },
+  "sensitivity": "public",
+  "objects": [
+    {
+      "path": "sample-object.txt",
+      "media_type": "text/plain",
+      "size_bytes": 39,
+      "sha256": "b10710a8bdf9e7e04266bc853b72da17af0f88a8a7b6ac8234dec2f370d9152e"
+    }
+  ],
+  "events": [
+    {
+      "event_type": "capture",
+      "event_utc": "2026-07-18T12:00:00Z",
+      "agent": "John K.",
+      "agent_role": "record owner",
+      "outcome": "success",
+      "details": "Created from synthetic public content."
+    },
+    {
+      "event_type": "validation",
+      "event_utc": "2026-07-18T12:01:00Z",
+      "agent": "GitHub Actions",
+      "agent_role": "repository validator",
+      "outcome": "success",
+      "details": "Example is revalidated by the repository test suite."
+    }
+  ],
+  "notes": "Synthetic example only; contains no production or private records."
+}
