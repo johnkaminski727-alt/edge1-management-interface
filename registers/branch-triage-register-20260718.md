@@ -43,28 +43,34 @@ contains a newer evolution of the same content and the branch adds nothing.
 | `agent/big-bird-library` | After its single commit is adopted via this triage |
 | `agent/release-engineering-foundation` | After its two docs are adopted via this triage |
 
-## Deletion commands (operator-run, after adopting branch is merged)
+## Prune execution record
 
-Branch deletion is destructive, so it is left to the operator:
+Executed 2026-07-18 with operator approval. Deleted (14):
+
+`agent/add-time-authority-monitoring`,
+`agent/digital-preservation-standard-v1`,
+`agent/time-authority-python36-compat`,
+`agent/time-authority-readiness-sweep`,
+`agent/time-authority-rollout-simulation`,
+`docs/citation-and-contributing`, `docs/records-evidence-baseline`,
+`records-evidence-automation-v2`, `wwcx-preservation-framework-rollout`,
+`records-evidence-automation`, `ci/records-evidence-baseline`,
+`docs/community-and-roadmap`, `docs/public-project-presentation`,
+`records-management-baseline`.
+
+Deliberately retained until `chore/branch-triage-and-adoption` merges
+(their unique content lives on that branch; the originals stay as the
+source of record in case the adoption PR is rejected):
 
 ```bash
-git push origin --delete \
-  agent/add-time-authority-monitoring \
-  agent/digital-preservation-standard-v1 \
-  agent/time-authority-python36-compat \
-  agent/time-authority-readiness-sweep \
-  agent/time-authority-rollout-simulation \
-  docs/citation-and-contributing \
-  docs/records-evidence-baseline \
-  records-evidence-automation-v2 \
-  wwcx-preservation-framework-rollout \
-  records-evidence-automation \
-  ci/records-evidence-baseline \
-  docs/community-and-roadmap \
-  docs/public-project-presentation \
-  agent/big-bird-library \
-  agent/release-engineering-foundation
+git push origin --delete agent/big-bird-library agent/release-engineering-foundation
 ```
+
+Also observed at prune time: a new empty branch
+`agent/complete-release-governance` at the main SHA — apparently another
+session starting release-governance work. Not pruned (just created, may be
+active); flagged for the operator because it risks duplicating the release
+documentation completed on this triage branch.
 
 Verification used for every "merged/superseded" call: `git cherry` patch
 equivalence plus per-file content comparison against main.
