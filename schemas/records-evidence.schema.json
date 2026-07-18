@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/records-evidence.schema.json",
+  "title": "WW.CX Records Evidence",
+  "description": "Machine-readable evidence record for project records-management and digital-preservation controls.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_id",
+    "title",
+    "record_class",
+    "created_utc",
+    "authoritative_source",
+    "retention_rule",
+    "sensitivity",
+    "objects",
+    "events"
+  ],
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "pattern": "^WWCX-[A-Z0-9][A-Z0-9._-]{2,127}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "record_class": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "created_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authoritative_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "location", "responsible_role"],
+      "properties": {
+        "system": {"type": "string", "minLength": 1},
+        "location": {"type": "string", "minLength": 1},
+        "version": {"type": "string"},
+        "responsible_role": {"type": "string", "minLength": 1}
+      }
+    },
+    "retention_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schedule_id", "trigger", "minimum_years", "disposition", "legal_hold"],
+      "properties": {
+        "schedule_id": {"type": "string", "minLength": 1},
+        "trigger": {"type": "string", "minLength": 1},
+        "minimum_years": {"type": "integer", "minimum": 0},
+        "disposition": {
+          "type": "string",
+          "enum": ["review", "transfer", "destroy", "permanent"]
+        },
+        "legal_hold": {"type": "boolean"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"legal_hold": {"const": true}},
+            "required": ["legal_hold"]
+          },
+          "then": {
+            "properties": {"disposition": {"not": {"const": "destroy"}}}
+          }
+        }
+      ]
+    },
+    "sensitivity": {
+      "type": "string",
+      "enum": ["public", "internal", "confidential", "restricted"]
+    },
+    "objects": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "media_type", "size_bytes", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))(?!.*//)(?!.*\\\\).+$"
+          },
+          "media_type": {"type": "string", "minLength": 1},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_type", "event_utc", "agent", "agent_role", "outcome"],
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "enum": ["capture", "validation", "fixity_check", "migration", "restore_test", "disposition_review", "transfer"]
+          },
+          "event_utc": {"type": "string", "format": "date-time"},
+          "agent": {"type": "string", "minLength": 1},
+          "agent_role": {"type": "string", "minLength": 1},
+          "outcome": {
+            "type": "string",
+            "enum": ["success", "failure", "warning"]
+          },
+          "details": {"type": "string"}
+        }
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}
