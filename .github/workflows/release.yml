@@ -1,0 +1,30 @@
+name: Build release artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: Optional release label for manual artifact builds
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name:
