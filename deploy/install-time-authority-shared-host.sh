@@ -5,6 +5,7 @@ REPO_ROOT=${1:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}
 DEST=${WWCX_TIME_AUTHORITY_ROOT:-$HOME/wwcx-time-authority}
 PRIVATE_DIR=${WWCX_TIME_AUTHORITY_PRIVATE:-$HOME/private/wwcx-time-authority}
 PYTHON_BIN=${WWCX_TIME_AUTHORITY_PYTHON:-python3}
+SOURCES_FILE=${WWCX_TIME_AUTHORITY_SOURCES_FILE:-$REPO_ROOT/modules/time-authority/config/sources.json}
 
 for command_name in "$PYTHON_BIN" install grep tail; do
     command -v "$command_name" >/dev/null 2>&1 || {
@@ -24,7 +25,7 @@ umask 077
 mkdir -p "$DEST" "$PRIVATE_DIR"
 install -m 0700 "$REPO_ROOT/tools/time_authority/ntp_rtt_probe.py" "$DEST/ntp_rtt_probe.py"
 install -m 0700 "$REPO_ROOT/tools/time_authority/collect-shared-host.sh" "$DEST/collect-shared-host.sh"
-install -m 0600 "$REPO_ROOT/modules/time-authority/config/sources.json" "$DEST/sources.json"
+install -m 0600 "$SOURCES_FILE" "$DEST/sources.json"
 
 WWCX_TIME_AUTHORITY_PYTHON=$PYTHON_BIN "$DEST/collect-shared-host.sh" >/dev/null
 

@@ -93,6 +93,7 @@ The Time Authority package records read-only NTP measurements from Edge1 and the
 ```bash
 python3 tests/validate_time_authority.py
 python3 tests/validate_time_authority_collector_compat.py
+python3 tests/validate_time_authority_rollout_simulation.py
 python3 server/time_authority_server.py --host 127.0.0.1 --port 8092
 ```
 

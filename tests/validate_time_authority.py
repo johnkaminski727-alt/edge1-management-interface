@@ -169,6 +169,8 @@ def validate_deployment_assets() -> None:
     edge_installer = (deploy / "install-time-authority-edge1.sh").read_text(encoding="utf-8")
     assert "time-authority-edge1-preflight.sh" in edge_installer
     assert "time-authority-edge1-smoke-test.sh" in edge_installer
+    assert "EDGE1_TIME_AUTHORITY_SIMULATION" in edge_installer
+    assert "explicit non-production EDGE1_TIME_AUTHORITY_SYSTEMCTL" in edge_installer
 
     dashboard_unit = (deploy / "systemd" / "edge1-time-authority-dashboard.service").read_text(encoding="utf-8")
     for directive in ("NoNewPrivileges=true", "ProtectSystem=strict", "127.0.0.1", "MemoryDenyWriteExecute=true"):

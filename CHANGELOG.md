@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-18 — Time Authority rollout simulation
+
+- added an end-to-end, non-production simulation for both server installers;
+- verified Edge1 unit staging, repeated collection, live API mode, and CSV export;
+- verified shared-host permissions, repeated installation, and cron idempotency;
+- added strict simulation guards that reject the production unit path and real `systemctl`.
+
 ## 2026-07-18 — Time Authority readiness sweep
 
 - corrected the shared collector's remaining Python 3.6 type-annotation incompatibilities;
