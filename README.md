@@ -125,6 +125,22 @@ library engine and returns `mode: live_direct` when the SQLite library database
 is readable by the wrapper process. Fixture fallback remains available for
 offline validation.
 
+## Managed Search Service
+
+The search wrapper can run as a managed, localhost-only systemd service:
+
+```bash
+sudo deploy/install-private-library-search-service.sh
+deploy/private-library-search-service-smoke-test.sh
+```
+
+See `docs/handoff/private-library-search-service-runbook.md`. Repo-side asset
+validation runs anywhere:
+
+```bash
+python3 tests/validate_search_service_assets.py
+```
+
 ## Autonomous Completion
 
 Project controls for autonomous completion live under

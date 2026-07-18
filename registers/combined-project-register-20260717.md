@@ -150,7 +150,7 @@ live_direct
 
 | Item | Approval Needed? | Notes |
 | --- | --- | --- |
-| Turn search wrapper into managed systemd service | Maybe | Localhost-only service is safe; route exposure requires approval |
+| Turn search wrapper into managed systemd service | Maybe | Localhost-only service is safe; route exposure requires approval. 2026-07-18: unit, installer, smoke test, and runbook prepared (`deploy/`, `registers/private-library-search-service-register-20260718.md`); Edge1 install pending operator |
 | Expose UI through private/VPN route | Yes | Public/private route boundary must be approved |
 | Continue Google Drive OAuth connector | Existing separate approval | Do not expand scopes without approval |
 | Finish Big Bird networking / Spamhaus project | Likely | May involve DNS/network/firewall changes |
