@@ -57,6 +57,16 @@ GET /api/time-authority/export.csv?limit=5000
 
 The CSV export uses the same columns as the companion RTT tracking workbook and can be imported or appended without reshaping the measurement data.
 
+## Offline rollout simulation
+
+Before an operator shell is available, exercise both installers end to end without touching host services:
+
+```bash
+python3 tests/validate_time_authority_rollout_simulation.py
+```
+
+The simulator uses temporary data and unit directories, a fake `systemctl`/crontab layer, a local NTP responder, and the real dashboard HTTP/CSV paths. Edge1 simulation mode refuses to run with either the production unit directory or the real `systemctl` command.
+
 Place the dashboard behind the same approved private/VPN boundary as the existing management interface. Do not expose the localhost service directly to the public Internet.
 
 To aggregate a copied shared-host JSONL file, set a colon-separated path list in the dashboard service environment:

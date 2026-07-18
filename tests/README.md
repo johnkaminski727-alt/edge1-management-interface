@@ -17,3 +17,5 @@ done
 ```
 
 GitHub Actions also imports the shared-host Time Authority collector inside a real Python 3.6 container so cPanel-runtime compatibility cannot silently regress.
+
+`validate_time_authority_rollout_simulation.py` executes both real installers against isolated temporary directories, a fake systemd/crontab layer, a local NTP responder, and the real dashboard API. It does not require root and cannot address production systemd while simulation mode is active.
