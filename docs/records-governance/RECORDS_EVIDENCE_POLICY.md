@@ -53,6 +53,7 @@ Git metadata may satisfy author, timestamp, and revision-history fields. Pull-re
 | Source and sanitized configuration | Version-controlled repository paths |
 | Change and review history | Git commits and GitHub pull requests |
 | Automated validation results | GitHub Actions runs for the associated commit |
+| Operational evidence packages | `schemas/records-evidence.schema.json`, `tools/validate_records_evidence.py`, and controlled package storage |
 | Architecture decisions | `docs/` decision and architecture records |
 | Operational guidance | `docs/handoff/`, runbooks, and approved deployment assets |
 | Project and completion registers | `registers/` and indexed completion documentation |
@@ -82,6 +83,7 @@ python3 tests/validate_static_ui.py
 python3 tests/validate_search_service_assets.py
 python3 tests/validate_time_authority.py
 python3 tests/validate_records_evidence.py
+python3 tests/validate_records_evidence_automation.py
 ```
 
 GitHub Actions repeats these checks for pull requests and changes to `main`.
@@ -106,6 +108,8 @@ Retain repository evidence with project history. Review this policy and its evid
 - Production service changes remain operator-controlled and outside CI.
 - Force-pushes and silent history rewrites are not acceptable evidence-maintenance practices.
 - Failed checks are evidence of an unresolved state and must not be represented as a successful validation.
+- Evidence object paths must remain relative to their selected package root.
+- Destruction disposition is invalid while a legal hold is active.
 
 ## Evidence limitations
 
