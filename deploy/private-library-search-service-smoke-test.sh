@@ -3,6 +3,7 @@ set -euo pipefail
 
 PORT="${1:-8091}"
 BASE_URL="http://127.0.0.1:${PORT}"
+REQUIRE_LIVE_DIRECT="${REQUIRE_LIVE_DIRECT:-0}"
 
 fail() {
   echo "SMOKE TEST FAILED: $1" >&2
@@ -31,6 +32,11 @@ response="$(curl -fsS --max-time 10 "${BASE_URL}/api/private-library/search?q=VP
   || fail "search API request failed"
 mode="$(echo "$response" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mode",""))')" \
   || fail "search API returned invalid JSON"
+
+if [ "$REQUIRE_LIVE_DIRECT" = "1" ] && [ "$mode" != "live_direct" ]; then
+  fail "production validation requires mode=live_direct, got ${mode:-empty}"
+fi
+
 case "$mode" in
   live_direct) echo "  mode=live_direct (live library engine)" ;;
   live)        echo "  mode=live (HTTP backend)" ;;
