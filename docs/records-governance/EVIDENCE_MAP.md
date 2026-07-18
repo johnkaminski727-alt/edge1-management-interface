@@ -8,6 +8,7 @@ This map connects common engineering claims to the public evidence that can supp
 | What is implemented? | Source under `src/`, `server/`, `tools/`, and `modules/` | Tests, pull requests, project registers | Source is not proof of production deployment |
 | How is a change reviewed? | GitHub pull request and commit history | `CONTRIBUTING.md` | Sensitive review material must remain private |
 | What validation ran? | GitHub Actions run for the commit | `tests/`, workflow source, PR validation notes | Checks are repository-side and credential-free |
+| How is an evidence package verified? | `schemas/records-evidence.schema.json` and `tools/validate_records_evidence.py` | Sanitized package under `examples/records-evidence/` and negative regression tests | Validation demonstrates package controls, not production or legal compliance |
 | How is Private Library Search bounded? | Search wrapper source and contracts | Static UI and service-asset validators, runbooks | No private documents, indexes, or production DBs |
 | How are filesystem changes controlled? | `docs/ai-filesystem-write-connector/` | Acceptance checklists, audit schema, handoff records | Production apply and rollback remain operator-controlled |
 | How are time observations produced? | `modules/time-authority/` and collector source | Baseline fixtures and `tests/validate_time_authority.py` | Measurements do not change server clocks |
@@ -36,7 +37,7 @@ The workflow at `.github/workflows/validate.yml` validates:
 - Private Library Search static UI structure and fixture shape;
 - managed search-service assets and localhost guardrails;
 - WW.CX Time Authority collectors, fixtures, dashboard, and local fake-server probe;
-- every dependency-free `tests/validate_*.py` repository validator, including records governance;
+- every dependency-free `tests/validate_*.py` repository validator, including records governance and evidence-package regression coverage;
 - Python syntax, JSON syntax, shell syntax, and browser JavaScript syntax;
 - real Python 3.6 compatibility for the shared-host Time Authority collector.
 
