@@ -1,6 +1,7 @@
 # Edge1 Management Interface
 
 [![Project status](https://img.shields.io/badge/status-active-2ea44f)](https://github.com/johnkaminski727-alt/edge1-management-interface)
+[![Repository validation](https://github.com/johnkaminski727-alt/edge1-management-interface/actions/workflows/repository-validation.yml/badge.svg)](https://github.com/johnkaminski727-alt/edge1-management-interface/actions/workflows/repository-validation.yml)
 [![Python](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0000--9523--8529-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0009-0000-9523-8529)
 
@@ -102,6 +103,7 @@ Deployment profiles, source registers, baseline observations, systemd units, and
 python3 tests/validate_static_ui.py
 python3 tests/validate_search_service_assets.py
 python3 tests/validate_time_authority.py
+python3 tests/validate_records_evidence.py
 python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
 python3 -m json.tool src/api/time_authority_contract.json >/dev/null
 python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
@@ -152,6 +154,14 @@ The autonomous-completion index is maintained at:
 ```text
 docs/autonomous-completion/04-combined-register-index.md
 ```
+
+## Records governance
+
+The repository uses a project-defined records-and-evidence control to keep engineering claims traceable without overstating certification or publishing private operational data.
+
+- [Records and Evidence Policy](docs/records-governance/RECORDS_EVIDENCE_POLICY.md)
+- [Repository Evidence Map](docs/records-governance/EVIDENCE_MAP.md)
+- [Automated repository validation](.github/workflows/repository-validation.yml)
 
 ## Maintainer
 
