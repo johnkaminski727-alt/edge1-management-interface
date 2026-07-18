@@ -12,6 +12,29 @@
 - Added a route register; exposure approval explicitly NOT given yet.
 - Nothing active until an operator runs the installer on Edge1.
 
+## 2026-07-18 — Time Authority rollout simulation
+
+- added an end-to-end, non-production simulation for both server installers;
+- verified Edge1 unit staging, repeated collection, live API mode, and CSV export;
+- verified shared-host permissions, repeated installation, and cron idempotency;
+- added strict simulation guards that reject the production unit path and real `systemctl`.
+
+## 2026-07-18 — Time Authority readiness sweep
+
+- corrected the shared collector's remaining Python 3.6 type-annotation incompatibilities;
+- added repository CI, including a real Python 3.6 container import check;
+- added Edge1 preflight and production smoke-test scripts;
+- made shared-host cron installation idempotent and self-verifying;
+- added a spreadsheet-ready CSV endpoint and dashboard download action;
+- added stricter browser security headers, NTP response-peer validation, and deployment regression checks.
+
+## 2026-07-18 — WW.CX Time Authority
+
+- registered the Netnod, NIST, and Cloudflare sources verified from Edge1 and shared hosting;
+- added independent Edge1 and shared-host RTT collectors using a common JSONL schema;
+- added a localhost-only read API and responsive Big Bird Time Authority dashboard;
+- added baseline measurements, deployment timers, validation, and an operator runbook.
+
 ## 2026-07-18 - Private Library Search Managed Service
 
 - Added a hardened localhost-only systemd unit for the search wrapper.

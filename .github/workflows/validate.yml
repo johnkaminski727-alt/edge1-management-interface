@@ -1,0 +1,58 @@
+name: Validate repository
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run Python validations
+        run: |
+          set -eu
+          for test_file in tests/validate_*.py; do
+            python3 "$test_file"
+          done
+          python3 -m compileall -q bin server tests tools
+
+      - name: Validate JSON, shell, and JavaScript
+        run: |
+          set -eu
+          find modules src schemas examples -type f -name '*.json' -print0 |
+            while IFS= read -r -d '' json_file; do
+              python3 -m json.tool "$json_file" >/dev/null
+            done
+          find bin deploy tools -type f -name '*.sh' -print0 |
+            while IFS= read -r -d '' shell_file; do
+              sh -n "$shell_file"
+            done
+          node --check src/web/app.js
+          node --check src/web/time-authority/app.js
+
+      - name: Verify shared collector on Python 3.6
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            -w /repo \
+            python:3.6.15-slim-buster \
+            python tests/validate_time_authority_collector_compat.py

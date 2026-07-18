@@ -1,145 +1,130 @@
 # Edge1 Management Interface
 
-Read-only first management interface for Edge1.
+[![Project status](https://img.shields.io/badge/status-active-2ea44f)](https://github.com/johnkaminski727-alt/edge1-management-interface)
+[![Validate repository](https://github.com/johnkaminski727-alt/edge1-management-interface/actions/workflows/validate.yml/badge.svg)](https://github.com/johnkaminski727-alt/edge1-management-interface/actions/workflows/validate.yml)
+[![Python](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![ORCID](https://img.shields.io/badge/ORCID-0009--0000--9523--8529-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0009-0000-9523-8529)
 
-## Current Goal
+A private-first management interface for Edge1 AI, digital-library, and infrastructure services.
 
-Build the Private Library Search module as the first realistic website module:
+The project combines responsive browser tools, narrow API wrappers, service diagnostics, operational documentation, and bounded automation. Its first production-oriented module is **Private Library Search**, an authenticated interface for searching the Big Bird operations collection with mobile-friendly results and source traceability.
 
-- private/VPN-only access
-- authenticated operator session
-- read-only search against the Edge1 `operations` collection
-- desktop/tablet/phone responsive layouts
-- mobile card results instead of wide tables
-- source traceability for every result
+> **Public-repository boundary:** buildable source and sanitized documentation belong here. Credentials, private records, production databases, search indexes, personal information, and unredacted diagnostics do not.
 
-## Boundaries
+## Highlights
 
-This repo must not contain:
+- Responsive desktop, tablet, and phone interface
+- Read-only-first service design
+- Private Library Search with source traceability
+- Local Big Bird SQLite FTS5 integration
+- Fixture fallback for offline validation
+- Managed localhost-only service deployment
+- Staged and audited filesystem-change proposals
+- Operator-controlled approval, apply, and rollback boundaries
+- Dual-observer WW.CX Time Authority monitoring
+- Longitudinal NTP RTT, offset, stratum, and source-health records
+- Validation, smoke-test, handoff, and runbook assets
 
-- passwords
-- API keys
-- private keys
-- WireGuard private keys or preshared keys
-- session tokens
-- recovery codes
-- raw sensitive diagnostics
-- large binary archives
-
-Large byte-preservation artifacts belong in the Edge1 companion file archive.
-Operational knowledge belongs in the Edge1 private library.
-Buildable source belongs here.
-
-## Initial Structure
+## Architecture at a glance
 
 ```text
-docs/       design notes, implementation plans, acceptance criteria
-src/api/    narrow read-only API wrappers
-src/web/    browser UI modules
-tests/      fixtures and test scaffolding
-deploy/     deployment notes and scripts
-registers/ source-control-friendly registers
+Browser UI
+    |
+    v
+Local read-only API wrapper
+    |-- Big Bird SQLite FTS5 library engine
+    |-- configured local HTTP backend
+    `-- sanitized fixture fallback
 ```
 
-## First Module
+See [the public project overview](docs/PUBLIC_OVERVIEW.md) for the project purpose, design principles, components, and repository map.
 
-See:
+## Repository structure
 
-- `docs/private-library-search-module.md`
-- `docs/mobile-responsive-rules.md`
-- `src/web/index.html`
-- `src/web/app.js`
-- `src/web/styles.css`
-- `src/api/private_library_search_contract.json`
-- `src/web/private-library-search.fixture.json`
-
-## Local Static Preview
-
-The first UI pass has no build step. Open `src/web/index.html` in a browser or serve the repo with a simple static server.
-
-```bash
-cd /opt/edge1-management-interface
-python3 -m http.server 8088 --directory src/web
+```text
+docs/       architecture, runbooks, decisions, and handoffs
+src/api/    narrow API contracts and wrappers
+src/web/    responsive browser interface
+server/     local service entry points
+tests/      validation and smoke tests
+deploy/     deployment and service assets
+tools/      diagnostics and operator utilities
+registers/  project and completion registers
 ```
 
-Then browse to `http://127.0.0.1:8088/` from the host or through an approved private tunnel.
+## Private Library Search
 
-## Validation
-
-```bash
-python3 tests/validate_static_ui.py
-python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
-python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
-```
-
-## Local Private Library Search API
-
-Run the read-only private library search UI and API wrapper locally:
+Run the local read-only UI and API wrapper:
 
 ```bash
 python3 server/private_library_search_server.py --host 127.0.0.1 --port 8091
 ```
 
-The browser client calls `/api/private-library/search`. The wrapper is
-localhost-only by default, clamps result limits, and only allows the
-`operations` collection. If `EDGE1_LIBRARY_SEARCH_URL` is set, the wrapper
-forwards searches to that backend; otherwise it returns fixture-backed results.
+The browser client calls `/api/private-library/search`. The wrapper is localhost-only by default, clamps result limits, restricts access to the approved operations collection, and preserves fixture fallback behavior.
 
-## Live Private Library Backend
-
-Discover a compatible local read-only library search backend:
+To discover a compatible local backend:
 
 ```bash
 python3 tools/discover_private_library_backend.py
 ```
 
-If discovery succeeds, run the UI/API wrapper with the generated config:
+Then run with the generated configuration:
 
 ```bash
 bin/run_private_library_search.sh 8091
 ```
 
-The wrapper supports GET and POST JSON backends through
-`config/private-library-search.env` while preserving fixture fallback behavior.
+When the local Big Bird library engine and database are available, successful direct responses use `mode: live_direct`.
 
-## Direct Private Library Search
+## Static preview
 
-The local search wrapper first tries Big Bird's read-only SQLite FTS5 library
-engine directly:
+The browser interface has no required build step:
 
 ```bash
-bin/run_private_library_search.sh 8091
+python3 -m http.server 8088 --directory src/web
 ```
 
-The direct bridge uses `/opt/bigbird-ai-gateway/app/library_engine.py` and
-`/var/lib/bigbird-ai-library/library.sqlite3` by default. Successful direct
-responses use `"mode": "live_direct"`. If the engine or DB is unavailable, the
-wrapper preserves the existing HTTP-backend and fixture fallback behavior.
+Then browse to `http://127.0.0.1:8088/` from the host or through an approved private tunnel.
 
-## Handoff Status
+## WW.CX Time Authority
 
-Current handoff materials live under `docs/handoff/`.
+The Time Authority package records read-only NTP measurements from Edge1 and the WW.CX shared host. It tracks public source names, resolved addresses, stratum, reference ID, RTT, estimated offset, dispersion, reachability, and expected-source conformance without changing either server clock.
 
-The Private Library Search module is wired to the local read-only Big Bird
-library engine and returns `mode: live_direct` when the SQLite library database
-is readable by the wrapper process. Fixture fallback remains available for
-offline validation.
+```bash
+python3 tests/validate_time_authority.py
+python3 tests/validate_time_authority_collector_compat.py
+python3 tests/validate_time_authority_rollout_simulation.py
+python3 server/time_authority_server.py --host 127.0.0.1 --port 8092
+```
 
-## Managed Search Service
+Deployment profiles, source registers, baseline observations, preflight checks, smoke tests, systemd units, automatic shared-host cron tooling, and spreadsheet-ready CSV export are documented in `docs/handoff/time-authority-runbook.md`.
 
-The search wrapper can run as a managed, localhost-only systemd service:
+## Validation
+
+```bash
+python3 tests/validate_static_ui.py
+python3 tests/validate_search_service_assets.py
+python3 tests/validate_time_authority.py
+python3 tests/validate_time_authority_collector_compat.py
+python3 tests/validate_records_evidence.py
+python3 tests/validate_records_evidence_automation.py
+python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
+python3 -m json.tool src/api/time_authority_contract.json >/dev/null
+python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
+```
+
+The same validation suite runs automatically for pull requests and pushes to `main`, including a Python 3.6 container check for the shared-host collector.
+
+## Managed service
+
+Install and test the localhost-only search wrapper:
 
 ```bash
 sudo deploy/install-private-library-search-service.sh
 deploy/private-library-search-service-smoke-test.sh
 ```
 
-See `docs/handoff/private-library-search-service-runbook.md`. Repo-side asset
-validation runs anywhere:
-
-```bash
-python3 tests/validate_search_service_assets.py
-```
+Operator guidance is available in `docs/handoff/private-library-search-service-runbook.md`.
 
 ## VPN Route (approval-gated, not installed)
 
@@ -148,84 +133,56 @@ prepared under `deploy/nginx/` but inert until an operator approves and
 installs them on Edge1. See
 `docs/handoff/private-library-search-route-runbook.md`.
 
-## Autonomous Completion
+## AI Filesystem Connector
 
-Project controls for autonomous completion live under
-`docs/autonomous-completion/`. The master register is
-`registers/autonomous-completion-register-20260717.md`.
+The connector follows a staged, human-controlled workflow:
 
-Run the read-only verifier at any handoff point:
-
-```bash
-python3 tools/handoff/verify_handoff_state.py
+```text
+propose -> inspect -> validate -> approve/reject -> operator-controlled apply
 ```
 
-## Combined Registers
+AI-accessible capabilities remain limited to staging, status, diff, and audit functions. Approval, production application, restart, and rollback remain operator-controlled.
 
-The project-wide combined register is:
+Key references:
+
+- `docs/ai-filesystem-write-connector/phase18-final-completion-handoff.md`
+- `docs/ai-filesystem-write-connector/phase-2-staged-proposal-intake.md`
+- `docs/ai-filesystem-write-connector/phase-3-operator-approval-metadata.md`
+- `docs/ai-filesystem-write-connector/phase-4-operator-controlled-apply.md`
+
+## Security
+
+Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or contributing configuration examples. Never open a public issue containing credentials, production data, private records, or unredacted diagnostic output.
+
+## Project records
+
+The combined project register is maintained at:
 
 ```text
 registers/combined-project-register-20260717.md
 ```
 
-The combined register index is:
+The autonomous-completion index is maintained at:
 
 ```text
 docs/autonomous-completion/04-combined-register-index.md
 ```
 
-## AI Filesystem Connector Status
+## Records governance
 
-The AI Filesystem Connector is complete for Phase 1 docs-only production use.
+The repository uses a project-defined records-and-evidence control to keep engineering claims traceable without overstating certification or publishing private operational data.
 
-Key references:
+- [Records and Evidence Policy](docs/records-governance/RECORDS_EVIDENCE_POLICY.md)
+- [Repository Evidence Map](docs/records-governance/EVIDENCE_MAP.md)
+- [Operational Records Evidence Program](docs/records-management/06-operational-evidence-program.md)
+- [Records Evidence Schema](schemas/records-evidence.schema.json)
+- [Sanitized Evidence Package](examples/records-evidence/)
+- [Repository Evidence Quality Index](docs/records-management/07-repository-quality-index.md)
+- [Automated repository validation](.github/workflows/validate.yml)
 
-- docs/ai-filesystem-write-connector/phase18-final-completion-handoff.md
-- docs/ai-filesystem-write-connector/phase16-operational-validation-handoff.md
-- docs/registers/ai-filesystem-connector-register-20260717.md
-- docs/handoffs/NEW-CHAT-AI-FILESYSTEM-CONNECTOR.md
+## Maintainer
 
-Safety boundary: MCP can stage docs-only proposals and read status/diff/audit. Approval, apply, and rollback remain operator/root-only.
+Created and maintained by **John Kaminski** through **Christmas Island Worldwide**.
 
-## AI Filesystem Connector Phase 2
-
-Phase 2 implements staged proposal intake, inspection, validation, and JSONL
-audit logging only. It intentionally does not include production apply,
-automatic approval, a root apply service, or rollback execution.
-
-See `docs/ai-filesystem-write-connector/phase-2-staged-proposal-intake.md`.
-
-## AI Filesystem Connector Phase 3
-
-Phase 3 adds operator approval and rejection metadata for staged proposals.
-Approval remains metadata only; it intentionally does not include production
-apply, automatic approval, a root apply service, or rollback execution.
-
-See `docs/ai-filesystem-write-connector/phase-3-operator-approval-metadata.md`.
-
-## Spamhaus Filtering
-
-Edge1 Spamhaus network filtering is managed by
-`tools/networking/spamhaus-nft-update.sh` and the
-`bigbird-spamhaus-filter.timer` systemd timer.
-
-See `docs/handoff/spamhaus-filter-runbook.md` for install, verification, and
-rollback steps.
-
-## AI Filesystem Connector Phase 4
-
-Phase 4 adds operator-controlled apply for approved staged proposals within the
-Edge1 management interface repository. It uses configured allowlisted project
-paths, hard secret/credential exclusions, pre-apply snapshots, post-apply
-verification, audit logging, and rollback metadata.
-
-It intentionally does not include automatic approval, AI-initiated apply, a
-root-owned apply service, or rollback execution.
-
-See `docs/ai-filesystem-write-connector/phase-4-operator-controlled-apply.md`.
-
-## Spamhaus Handoff
-
-Final handoff materials for the Edge1 Spamhaus filter live in
-`docs/handoff/spamhaus-filter-completion-handoff.md` and
-`registers/spamhaus-filter-register-20260717.md`.
+- [ORCID: 0009-0000-9523-8529](https://orcid.org/0009-0000-9523-8529)
+- [GitHub profile](https://github.com/johnkaminski727-alt)
