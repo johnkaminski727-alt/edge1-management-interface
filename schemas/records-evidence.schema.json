@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/records-evidence.schema.json",
+  "title": "WW.CX Records Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_id", "title", "record_class", "created_utc", "authoritative_source", "retention_rule", "sensitivity", "objects", "events"],
+  "properties": {
+    "record_id": {"type": "string", "pattern": "^WWCX-[A
