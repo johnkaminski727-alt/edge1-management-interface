@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WW.CX Time Authority</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#latest-measurements">Skip to measurements</a>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Big Bird Network Management</p>
+        <h1>WW.CX Time Authority</h1>
+        <p class="subtitle">Independent NTP source health from Edge1 and shared hosting.</p>
+      </div>
+      <div id="mode-pill" class="status-pill"><span class="status-dot"></span>Loading</div>
+    </header>
+
+    <nav class="module-nav" aria-label="Big Bird modules">
+      <a href="../">Private Library Search</a>
+      <a href="./" aria-current="page">Time Authority</a>
+    </nav>
+
+    <section class="notice">
+      <strong>Read-only observer.</strong>
+      This module measures public NTP responses. It does not set either server clock or expose credentials.
+    </section>
+
+    <section id="summary-cards" class="summary-grid" aria-label="Observer summary"></section>
+
+    <section class="panel chart-panel" aria-labelledby="comparison-title">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Current comparison</p>
+          <h2 id="comparison-title">RTT by source and observer</h2>
+        </div>
+        <label>Observer
+          <select id="observer-filter"><option value="all">Both observers</option></select>
+        </label>
+      </div>
+      <div id="rtt-chart" class="chart" role="img" aria-label="Round-trip time comparison chart"></div>
+    </section>
+
+    <section id="latest-measurements" class="panel" aria-labelledby="latest-title">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Latest</p>
+          <h2 id="latest-title">Source measurements</h2>
+        </div>
+        <p id="generated-at" class="muted">Waiting for data</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Observer</th><th>Source</th><th>Address</th><th>Stratum</th><th>RefID</th><th>RTT</th><th>Offset</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="measurement-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

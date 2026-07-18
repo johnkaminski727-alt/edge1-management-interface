@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "netnod-sth1",
+      "server_name": "sth1.ntp.se",
+      "provider": "Netnod",
+      "region": "Stockholm, Sweden",
+      "authority": "UTC(SP)",
+      "expected_stratum": 1,
+      "expected_refids": ["PPS"],
+      "transport": "NTPv4/UDP",
+      "authentication": "none"
+    },
+    {
+      "source_id": "netnod-sth2",
+      "server_name": "sth2.ntp.se",
+      "provider": "Netnod",
+      "region": "Stockholm, Sweden",
+      "authority": "UTC(SP)",
+      "expected_stratum": 1,
+      "expected_refids": ["PPS"],
+      "transport": "NTPv4/UDP",
+      "authentication": "none"
+    },
+    {
+      "source_id": "netnod-mmo1",
+      "server_name": "mmo1.ntp.se",
+      "provider": "Netnod",
+      "region": "Malmo, Sweden",
+      "authority": "UTC(SP)",
+      "expected_stratum": 1,
+      "expected_refids": ["PPS"],
+      "transport": "NTPv4/UDP",
+      "authentication": "none"
+    },
+    {
+      "source_id": "nist-global",
+      "server_name": "time.nist.gov",
+      "provider": "NIST",
+      "region": "United States, dynamic",
+      "authority": "UTC(NIST)",
+      "expected_stratum": 1,
+      "expected_refids": ["NIST"],
+      "transport": "NTPv4/UDP",
+      "authentication": "none"
+    },
+    {
+      "source_id": "cloudflare-global",
+      "server_name": "time.cloudflare.com",
+      "provider": "Cloudflare",
+      "region": "Anycast, dynamic",
+      "authority": "Cloudflare time service",
+      "expected_stratum_min": 1,
+      "expected_stratum_max": 4,
+      "expected_refids": [],
+      "transport": "NTPv4/UDP",
+      "authentication": "NTS-capable; this RTT probe is unauthenticated"
+    }
+  ]
+}

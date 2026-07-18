@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": null,
+  "mode": "baseline",
+  "observers": [
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","reachable_sources":5,"total_sources":5,"average_rtt_ms":64.602,"minimum_rtt_ms":1.2,"expectations_met":5},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","reachable_sources":5,"total_sources":5,"average_rtt_ms":39.946,"minimum_rtt_ms":1.94,"expectations_met":5}
+  ],
+  "latest": [
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"netnod-sth1","server_name":"sth1.ntp.se","resolved_address":"194.58.202.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":58.19,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"netnod-sth2","server_name":"sth2.ntp.se","resolved_address":"194.58.202.148","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":59.68,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"netnod-mmo1","server_name":"mmo1.ntp.se","resolved_address":"194.58.204.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":62.54,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"nist-global","server_name":"time.nist.gov","resolved_address":"132.163.97.1","reachable":true,"stratum":1,"refid":"NIST","rtt_ms":141.4,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"edge1","observer_host":"edge1.ww.cx","source_id":"cloudflare-global","server_name":"time.cloudflare.com","resolved_address":"162.159.200.123","reachable":true,"stratum":3,"refid":"10.145.8.6","rtt_ms":1.2,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"netnod-sth1","server_name":"sth1.ntp.se","resolved_address":"194.58.202.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":24.48,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"netnod-sth2","server_name":"sth2.ntp.se","resolved_address":"194.58.202.148","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":22.82,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"netnod-mmo1","server_name":"mmo1.ntp.se","resolved_address":"194.58.204.20","reachable":true,"stratum":1,"refid":"PPS","rtt_ms":31.73,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"nist-global","server_name":"time.nist.gov","resolved_address":"132.163.97.4","reachable":true,"stratum":1,"refid":"NIST","rtt_ms":118.76,"clock_offset_ms":null,"expectation_ok":true},
+    {"observer_id":"shared-host","observer_host":"business159.web-hosting.com","source_id":"cloudflare-global","server_name":"time.cloudflare.com","resolved_address":"162.159.200.123","reachable":true,"stratum":3,"refid":"10.20.8.26","rtt_ms":1.94,"clock_offset_ms":null,"expectation_ok":true}
+  ],
+  "history": []
+}

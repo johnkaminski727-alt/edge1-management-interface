@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "observers": [
+    {
+      "observer_id": "edge1",
+      "observer_host": "edge1.ww.cx",
+      "role": "primary Big Bird time observer and future Stratum 2 server",
+      "collector": "Python NTPv4 probe",
+      "default_output": "/var/lib/edge1-time-authority/measurements.jsonl"
+    },
+    {
+      "observer_id": "shared-host",
+      "observer_host": "business159.web-hosting.com",
+      "role": "independent shared-host time observer",
+      "collector": "Python NTPv4 probe under user cron",
+      "default_output": "$HOME/private/wwcx-time-authority/measurements.jsonl"
+    }
+  ]
+}
