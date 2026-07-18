@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Single predictable entry point for all repository validation.
+
+Runs the same checks as CI (.github/workflows/validate.yml), locally and
+dependency-free, with a per-step summary. Roadmap: "Consolidate common
+validation commands into a predictable test entry point."
+
+Usage:
+  bin/validate-repo            run everything available
+  bin/validate-repo --quick    skip node checks and per-file JSON sweep
+  bin/validate-repo --list     list steps without running
+"""
+
+from __future__ import annotations
+
+import argparse
+import compileall
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run_validation_tests() -> list[tuple[str, bool, str]]:
+    results = []
+    for test in sorted((ROOT / "tests").glob("validate_*.py")):
+        proc = subprocess.run(
+            [sys.executable, str(test)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        detail = "" if proc.returncode == 0 else (proc.stdout + proc.stderr).strip().splitlines()[-1:]
+        results.append((f"test:{test.name}", proc.returncode == 0, "; ".join(detail) if detail else ""))
+    return results
+
+
+def run_compileall() -> list[tuple[str, bool, str]]:
+    ok = True
+    for directory in ("bin", "server", "tests", "tools"):
+        path = ROOT / directory
+        if path.is_dir():
+            if not compileall.compile_dir(str(path), quiet=2):
+                ok = False
+    return [("python:compileall", ok, "" if ok else "see stderr")]
+
+
+def run_shell_syntax() -> list[tuple[str, bool, str]]:
+    failures = []
+    for script in sorted(ROOT.rglob("*.sh")):
+        if ".git" in script.parts:
+            continue
+        proc = subprocess.run(["sh", "-n", str(script)], capture_output=True, text=True)
+        if proc.returncode != 0:
+            failures.append(str(script.relative_to(ROOT)))
+    return [("shell:sh -n", not failures, ", ".join(failures))]
+
+
+def run_json_checks() -> list[tuple[str, bool, str]]:
+    failures = []
+    for directory in ("modules", "src", "schemas", "examples", "tools"):
+        path = ROOT / directory
+        if not path.is_dir():
+            continue
+        for candidate in sorted(path.rglob("*.json")):
+            try:
+                json.loads(candidate.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                failures.append(str(candidate.relative_to(ROOT)))
+    return [("json:well-formed", not failures, ", ".join(failures))]
+
+
+def run_node_checks() -> list[tuple[str, bool, str]]:
+    node = shutil.which("node")
+    targets = [ROOT / "src" / "web" / "app.js", ROOT / "src" / "web" / "time-authority" / "app.js"]
+    targets = [target for target in targets if target.is_file()]
+    if node is None:
+        return [("js:node --check", True, "node not installed; skipped")]
+    failures = []
+    for target in targets:
+        proc = subprocess.run([node, "--check", str(target)], capture_output=True, text=True)
+        if proc.returncode != 0:
+            failures.append(str(target.relative_to(ROOT)))
+    return [("js:node --check", not failures, ", ".join(failures))]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--quick", action="store_true", help="skip node and JSON sweeps")
+    parser.add_argument("--list", action="store_true", help="list steps without running")
+    args = parser.parse_args()
+
+    steps = ["validation tests", "python compileall", "shell syntax"]
+    if not args.quick:
+        steps += ["json well-formedness", "node --check"]
+
+    if args.list:
+        for step in steps:
+            print(step)
+        return 0
+
+    results: list[tuple[str, bool, str]] = []
+    results += run_validation_tests()
+    results += run_compileall()
+    results += run_shell_syntax()
+    if not args.quick:
+        results += run_json_checks()
+        results += run_node_checks()
+
+    width = max(len(name) for name, _, _ in results)
+    failed = 0
+    for name, ok, detail in results:
+        status = "PASS" if ok else "FAIL"
+        if not ok:
+            failed += 1
+        suffix = f"  ({detail})" if detail else ""
+        print(f"{name.ljust(width)}  {status}{suffix}")
+
+    print()
+    print(f"{len(results) - failed}/{len(results)} steps passed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

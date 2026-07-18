@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-18 — Operator tooling (roadmap: reliability and validation)
+
+- Added `bin/validate-repo`, a single dependency-free entry point running the
+  full validation suite with a per-step summary, mirroring CI.
+- Added `tools/operator/edge1-health-summary.py`, a read-only localhost
+  health snapshot (search mode, Time Authority API, unit/timer states,
+  worktree state) with OK/WARN/FAIL semantics and no sensitive output.
+- Added an operator-tools validation test.
+
 ## 2026-07-18 — Time Authority rollout simulation
 
 - added an end-to-end, non-production simulation for both server installers;

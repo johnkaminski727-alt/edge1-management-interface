@@ -101,19 +101,27 @@ Deployment profiles, source registers, baseline observations, preflight checks, 
 
 ## Validation
 
+Everything runs from one predictable entry point:
+
 ```bash
-python3 tests/validate_static_ui.py
-python3 tests/validate_search_service_assets.py
-python3 tests/validate_time_authority.py
-python3 tests/validate_time_authority_collector_compat.py
-python3 tests/validate_records_evidence.py
-python3 tests/validate_records_evidence_automation.py
-python3 -m json.tool src/api/private_library_search_contract.json >/dev/null
-python3 -m json.tool src/api/time_authority_contract.json >/dev/null
-python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
+bin/validate-repo          # all validation tests + python/shell/json/js checks
+bin/validate-repo --quick  # skip the node and JSON sweeps
+bin/validate-repo --list   # show the steps
 ```
 
-The same validation suite runs automatically for pull requests and pushes to `main`, including a Python 3.6 container check for the shared-host collector.
+Individual `tests/validate_*.py` scripts remain runnable directly. The same
+suite runs automatically for pull requests and pushes to `main`, including a
+Python 3.6 container check for the shared-host collector.
+
+## Operator health summary
+
+A read-only, localhost-only health snapshot for the managed components
+(search API mode, Time Authority API, unit/timer states, worktree state),
+designed to expose no sensitive diagnostics:
+
+```bash
+python3 tools/operator/edge1-health-summary.py
+```
 
 ## Managed service
 
