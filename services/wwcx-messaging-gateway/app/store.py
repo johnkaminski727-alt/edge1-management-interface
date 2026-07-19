@@ -4,11 +4,13 @@ from .models import NormalizedMessage
 
 
 class InMemoryEventStore:
-    """Development-only idempotency store; replace with PostgreSQL before production."""
+    """Development-only idempotency and control store."""
 
     def __init__(self) -> None:
         self._lock = Lock()
         self._events: dict[tuple[str, str], NormalizedMessage] = {}
+        self._paused = False
+        self._last_control: dict[str, str] | None = None
 
     def put_if_absent(self, message: NormalizedMessage) -> bool:
         key = (message.provider, message.provider_event_id)
@@ -21,3 +23,23 @@ class InMemoryEventStore:
     def count(self) -> int:
         with self._lock:
             return len(self._events)
+
+    def get_control_state(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "paused": self._paused,
+                "last_control": self._last_control,
+            }
+
+    def set_paused(self, paused: bool, actor: str, reason: str) -> dict[str, object]:
+        with self._lock:
+            self._paused = paused
+            self._last_control = {
+                "action": "pause" if paused else "resume",
+                "actor": actor,
+                "reason": reason,
+            }
+            return {
+                "paused": self._paused,
+                "last_control": self._last_control,
+            }
