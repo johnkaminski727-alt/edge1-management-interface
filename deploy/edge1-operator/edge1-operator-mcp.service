@@ -1,0 +1,17 @@
+[Unit]
+Description=Edge1 Operator MCP Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=edge1-operator
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_operator_mcp.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
