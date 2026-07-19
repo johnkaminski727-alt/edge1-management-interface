@@ -1,0 +1,39 @@
+{
+  "contract": "wwcx.messaging.management",
+  "version": "1.0",
+  "base_path": "/v1/management",
+  "authentication": {
+    "type": "bearer",
+    "credentials": {
+      "read": "WWCX_MESSAGING_READ_TOKEN",
+      "control": "WWCX_MESSAGING_CONTROL_TOKEN"
+    }
+  },
+  "operations": [
+    {
+      "name": "messaging.status.read",
+      "method": "GET",
+      "path": "/status",
+      "scope": "messaging.status.read",
+      "mutating": false
+    },
+    {
+      "name": "messaging.control.pause",
+      "method": "POST",
+      "path": "/control",
+      "scope": "messaging.control.pause",
+      "mutating": true,
+      "action": "pause",
+      "requires": ["actor", "reason"]
+    },
+    {
+      "name": "messaging.control.resume",
+      "method": "POST",
+      "path": "/control",
+      "scope": "messaging.control.resume",
+      "mutating": true,
+      "action": "resume",
+      "requires": ["actor", "reason"]
+    }
+  ]
+}
