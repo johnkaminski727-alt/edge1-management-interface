@@ -86,7 +86,18 @@ rollback() {
   fail "$reason; rollback completed; evidence: $EVIDENCE"
 }
 
-trap 'if [ "$APPLIED" -eq 1 ]; then rollback "unexpected installer failure"; fi' HUP INT TERM
+on_exit() {
+  status=$?
+  if [ "$status" -ne 0 ] && [ "$APPLIED" -eq 1 ]; then
+    rollback "unexpected installer failure (exit $status)"
+  fi
+  exit "$status"
+}
+
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
 
 install -o root -g root -m 0644 "$UNIT_SRC" "$UNIT_DST"
 systemctl daemon-reload
@@ -121,7 +132,7 @@ python3 "$ROOT/server/wwcx_numbering_node.py" \
   list-sources >"$EVIDENCE/numbering-sources.json"
 
 APPLIED=0
-trap - HUP INT TERM
+trap - EXIT HUP INT TERM
 say 'Loopback numbering staging installed successfully.'
 say "Evidence: $EVIDENCE"
 say 'No DNS, firewall, Apache, certificate, FreePBX, Asterisk, or public listener changes were made.'
