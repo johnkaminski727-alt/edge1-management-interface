@@ -10,5 +10,37 @@
   <a class="skip-link" href="#service-grid">Skip to service status</a>
   <main class="app-shell">
     <header class="topbar">
+      <div><p class="eyebrow">Edge1 Management Interface</p><h1>Telephony Operations</h1></div>
+      <div class="status-pill"><span class="status-dot"></span>Read-only preview</div>
+    </header>
+    <nav class="module-nav" aria-label="Big Bird modules">
+      <a href="../">Private Library Search</a><a href="../time-authority/">Time Authority</a><a href="./" aria-current="page">Telephony Operations</a>
+    </nav>
+    <section class="notice"><strong>Private/VPN-only module.</strong> Fixture data is shown until approved local adapters are configured. No production-changing actions are exposed.</section>
+    <section class="hero">
+      <div><p class="eyebrow">Network posture</p><h2 id="overall-title">Loading telephony status</h2><p id="generated-at"></p></div>
+      <button id="refresh" type="button">Refresh snapshot</button>
+    </section>
+    <section class="metrics" id="metrics" aria-label="Telephony summary metrics"></section>
+    <section class="workspace">
       <div>
-        <p class
+        <div class="section-heading"><div><p class="eyebrow">Services</p><h2>Platform health</h2></div></div>
+        <div id="service-grid" class="service-grid"></div>
+      </div>
+      <div>
+        <div class="section-heading"><div><p class="eyebrow">Interconnect</p><h2>Carrier and trunk health</h2></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Peer</th><th>Status</th><th>Latency</th><th>Success</th><th>Active</th></tr></thead><tbody id="peer-rows"></tbody></table></div>
+      </div>
+      <div>
+        <div class="section-heading"><div><p class="eyebrow">SIP</p><h2>Registration posture</h2></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Endpoint</th><th>State</th><th>Transport</th><th>User agent</th><th>Expires</th></tr></thead><tbody id="registration-rows"></tbody></table></div>
+      </div>
+      <aside>
+        <div class="section-heading"><div><p class="eyebrow">Alerts</p><h2>Needs attention</h2></div></div>
+        <div id="alerts" class="alerts"></div>
+      </aside>
+    </section>
+  </main>
+  <script src="./telephony.js"></script>
+</body>
+</html>
