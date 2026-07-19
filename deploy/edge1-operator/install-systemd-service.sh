@@ -16,4 +16,4 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-if ! id "$SERVICE_USER" >/dev/null 2>&1
+if ! id "$SERVICE_USER" >/dev/null 2>&
