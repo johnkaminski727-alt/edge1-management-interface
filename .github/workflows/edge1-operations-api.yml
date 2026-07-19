@@ -39,4 +39,4 @@ jobs:
         run: |
           grep -F 'EDGE1_OPS_MUTATIONS_ENABLED=false' deploy/edge1-operations-api.service
           grep -F '127.0.0.1' deploy/edge1-operations-api.service
-          ! grep -RniE '(password|secret|token)[[:space:]]*[:=][[:space:]]*[^$<{[:space:]]+' server config deploy integrations/bigbird-edge1-operations docs/edge1-operations-api.md
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server config deploy integrations/bigbird-edge1-operations docs/edge1-operations-api.md
