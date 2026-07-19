@@ -19,3 +19,9 @@ project-wide completion register and restore/handoff status.
 Use `registers/combined-project-register-20260717.md` as the top-level register
 for restore, handoff, project status, related connectors, and open finish-line
 items.
+
+## Spirit Creek Carrier Readiness Register
+
+Use `registers/spirit-creek-carrier-readiness-register-20260719.md` for the
+archived Spirit Creek carrier, numbering, interconnect, correspondence,
+evidence, safety-boundary, and remaining-dependency state.
