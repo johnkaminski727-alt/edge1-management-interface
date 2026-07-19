@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "integration": "wwcx-messaging-gateway",
+  "default_enabled": false,
+  "configuration": {
+    "base_url_env": "WWCX_MESSAGING_MANAGEMENT_URL",
+    "read_token_env": "WWCX_MESSAGING_READ_TOKEN",
+    "control_token_env": "WWCX_MESSAGING_CONTROL_TOKEN"
+  },
+  "tools": [
+    {
+      "name": "messaging.status.read",
+      "description": "Read WW.CX messaging gateway health, storage, event count, and pause state.",
+      "required_scope": "messaging.status.read",
+      "method": "GET",
+      "path": "/v1/management/status",
+      "mutating": false
+    },
+    {
+      "name": "messaging.control.pause",
+      "description": "Pause new messaging intake for a documented operational reason.",
+      "required_scope": "messaging.control.pause",
+      "method": "POST",
+      "path": "/v1/management/control",
+      "mutating": true,
+      "requires": ["actor", "reason"]
+    },
+    {
+      "name": "messaging.control.resume",
+      "description": "Resume messaging intake after the documented condition is cleared.",
+      "required_scope": "messaging.control.resume",
+      "method": "POST",
+      "path": "/v1/management/control",
+      "mutating": true,
+      "requires": ["actor", "reason"]
+    }
+  ]
+}
