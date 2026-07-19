@@ -19,7 +19,12 @@ class MessagingGatewayClient:
     timeout_seconds: float = 5.0
 
     def status(self) -> dict[str, Any]:
-        return self._request("GET", "/v1/management/status", token=self.read_token)
+        return self._request(
+            "GET",
+            "/v1/management/status",
+            token=self.read_token,
+            token_header="X-WWCX-Management-Token",
+        )
 
     def pause(self, *, actor: str, reason: str) -> dict[str, Any]:
         return self._control("pause", actor=actor, reason=reason)
@@ -36,6 +41,7 @@ class MessagingGatewayClient:
             "POST",
             "/v1/management/control",
             token=self.control_token,
+            token_header="X-WWCX-Control-Token",
             payload={"action": action, "actor": actor, "reason": reason},
         )
 
@@ -45,6 +51,7 @@ class MessagingGatewayClient:
         path: str,
         *,
         token: str,
+        token_header: str,
         payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
@@ -55,7 +62,7 @@ class MessagingGatewayClient:
             headers={
                 "accept": "application/json",
                 "content-type": "application/json",
-                "authorization": f"Bearer {token}",
+                token_header: token,
             },
         )
         try:
