@@ -12,18 +12,19 @@ records.
 ## Top-Level Register
 
 ```text
-registers/combined-project-register-20260717.md
+registers/combined-project-register-20260719.md
 ```
 
-Use this first when restoring broad project context. For the authenticated
-Edge1 operational snapshot and corrective follow-up completed on 2026-07-19,
-read the smoke-test register and sanitized archive record immediately after it.
+Use this first when restoring broad project context. The prior
+`registers/combined-project-register-20260717.md` remains a retained historical
+baseline.
 
 ## Supporting Registers And Docs
 
 | File | Role |
 | --- | --- |
-| `registers/combined-project-register-20260717.md` | Project-wide combined register |
+| `registers/combined-project-register-20260719.md` | Current project-wide combined register and archive-preparation source of truth |
+| `registers/combined-project-register-20260717.md` | Superseded historical baseline |
 | `registers/edge1-authenticated-smoke-test-register-20260719.md` | Authenticated Edge1 checks, corrective actions, residual warnings, and archive boundary |
 | `docs/archive/edge1-authenticated-smoke-test-closeout-20260719.md` | Sanitized closeout; raw host evidence intentionally excluded |
 | `registers/autonomous-completion-register-20260717.md` | Autonomous completion register |
@@ -39,10 +40,10 @@ read the smoke-test register and sanitized archive record immediately after it.
 
 ## Edge1 Smoke-Test Archive Boundary
 
-The durable repository record is limited to the sanitized register and closeout
-document. Do not import or commit the host-local directory
-`/tmp/edge1-readonly-smoke-20260719T182823Z`, because the temporary evidence
-wrapper failed its synthetic bearer-value redaction test.
+The durable repository record is limited to the sanitized combined register,
+smoke-test register, and closeout document. Do not import or commit the
+host-local directory `/tmp/edge1-readonly-smoke-20260719T182823Z`, because the
+temporary evidence wrapper failed its synthetic bearer-value redaction test.
 
 Operational corrections recorded as completed and verified:
 
@@ -52,13 +53,14 @@ Operational corrections recorded as completed and verified:
 - `logrotate.service` completed successfully;
 - zero failed systemd units observed after correction.
 
-Residual follow-up remains in the smoke-test register, including persistent
-redaction tooling, elevated swap trending, messaging activation, MariaDB VPN
-scope review, and Edge1 checkout reconciliation.
+Residual follow-up remains in the current combined register and smoke-test
+register, including persistent redaction tooling, elevated swap trending,
+messaging activation, MariaDB VPN scope review, Edge1 checkout reconciliation,
+and approved private-library import of the sanitized records.
 
 ## Restore Reading Order
 
-1. `registers/combined-project-register-20260717.md`
+1. `registers/combined-project-register-20260719.md`
 2. `registers/edge1-authenticated-smoke-test-register-20260719.md`
 3. `docs/archive/edge1-authenticated-smoke-test-closeout-20260719.md`
 4. `docs/autonomous-completion/02-restore-index.md`
@@ -73,6 +75,6 @@ cd /opt/edge1-management-interface
 python3 tools/handoff/verify_handoff_state.py
 ```
 
-The verifier should require this index and the combined register. The
+The verifier should require this index and the current combined register. The
 smoke-test register and archive closeout are supplemental timestamped records;
 they do not replace a fresh production-state verification.
