@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "integration": "edge1-operations",
+  "base_url": "http://127.0.0.1:8097",
+  "authentication": "wwcx-hmac-sha256-v1",
+  "tools": [
+    {"name": "edge1.repository.status", "action": "repository.status", "scope": "edge1.status.read", "enabled": true},
+    {"name": "edge1.interconnect.validate", "action": "validation.interconnect", "scope": "edge1.validation.run", "enabled": true},
+    {"name": "edge1.numbering.validate", "action": "validation.numbering_node", "scope": "edge1.validation.run", "enabled": true},
+    {"name": "edge1.numbering.health", "action": "numbering.health", "scope": "edge1.status.read", "enabled": true},
+    {"name": "edge1.repository.fetch", "action": "repository.fetch", "scope": "edge1.repository.write", "enabled": false},
+    {"name": "edge1.repository.fast_forward_main", "action": "repository.fast_forward_main", "scope": "edge1.repository.write", "enabled": false}
+  ]
+}
