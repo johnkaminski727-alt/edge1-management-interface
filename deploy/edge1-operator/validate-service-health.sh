@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-SERVICE="edge1-operator.service"
+SERVICE="edge1-operator-mcp.service"
 
 if ! systemctl cat "$SERVICE" >/dev/null 2>&1; then
     echo "missing service: $SERVICE"
