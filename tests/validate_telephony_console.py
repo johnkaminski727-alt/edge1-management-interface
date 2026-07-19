@@ -55,8 +55,8 @@ for marker in (
     "/healthz",
     "asterisk_snapshot",
     "process_running",
-    'payload["interconnects"] = []',
-    'payload["registrations"] = []',
+    '"interconnects": []',
+    '"registrations": []',
     "wwcx-numbering-node.service",
 ):
     if marker not in server:
