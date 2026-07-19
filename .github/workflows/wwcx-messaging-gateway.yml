@@ -1,0 +1,47 @@
+name: WW.CX Messaging Gateway
+
+on:
+  pull_request:
+    paths:
+      - "services/wwcx-messaging-gateway/**"
+      - ".github/workflows/wwcx-messaging-gateway.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/wwcx-messaging-gateway/**"
+      - ".github/workflows/wwcx-messaging-gateway.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/wwcx-messaging-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/wwcx-messaging-gateway/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[dev]'
+      - run: pytest -q
+      - run: python -m compileall app tests
+
+  integration-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/wwcx-messaging-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f compose.test.yaml up -d --build --wait
+      - run: sh scripts/smoke-test.sh
+      - if: always()
+        run: docker compose -f compose.test.yaml logs --no-color
+      - if: always()
+        run: docker compose -f compose.test.yaml down -v
