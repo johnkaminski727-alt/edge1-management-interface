@@ -1,0 +1,17 @@
+{
+  "contract": "wwcx.messaging.management",
+  "version": "1.0",
+  "base_path": "/v1/management",
+  "authentication": {
+    "type": "bearer",
+    "credentials": {
+      "read": "WWCX_MESSAGING_READ_TOKEN",
+      "control": "WWCX_MESSAGING_CONTROL_TOKEN"
+    }
+  },
+  "operations": [
+    {
+      "name": "messaging.status",
+      "method": "GET",
+      "path": "/status",
+      "scope": "mess
