@@ -20,6 +20,7 @@ services:
       context: .
       dockerfile: Containerfile
     environment:
+      DATABASE_URL: postgresql://wwcx:wwcx-test-only@postgres:5432/wwcx_messaging
       WWCX_SIMULATOR_TOKEN: test-token
     depends_on:
       postgres:
@@ -27,7 +28,7 @@ services:
     ports:
       - "127.0.0.1:58080:8080"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz')"]
       interval: 3s
       timeout: 3s
       retries: 20
