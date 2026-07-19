@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony-status-contract.json",
+  "title": "Big Bird Telephony Status Snapshot",
+  "type": "object",
+  "required": ["schema_version", "mode", "site", "generated_at", "overall_status", "metrics", "services", "interconnects", "registrations", "alerts"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "mode": {"enum": ["sanitized_fixture", "live_read_only"]},
+    "site": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "overall_status": {"enum": ["healthy", "degraded", "critical", "unknown"]},
+    "metrics": {"type": "object"},
+    "services": {"type": "array"},
+    "interconnects": {"type": "array"},
+    "registrations": {"type": "array"},
+    "alerts": {"type": "array"}
+  },
+  "additionalProperties": false
+}
