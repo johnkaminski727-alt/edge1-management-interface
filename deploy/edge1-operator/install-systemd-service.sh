@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-SERVICE_NAME=edge1-operator.service
+SERVICE_NAME=edge1-operator-mcp.service
 SERVICE_DIR=/etc/systemd/system
 SOURCE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
@@ -12,8 +12,8 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-install -m 0644 "$SOURCE_DIR/edge1-operator.service" "$SERVICE_DIR/$SERVICE_NAME"
+install -m 0644 "$SOURCE_DIR/$SERVICE_NAME" "$SERVICE_DIR/$SERVICE_NAME"
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 
-printf '
+printf 'Installed %s\n' "$SERVICE_NAME"
