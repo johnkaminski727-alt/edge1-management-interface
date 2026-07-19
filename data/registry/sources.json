@@ -1,0 +1,31 @@
+{
+  "registry": "WW.CX Geographic Registry",
+  "version": "1.0.0-foundation",
+  "sources": [
+    {
+      "name": "ISO 3166",
+      "purpose": "Country identifiers and names",
+      "standard": "ISO 3166-1"
+    },
+    {
+      "name": "ITU E.164",
+      "purpose": "International telephone numbering prefixes",
+      "standard": "E.164"
+    },
+    {
+      "name": "IANA Time Zone Database",
+      "purpose": "Time zone identifiers and offset rules",
+      "standard": "tzdb"
+    },
+    {
+      "name": "ISO 4217",
+      "purpose": "Currency identifiers",
+      "standard": "ISO 4217"
+    },
+    {
+      "name": "Unicode CLDR",
+      "purpose": "Locale and regional formatting metadata",
+      "standard": "CLDR"
+    }
+  ]
+}
