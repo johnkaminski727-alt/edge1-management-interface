@@ -1,6 +1,6 @@
 # Spirit Creek Communications — Carrier and Numbering Evidence Index
 
-**Status:** Active  
+**Status:** Active / archive-ready snapshot  
 **Last updated:** 2026-07-19
 
 This index identifies evidence locations without storing credentials, private activation links, tokens, account URLs, or other secrets.
@@ -17,7 +17,7 @@ This index identifies evidence locations without storing credentials, private ac
 
 | Evidence | Location | Verified fact | Limitation |
 |---|---|---|---|
-| Staged interconnect PR | GitHub PR #16 | Merged; PR record states `WW.CX interconnect staging validation` and repository validation passed on head `2259a9871c13ab827f6793fc8fd4ea94d721558f` | Current execution environment did not provide `gh`, so independent Actions log retrieval was unavailable |
+| Staged interconnect PR | GitHub PR #16 | Merged; PR record states `WW.CX interconnect staging validation` and repository validation passed on head `2259a9871c13ab827f6793fc8fd4ea94d721558f` | Staging validation does not authorize production traffic or carrier activation |
 | Interconnect workflow | `.github/workflows/wwcx-interconnect-staging.yml` | Staged validation covers assets, numbering-node tests, and source lifecycle | Does not activate live SIP, routing, trunks, firewall, DNS, certificates, E911, or traffic |
 
 ## Gmail correspondence
@@ -26,8 +26,8 @@ Gmail message IDs and private URLs are intentionally not copied into repository 
 
 | Organization | Search reference | Current classification | Material evidence |
 |---|---|---|---|
-| VoIP.ms | Sales thread `B9ZWS8`; support tickets `N61QEU`, `B78N34`, `NFX94W` | Provider capability statement plus automated ticket notices | Asterisk/FreePBX support; Canadian DIDs in many rate centres; local portability subject to eligibility; SMS API; MMS on supported numbers; E911 on eligible DIDs; reseller program |
-| VoIP.ms | Subject `Activate your account` from `noreply@voip.ms` | User-action blocker | Activation message remains unread; no activation confirmation located as of 2026-07-19 |
+| VoIP.ms | Sales thread `B9ZWS8`; support tickets `N61QEU`, `B78N34`, `NFX94W` | Provider capability statement, verified account activation, onboarding follow-up sent, plus automated ticket notices | Asterisk/FreePBX support; Canadian DIDs in many rate centres; local portability subject to eligibility; SMS API; MMS on supported numbers; E911 on eligible DIDs; reseller program; Saskatchewan onboarding dataset requested |
+| VoIP.ms | Subjects `Activate your account` and `Welcome to VoIP.ms` from VoIP.ms | Activation completed and verified | User completed the private activation workflow; welcome message received on 2026-07-19; private URLs excluded |
 | ThinkTel | `CT-12603061-6A1F / 12603061` | Automated acknowledgement and request echo | No pricing, coverage, technical acceptance, or commercial terms |
 | ThinkTel | `CT-12603062-C1F7 / 12603062` | Automated acknowledgement and request echo | No pricing, coverage, technical acceptance, or commercial terms |
 | Canadian Numbering Administrator | `COCodeApps@cnac.ca`; subjects containing `Thousands-Block` or `Spirit Creek Communications` | Inquiry and identity correction sent | No substantive response located as of 2026-07-19 |
@@ -57,11 +57,13 @@ Gmail message IDs and private URLs are intentionally not copied into repository 
 - E911 provider and approved customer notification materials.
 - Initial Saskatchewan rate centre and NPA.
 - Executed CNA/CNAC Service User Agreement and current application forms.
+- Written carrier answers for Saskatchewan inventory, pricing, minimums, reseller terms, SLAs, escalation, and hosted numbering support.
 
 ## Evidence handling rules
 
 - Ticket creation is not carrier acceptance.
 - Provider capability statements are not inventory confirmations.
+- Account activation is not carrier approval, service availability, or acceptance of commercial terms.
 - Draft applications are not filings.
 - Do not store activation links, credentials, private tokens, or sensitive account URLs.
 - Record signatures, certifications, payments, regulatory submissions, and production changes only after separate verified action.
