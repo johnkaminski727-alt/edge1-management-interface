@@ -1,11 +1,22 @@
 #!/usr/bin/env python3
+import ast
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web" / "telephony"
 
-required = [WEB / "index.html", WEB / "telephony.css", WEB / "telephony.js", WEB / "telephony.fixture.json", ROOT / "src" / "api" / "telephony_status_contract.json"]
+required = [
+    WEB / "index.html",
+    WEB / "telephony.css",
+    WEB / "telephony.js",
+    WEB / "telephony.fixture.json",
+    ROOT / "src" / "api" / "telephony_status_contract.json",
+    ROOT / "server" / "telephony_status_server.py",
+    ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service",
+    ROOT / "deploy" / "telephony" / "install-telephony-console.sh",
+    ROOT / "deploy" / "telephony" / "telephony-console-smoke-test.sh",
+]
 missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
 if missing:
     raise SystemExit("missing telephony assets: " + ", ".join(missing))
@@ -26,5 +37,22 @@ html = (WEB / "index.html").read_text(encoding="utf-8")
 for marker in ("Telephony Operations", "service-grid", "peer-rows", "registration-rows", "telephony.js"):
     if marker not in html:
         raise SystemExit("HTML missing marker: " + marker)
+
+javascript = (WEB / "telephony.js").read_text(encoding="utf-8")
+for marker in ("/api/telephony/status", "telephony.fixture.json", "live_read_only"):
+    if marker not in javascript:
+        raise SystemExit("JavaScript missing live/fallback marker: " + marker)
+
+server_path = ROOT / "server" / "telephony_status_server.py"
+ast.parse(server_path.read_text(encoding="utf-8"), filename=str(server_path))
+server = server_path.read_text(encoding="utf-8")
+for marker in ("127.0.0.1", "/api/telephony/status", "/healthz", "asterisk_snapshot", "wwcx-numbering-node.service"):
+    if marker not in server:
+        raise SystemExit("server missing safety or integration marker: " + marker)
+
+unit = (ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service").read_text(encoding="utf-8")
+for marker in ("--host 127.0.0.1", "NoNewPrivileges=true", "ProtectSystem=strict", "WantedBy=multi-user.target"):
+    if marker not in unit:
+        raise SystemExit("systemd unit missing marker: " + marker)
 
 print("telephony console validation passed")
