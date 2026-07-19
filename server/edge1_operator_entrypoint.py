@@ -1,26 +1,22 @@
 """Edge1 Operator service entrypoint.
 
-Provides a stable application boundary for launching the operator stack.
+Provides the stable application boundary for launching the operator stack.
 The transport, adapter, registry, dispatcher, and runtime layers remain
 independent so deployment and testing can evolve separately.
 """
 
 from __future__ import annotations
 
-from edge1_operator_transport import OperatorTransport
+import time
+
+from edge1_operator_transport import Edge1OperatorTransport
 
 
-def build_operator() -> OperatorTransport:
-    """Construct the operator service boundary."""
-    return OperatorTransport()
+class ServiceOperator:
+    """Minimal long-running operator service boundary."""
 
+    def __init__(self) -> None:
+        self.transport = Edge1OperatorTransport(dispatcher=None)
 
-def main() -> int:
-    """Start the operator process placeholder."""
-    operator = build_operator()
-    operator.health_check()
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    def health_check(self) -> dict[str, str]:
+        return {"status": "ready"
