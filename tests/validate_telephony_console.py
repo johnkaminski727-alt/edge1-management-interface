@@ -42,14 +42,23 @@ for marker in ("Telephony Operations", "service-grid", "peer-rows", "registratio
         raise SystemExit("HTML missing marker: " + marker)
 
 javascript = (WEB / "telephony.js").read_text(encoding="utf-8")
-for marker in ("/api/telephony/status", "telephony.fixture.json", "live_read_only"):
+for marker in ("/api/telephony/status", "telephony.fixture.json", "fixture fallback"):
     if marker not in javascript:
         raise SystemExit("JavaScript missing live/fallback marker: " + marker)
 
 server_path = ROOT / "server" / "telephony_status_server.py"
 ast.parse(server_path.read_text(encoding="utf-8"), filename=str(server_path))
 server = server_path.read_text(encoding="utf-8")
-for marker in ("127.0.0.1", "/api/telephony/status", "/healthz", "asterisk_snapshot", "wwcx-numbering-node.service"):
+for marker in (
+    "127.0.0.1",
+    "/api/telephony/status",
+    "/healthz",
+    "asterisk_snapshot",
+    "process_running",
+    'payload["interconnects"] = []',
+    'payload["registrations"] = []',
+    "wwcx-numbering-node.service",
+):
     if marker not in server:
         raise SystemExit("server missing safety or integration marker: " + marker)
 
@@ -57,6 +66,11 @@ unit = (ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service").read_t
 for marker in ("--host 127.0.0.1", "NoNewPrivileges=true", "ProtectSystem=strict", "WantedBy=multi-user.target"):
     if marker not in unit:
         raise SystemExit("systemd unit missing marker: " + marker)
+
+installer = (ROOT / "deploy" / "telephony" / "install-telephony-console.sh").read_text(encoding="utf-8")
+for marker in ("for attempt in", "journalctl -u wwcx-telephony-console.service", "REPO_ROOT"):
+    if marker not in installer:
+        raise SystemExit("installer missing readiness marker: " + marker)
 
 docs_readme = (DOCS / "README.md").read_text(encoding="utf-8")
 if "operator-acceptance-checklist.md" not in docs_readme:
