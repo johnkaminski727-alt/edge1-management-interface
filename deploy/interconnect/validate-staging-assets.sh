@@ -4,6 +4,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 PLAN="$ROOT/docs/telecom/wwcx-sip-interconnect-staging-plan.md"
 DATASET_RUNBOOK="$ROOT/docs/telecom/wwcx-numbering-dataset-operations.md"
+MONITORING_RUNBOOK="$ROOT/docs/telecom/wwcx-interconnect-monitoring-and-evidence.md"
 CFG="$ROOT/deploy/interconnect/kamailio/kamailio-staging.cfg"
 TLS="$ROOT/deploy/interconnect/kamailio/wwcx-tls-staging.cfg.example"
 PREFLIGHT="$ROOT/deploy/interconnect/preflight-readonly.sh"
@@ -19,7 +20,7 @@ fail() { printf 'validation failed: %s\n' "$1" >&2; exit 1; }
 require_file() { test -s "$1" || fail "missing or empty file: $1"; }
 require_text() { grep -F "$1" "$2" >/dev/null || fail "expected text not found in $2: $1"; }
 
-for file in "$PLAN" "$DATASET_RUNBOOK" "$CFG" "$TLS" "$PREFLIGHT" "$SITE" "$PROFILE" "$PUBLISH" "$APACHE" "$INSTALLER" "$NUMBERING" "$UNIT"; do
+for file in "$PLAN" "$DATASET_RUNBOOK" "$MONITORING_RUNBOOK" "$CFG" "$TLS" "$PREFLIGHT" "$SITE" "$PROFILE" "$PUBLISH" "$APACHE" "$INSTALLER" "$NUMBERING" "$UNIT"; do
   require_file "$file"
 done
 
@@ -35,6 +36,9 @@ require_text 'LOOPBACK-ONLY' "$INSTALLER"
 require_text 'Atomic source replacement' "$DATASET_RUNBOOK"
 require_text 'Controlled source removal' "$DATASET_RUNBOOK"
 require_text 'Verify source licensing and redistribution terms' "$DATASET_RUNBOOK"
+require_text 'Evidence bundle minimum' "$MONITORING_RUNBOOK"
+require_text 'Loopback-only Kamailio staging gate' "$MONITORING_RUNBOOK"
+require_text 'No production activation' "$MONITORING_RUNBOOK"
 
 if grep -R -E -- 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|password[[:space:]]*=|secret[[:space:]]*=' \
   "$ROOT/deploy/interconnect" "$ROOT/docs/telecom" "$ROOT/src/web/interconnect" >/dev/null 2>&1; then
