@@ -1,0 +1,32 @@
+[Unit]
+Description=WW.CX bounded Edge1 operations API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+Environment=EDGE1_OPS_HOST=127.0.0.1
+Environment=EDGE1_OPS_PORT=8097
+Environment=EDGE1_OPS_MUTATIONS_ENABLED=false
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_operations_api.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge1-operations-api
+ReadOnlyPaths=/opt/edge1-management-interface /etc/edge1-operations-api.secret
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
