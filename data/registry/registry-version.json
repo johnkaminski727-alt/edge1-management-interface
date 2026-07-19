@@ -1,0 +1,14 @@
+{
+  "registry": "country-timezone-geographic",
+  "version": "0.1.0-foundation",
+  "status": "development",
+  "sources": [
+    "ISO 3166",
+    "ITU E.164",
+    "IANA Time Zone Database",
+    "ISO 4217",
+    "Unicode CLDR"
+  ],
+  "generated": false,
+  "notes": "Foundation metadata pending generated production dataset."
+}
