@@ -11,7 +11,29 @@
   },
   "operations": [
     {
-      "name": "messaging.status",
+      "name": "messaging.status.read",
       "method": "GET",
       "path": "/status",
-      "scope": "mess
+      "scope": "messaging.status.read",
+      "mutating": false
+    },
+    {
+      "name": "messaging.control.pause",
+      "method": "POST",
+      "path": "/control",
+      "scope": "messaging.control.pause",
+      "mutating": true,
+      "action": "pause",
+      "requires": ["actor", "reason"]
+    },
+    {
+      "name": "messaging.control.resume",
+      "method": "POST",
+      "path": "/control",
+      "scope": "messaging.control.resume",
+      "mutating": true,
+      "action": "resume",
+      "requires": ["actor", "reason"]
+    }
+  ]
+}
