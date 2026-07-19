@@ -31,7 +31,7 @@ if ss -lnt | grep -E '127\.0\.0\.1:8093|0\.0\.0\.0:8093|\[::\]:8093' >/dev/null 
 fi
 
 "$ROOT/deploy/interconnect/validate-staging-assets.sh"
-python3 -m unittest "$ROOT/tests/test_wwcx_numbering_node.py"
+python3 -m unittest discover -s "$ROOT/tests" -p 'test_wwcx_numbering_node.py'
 
 if [ "$MODE" != "--apply" ]; then
   say 'Dry run passed. No files or services were changed.'
@@ -81,6 +81,6 @@ curl -fsS http://127.0.0.1:8093/healthz >"$EVIDENCE/healthz.json"
 systemctl status wwcx-numbering-node.service --no-pager >"$EVIDENCE/service-status.txt" 2>&1 || true
 ss -lntup | grep -E ':(5060|5061|5070|8093)([[:space:]]|$)' >"$EVIDENCE/listeners-after.txt" || true
 
-say "Loopback numbering staging installed successfully."
+say 'Loopback numbering staging installed successfully.'
 say "Evidence: $EVIDENCE"
 say 'No DNS, firewall, Apache, certificate, FreePBX, Asterisk, or public listener changes were made.'
