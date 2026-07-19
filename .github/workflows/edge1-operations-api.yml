@@ -1,0 +1,42 @@
+name: Edge1 operations API
+
+on:
+  pull_request:
+    paths:
+      - "server/edge1_operations_api.py"
+      - "config/edge1-operations-allowlist.json"
+      - "deploy/edge1-operations-api.service"
+      - "deploy/install-edge1-operations-api.sh"
+      - "integrations/bigbird-edge1-operations/**"
+      - "schemas/edge1-operations-postgresql.sql"
+      - "tests/test_edge1_operations_api.py"
+      - "docs/edge1-operations-api.md"
+      - ".github/workflows/edge1-operations-api.yml"
+  push:
+    branches:
+      - agent/edge1-operations-api
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile API
+        run: python3 -m py_compile server/edge1_operations_api.py
+      - name: Run safety tests
+        run: python3 -m unittest tests.test_edge1_operations_api -v
+      - name: Validate JSON
+        run: |
+          python3 -m json.tool config/edge1-operations-allowlist.json >/dev/null
+          python3 -m json.tool integrations/bigbird-edge1-operations/tool-manifest.json >/dev/null
+      - name: Validate shell syntax
+        run: sh -n deploy/install-edge1-operations-api.sh
+      - name: Assert safe defaults
+        run: |
+          grep -F 'EDGE1_OPS_MUTATIONS_ENABLED=false' deploy/edge1-operations-api.service
+          grep -F '127.0.0.1' deploy/edge1-operations-api.service
+          ! grep -RniE '(password|secret|token)[[:space:]]*[:=][[:space:]]*[^$<{[:space:]]+' server config deploy integrations/bigbird-edge1-operations docs/edge1-operations-api.md
