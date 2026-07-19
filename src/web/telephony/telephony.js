@@ -12,5 +12,15 @@ function render(data){
  document.querySelector('#registration-rows').innerHTML=data.registrations.map(r=>`<tr><td>${text(r.endpoint)}</td><td>${badge(r.state)}</td><td>${text(r.transport)}</td><td>${text(r.user_agent)}</td><td>${text(r.expires_in_seconds)}s</td></tr>`).join('');
  document.querySelector('#alerts').innerHTML=data.alerts.length?data.alerts.map(a=>`<article class="alert"><h3 class="${stateClass[a.severity]||''}">${text(a.title)}</h3><p>${text(a.summary)}</p><small>${text(a.source)} · ${text(a.opened_at)}</small></article>`).join(''):'<p class="alert ok">No active alerts.</p>';
 }
-async function load(){const button=document.querySelector('#refresh');button.disabled=true;try{const response=await fetch('./telephony.fixture.json',{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);render(await response.json());}catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}finally{button.disabled=false;}}
+async function fetchJson(url){const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}
+async function load(){
+ const button=document.querySelector('#refresh');button.disabled=true;
+ try{
+  let data;
+  try{data=await fetchJson('/api/telephony/status');}
+  catch(liveError){data=await fetchJson('./telephony.fixture.json');data.mode=`fixture fallback (${liveError.message})`;}
+  render(data);
+ }catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}
+ finally{button.disabled=false;}
+}
 document.querySelector('#refresh').addEventListener('click',load);load();
