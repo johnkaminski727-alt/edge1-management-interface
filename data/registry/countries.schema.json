@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WW.CX Country Registry Entry",
+  "type": "object",
+  "required": ["iso_alpha2", "iso_alpha3", "name", "calling_codes", "timezones"],
+  "properties": {
+    "iso_alpha2": {"type": "string", "minLength": 2, "maxLength": 2},
+    "iso_alpha3": {"type": "string", "minLength": 3, "maxLength": 3},
+    "name": {"type": "string"},
+    "calling_codes": {"type": "array", "items": {"type": "string"}},
+    "timezones": {"type": "array", "items": {"type": "string"}},
+    "currency": {"type": "string"}
+  }
+}
