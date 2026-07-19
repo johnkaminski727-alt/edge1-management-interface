@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Edge1 Operator MCP adapter boundary.
-
-This module provides the protocol-facing boundary between an MCP transport
-implementation and the Edge1 operator runtime. Runtime policy, auditing,
-and execution remain delegated to the operator runtime layer.
-"""
+"""Edge1 Operator MCP adapter boundary."""
 
 from __future__ import annotations
 
@@ -14,16 +9,12 @@ from typing import Any, Callable
 
 @dataclass(frozen=True)
 class ToolResult:
-    """Normalized response returned by operator tools."""
-
     tool: str
     status: str
     payload: dict[str, Any]
 
 
 class MCPAdapter:
-    """Maps MCP tool calls into runtime operations."""
-
     def __init__(self, runtime: Any):
         self.runtime = runtime
         self._tools: dict[str, Callable[..., ToolResult]] = {
@@ -44,4 +35,4 @@ class MCPAdapter:
         return ToolResult("edge1.identity", "ok", self.runtime.identity())
 
     def health(self, **_: Any) -> ToolResult:
-        return ToolResult("edge
+        return ToolResult("edge1.health", "ok", self.runtime.health())
