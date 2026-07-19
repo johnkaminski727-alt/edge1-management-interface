@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-07-19T00:00:00Z",
+  "mode": "read-only",
+  "controls_enabled": false,
+  "services": {
+    "bigbird": {
+      "action": "bigbird.health",
+      "status": "healthy"
+    },
+    "messaging": {
+      "action": "messaging.health",
+      "status": "healthy",
+      "controls_enabled": false
+    },
+    "numbering": {
+      "action": "numbering.health",
+      "status": "healthy"
+    },
+    "telephony": {
+      "action": "telephony.health",
+      "status": "healthy"
+    },
+    "time_authority": {
+      "action": "time_authority.summary",
+      "status": "healthy",
+      "observers": 2,
+      "sources": 5,
+      "reachable_sources": 10
+    }
+  }
+}
