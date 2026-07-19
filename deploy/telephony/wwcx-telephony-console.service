@@ -1,6 +1,7 @@
 [Unit]
 Description=WW.CX Big Bird Telephony Operations Console
 After=network.target asterisk.service wwcx-numbering-node.service
+Wants=network.target
 
 [Service]
 Type=simple
@@ -16,3 +17,11 @@ ProtectSystem=strict
 ProtectHome=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
