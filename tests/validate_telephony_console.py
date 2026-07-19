@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "src" / "web" / "telephony"
+DOCS = ROOT / "docs" / "telephony"
 
 required = [
     WEB / "index.html",
@@ -16,6 +17,8 @@ required = [
     ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service",
     ROOT / "deploy" / "telephony" / "install-telephony-console.sh",
     ROOT / "deploy" / "telephony" / "telephony-console-smoke-test.sh",
+    DOCS / "README.md",
+    DOCS / "operator-acceptance-checklist.md",
 ]
 missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
 if missing:
@@ -54,5 +57,21 @@ unit = (ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service").read_t
 for marker in ("--host 127.0.0.1", "NoNewPrivileges=true", "ProtectSystem=strict", "WantedBy=multi-user.target"):
     if marker not in unit:
         raise SystemExit("systemd unit missing marker: " + marker)
+
+docs_readme = (DOCS / "README.md").read_text(encoding="utf-8")
+if "operator-acceptance-checklist.md" not in docs_readme:
+    raise SystemExit("telephony README must link the operator acceptance checklist")
+
+acceptance = (DOCS / "operator-acceptance-checklist.md").read_text(encoding="utf-8")
+for marker in (
+    "Repository preflight",
+    "Safe installation boundary",
+    "Read-only behavior",
+    "Stop conditions",
+    "Acceptance record",
+    "127.0.0.1",
+):
+    if marker not in acceptance:
+        raise SystemExit("operator acceptance checklist missing marker: " + marker)
 
 print("telephony console validation passed")
