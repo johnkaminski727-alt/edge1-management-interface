@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "mode": "sanitized_fixture",
+  "site": "Edge1",
+  "generated_at": "2026-07-19T07:30:00Z",
+  "overall_status": "degraded",
+  "metrics": {
+    "active_calls": 7,
+    "registrations": 24,
+    "messages_queued": 3,
+    "trunks_healthy": 2,
+    "trunks_total": 3,
+    "critical_alerts": 0
+  },
+  "services": [
+    {"name":"PBX Core","role":"Call control and dial plan","status":"healthy","latency_ms":4,"last_checked":"12s ago"},
+    {"name":"SIP Edge","role":"Registration and signalling","status":"healthy","latency_ms":7,"last_checked":"10s ago"},
+    {"name":"SMS/MMS Gateway","role":"Messaging submission and delivery","status":"healthy","latency_ms":18,"last_checked":"15s ago"},
+    {"name":"Media Relay","role":"RTP anchoring and NAT traversal","status":"healthy","latency_ms":6,"last_checked":"9s ago"},
+    {"name":"Numbering Node","role":"Inventory and routing intelligence","status":"healthy","latency_ms":3,"last_checked":"11s ago"},
+    {"name":"Carrier West","role":"Secondary voice interconnect","status":"degraded","latency_ms":142,"last_checked":"8s ago"}
+  ],
+  "interconnects": [
+    {"name":"Carrier East","status":"healthy","latency_ms":31,"success_rate":99.8,"active_calls":4},
+    {"name":"Carrier West","status":"degraded","latency_ms":142,"success_rate":94.1,"active_calls":1},
+    {"name":"Messaging Hub","status":"healthy","latency_ms":58,"success_rate":99.4,"active_calls":0}
+  ],
+  "registrations": [
+    {"endpoint":"1001","state":"registered","transport":"TLS","user_agent":"Yealink T54W","expires_in_seconds":211},
+    {"endpoint":"1002","state":"registered","transport":"TLS","user_agent":"Yealink T54W","expires_in_seconds":186},
+    {"endpoint":"softphone-lab","state":"registered","transport":"WSS","user_agent":"WW.CX Lab Client","expires_in_seconds":91},
+    {"endpoint":"warehouse-01","state":"unreachable","transport":"UDP","user_agent":"Legacy ATA","expires_in_seconds":0}
+  ],
+  "alerts": [
+    {"severity":"degraded","title":"Carrier West latency elevated","summary":"OPTIONS latency is above the 120 ms warning threshold. Primary routing remains available.","source":"interconnect-monitor","opened_at":"07:22 UTC"},
+    {"severity":"degraded","title":"Endpoint warehouse-01 unreachable","summary":"No successful registration refresh has been observed in the current monitoring window.","source":"sip-registration-monitor","opened_at":"07:18 UTC"}
+  ]
+}
