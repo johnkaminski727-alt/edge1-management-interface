@@ -40,6 +40,12 @@ propose -> inspect -> validate -> approve/reject -> operator-controlled apply ->
 
 The browser must never connect directly to PBX, carrier, or gateway administrative interfaces. A localhost-only API wrapper will normalize and redact approved data sources.
 
+## Operator acceptance
+
+Before treating the console as accepted for operational use, complete the [Telephony Console Operator Acceptance Checklist](operator-acceptance-checklist.md). The checklist requires repository validation, loopback-only verification, read-only behavior checks, explicit integration evidence, stop conditions, and an acceptance record.
+
+Checklist completion does not authorize production routing, public exposure, emergency-calling changes, carrier administration, or write controls.
+
 ## Next implementation slice
 
 1. localhost-only `telephony_status_server.py`
