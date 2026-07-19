@@ -22,6 +22,9 @@ services:
     environment:
       DATABASE_URL: postgresql://wwcx:wwcx-test-only@postgres:5432/wwcx_messaging
       WWCX_SIMULATOR_TOKEN: test-token
+      WWCX_MANAGEMENT_READ_TOKEN: test-read-token
+      WWCX_MANAGEMENT_CONTROL_TOKEN: test-control-token
+      WWCX_MANAGEMENT_CONTROL_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy
