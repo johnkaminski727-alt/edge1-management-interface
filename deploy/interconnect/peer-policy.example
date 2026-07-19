@@ -1,0 +1,68 @@
+# WW.CX interconnect peer policy example
+# Sanitized repository template. Do not store passwords, private keys, customer
+# data, or unredacted production addresses here.
+
+policy_version: 1
+default_action: deny
+public_registration: disabled
+anonymous_origination: disabled
+transports:
+  allowed:
+    - tls
+  minimum_tls_version: "1.2"
+
+limits:
+  max_calls_per_second: 1
+  max_concurrent_calls: 2
+  max_sip_message_bytes: 16384
+  max_call_duration_seconds: 3600
+
+methods:
+  allowed:
+    - OPTIONS
+    - INVITE
+    - ACK
+    - BYE
+    - CANCEL
+    - UPDATE
+    - PRACK
+    - INFO
+
+identity:
+  required_controls:
+    - approved_source_ip
+    - approved_sip_domain
+    - named_technical_contact
+    - named_abuse_contact
+  mutual_tls: evaluate_per_peer
+
+routing:
+  accepted_domains:
+    - ww.cx
+    - interconnect.ww.cx
+  allowed_destinations:
+    - "999001"
+  pstn_transit: disabled
+  emergency_calling: disabled
+  caller_id_spoofing: prohibited
+
+media:
+  codecs:
+    - PCMU
+    - PCMA
+    - G722
+  direct_media: disabled
+  srtp: required_before_general_production
+
+logging:
+  retain:
+    - timestamp
+    - peer_id
+    - source_ip
+    - method
+    - call_id
+    - response_code
+  never_log:
+    - credentials
+    - private_keys
+    - full_payment_data

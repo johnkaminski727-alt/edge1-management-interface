@@ -1,0 +1,24 @@
+{
+  "service": "WW.CX SIP Interconnect",
+  "status": "staging",
+  "operator": "Christmas Island Worldwide",
+  "domains": ["ww.cx", "interconnect.ww.cx"],
+  "signaling": {
+    "transport": "SIP over TLS",
+    "port": 5061,
+    "srv": "_sips._tcp.ww.cx",
+    "ipv4": "89.147.109.253",
+    "ipv6": null
+  },
+  "registration": "disabled",
+  "peering": "approval-required",
+  "media": {
+    "status": "not yet published",
+    "srtp": "planned"
+  },
+  "public_activation": false,
+  "notes": [
+    "This profile describes the intended service and does not assert that public SIP traffic is accepted yet.",
+    "The public listener, certificate validation, firewall policy, peer authorization, and backend route must pass acceptance testing before activation."
+  ]
+}

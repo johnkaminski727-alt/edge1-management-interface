@@ -1,0 +1,15 @@
+# Kamailio TLS module profile for loopback staging only.
+# Copy to /etc/kamailio/wwcx-tls-staging.cfg after replacing the example paths.
+# Never commit or copy a private key into this repository.
+
+[server:default]
+method = TLSv1.2+
+verify_certificate = no
+require_certificate = no
+private_key = /etc/kamailio/tls/staging-key.pem
+certificate = /etc/kamailio/tls/staging-cert.pem
+ca_list = /etc/ssl/certs/ca-certificates.crt
+server_name = interconnect.ww.cx
+
+# Production policy must use a publicly trusted certificate for
+# interconnect.ww.cx and should evaluate mutual TLS per approved peer.

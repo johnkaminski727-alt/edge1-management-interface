@@ -1,0 +1,60 @@
+name: WW.CX interconnect staging validation
+
+on:
+  pull_request:
+    paths:
+      - "deploy/interconnect/**"
+      - "deploy/wwcx-numbering-node.service"
+      - "docs/telecom/**"
+      - "server/wwcx_numbering_node.py"
+      - "src/web/interconnect/**"
+      - "tests/test_wwcx_numbering_node.py"
+      - ".github/workflows/wwcx-interconnect-staging.yml"
+  push:
+    branches:
+      - feature/wwcx-sip-interconnect-staging
+    paths:
+      - "deploy/interconnect/**"
+      - "deploy/wwcx-numbering-node.service"
+      - "docs/telecom/**"
+      - "server/wwcx_numbering_node.py"
+      - "src/web/interconnect/**"
+      - "tests/test_wwcx_numbering_node.py"
+      - ".github/workflows/wwcx-interconnect-staging.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate staged assets
+        run: sh deploy/interconnect/validate-staging-assets.sh
+      - name: Run numbering-node tests
+        run: python3 -m unittest discover -s tests -p 'test_wwcx_numbering_node.py' -v
+      - name: Exercise CLI source lifecycle
+        run: |
+          set -eu
+          tmpdir=$(mktemp -d)
+          trap 'rm -rf "$tmpdir"' EXIT
+          cat >"$tmpdir/sample.csv" <<'CSV'
+          npa,nxx,country,region,rate center,ocn,company,status,source updated
+          416,555,CA,ON,Toronto,TEST,WW.CX Test Carrier,assigned,2026-07-19
+          invalid,555,CA,ON,Toronto,TEST,Rejected Test Row,assigned,2026-07-19
+          CSV
+          python3 server/wwcx_numbering_node.py --database "$tmpdir/test.sqlite3" init
+          python3 server/wwcx_numbering_node.py --database "$tmpdir/test.sqlite3" import-csv --source ci-fixture --replace-source "$tmpdir/sample.csv" | tee "$tmpdir/import.json"
+          python3 - "$tmpdir/import.json" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              result = json.load(handle)
+          assert result["imported"] == 1, result
+          assert result["rejected"] == 1, result
+          assert len(result["sha256"]) == 64, result
+          PY
+          python3 server/wwcx_numbering_node.py --database "$tmpdir/test.sqlite3" list-sources
+          python3 server/wwcx_numbering_node.py --database "$tmpdir/test.sqlite3" remove-source ci-fixture

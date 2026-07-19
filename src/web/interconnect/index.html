@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WW.CX SIP Interconnect</title>
+  <meta name="description" content="WW.CX standards-based SIP interconnection service profile and peering information.">
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:2rem;line-height:1.55;color:#202124}
+    h1,h2{line-height:1.2}
+    .status{display:inline-block;padding:.35rem .7rem;border:1px solid #777;border-radius:.5rem;font-weight:700}
+    code{background:#f3f4f6;padding:.1rem .3rem;border-radius:.25rem}
+    table{border-collapse:collapse;width:100%}th,td{padding:.55rem;text-align:left;border-bottom:1px solid #ddd}
+  </style>
+</head>
+<body>
+  <h1>WW.CX SIP Interconnect</h1>
+  <p class="status">Staging — not publicly active</p>
+  <p>This page describes the intended WW.CX SIP peering service. Public SIP traffic is not accepted until certificate, firewall, routing, peer authorization, and external acceptance testing are complete.</p>
+
+  <h2>Service profile</h2>
+  <table>
+    <tr><th>Signaling</th><td>SIP over TLS</td></tr>
+    <tr><th>Target</th><td><code>interconnect.ww.cx</code></td></tr>
+    <tr><th>Port</th><td><code>5061/tcp</code></td></tr>
+    <tr><th>SRV</th><td><code>_sips._tcp.ww.cx</code></td></tr>
+    <tr><th>Registration</th><td>Disabled</td></tr>
+    <tr><th>Peering</th><td>Approval required; default deny</td></tr>
+    <tr><th>IPv6</th><td>Not currently published</td></tr>
+  </table>
+
+  <h2>Activation safeguards</h2>
+  <p>The staging listener is loopback-only. No public firewall rule, production certificate, FreePBX route, Asterisk trunk, or peer allowlist is activated by publishing this page.</p>
+
+  <h2>Machine-readable profile</h2>
+  <p><a href="service.json">View service.json</a></p>
+</body>
+</html>
