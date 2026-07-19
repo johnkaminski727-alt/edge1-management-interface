@@ -149,10 +149,10 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or contributing
 
 ## Project records
 
-The combined project register is maintained at:
+The current combined project register is maintained at:
 
 ```text
-registers/combined-project-register-20260717.md
+registers/combined-project-register-20260719.md
 ```
 
 The autonomous-completion index is maintained at:
