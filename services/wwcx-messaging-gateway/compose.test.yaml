@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wwcx_messaging
+      POSTGRES_USER: wwcx
+      POSTGRES_PASSWORD: wwcx-test-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wwcx -d wwcx_messaging"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Containerfile
+    environment:
+      WWCX_SIMULATOR_TOKEN: test-token
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:58080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
