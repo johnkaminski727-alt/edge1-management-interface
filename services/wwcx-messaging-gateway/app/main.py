@@ -3,10 +3,13 @@ import os
 from fastapi import FastAPI, Header, HTTPException, status
 
 from .models import NormalizedMessage
+from .persistence import PostgresEventStore
 from .store import InMemoryEventStore
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.1.0")
-store = InMemoryEventStore()
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.2.0")
+
+database_url = os.getenv("DATABASE_URL")
+store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
 
 
 @app.get("/healthz")
@@ -16,7 +19,13 @@ def healthz() -> dict[str, str]:
 
 @app.get("/readyz")
 def readyz() -> dict[str, str]:
-    return {"status": "ready"}
+    ping = getattr(store, "ping", None)
+    if callable(ping) and not ping():
+        raise HTTPException(status_code=503, detail="storage unavailable")
+    return {
+        "status": "ready",
+        "storage": "postgres" if database_url else "memory",
+    }
 
 
 @app.post("/v1/simulator/messages", status_code=status.HTTP_202_ACCEPTED)
