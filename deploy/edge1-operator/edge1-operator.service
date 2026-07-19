@@ -1,0 +1,17 @@
+[Unit]
+Description=Deprecated Edge1 Operator compatibility service (use edge1-operator-mcp.service)
+After=network-online.target
+
+[Service]
+# Deprecated compatibility unit.
+# The supported deployment path is edge1-operator-mcp.service.
+Type=simple
+User=edge1-operator
+WorkingDirectory=/opt/edge1-management-interface
+EnvironmentFile=/etc/edge1-operator/edge1-operator.env
+ExecStart=/usr/bin/python3 -m server.edge1_operator_entrypoint
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
