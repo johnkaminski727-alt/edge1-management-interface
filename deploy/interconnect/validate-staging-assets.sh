@@ -10,31 +10,38 @@ SITE="$ROOT/src/web/interconnect/index.html"
 PROFILE="$ROOT/src/web/interconnect/service.json"
 PUBLISH="$ROOT/deploy/interconnect/publish-interconnect-site.sh"
 APACHE="$ROOT/deploy/interconnect/apache/interconnect.ww.cx.conf.example"
+INSTALLER="$ROOT/deploy/interconnect/install-loopback-staging.sh"
+NUMBERING="$ROOT/server/wwcx_numbering_node.py"
+UNIT="$ROOT/deploy/wwcx-numbering-node.service"
 
-for file in "$PLAN" "$CFG" "$TLS" "$PREFLIGHT" "$SITE" "$PROFILE" "$PUBLISH" "$APACHE"; do
-  test -s "$file" || { echo "missing or empty: $file" >&2; exit 1; }
+fail() { printf 'validation failed: %s\n' "$1" >&2; exit 1; }
+require_file() { test -s "$1" || fail "missing or empty file: $1"; }
+require_text() { grep -F "$1" "$2" >/dev/null || fail "expected text not found in $2: $1"; }
+
+for file in "$PLAN" "$CFG" "$TLS" "$PREFLIGHT" "$SITE" "$PROFILE" "$PUBLISH" "$APACHE" "$INSTALLER" "$NUMBERING" "$UNIT"; do
+  require_file "$file"
 done
 
-# Guardrails: staging config must remain loopback-only and deny registration.
-grep -F 'listen=tls:127.0.0.1:5061' "$CFG" >/dev/null
-grep -F 'Public Registration Disabled' "$CFG" >/dev/null
-grep -F 'Interconnect Not Yet Activated' "$CFG" >/dev/null
+require_text 'listen=tls:127.0.0.1:5061' "$CFG"
+require_text 'Public Registration Disabled' "$CFG"
+require_text 'Interconnect Not Yet Activated' "$CFG"
+require_text 'public_activation": false' "$PROFILE"
+require_text 'Staging' "$SITE"
+require_text 'No Apache configuration, certificate, DNS, firewall, or SIP listener was changed.' "$PUBLISH"
+require_text '127.0.0.1' "$UNIT"
+require_text '8093' "$UNIT"
+require_text 'LOOPBACK-ONLY' "$INSTALLER"
 
-# Public profile must clearly avoid claiming activation before acceptance tests.
-grep -F 'public_activation": false' "$PROFILE" >/dev/null
-grep -F 'Staging' "$SITE" >/dev/null
-grep -F 'No Apache configuration, certificate, DNS, firewall, or SIP listener was changed.' "$PUBLISH" >/dev/null
-
-# Ensure no private key material or obvious secret assignments are committed.
 if grep -R -E -- 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|password[[:space:]]*=|secret[[:space:]]*=' \
   "$ROOT/deploy/interconnect" "$ROOT/docs/telecom" "$ROOT/src/web/interconnect" >/dev/null 2>&1; then
-  echo 'possible secret or private key material detected' >&2
-  exit 1
+  fail 'possible secret or private key material detected'
 fi
 
-python3 -m json.tool "$PROFILE" >/dev/null
-sh -n "$PREFLIGHT"
-sh -n "$PUBLISH"
-sh -n "$ROOT/deploy/interconnect/validate-staging-assets.sh"
+python3 -m json.tool "$PROFILE" >/dev/null || fail 'service.json is invalid JSON'
+python3 -m py_compile "$NUMBERING" || fail 'numbering node Python syntax check failed'
+sh -n "$PREFLIGHT" || fail 'preflight shell syntax check failed'
+sh -n "$PUBLISH" || fail 'publish shell syntax check failed'
+sh -n "$INSTALLER" || fail 'installer shell syntax check failed'
+sh -n "$ROOT/deploy/interconnect/validate-staging-assets.sh" || fail 'validator shell syntax check failed'
 
-echo 'WW.CX SIP interconnect staging asset validation passed'
+printf '%s\n' 'WW.CX SIP interconnect staging asset validation passed'
