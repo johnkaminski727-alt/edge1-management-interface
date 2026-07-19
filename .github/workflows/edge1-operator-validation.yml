@@ -18,4 +18,11 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Run
+      - name: Validate installer shell syntax
+        run: sh -n deploy/edge1-operator/install-systemd-service.sh
+
+      - name: Compile Edge1 Operator modules
+        run: python3 -m compileall -q server
+
+      - name: Validate Edge1 Operator import path
+        run: python3 -m server.edge1_operator_entrypoint
