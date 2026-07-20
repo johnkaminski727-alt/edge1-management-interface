@@ -8,26 +8,14 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[2]
 
 
-COMMANDS = [
+STEPS = [
+    [
+        "python3",
+        "tools/telephony/import_provisioned_carrier.py"
+    ],
     [
         "python3",
         "tools/telephony/validate_interconnect_registry.py"
-    ],
-    [
-        "python3",
-        "tools/telephony/validate_routing_policy.py"
-    ],
-    [
-        "python3",
-        "tools/telephony/sip_peer_health_check.py"
-    ],
-    [
-        "python3",
-        "tools/telephony/sip_health_controller.py"
-    ],
-    [
-        "python3",
-        "tools/telephony/validate_peer_health_state.py"
     ],
     [
         "python3",
@@ -35,26 +23,37 @@ COMMANDS = [
     ],
     [
         "python3",
-        "tools/telephony/carrier_onboard.py",
-        "lab-carrier-001"
-    ],
-    [
-        "python3",
         "tools/telephony/generate_sip_config.py"
     ],
     [
         "python3",
-        "tools/telephony/adapters/kamailio_adapter.py"
+        "tools/telephony/generate_carrier_package.py"
     ]
 ]
 
 
 def main():
 
-    print("=== EDGE1 SIP PLATFORM VALIDATION ===")
+    if len(sys.argv) < 2:
+        print(
+            "Usage: carrier_onboard.py <carrier_id>"
+        )
+        return 1
+
+
+    carrier_id = sys.argv[1]
+
+
+    print(
+        "=== CARRIER ONBOARDING ==="
+    )
+
     print()
 
-    for command in COMMANDS:
+
+    for step in STEPS:
+
+        command = step + [carrier_id]
 
         print(
             "[RUN]",
@@ -67,22 +66,28 @@ def main():
         )
 
         if result.returncode != 0:
+
             print(
                 "[FAIL]",
                 " ".join(command)
             )
+
             return 1
 
-        print("[PASS]")
+
+        print(
+            "[PASS]"
+        )
+
         print()
 
 
     print(
-        "SIP platform validation complete"
+        "Carrier onboarding complete"
     )
 
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
