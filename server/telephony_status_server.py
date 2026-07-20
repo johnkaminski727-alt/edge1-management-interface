@@ -19,6 +19,68 @@ WEB_ROOT = REPO_ROOT / "src" / "web" / "telephony"
 FIXTURE = WEB_ROOT / "telephony.fixture.json"
 LOOPBACK_HOST = "127.0.0.1"
 
+INTERCONNECT_REGISTRY = (
+    REPO_ROOT /
+    "data/registry/interconnect/interconnect-registry.json"
+)
+
+PEER_STATUS = (
+    REPO_ROOT /
+    "data/registry/interconnect/status/peer-status.json"
+)
+
+
+def load_json_file(path: Path) -> dict[str, Any]:
+    try:
+        if path.exists():
+            value = json.loads(path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def sip_interconnect_snapshot() -> list[dict[str, Any]]:
+    registry = load_json_file(INTERCONNECT_REGISTRY)
+    health = load_json_file(PEER_STATUS)
+
+    peers = health.get("peers", {})
+    result = []
+
+    for peer in registry.get("sip_peers", []):
+
+        state = peers.get(
+            peer.get("id"),
+            {}
+        )
+
+        options = state.get(
+            "sip_options",
+            {}
+        )
+
+        result.append(
+            {
+                "name": peer.get("id"),
+                "status": state.get(
+                    "status",
+                    "unknown"
+                ),
+                "latency_ms": options.get(
+                    "latency_ms"
+                ),
+                "success_rate": (
+                    100
+                    if options.get("response_code") == 200
+                    else 0
+                ),
+                "active_calls": 0,
+                "endpoint": peer.get("endpoint"),
+            }
+        )
+
+    return result
+
 
 def utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -171,8 +233,13 @@ def status_payload() -> dict[str, Any]:
         "active_calls": active_calls,
         "registrations": registrations,
         "messages_queued": None,
-        "trunks_healthy": 0,
-        "trunks_total": 0,
+        "trunks_healthy": sum(
+            1 for item in sip_interconnect_snapshot()
+            if item["status"] == "healthy"
+        ),
+        "trunks_total": len(
+            sip_interconnect_snapshot()
+        ),
         "critical_alerts": critical_count,
     }
     payload = {
@@ -183,7 +250,7 @@ def status_payload() -> dict[str, Any]:
         "overall_status": "critical" if critical_count else ("degraded" if healthy_count < len(services) else "healthy"),
         "metrics": metrics,
         "services": services,
-        "interconnects": [],
+        "interconnects": sip_interconnect_snapshot(),
         "registrations": [],
         "alerts": [
             {
