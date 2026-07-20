@@ -11,6 +11,19 @@ function render(data){
  document.querySelector('#peer-rows').innerHTML=data.interconnects.map(p=>`<tr><td>${text(p.name)}</td><td>${badge(p.status)}</td><td>${text(p.latency_ms)} ms</td><td>${text(p.success_rate)}%</td><td>${text(p.active_calls)}</td></tr>`).join('');
  document.querySelector('#registration-rows').innerHTML=data.registrations.map(r=>`<tr><td>${text(r.endpoint)}</td><td>${badge(r.state)}</td><td>${text(r.transport)}</td><td>${text(r.user_agent)}</td><td>${text(r.expires_in_seconds)}s</td></tr>`).join('');
  document.querySelector('#alerts').innerHTML=data.alerts.length?data.alerts.map(a=>`<article class="alert"><h3 class="${stateClass[a.severity]||''}">${text(a.title)}</h3><p>${text(a.summary)}</p><small>${text(a.source)} · ${text(a.opened_at)}</small></article>`).join(''):'<p class="alert ok">No active alerts.</p>';
+
+ document.querySelector('#sip-peer-cards').innerHTML=(data.interconnects||[]).map(p=>`
+ <article class="service-card">
+   <div class="section-heading">
+     <h3>${text(p.name)}</h3>
+     ${badge(p.status)}
+   </div>
+   <p>Endpoint: ${text(p.endpoint)}</p>
+   <p>Latency: ${text(p.latency_ms)} ms</p>
+   <p>Success: ${text(p.success_rate)}%</p>
+   <p>Active calls: ${text(p.active_calls)}</p>
+ </article>
+ `).join('');
 }
 async function fetchJson(url){const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}
 async function load(){
