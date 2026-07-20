@@ -1,0 +1,11 @@
+{
+  "approvals": [
+    {
+      "carrier_id": "edge1-lab-carrier",
+      "previous_state": "testing",
+      "new_state": "approved",
+      "approved_at": "2026-07-20T19:38:51.766820Z",
+      "approved_by": "operator"
+    }
+  ]
+}
