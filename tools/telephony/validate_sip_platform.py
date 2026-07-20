@@ -23,6 +23,10 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_peer_health_state.py"
+    ],
+    [
+        "python3",
         "tools/telephony/generate_sip_config.py"
     ],
     [
