@@ -47,6 +47,22 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_operations_readiness.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/run_monitoring_cycle.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/generate_sla_report.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/generate_production_package.py"
+    ],
+    [
+        "python3",
         "tools/telephony/carrier_onboard.py",
         "lab-carrier-001"
     ],
