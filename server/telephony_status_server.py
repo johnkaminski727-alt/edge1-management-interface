@@ -39,6 +39,11 @@ SIP_READINESS = (
     "reports/interconnect-readiness.json"
 )
 
+SIP_ACCEPTANCE = (
+    REPO_ROOT /
+    "reports/interconnect/carrier-acceptance-report.md"
+)
+
 
 def load_json_file(path: Path) -> dict[str, Any]:
     try:
@@ -277,6 +282,49 @@ def status_payload() -> dict[str, Any]:
     payload["fixture_available"] = bool(fixture)
     return payload
 
+def acceptance_payload() -> dict[str, Any]:
+
+    registry = load_json_file(INTERCONNECT_REGISTRY)
+    health = load_json_file(PEER_STATUS)
+
+    peers = []
+
+    for peer, state in health.get("peers", {}).items():
+
+        peers.append(
+            {
+                "peer": peer,
+                "status": state.get("status"),
+                "options": state.get(
+                    "sip_options",
+                    {}
+                ).get("response_code"),
+                "latency_ms": state.get(
+                    "sip_options",
+                    {}
+                ).get("latency_ms")
+            }
+        )
+
+    return {
+        "platform": "Edge1 SIP Interconnect",
+        "carrier_count": len(
+            registry.get("carriers", [])
+        ),
+        "sip_peer_tests": peers,
+        "routing_rules": len(
+            registry.get("routing_rules", [])
+        ),
+        "production_requirements": {
+            "carrier_agreement": False,
+            "sip_credentials": False,
+            "public_signaling_endpoint": False,
+            "emergency_calling": False,
+            "stir_shaken": False
+        }
+    }
+
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -308,6 +356,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(
                 HTTPStatus.OK,
                 load_json_file(SIP_READINESS)
+            )
+            return
+
+        if path == "/api/telephony/acceptance":
+            self.send_json(
+                HTTPStatus.OK,
+                acceptance_payload()
             )
             return
         if path == "/healthz":
