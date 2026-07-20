@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "algorithm": "sha256",
+  "allowed_clients": [
+    "shared-hosting-portal"
+  ]
+}

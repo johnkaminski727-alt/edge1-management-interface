@@ -376,6 +376,17 @@ def carrier_lifecycle_payload() -> dict[str, object]:
     }
 
 
+PORTAL_CARRIER_STATUS = (
+    REPO_ROOT /
+    "data/registry/interconnect/portal/carrier-status.json"
+)
+
+PORTAL_SUMMARY = (
+    REPO_ROOT /
+    "data/registry/interconnect/portal/public-summary.json"
+)
+
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -421,6 +432,20 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(
                 HTTPStatus.OK,
                 carrier_lifecycle_payload()
+            )
+            return
+
+        if path == "/api/portal/carriers":
+            self.send_json(
+                HTTPStatus.OK,
+                load_json_file(PORTAL_CARRIER_STATUS)
+            )
+            return
+
+        if path == "/api/portal/status":
+            self.send_json(
+                HTTPStatus.OK,
+                load_json_file(PORTAL_SUMMARY)
             )
             return
         if path == "/healthz":
