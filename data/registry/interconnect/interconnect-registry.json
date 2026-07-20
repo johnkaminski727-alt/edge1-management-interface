@@ -5,6 +5,12 @@
       "name": "Edge1 Internal SIP Test Carrier",
       "status": "testing",
       "contacts": []
+    },
+    {
+      "id": "lab-carrier-001",
+      "name": "Lab SIP Carrier",
+      "status": "planned",
+      "contacts": []
     }
   ],
   "sip_peers": [
@@ -13,6 +19,17 @@
       "carrier_id": "edge1-lab-carrier",
       "endpoint": "127.0.0.1",
       "transport": "udp",
+      "codecs": [
+        "PCMU",
+        "PCMA"
+      ],
+      "health_check": "options"
+    },
+    {
+      "id": "lab-carrier-001-peer",
+      "carrier_id": "lab-carrier-001",
+      "endpoint": "pending",
+      "transport": "tls",
       "codecs": [
         "PCMU",
         "PCMA"
