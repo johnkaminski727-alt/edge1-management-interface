@@ -93,6 +93,54 @@ async function loadSipReadiness(){
 }
 
 
+
+async function loadSipAcceptance(){
+ const target=document.querySelector('#sip-acceptance');
+ if(!target){return;}
+
+ try{
+  const acceptance=await fetchJson('/api/telephony/acceptance');
+
+  const tests=(acceptance.sip_peer_tests||[])
+    .map(t=>`
+      <li>
+        ${text(t.peer)}
+        — ${text(t.status)}
+        (${text(t.options)} / ${text(t.latency_ms)} ms)
+      </li>
+    `)
+    .join('');
+
+  const requirements =
+    Object.entries(
+      acceptance.production_requirements || {}
+    ).map(([key,value]) => `
+      <li>${value ? '✓' : '□'} ${text(key)}</li>
+    `).join('');
+
+  target.innerHTML = `
+    <article class="alert">
+      <h3>${text(acceptance.platform)}</h3>
+      <p>
+        Carriers: ${text(acceptance.carrier_count)}
+        · Routes: ${text(acceptance.routing_rules)}
+      </p>
+
+      <strong>SIP Tests</strong>
+      <ul>${tests || '<li>No tests</li>'}</ul>
+
+      <strong>Production Requirements</strong>
+      <ul>${requirements}</ul>
+    </article>
+  `;
+
+ }catch(error){
+  target.innerHTML =
+    '<p class="alert">Acceptance unavailable.</p>';
+ }
+}
+
+
 async function load(){
  const button=document.querySelector('#refresh');button.disabled=true;
  try{
@@ -102,6 +150,7 @@ async function load(){
   render(data);
   await loadSipHistory();
   await loadSipReadiness();
+  await loadSipAcceptance();
  }catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}
  finally{button.disabled=false;}
 }
