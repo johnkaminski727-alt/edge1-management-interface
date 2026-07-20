@@ -22,7 +22,30 @@ with sqlite3.connect(DB) as db:
     db.execute("DELETE FROM countries")
 
     for country in data["countries"]:
-        for code in country["calling_codes"]:
+
+        codes = country.get("calling_codes", [])
+
+        if codes:
+            for code in codes:
+                db.execute(
+                    """
+                    INSERT INTO countries
+                    (
+                        iso2,
+                        iso3,
+                        name,
+                        calling_code
+                    )
+                    VALUES (?,?,?,?)
+                    """,
+                    (
+                        country["iso_alpha2"],
+                        country["iso_alpha3"],
+                        country["name"],
+                        code,
+                    )
+                )
+        else:
             db.execute(
                 """
                 INSERT INTO countries
@@ -38,7 +61,7 @@ with sqlite3.connect(DB) as db:
                     country["iso_alpha2"],
                     country["iso_alpha3"],
                     country["name"],
-                    code,
+                    "",
                 )
             )
 

@@ -1,0 +1,59 @@
+<html>
+  <head>
+    <title>Click here to retry</title>
+    <link rel="stylesheet" type="text/css" HREF="/public/include/css/apm.css">
+    <script src="/public/include/js/common.js" language="javascript"></script>
+    <script src="/public/include/js/agent_common.js" language="javascript"></script>
+    <script language="javascript">
+    
+      function OnLoad() 
+      {
+        var display_session = get_cookie("LastMRH_Session");
+        if(null != display_session) {
+          document.getElementById("sessionDIV").innerHTML = '<BR>' + "The session reference number:" + '&nbsp;' + display_session + '<BR>';
+          document.getElementById("sessionDIV").style.visibility = "visible";
+        }
+      }
+      
+    </script>
+  </head>
+
+<body
+    onload="OnLoad();"
+>
+
+<script>
+try
+{
+    if(window.external && window.external.WebLogonOnAuthFailure) {
+        window.external.WebLogonOnAuthFailure();
+    }
+}catch(e){};
+
+var landingURI = "%{session.server.landinguri}";
+var landingURI_base64 = "%{session.server.landinguri_base64}";
+var redirectURI = "/";
+var requestURI = "";
+function OnLoad() {
+    if (landingURI_base64 != "") {
+        redirectURI = landingURI_base64;
+    } else if (requestURI != "") {
+        redirectURI = requestURI;
+    } else if (landingURI != "") {
+        redirectURI = landingURI;
+    }
+}
+
+</script>	
+
+<div id='main_table'>
+	<div class="card">
+        <div id="logo"></div>
+        <div class="card_content">
+            <h1>Access policy evaluation is already in progress for your current session. </h1><p><font size=4>You might see this message if you are on a different browser tab than the one where you started the access policy. Please continue to work in the previous browser tab and close this window immediately. </p><p><font size=4>If you have reached this message due to some other error, click <A href="javascript:document.location=redirectURI"><font size=4> here </font></A> to create a new session.</p>        </div>
+            <DIV ID="sessionDIV" style='visibility:hidden'></DIV>
+        </div>
+    </div>
+</div>	
+</body>
+</html>

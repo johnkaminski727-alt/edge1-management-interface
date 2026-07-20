@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "source_standards": ["ISO 3166-1", "ITU E.164", "IANA TZDB", "ISO 4217"],
+  "countries": [
+    {
+      "iso_alpha2": "IS",
+      "iso_alpha3": "ISL",
+      "name": "Iceland",
+      "calling_codes": ["+354"],
+      "timezones": ["Atlantic/Reykjavik"],
+      "currency": "ISK"
+    },
+    {
+      "iso_alpha2": "CA",
+      "iso_alpha3": "CAN",
+      "name": "Canada",
+      "calling_codes": ["+1"],
+      "timezones": ["America/Toronto", "America/Vancouver", "America/Edmonton", "America/Halifax"],
+      "currency": "CAD"
+    },
+    {
+      "iso_alpha2": "US",
+      "iso_alpha3": "USA",
+      "name": "United States",
+      "calling_codes": ["+1"],
+      "timezones": ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"],
+      "currency": "USD"
+    }
+  ]
+}

@@ -1,26 +1,2096 @@
 {
   "schema_version": "1.0",
-  "source": "IANA Time Zone Database",
+  "source": "IANA TZDB (system zone.tab)",
   "timezones": [
     {
-      "iana_name": "Atlantic/Reykjavik",
-      "country": "IS",
-      "dst_supported": false
+      "iana_name": "Europe/Andorra",
+      "country": "AD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Dubai",
+      "country": "AE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kabul",
+      "country": "AF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Antigua",
+      "country": "AG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Anguilla",
+      "country": "AI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Tirane",
+      "country": "AL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Yerevan",
+      "country": "AM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Luanda",
+      "country": "AO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/McMurdo",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Casey",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Davis",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/DumontDUrville",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Mawson",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Palmer",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Rothera",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Syowa",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Troll",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Vostok",
+      "country": "AQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Buenos_Aires",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Cordoba",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Salta",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Jujuy",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Tucuman",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Catamarca",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/La_Rioja",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/San_Juan",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Mendoza",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/San_Luis",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Rio_Gallegos",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Argentina/Ushuaia",
+      "country": "AR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Pago_Pago",
+      "country": "AS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Vienna",
+      "country": "AT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Lord_Howe",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Antarctica/Macquarie",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Hobart",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Melbourne",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Sydney",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Broken_Hill",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Brisbane",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Lindeman",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Adelaide",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Darwin",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Perth",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Australia/Eucla",
+      "country": "AU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Aruba",
+      "country": "AW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Mariehamn",
+      "country": "AX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Baku",
+      "country": "AZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Sarajevo",
+      "country": "BA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Barbados",
+      "country": "BB",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Dhaka",
+      "country": "BD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Brussels",
+      "country": "BE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Ouagadougou",
+      "country": "BF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Sofia",
+      "country": "BG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Bahrain",
+      "country": "BH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Bujumbura",
+      "country": "BI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Porto-Novo",
+      "country": "BJ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/St_Barthelemy",
+      "country": "BL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Bermuda",
+      "country": "BM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Brunei",
+      "country": "BN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/La_Paz",
+      "country": "BO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Kralendijk",
+      "country": "BQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Noronha",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Belem",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Fortaleza",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Recife",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Araguaina",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Maceio",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Bahia",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Sao_Paulo",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Campo_Grande",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Cuiaba",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Santarem",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Porto_Velho",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Boa_Vista",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Manaus",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Eirunepe",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Rio_Branco",
+      "country": "BR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Nassau",
+      "country": "BS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Thimphu",
+      "country": "BT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Gaborone",
+      "country": "BW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Minsk",
+      "country": "BY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Belize",
+      "country": "BZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/St_Johns",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Halifax",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Glace_Bay",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Moncton",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Goose_Bay",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Blanc-Sablon",
+      "country": "CA",
+      "dst_supported": null
     },
     {
       "iana_name": "America/Toronto",
       "country": "CA",
-      "dst_supported": true
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Iqaluit",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Atikokan",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Winnipeg",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Resolute",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Rankin_Inlet",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Regina",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Swift_Current",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Edmonton",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Cambridge_Bay",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Inuvik",
+      "country": "CA",
+      "dst_supported": null
     },
     {
       "iana_name": "America/Vancouver",
       "country": "CA",
-      "dst_supported": true
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Creston",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Dawson_Creek",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Fort_Nelson",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Whitehorse",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Dawson",
+      "country": "CA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Cocos",
+      "country": "CC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Kinshasa",
+      "country": "CD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Lubumbashi",
+      "country": "CD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Bangui",
+      "country": "CF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Brazzaville",
+      "country": "CG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Zurich",
+      "country": "CH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Abidjan",
+      "country": "CI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Rarotonga",
+      "country": "CK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Santiago",
+      "country": "CL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Coyhaique",
+      "country": "CL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Punta_Arenas",
+      "country": "CL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Easter",
+      "country": "CL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Douala",
+      "country": "CM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Shanghai",
+      "country": "CN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Urumqi",
+      "country": "CN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Bogota",
+      "country": "CO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Costa_Rica",
+      "country": "CR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Havana",
+      "country": "CU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Cape_Verde",
+      "country": "CV",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Curacao",
+      "country": "CW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Christmas",
+      "country": "CX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Nicosia",
+      "country": "CY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Famagusta",
+      "country": "CY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Prague",
+      "country": "CZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Berlin",
+      "country": "DE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Busingen",
+      "country": "DE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Djibouti",
+      "country": "DJ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Copenhagen",
+      "country": "DK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Dominica",
+      "country": "DM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Santo_Domingo",
+      "country": "DO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Algiers",
+      "country": "DZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Guayaquil",
+      "country": "EC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Galapagos",
+      "country": "EC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Tallinn",
+      "country": "EE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Cairo",
+      "country": "EG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/El_Aaiun",
+      "country": "EH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Asmara",
+      "country": "ER",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Madrid",
+      "country": "ES",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Ceuta",
+      "country": "ES",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Canary",
+      "country": "ES",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Addis_Ababa",
+      "country": "ET",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Helsinki",
+      "country": "FI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Fiji",
+      "country": "FJ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Stanley",
+      "country": "FK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Chuuk",
+      "country": "FM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Pohnpei",
+      "country": "FM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Kosrae",
+      "country": "FM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Faroe",
+      "country": "FO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Paris",
+      "country": "FR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Libreville",
+      "country": "GA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/London",
+      "country": "GB",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Grenada",
+      "country": "GD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Tbilisi",
+      "country": "GE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Cayenne",
+      "country": "GF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Guernsey",
+      "country": "GG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Accra",
+      "country": "GH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Gibraltar",
+      "country": "GI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Nuuk",
+      "country": "GL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Danmarkshavn",
+      "country": "GL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Scoresbysund",
+      "country": "GL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Thule",
+      "country": "GL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Banjul",
+      "country": "GM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Conakry",
+      "country": "GN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Guadeloupe",
+      "country": "GP",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Malabo",
+      "country": "GQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Athens",
+      "country": "GR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/South_Georgia",
+      "country": "GS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Guatemala",
+      "country": "GT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Guam",
+      "country": "GU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Bissau",
+      "country": "GW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Guyana",
+      "country": "GY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Hong_Kong",
+      "country": "HK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Tegucigalpa",
+      "country": "HN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Zagreb",
+      "country": "HR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Port-au-Prince",
+      "country": "HT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Budapest",
+      "country": "HU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Jakarta",
+      "country": "ID",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Pontianak",
+      "country": "ID",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Makassar",
+      "country": "ID",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Jayapura",
+      "country": "ID",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Dublin",
+      "country": "IE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Jerusalem",
+      "country": "IL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Isle_of_Man",
+      "country": "IM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kolkata",
+      "country": "IN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Chagos",
+      "country": "IO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Baghdad",
+      "country": "IQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Tehran",
+      "country": "IR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Reykjavik",
+      "country": "IS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Rome",
+      "country": "IT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Jersey",
+      "country": "JE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Jamaica",
+      "country": "JM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Amman",
+      "country": "JO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Tokyo",
+      "country": "JP",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Nairobi",
+      "country": "KE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Bishkek",
+      "country": "KG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Phnom_Penh",
+      "country": "KH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Tarawa",
+      "country": "KI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Kanton",
+      "country": "KI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Kiritimati",
+      "country": "KI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Comoro",
+      "country": "KM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/St_Kitts",
+      "country": "KN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Pyongyang",
+      "country": "KP",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Seoul",
+      "country": "KR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kuwait",
+      "country": "KW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Cayman",
+      "country": "KY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Almaty",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Qyzylorda",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Qostanay",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Aqtobe",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Aqtau",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Atyrau",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Oral",
+      "country": "KZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Vientiane",
+      "country": "LA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Beirut",
+      "country": "LB",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/St_Lucia",
+      "country": "LC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Vaduz",
+      "country": "LI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Colombo",
+      "country": "LK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Monrovia",
+      "country": "LR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Maseru",
+      "country": "LS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Vilnius",
+      "country": "LT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Luxembourg",
+      "country": "LU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Riga",
+      "country": "LV",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Tripoli",
+      "country": "LY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Casablanca",
+      "country": "MA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Monaco",
+      "country": "MC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Chisinau",
+      "country": "MD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Podgorica",
+      "country": "ME",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Marigot",
+      "country": "MF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Antananarivo",
+      "country": "MG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Majuro",
+      "country": "MH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Kwajalein",
+      "country": "MH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Skopje",
+      "country": "MK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Bamako",
+      "country": "ML",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Yangon",
+      "country": "MM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Ulaanbaatar",
+      "country": "MN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Hovd",
+      "country": "MN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Macau",
+      "country": "MO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Saipan",
+      "country": "MP",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Martinique",
+      "country": "MQ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Nouakchott",
+      "country": "MR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Montserrat",
+      "country": "MS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Malta",
+      "country": "MT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Mauritius",
+      "country": "MU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Maldives",
+      "country": "MV",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Blantyre",
+      "country": "MW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Mexico_City",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Cancun",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Merida",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Monterrey",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Matamoros",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Chihuahua",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Ciudad_Juarez",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Ojinaga",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Mazatlan",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Bahia_Banderas",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Hermosillo",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Tijuana",
+      "country": "MX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kuala_Lumpur",
+      "country": "MY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kuching",
+      "country": "MY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Maputo",
+      "country": "MZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Windhoek",
+      "country": "NA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Noumea",
+      "country": "NC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Niamey",
+      "country": "NE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Norfolk",
+      "country": "NF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Lagos",
+      "country": "NG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Managua",
+      "country": "NI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Amsterdam",
+      "country": "NL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Oslo",
+      "country": "NO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kathmandu",
+      "country": "NP",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Nauru",
+      "country": "NR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Niue",
+      "country": "NU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Auckland",
+      "country": "NZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Chatham",
+      "country": "NZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Muscat",
+      "country": "OM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Panama",
+      "country": "PA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Lima",
+      "country": "PE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Tahiti",
+      "country": "PF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Marquesas",
+      "country": "PF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Gambier",
+      "country": "PF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Port_Moresby",
+      "country": "PG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Bougainville",
+      "country": "PG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Manila",
+      "country": "PH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Karachi",
+      "country": "PK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Warsaw",
+      "country": "PL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Miquelon",
+      "country": "PM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Pitcairn",
+      "country": "PN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Puerto_Rico",
+      "country": "PR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Gaza",
+      "country": "PS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Hebron",
+      "country": "PS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Lisbon",
+      "country": "PT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Madeira",
+      "country": "PT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/Azores",
+      "country": "PT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Palau",
+      "country": "PW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Asuncion",
+      "country": "PY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Qatar",
+      "country": "QA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Reunion",
+      "country": "RE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Bucharest",
+      "country": "RO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Belgrade",
+      "country": "RS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Kaliningrad",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Moscow",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Simferopol",
+      "country": "UA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Kirov",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Volgograd",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Astrakhan",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Saratov",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Ulyanovsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Samara",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Yekaterinburg",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Omsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Novosibirsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Barnaul",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Tomsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Novokuznetsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Krasnoyarsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Irkutsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Chita",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Yakutsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Khandyga",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Vladivostok",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Ust-Nera",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Magadan",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Sakhalin",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Srednekolymsk",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Kamchatka",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Anadyr",
+      "country": "RU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Kigali",
+      "country": "RW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Riyadh",
+      "country": "SA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Guadalcanal",
+      "country": "SB",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Mahe",
+      "country": "SC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Khartoum",
+      "country": "SD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Stockholm",
+      "country": "SE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Singapore",
+      "country": "SG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Atlantic/St_Helena",
+      "country": "SH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Ljubljana",
+      "country": "SI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Arctic/Longyearbyen",
+      "country": "SJ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Bratislava",
+      "country": "SK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Freetown",
+      "country": "SL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/San_Marino",
+      "country": "SM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Dakar",
+      "country": "SN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Mogadishu",
+      "country": "SO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Paramaribo",
+      "country": "SR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Juba",
+      "country": "SS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Sao_Tome",
+      "country": "ST",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/El_Salvador",
+      "country": "SV",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Lower_Princes",
+      "country": "SX",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Damascus",
+      "country": "SY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Mbabane",
+      "country": "SZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Grand_Turk",
+      "country": "TC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Ndjamena",
+      "country": "TD",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Kerguelen",
+      "country": "TF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Lome",
+      "country": "TG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Bangkok",
+      "country": "TH",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Dushanbe",
+      "country": "TJ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Fakaofo",
+      "country": "TK",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Dili",
+      "country": "TL",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Ashgabat",
+      "country": "TM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Tunis",
+      "country": "TN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Tongatapu",
+      "country": "TO",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Istanbul",
+      "country": "TR",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Port_of_Spain",
+      "country": "TT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Funafuti",
+      "country": "TV",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Taipei",
+      "country": "TW",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Dar_es_Salaam",
+      "country": "TZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Kyiv",
+      "country": "UA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Kampala",
+      "country": "UG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Midway",
+      "country": "UM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Wake",
+      "country": "UM",
+      "dst_supported": null
     },
     {
       "iana_name": "America/New_York",
       "country": "US",
-      "dst_supported": true
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Detroit",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Kentucky/Louisville",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Kentucky/Monticello",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Indianapolis",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Vincennes",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Winamac",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Marengo",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Petersburg",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Vevay",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Chicago",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Tell_City",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Indiana/Knox",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Menominee",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/North_Dakota/Center",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/North_Dakota/New_Salem",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/North_Dakota/Beulah",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Denver",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Boise",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Phoenix",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Los_Angeles",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Anchorage",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Juneau",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Sitka",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Metlakatla",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Yakutat",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Nome",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Adak",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Honolulu",
+      "country": "US",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Montevideo",
+      "country": "UY",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Samarkand",
+      "country": "UZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Tashkent",
+      "country": "UZ",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Europe/Vatican",
+      "country": "VA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/St_Vincent",
+      "country": "VC",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Caracas",
+      "country": "VE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/Tortola",
+      "country": "VG",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "America/St_Thomas",
+      "country": "VI",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Ho_Chi_Minh",
+      "country": "VN",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Efate",
+      "country": "VU",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Wallis",
+      "country": "WF",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Pacific/Apia",
+      "country": "WS",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Asia/Aden",
+      "country": "YE",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Indian/Mayotte",
+      "country": "YT",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Johannesburg",
+      "country": "ZA",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Lusaka",
+      "country": "ZM",
+      "dst_supported": null
+    },
+    {
+      "iana_name": "Africa/Harare",
+      "country": "ZW",
+      "dst_supported": null
     }
   ]
 }
