@@ -325,6 +325,57 @@ def acceptance_payload() -> dict[str, Any]:
     }
 
 
+def carrier_lifecycle_payload() -> dict[str, object]:
+
+    registry = load_json_file(
+        INTERCONNECT_REGISTRY
+    )
+
+    health = load_json_file(
+        PEER_STATUS
+    )
+
+    carriers = []
+
+    for carrier in registry.get(
+        "carriers",
+        []
+    ):
+
+        carrier_id = carrier.get("id")
+
+        peer_states = []
+
+        for peer, state in health.get(
+            "peers",
+            {}
+        ).items():
+
+            if peer.startswith(carrier_id):
+
+                peer_states.append(
+                    {
+                        "peer": peer,
+                        "status": state.get("status")
+                    }
+                )
+
+
+        carriers.append(
+            {
+                "id": carrier_id,
+                "name": carrier.get("name"),
+                "status": carrier.get("status"),
+                "sip_peers": peer_states
+            }
+        )
+
+
+    return {
+        "carriers": carriers
+    }
+
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -363,6 +414,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(
                 HTTPStatus.OK,
                 acceptance_payload()
+            )
+            return
+
+        if path == "/api/telephony/carriers":
+            self.send_json(
+                HTTPStatus.OK,
+                carrier_lifecycle_payload()
             )
             return
         if path == "/healthz":

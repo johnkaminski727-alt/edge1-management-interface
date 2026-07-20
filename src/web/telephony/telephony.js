@@ -141,6 +141,51 @@ async function loadSipAcceptance(){
 }
 
 
+
+async function loadCarrierLifecycle(){
+ const target=document.querySelector('#carrier-lifecycle');
+ if(!target){return;}
+
+ try{
+  const data=await fetchJson('/api/telephony/carriers');
+
+  target.innerHTML=(data.carriers||[])
+   .map(c=>`
+    <article class="alert">
+      <h3 class="${stateClass[c.status]||''}">
+        ${text(c.name)}
+      </h3>
+
+      <p>
+        Status:
+        ${text(c.status)}
+      </p>
+
+      ${
+        (c.sip_peers||[])
+        .map(p=>`
+          <small>
+            Peer:
+            ${text(p.peer)}
+            · ${text(p.status)}
+          </small>
+        `)
+        .join('<br>')
+      }
+
+    </article>
+   `)
+   .join('');
+
+ }catch(error){
+
+  target.innerHTML =
+    '<p class="alert">Carrier lifecycle unavailable.</p>';
+
+ }
+}
+
+
 async function load(){
  const button=document.querySelector('#refresh');button.disabled=true;
  try{
@@ -151,6 +196,7 @@ async function load(){
   await loadSipHistory();
   await loadSipReadiness();
   await loadSipAcceptance();
+  await loadCarrierLifecycle();
  }catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}
  finally{button.disabled=false;}
 }
