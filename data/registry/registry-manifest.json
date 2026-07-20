@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-20T04:43:51.158042+00:00",
+  "datasets": {
+    "calling_codes.json": {
+      "sha256": "c7bbd1a384d1d3d745ccf69754a5d3a075fc8c9ce3853a150fad710baca36ea9",
+      "bytes": 321
+    },
+    "countries.json": {
+      "sha256": "7b352496368c7566e35bbc653bd6776f6d67a5ad77e9f00787fee4670e5f0375",
+      "bytes": 816
+    },
+    "timezones.json": {
+      "sha256": "abc33f97d0fc67ec2f7befe61c70ec69211078870a0322975824c38f214b22e0",
+      "bytes": 505
+    }
+  }
+}
