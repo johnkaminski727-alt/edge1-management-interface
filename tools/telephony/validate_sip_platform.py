@@ -39,6 +39,14 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_activation_state.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/validate_approval_records.py"
+    ],
+    [
+        "python3",
         "tools/telephony/carrier_onboard.py",
         "lab-carrier-001"
     ],
