@@ -1,0 +1,7 @@
+npa,country,region,state,timezone,status
+201,US,New Jersey,NJ,America/New_York,active
+202,US,District of Columbia,DC,America/New_York,active
+204,CA,Manitoba,MB,America/Winnipeg,active
+212,US,New York,NY,America/New_York,active
+415,US,California,CA,America/Los_Angeles,active
+604,CA,British Columbia,BC,America/Vancouver,active

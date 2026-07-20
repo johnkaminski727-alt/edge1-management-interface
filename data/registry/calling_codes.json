@@ -4,17 +4,21 @@
   "calling_codes": [
     {
       "country": "IS",
-      "calling_code": "+354"
-    },
-    {
-      "country": "CA",
-      "calling_code": "+1",
-      "region": "NANPA"
+      "calling_code": "+354",
+      "region": "Europe",
+      "status": "assigned"
     },
     {
       "country": "US",
       "calling_code": "+1",
-      "region": "NANPA"
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "CA",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
     }
   ]
 }
