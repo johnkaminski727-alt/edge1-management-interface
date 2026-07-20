@@ -29,6 +29,11 @@ PEER_STATUS = (
     "data/registry/interconnect/status/peer-status.json"
 )
 
+SIP_HISTORY = (
+    REPO_ROOT /
+    "data/registry/interconnect/status/sip-options-history.json"
+)
+
 
 def load_json_file(path: Path) -> dict[str, Any]:
     try:
@@ -285,6 +290,13 @@ class Handler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/telephony/status":
             self.send_json(HTTPStatus.OK, status_payload())
+            return
+
+        if path == "/api/telephony/health/history":
+            self.send_json(
+                HTTPStatus.OK,
+                load_json_file(SIP_HISTORY)
+            )
             return
         if path == "/healthz":
             self.send_json(HTTPStatus.OK, {"status": "ok", "time": utc_now()})
