@@ -1,31 +1,27 @@
 #!/usr/bin/env python3
 """
-WW.CX Numbering Registry Interface
+WW.CX Numbering Registry
 
-Canonical numbering intelligence layer.
-
-Order of evaluation:
-1. Normalize E.164
-2. Determine country/calling code
-3. Apply NANPA logic only for +1
-4. Produce routing decision
+Canonical lookup layer:
+- E.164 normalization
+- country lookup
+- NANPA lookup
+- routing decisions
 """
 
 from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
 
-DATA_FILE = (
-    Path(__file__).resolve().parents[2]
-    / "data"
-    / "registry"
-    / "calling_codes.json"
-)
+ROOT = Path(__file__).resolve().parents[2]
 
+REGISTRY = ROOT / "data" / "registry"
+DB = ROOT / "data" / "telecom" / "numbering.db"
 
 DIGITS = re.compile(r"\D+")
 
@@ -39,38 +35,38 @@ def normalize_number(value: str) -> str:
     return "+" + digits
 
 
-def _load_calling_codes() -> list[dict[str, Any]]:
-    if not DATA_FILE.exists():
-        return []
-
+def load_json(name: str) -> dict[str, Any]:
     return json.loads(
-        DATA_FILE.read_text()
-    )["calling_codes"]
+        (REGISTRY / name).read_text()
+    )
 
 
-def lookup_country(number: str) -> dict[str, Any] | None:
-    normalized = normalize_number(number)
+def lookup_country(number: str):
+
+    number = normalize_number(number)
+
+    data = load_json("countries.json")
 
     matches = []
 
-    for entry in _load_calling_codes():
-        if normalized.startswith(entry["calling_code"]):
-            matches.append(entry)
+    for country in data["countries"]:
+        for code in country["calling_codes"]:
+            if number.startswith(code):
+                matches.append(country)
 
     if not matches:
         return None
 
     return sorted(
         matches,
-        key=lambda x: len(x["calling_code"]),
+        key=lambda x: len(
+            ",".join(x["calling_codes"])
+        ),
         reverse=True
     )[0]
 
 
-def lookup_nanpa(number: str) -> dict[str, Any] | None:
-    """
-    NANPA applies only to +1 numbers.
-    """
+def lookup_nanpa(number: str):
 
     normalized = normalize_number(number)
 
@@ -84,38 +80,77 @@ def lookup_nanpa(number: str) -> dict[str, Any] | None:
 
     npa = digits[:3]
 
-    if npa[0] not in "23456789":
-        return None
+    with sqlite3.connect(DB) as conn:
 
-    return {
-        "region": "NANPA",
-        "npa": npa,
-        "number": digits,
-        "e164": normalized,
-    }
+        conn.row_factory = sqlite3.Row
+
+        row = conn.execute(
+            """
+            SELECT *
+            FROM nanpa_npa
+            WHERE npa=?
+            """,
+            (npa,)
+        ).fetchone()
+
+    if not row:
+        return {
+            "npa": npa,
+            "status": "unknown"
+        }
+
+    return dict(row)
 
 
-def lookup_route(number: str) -> dict[str, Any]:
+def lookup_route(number: str):
 
-    country = lookup_country(number)
+    normalized = normalize_number(number)
 
-    if country and country.get("calling_code") == "+1":
-        nanpa = lookup_nanpa(number)
+    # NANPA must override +1 ambiguity
+    if normalized.startswith("+1"):
 
-        if nanpa:
+        nanpa = lookup_nanpa(normalized)
+
+        if nanpa and nanpa.get("country"):
+
+            country_code = nanpa["country"]
+
+            data = load_json("countries.json")
+
+            country = next(
+                (
+                    c for c in data["countries"]
+                    if c["iso_alpha2"] == country_code
+                ),
+                None
+            )
+
             return {
                 "route": "NANPA",
-                "gateway": "kamailio-dispatcher",
-                "destination": nanpa,
+                "country": country,
+                "numbering": nanpa,
+                "gateway": "kamailio-dispatcher"
             }
 
+        return {
+            "route": "NANPA",
+            "country": None,
+            "numbering": nanpa,
+            "gateway": "kamailio-dispatcher"
+        }
+
+
+    country = lookup_country(normalized)
+
     if country:
+
         return {
             "route": "COUNTRY",
-            "destination": country,
+            "country": country
         }
+
 
     return {
         "route": "UNKNOWN",
-        "destination": None,
+        "country": None
     }
