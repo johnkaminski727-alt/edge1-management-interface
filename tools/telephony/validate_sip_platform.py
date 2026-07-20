@@ -31,6 +31,10 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_carrier_provision.py"
+    ],
+    [
+        "python3",
         "tools/telephony/generate_sip_config.py"
     ],
     [
