@@ -63,6 +63,18 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_scale_operations.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/generate_carrier_scorecard.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/generate_capacity_report.py"
+    ],
+    [
+        "python3",
         "tools/telephony/carrier_onboard.py",
         "lab-carrier-001"
     ],

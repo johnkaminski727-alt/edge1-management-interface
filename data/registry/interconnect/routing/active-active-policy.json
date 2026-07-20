@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "strategy": "priority",
+  "health_based_failover": true
+}

@@ -1,0 +1,8 @@
+{
+  "rules": [
+    {
+      "name": "sip-peer-failure",
+      "threshold": 1
+    }
+  ]
+}
