@@ -1,0 +1,14 @@
+{
+  "carriers": [
+    {
+      "peer": "edge1-lab-peer",
+      "score": 95,
+      "health_rating": "excellent"
+    },
+    {
+      "peer": "lab-carrier-001-peer",
+      "score": 40,
+      "health_rating": "degraded"
+    }
+  ]
+}

@@ -75,6 +75,22 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_intelligence_layer.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/detect_sip_anomalies.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/generate_carrier_score.py"
+    ],
+    [
+        "python3",
+        "tools/telephony/generate_operations_forecast.py"
+    ],
+    [
+        "python3",
         "tools/telephony/carrier_onboard.py",
         "lab-carrier-001"
     ],

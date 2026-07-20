@@ -1,0 +1,10 @@
+{
+  "forecasts": [
+    {
+      "peer": "lab-carrier-001-peer",
+      "forecast": "degraded",
+      "risk": "medium",
+      "reason": "recent SIP failure detected"
+    }
+  ]
+}
