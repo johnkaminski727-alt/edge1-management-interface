@@ -1,0 +1,17 @@
+# Edge1 SIP Edge Runtime Configuration
+
+platform: edge1
+
+sip_engine:
+  type: pending
+  mode: lab
+
+signaling:
+  transport:
+    - udp
+    - tcp
+    - tls
+
+default_port:
+  sip: 5060
+  sips: 5061

@@ -1,0 +1,15 @@
+# Edge1 SIP Security Baseline
+
+signaling:
+  tls_enabled: false
+  certificate_required: true
+
+access_control:
+  allowed_networks: []
+
+limits:
+  max_calls_per_second: 10
+  max_call_duration_seconds: 7200
+
+fraud_controls:
+  international_routing: restricted
