@@ -34,6 +34,11 @@ SIP_HISTORY = (
     "data/registry/interconnect/status/sip-options-history.json"
 )
 
+SIP_READINESS = (
+    REPO_ROOT /
+    "reports/interconnect-readiness.json"
+)
+
 
 def load_json_file(path: Path) -> dict[str, Any]:
     try:
@@ -296,6 +301,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(
                 HTTPStatus.OK,
                 load_json_file(SIP_HISTORY)
+            )
+            return
+
+        if path == "/api/telephony/readiness":
+            self.send_json(
+                HTTPStatus.OK,
+                load_json_file(SIP_READINESS)
             )
             return
         if path == "/healthz":

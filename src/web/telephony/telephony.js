@@ -57,6 +57,42 @@ async function loadSipHistory(){
 }
 
 
+
+async function loadSipReadiness(){
+ const target=document.querySelector('#sip-readiness');
+ if(!target){return;}
+
+ try{
+  const readiness=await fetchJson('/api/telephony/readiness');
+
+  const requirements =
+    Object.entries(
+      readiness.production_requirements || {}
+    ).map(([key,value]) => `
+      <li>${value ? '✓' : '□'} ${text(key)}</li>
+    `).join('');
+
+  target.innerHTML = `
+    <article class="alert">
+      <h3>${text(readiness.platform)}</h3>
+      <p>
+        Carriers: ${text(readiness.summary.carriers)}
+        · SIP Peers: ${text(readiness.summary.sip_peers)}
+        · Routes: ${text(readiness.summary.routing_rules)}
+      </p>
+      <ul>
+        ${requirements}
+      </ul>
+    </article>
+  `;
+
+ }catch(error){
+  target.innerHTML =
+    '<p class="alert">Readiness unavailable.</p>';
+ }
+}
+
+
 async function load(){
  const button=document.querySelector('#refresh');button.disabled=true;
  try{
@@ -65,6 +101,7 @@ async function load(){
   catch(liveError){data=await fetchJson('./telephony.fixture.json');data.mode=`fixture fallback (${liveError.message})`;}
   render(data);
   await loadSipHistory();
+  await loadSipReadiness();
  }catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}
  finally{button.disabled=false;}
 }
