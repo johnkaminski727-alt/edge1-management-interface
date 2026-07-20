@@ -1,18 +1,26 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-20T04:43:51.158042+00:00",
+  "generated_at": "2026-07-20T04:51:03.053911+00:00",
   "datasets": {
     "calling_codes.json": {
       "sha256": "c7bbd1a384d1d3d745ccf69754a5d3a075fc8c9ce3853a150fad710baca36ea9",
-      "bytes": 321
-    },
-    "countries.json": {
-      "sha256": "7b352496368c7566e35bbc653bd6776f6d67a5ad77e9f00787fee4670e5f0375",
-      "bytes": 816
+      "bytes": 321,
+      "updated": "2026-07-19T23:40:29.816050+00:00"
     },
     "timezones.json": {
       "sha256": "abc33f97d0fc67ec2f7befe61c70ec69211078870a0322975824c38f214b22e0",
-      "bytes": 505
+      "bytes": 505,
+      "updated": "2026-07-19T23:40:29.816050+00:00"
+    },
+    "countries.schema.json": {
+      "sha256": "c244e2ab1b0c9b8039f447c026965a44e88987591963f272adcc140578a5a652",
+      "bytes": 573,
+      "updated": "2026-07-19T23:40:29.816050+00:00"
+    },
+    "countries.json": {
+      "sha256": "7b352496368c7566e35bbc653bd6776f6d67a5ad77e9f00787fee4670e5f0375",
+      "bytes": 816,
+      "updated": "2026-07-19T23:40:29.816050+00:00"
     }
   }
 }
