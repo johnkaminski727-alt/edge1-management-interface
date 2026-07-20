@@ -1,10 +1,16 @@
-# NANPA Source
+# NANPA NPA source
 
-Expected source format:
+`raw/npa_report.csv` is the downloaded NANPA NPA Database source.
 
-npa,country,region,state,timezone,status
+Normalize and import it with:
 
-Example:
+    python3 tools/registry/normalize_nanpa.py
+    python3 tools/registry/import_nanpa.py
 
-415,US,California,CA,America/Los_Angeles,active
-604,CA,British Columbia,BC,America/Vancouver,active
+The normalized registry is `data/registry/nanpa_npa.csv`.
+
+The `timezone` field preserves NANPA published timezone codes such as E, C, M, P, EC, and CM. These are not exact IANA timezone identifiers.
+
+Status values are derived as active, assigned, reserved, available, or unavailable.
+
+Records without a country assignment use pseudo-region code `001`.
