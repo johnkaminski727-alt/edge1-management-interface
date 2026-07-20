@@ -44,3 +44,5 @@ cache/
 *.iso
 *.img
 
+
+.venv-registry/

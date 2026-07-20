@@ -1,11 +1,135 @@
 {
   "schema_version": "1.0",
-  "source": "ITU E.164",
+  "source": {
+    "standard": "ITU-T E.164",
+    "normalized_with": "python-phonenumbers",
+    "phonenumbers_version": "9.0.34"
+  },
   "calling_codes": [
     {
-      "country": "IS",
-      "calling_code": "+354",
-      "region": "Europe",
+      "country": "AG",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "AI",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "AS",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "BB",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "BM",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "BS",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "CA",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "DM",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "DO",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "GD",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "GU",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "JM",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "KN",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "KY",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "LC",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "MP",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "MS",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "PR",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "SX",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "TC",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "TT",
+      "calling_code": "+1",
+      "region": "NANPA",
       "status": "assigned"
     },
     {
@@ -15,9 +139,1395 @@
       "status": "assigned"
     },
     {
-      "country": "CA",
+      "country": "VC",
       "calling_code": "+1",
       "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "VG",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "VI",
+      "calling_code": "+1",
+      "region": "NANPA",
+      "status": "assigned"
+    },
+    {
+      "country": "KZ",
+      "calling_code": "+7",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "RU",
+      "calling_code": "+7",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "EG",
+      "calling_code": "+20",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ZA",
+      "calling_code": "+27",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GR",
+      "calling_code": "+30",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NL",
+      "calling_code": "+31",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BE",
+      "calling_code": "+32",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "FR",
+      "calling_code": "+33",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ES",
+      "calling_code": "+34",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "HU",
+      "calling_code": "+36",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IT",
+      "calling_code": "+39",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "VA",
+      "calling_code": "+39",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "RO",
+      "calling_code": "+40",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CH",
+      "calling_code": "+41",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AT",
+      "calling_code": "+43",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GB",
+      "calling_code": "+44",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GG",
+      "calling_code": "+44",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IM",
+      "calling_code": "+44",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "JE",
+      "calling_code": "+44",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "DK",
+      "calling_code": "+45",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SE",
+      "calling_code": "+46",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NO",
+      "calling_code": "+47",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SJ",
+      "calling_code": "+47",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PL",
+      "calling_code": "+48",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "DE",
+      "calling_code": "+49",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PE",
+      "calling_code": "+51",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MX",
+      "calling_code": "+52",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CU",
+      "calling_code": "+53",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AR",
+      "calling_code": "+54",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BR",
+      "calling_code": "+55",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CL",
+      "calling_code": "+56",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CO",
+      "calling_code": "+57",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "VE",
+      "calling_code": "+58",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MY",
+      "calling_code": "+60",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AU",
+      "calling_code": "+61",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CC",
+      "calling_code": "+61",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CX",
+      "calling_code": "+61",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ID",
+      "calling_code": "+62",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PH",
+      "calling_code": "+63",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NZ",
+      "calling_code": "+64",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SG",
+      "calling_code": "+65",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TH",
+      "calling_code": "+66",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "JP",
+      "calling_code": "+81",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KR",
+      "calling_code": "+82",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "VN",
+      "calling_code": "+84",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CN",
+      "calling_code": "+86",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TR",
+      "calling_code": "+90",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IN",
+      "calling_code": "+91",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PK",
+      "calling_code": "+92",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AF",
+      "calling_code": "+93",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LK",
+      "calling_code": "+94",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MM",
+      "calling_code": "+95",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IR",
+      "calling_code": "+98",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SS",
+      "calling_code": "+211",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "EH",
+      "calling_code": "+212",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MA",
+      "calling_code": "+212",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "DZ",
+      "calling_code": "+213",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TN",
+      "calling_code": "+216",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LY",
+      "calling_code": "+218",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GM",
+      "calling_code": "+220",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SN",
+      "calling_code": "+221",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MR",
+      "calling_code": "+222",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ML",
+      "calling_code": "+223",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GN",
+      "calling_code": "+224",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CI",
+      "calling_code": "+225",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BF",
+      "calling_code": "+226",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NE",
+      "calling_code": "+227",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TG",
+      "calling_code": "+228",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BJ",
+      "calling_code": "+229",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MU",
+      "calling_code": "+230",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LR",
+      "calling_code": "+231",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SL",
+      "calling_code": "+232",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GH",
+      "calling_code": "+233",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NG",
+      "calling_code": "+234",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TD",
+      "calling_code": "+235",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CF",
+      "calling_code": "+236",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CM",
+      "calling_code": "+237",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CV",
+      "calling_code": "+238",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ST",
+      "calling_code": "+239",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GQ",
+      "calling_code": "+240",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GA",
+      "calling_code": "+241",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CG",
+      "calling_code": "+242",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CD",
+      "calling_code": "+243",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AO",
+      "calling_code": "+244",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GW",
+      "calling_code": "+245",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IO",
+      "calling_code": "+246",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AC",
+      "calling_code": "+247",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SC",
+      "calling_code": "+248",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SD",
+      "calling_code": "+249",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "RW",
+      "calling_code": "+250",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ET",
+      "calling_code": "+251",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SO",
+      "calling_code": "+252",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "DJ",
+      "calling_code": "+253",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KE",
+      "calling_code": "+254",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TZ",
+      "calling_code": "+255",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "UG",
+      "calling_code": "+256",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BI",
+      "calling_code": "+257",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MZ",
+      "calling_code": "+258",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ZM",
+      "calling_code": "+260",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MG",
+      "calling_code": "+261",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "RE",
+      "calling_code": "+262",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "YT",
+      "calling_code": "+262",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ZW",
+      "calling_code": "+263",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NA",
+      "calling_code": "+264",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MW",
+      "calling_code": "+265",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LS",
+      "calling_code": "+266",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BW",
+      "calling_code": "+267",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SZ",
+      "calling_code": "+268",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KM",
+      "calling_code": "+269",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SH",
+      "calling_code": "+290",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TA",
+      "calling_code": "+290",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ER",
+      "calling_code": "+291",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AW",
+      "calling_code": "+297",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "FO",
+      "calling_code": "+298",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GL",
+      "calling_code": "+299",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GI",
+      "calling_code": "+350",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PT",
+      "calling_code": "+351",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LU",
+      "calling_code": "+352",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IE",
+      "calling_code": "+353",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IS",
+      "calling_code": "+354",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AL",
+      "calling_code": "+355",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MT",
+      "calling_code": "+356",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CY",
+      "calling_code": "+357",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AX",
+      "calling_code": "+358",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "FI",
+      "calling_code": "+358",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BG",
+      "calling_code": "+359",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LT",
+      "calling_code": "+370",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LV",
+      "calling_code": "+371",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "EE",
+      "calling_code": "+372",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MD",
+      "calling_code": "+373",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AM",
+      "calling_code": "+374",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BY",
+      "calling_code": "+375",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AD",
+      "calling_code": "+376",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MC",
+      "calling_code": "+377",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SM",
+      "calling_code": "+378",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "UA",
+      "calling_code": "+380",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "RS",
+      "calling_code": "+381",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "ME",
+      "calling_code": "+382",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "XK",
+      "calling_code": "+383",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "HR",
+      "calling_code": "+385",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SI",
+      "calling_code": "+386",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BA",
+      "calling_code": "+387",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MK",
+      "calling_code": "+389",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CZ",
+      "calling_code": "+420",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SK",
+      "calling_code": "+421",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LI",
+      "calling_code": "+423",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "FK",
+      "calling_code": "+500",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BZ",
+      "calling_code": "+501",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GT",
+      "calling_code": "+502",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SV",
+      "calling_code": "+503",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "HN",
+      "calling_code": "+504",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NI",
+      "calling_code": "+505",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CR",
+      "calling_code": "+506",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PA",
+      "calling_code": "+507",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PM",
+      "calling_code": "+508",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "HT",
+      "calling_code": "+509",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BL",
+      "calling_code": "+590",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GP",
+      "calling_code": "+590",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MF",
+      "calling_code": "+590",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BO",
+      "calling_code": "+591",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GY",
+      "calling_code": "+592",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "EC",
+      "calling_code": "+593",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GF",
+      "calling_code": "+594",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PY",
+      "calling_code": "+595",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MQ",
+      "calling_code": "+596",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SR",
+      "calling_code": "+597",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "UY",
+      "calling_code": "+598",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BQ",
+      "calling_code": "+599",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CW",
+      "calling_code": "+599",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TL",
+      "calling_code": "+670",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NF",
+      "calling_code": "+672",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BN",
+      "calling_code": "+673",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NR",
+      "calling_code": "+674",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PG",
+      "calling_code": "+675",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TO",
+      "calling_code": "+676",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SB",
+      "calling_code": "+677",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "VU",
+      "calling_code": "+678",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "FJ",
+      "calling_code": "+679",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PW",
+      "calling_code": "+680",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "WF",
+      "calling_code": "+681",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "CK",
+      "calling_code": "+682",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NU",
+      "calling_code": "+683",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "WS",
+      "calling_code": "+685",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KI",
+      "calling_code": "+686",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NC",
+      "calling_code": "+687",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TV",
+      "calling_code": "+688",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PF",
+      "calling_code": "+689",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TK",
+      "calling_code": "+690",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "FM",
+      "calling_code": "+691",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MH",
+      "calling_code": "+692",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+800",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+808",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "KP",
+      "calling_code": "+850",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "HK",
+      "calling_code": "+852",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MO",
+      "calling_code": "+853",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KH",
+      "calling_code": "+855",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LA",
+      "calling_code": "+856",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+870",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+878",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "BD",
+      "calling_code": "+880",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+881",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+882",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+883",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "TW",
+      "calling_code": "+886",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+888",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "MV",
+      "calling_code": "+960",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "LB",
+      "calling_code": "+961",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "JO",
+      "calling_code": "+962",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SY",
+      "calling_code": "+963",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IQ",
+      "calling_code": "+964",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KW",
+      "calling_code": "+965",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "SA",
+      "calling_code": "+966",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "YE",
+      "calling_code": "+967",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "OM",
+      "calling_code": "+968",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "PS",
+      "calling_code": "+970",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AE",
+      "calling_code": "+971",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "IL",
+      "calling_code": "+972",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BH",
+      "calling_code": "+973",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "QA",
+      "calling_code": "+974",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "BT",
+      "calling_code": "+975",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "MN",
+      "calling_code": "+976",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "NP",
+      "calling_code": "+977",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "001",
+      "calling_code": "+979",
+      "region": "GLOBAL_SERVICE",
+      "status": "assigned"
+    },
+    {
+      "country": "TJ",
+      "calling_code": "+992",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "TM",
+      "calling_code": "+993",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "AZ",
+      "calling_code": "+994",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "GE",
+      "calling_code": "+995",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "KG",
+      "calling_code": "+996",
+      "region": "",
+      "status": "assigned"
+    },
+    {
+      "country": "UZ",
+      "calling_code": "+998",
+      "region": "",
       "status": "assigned"
     }
   ]
