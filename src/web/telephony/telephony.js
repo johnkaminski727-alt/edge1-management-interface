@@ -26,6 +26,37 @@ function render(data){
  `).join('');
 }
 async function fetchJson(url){const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}
+async function loadSipHistory(){
+ const target=document.querySelector('#sip-history');
+ if(!target){return;}
+
+ try{
+  const history=await fetchJson('/api/telephony/health/history');
+
+  const checks=(history.checks||[]).slice(-10).reverse();
+
+  target.innerHTML=checks.length
+   ? checks.map(c=>`
+      <article class="alert">
+        <h3 class="${stateClass[c.status]||''}">
+          ${text(c.peer)} — ${text(c.status)}
+        </h3>
+        <p>
+          SIP ${text(c.response_code)}
+          · ${text(c.latency_ms)} ms
+        </p>
+        <small>${text(c.timestamp)}</small>
+      </article>
+    `).join('')
+   : '<p class="alert ok">No SIP history available.</p>';
+
+ }catch(error){
+  target.innerHTML =
+    '<p class="alert">SIP history unavailable.</p>';
+ }
+}
+
+
 async function load(){
  const button=document.querySelector('#refresh');button.disabled=true;
  try{
@@ -33,6 +64,7 @@ async function load(){
   try{data=await fetchJson('/api/telephony/status');}
   catch(liveError){data=await fetchJson('./telephony.fixture.json');data.mode=`fixture fallback (${liveError.message})`;}
   render(data);
+  await loadSipHistory();
  }catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}
  finally{button.disabled=false;}
 }
