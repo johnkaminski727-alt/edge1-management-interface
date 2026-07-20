@@ -1,0 +1,31 @@
+{
+  "carriers": [
+    {
+      "id": "edge1-lab-carrier",
+      "name": "Edge1 Internal SIP Test Carrier",
+      "status": "testing",
+      "contacts": []
+    }
+  ],
+  "sip_peers": [
+    {
+      "id": "edge1-lab-peer",
+      "carrier_id": "edge1-lab-carrier",
+      "endpoint": "127.0.0.1",
+      "transport": "udp",
+      "codecs": [
+        "PCMU",
+        "PCMA"
+      ],
+      "health_check": "options"
+    }
+  ],
+  "routing_rules": [
+    {
+      "id": "default-lab-route",
+      "match": "+*",
+      "destination": "edge1-lab-peer",
+      "priority": 100
+    }
+  ]
+}
