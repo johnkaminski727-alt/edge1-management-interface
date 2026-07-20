@@ -1,0 +1,8 @@
+{
+  "autonomy_enabled": false,
+  "approval_required": true,
+  "allowed_actions": [
+    "health_retry",
+    "generate_recommendation"
+  ]
+}

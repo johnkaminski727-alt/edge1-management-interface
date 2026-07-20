@@ -91,6 +91,10 @@ COMMANDS = [
     ],
     [
         "python3",
+        "tools/telephony/validate_autonomous_operations.py"
+    ],
+    [
+        "python3",
         "tools/telephony/carrier_onboard.py",
         "lab-carrier-001"
     ],
