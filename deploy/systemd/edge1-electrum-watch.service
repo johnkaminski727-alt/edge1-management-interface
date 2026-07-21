@@ -1,0 +1,14 @@
+[Unit]
+Description=Edge1 Electrum watch-only wallet service
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/electrum-watch/wallets/wwcx-watch-only
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=electrum-watch
+Group=electrum-watch
+Environment=HOME=/var/lib/electrum-watch
+Environment=ELECTRUMDIR=/var/lib/electrum-watch/.electrum
+ExecStart=/opt/electrum-watch/bin/e
