@@ -1,0 +1,37 @@
+name: Registry validation
+
+on:
+  pull_request:
+    paths:
+      - "data/registry/**"
+      - "tools/registry/**"
+      - "tests/registry/**"
+      - ".github/workflows/registry-validation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "data/registry/**"
+      - "tools/registry/**"
+      - "tests/registry/**"
+      - ".github/workflows/registry-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Rebuild canonical registry
+        run: python3 tools/registry/build_country_registry.py
+      - name: Verify generated artifact is reproducible
+        run: git diff --exit-code -- data/registry/country_registry.json
+      - name: Validate relationships
+        run: python3 tools/registry/validate_relationships.py
+      - name: Run release tests
+        run: python3 -m unittest tests.registry.test_registry_release
