@@ -13,7 +13,7 @@ Group=electrum-watch
 Environment=HOME=/var/lib/electrum-watch
 Environment=ELECTRUM_API_ENV=/etc/electrum-watch/api.env
 Environment=ELECTRUM_RPC_ENV=/etc/electrum-watch/rpc.env
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/electrum_watch_api_server.py --host 127.0.0.1 --port 8094
+ExecStart=/usr/bin/python3 /opt/electrum-watch/libexec/electrum_watch_api_server.py --host 127.0.0.1 --port 8094
 Restart=on-failure
 RestartSec=3
 
