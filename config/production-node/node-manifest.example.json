@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "node": {
+    "name": "production-candidate.example",
+    "environment": "production-candidate",
+    "role": "passive",
+    "region": "replace-me"
+  },
+  "lifecycle": {
+    "state": "isolated",
+    "allowed_states": [
+      "provisioning",
+      "isolated",
+      "validated",
+      "production-candidate",
+      "canary",
+      "active",
+      "draining",
+      "retired"
+    ]
+  },
+  "safety": {
+    "production_traffic_enabled": false,
+    "carrier_trunks_enabled": false,
+    "emergency_calling_enabled": false,
+    "stir_shaken_signing_enabled": false,
+    "number_porting_enabled": false,
+    "authoritative_writes_enabled": false
+  },
+  "host": {
+    "os_family": "debian",
+    "minimum_memory_mb": 4096,
+    "minimum_root_free_mb": 8192,
+    "required_commands": ["bash", "python3", "systemctl", "ss"]
+  },
+  "services": [],
+  "listeners": [],
+  "evidence_directory": "/var/lib/wwcx/production-node/evidence"
+}
