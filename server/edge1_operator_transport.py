@@ -32,6 +32,6 @@ class Edge1OperatorTransport:
     def handle(self, request: TransportRequest) -> TransportResponse:
         result = self.dispatcher.dispatch(
             request.method,
-            request.payload,
+            **request.payload,
         )
         return TransportResponse(ok=True, result=result)
