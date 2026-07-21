@@ -32,7 +32,7 @@ for forbidden in ("payto", "broadcast", "signtransaction", "getunusedaddress", "
 unit = UNIT.read_text(encoding="utf-8")
 for marker in (
     "User=electrum-watch",
-    "ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/electrum_watch_api_server.py --host 127.0.0.1 --port 8094",
+    "ExecStart=/usr/bin/python3 /opt/electrum-watch/libexec/electrum_watch_api_server.py --host 127.0.0.1 --port 8094",
     "NoNewPrivileges=true",
     "ProtectSystem=strict",
     "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",

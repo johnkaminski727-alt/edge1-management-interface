@@ -5,6 +5,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPECTED_ROOT="/opt/edge1-management-interface"
 UNIT_SRC="$REPO_ROOT/deploy/systemd/edge1-electrum-watch.service"
 UNIT_DST="/etc/systemd/system/edge1-electrum-watch.service"
+API_SRC="$REPO_ROOT/server/electrum_watch_api_server.py"
+API_RUNTIME_DIR="/opt/electrum-watch/libexec"
+API_RUNTIME="$API_RUNTIME_DIR/electrum_watch_api_server.py"
 SERVICE_USER="electrum-watch"
 SERVICE_HOME="/var/lib/electrum-watch"
 VENV="/opt/electrum-watch"
@@ -47,6 +50,11 @@ fi
 chown -R "$SERVICE_USER:$SERVICE_USER" "$SERVICE_HOME"
 chmod 0700 "$SERVICE_HOME" "$SERVICE_HOME/.electrum" "$SERVICE_HOME/wallets"
 chmod 0600 "$SERVICE_HOME/wallets/wwcx-watch-only"
+
+test -f "$API_SRC" || { echo "Missing API server: $API_SRC" >&2; exit 1; }
+
+install -d -o root -g root -m 0755 "$API_RUNTIME_DIR"
+install -o root -g root -m 0755 "$API_SRC" "$API_RUNTIME"
 
 install -m 0644 "$UNIT_SRC" "$UNIT_DST"
 systemctl daemon-reload
