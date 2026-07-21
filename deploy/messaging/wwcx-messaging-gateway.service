@@ -1,0 +1,28 @@
+[Unit]
+Description=WW.CX Messaging Gateway
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface/services/wwcx-messaging-gateway
+Environment=WWCX_MANAGEMENT_CONTROL_ENABLED=false
+ExecStart=/opt/edge1-management-interface/services/wwcx-messaging-gateway/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8095
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
