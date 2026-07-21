@@ -2,9 +2,11 @@
 
 ## Current Phase
 
-Phase 13I — Internal Carrier-Support Review Console
+Phase 13J — Internal Review Operations Readiness
 
-Status: IMPLEMENTATION IN PROGRESS
+Status: PLANNED
+
+Phase 13J may prepare internal review operations, user-interface behavior, runbooks, and non-secret configuration validation. Creating or modifying a real reviewer credential remains a separate controlled authentication change.
 
 ## Completed Milestones
 
@@ -62,29 +64,30 @@ Operational completion archive:
 docs/archive/WWCX-Carrier-Portal-Phase-13H-Operational-Completion-Archive.md
 ```
 
-## Active Milestone
-
 ### Phase 13I — Internal Carrier-Support Review Console
 
-Completed implementation units:
+Status: COMPLETE
+
+Completed and operationally verified:
 
 - internal review queue model over Phase 13H append-only records;
 - append-only internal review events;
-- explicit internal read and review-write scopes;
+- explicit `internal.carrier.review.read` and `internal.carrier.review.write` scopes;
 - lifecycle states for acknowledgement, review, information requests, ticket closure, and change rejection;
 - forced `approval_granted: false` and `execution_authorized: false`;
 - explicit rejection of approve, authorize, schedule, and execute actions;
-- focused foundation tests and operator documentation.
-
-Current API integration unit:
-
 - `GET /portal/internal/carrier-review/queue`;
 - `POST /portal/internal/carrier-review/events`;
-- exact internal read and write scopes;
 - rejection of every identity carrying a `carrier_id`, even if an internal scope is misconfigured;
 - append-only review-event and audit evidence;
 - preservation of Phase 13G and Phase 13H routes;
-- no approval, authorization, scheduling, or execution endpoint.
+- 27-test deployed validation suite;
+- isolated authenticated HTTP validation;
+- Edge1 deployment at merge commit `cb212ef8d35de42cbd70a09d0bedd6da2c2bacdb`;
+- service health on `127.0.0.1:8097`;
+- unauthenticated internal-queue denial;
+- review log ownership `wwadmin:wwadmin` and mode `0640`;
+- no production reviewer credential created or modified.
 
 Implementation files:
 
@@ -99,15 +102,28 @@ Documentation:
 ```text
 docs/carrier-portal/phase-13i-internal-review-foundation.md
 docs/carrier-portal/phase-13i-review-api-integration.md
+docs/archive/WWCX-Carrier-Portal-Phase-13I-Operational-Completion-Archive.md
 ```
 
-Remaining Phase 13I work:
+## Active Milestone
 
-- validate API integration and all existing portal tests on Edge1;
-- perform isolated authenticated HTTP validation with temporary internal and carrier identities;
-- verify append-only review and audit records contain no secret material;
-- deploy without granting internal scopes to carrier identities;
-- archive operational completion evidence.
+### Phase 13J — Internal Review Operations Readiness
+
+Planned safe implementation units:
+
+- internal review console presentation and queue filtering;
+- operator-facing review-state summaries;
+- non-secret reviewer configuration schema validation;
+- audit-log inspection and evidence export tooling;
+- deployment and rollback runbook refinement;
+- negative authorization tests for carrier and insufficient-scope identities;
+- explicit separation between reviewer actions and any future approval or execution plane.
+
+Controlled follow-on requiring separate authorization:
+
+- create or modify a real production reviewer identity or credential;
+- grant `internal.carrier.review.read` or `internal.carrier.review.write` to a live identity;
+- change production authentication policy or secret material.
 
 ## Security Boundaries
 
@@ -122,4 +138,4 @@ Carrier users remain isolated from:
 - automatic change approval or execution;
 - internal carrier-support review scopes and records.
 
-Phase 13I review actions cannot grant approval or execution authority. Any future production approval or execution plane requires separate identities, scopes, records, controls, and explicit authorization outside standing routine authority.
+Phase 13I and Phase 13J review actions cannot grant approval or execution authority. Any future production approval or execution plane requires separate identities, scopes, records, controls, and explicit authorization outside standing routine authority.
