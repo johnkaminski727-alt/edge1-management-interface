@@ -10,4 +10,18 @@
   },
   "deployment_status": "discovery_only",
   "modules": [
-    {"id":"bigbird-ai
+    {"id":"bigbird-ai-chat","route":"/admin/bigbird-ai-chat.php","label":"WW.CX AI — Read-only knowledge staging","section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-automation","route":"/admin/bigbird-automation.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-changes-audit","route":"/admin/bigbird-changes-audit.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-dns-cache","route":"/admin/bigbird-dns-cache.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-dns-queries","route":"/admin/bigbird-dns-queries.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-firewall","route":"/admin/bigbird-firewall.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-logs","route":"/admin/bigbird-logs.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-operations-console","route":"/admin/bigbird-operations-console.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-overview","route":"/admin/bigbird-overview.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-security","route":"/admin/bigbird-security.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-settings","route":"/admin/bigbird-settings.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"bigbird-vpn-devices","route":"/admin/bigbird-vpn-devices.php","label":null,"section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"},
+    {"id":"print-production","route":"/admin/print-production.php","label":"Print Production · WW.CX","section":null,"sort_order":null,"required_role":null,"required_permission":null,"enabled":false,"evidence_status":"verified_route"}
+  ]
+}
