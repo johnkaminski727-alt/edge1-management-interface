@@ -66,7 +66,7 @@ docs/archive/WWCX-Carrier-Portal-Phase-13H-Operational-Completion-Archive.md
 
 ### Phase 13I — Internal Carrier-Support Review Console
 
-Current implementation unit:
+Completed implementation units:
 
 - internal review queue model over Phase 13H append-only records;
 - append-only internal review events;
@@ -74,27 +74,40 @@ Current implementation unit:
 - lifecycle states for acknowledgement, review, information requests, ticket closure, and change rejection;
 - forced `approval_granted: false` and `execution_authorized: false`;
 - explicit rejection of approve, authorize, schedule, and execute actions;
-- focused unit tests and operator documentation.
+- focused foundation tests and operator documentation.
 
-Current implementation file:
+Current API integration unit:
+
+- `GET /portal/internal/carrier-review/queue`;
+- `POST /portal/internal/carrier-review/events`;
+- exact internal read and write scopes;
+- rejection of every identity carrying a `carrier_id`, even if an internal scope is misconfigured;
+- append-only review-event and audit evidence;
+- preservation of Phase 13G and Phase 13H routes;
+- no approval, authorization, scheduling, or execution endpoint.
+
+Implementation files:
 
 ```text
 server/portal/carrier_review.py
+server/portal/carrier_review_api.py
+server/portal/portal_api_server.py
 ```
 
-Current documentation:
+Documentation:
 
 ```text
 docs/carrier-portal/phase-13i-internal-review-foundation.md
+docs/carrier-portal/phase-13i-review-api-integration.md
 ```
 
 Remaining Phase 13I work:
 
-- validate the internal review model on Edge1;
-- integrate internal-only authenticated queue and lifecycle endpoints;
-- reject carrier identities even if internal scopes are misconfigured;
-- validate append-only review records and audit evidence;
-- deploy without creating approval or execution authority.
+- validate API integration and all existing portal tests on Edge1;
+- perform isolated authenticated HTTP validation with temporary internal and carrier identities;
+- verify append-only review and audit records contain no secret material;
+- deploy without granting internal scopes to carrier identities;
+- archive operational completion evidence.
 
 ## Security Boundaries
 
