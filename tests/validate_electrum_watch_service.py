@@ -33,7 +33,7 @@ required = {
         "Never import a seed phrase",
         "Bind Electrum JSON-RPC only to `127.0.0.1`",
         "Do not permit business159 to call Electrum RPC directly",
-        "Rollback",
+        "## Stop and rollback",
     ],
 }
 
