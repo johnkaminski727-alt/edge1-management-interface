@@ -11,12 +11,20 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from carrier_review import (
-    REVIEW_READ_SCOPE,
-    REVIEW_WRITE_SCOPE,
-    append_review_event,
-    build_review_queue,
-)
+try:
+    from .carrier_review import (
+        REVIEW_READ_SCOPE,
+        REVIEW_WRITE_SCOPE,
+        append_review_event,
+        build_review_queue,
+    )
+except ImportError:  # Direct script/server execution
+    from carrier_review import (
+        REVIEW_READ_SCOPE,
+        REVIEW_WRITE_SCOPE,
+        append_review_event,
+        build_review_queue,
+    )
 
 REVIEW_QUEUE_ENDPOINT = "/portal/internal/carrier-review/queue"
 REVIEW_ACTION_ENDPOINT = "/portal/internal/carrier-review/events"
