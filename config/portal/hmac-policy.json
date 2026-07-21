@@ -1,6 +1,7 @@
 {
   "enabled": true,
   "algorithm": "sha256",
+  "timestamp_window_seconds": 300,
   "allowed_clients": [
     "shared-hosting-portal"
   ]

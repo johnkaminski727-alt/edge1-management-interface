@@ -4,8 +4,6 @@ import json
 import hmac
 import hashlib
 import time
-import uuid
-from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -28,37 +26,11 @@ CREDS = (
 )
 
 
-AUDIT_LOG = (
-    Path("/var/lib/wwcx-portal/portal_access_events.jsonl")
-)
-
-
 def load(path):
 
     return json.loads(
         path.read_text()
     )
-
-def audit_event(client, endpoint, response_code):
-
-    AUDIT_LOG.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    event = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "client_id": client,
-        "endpoint": endpoint,
-        "response_code": response_code,
-        "correlation_id": str(uuid.uuid4())
-    }
-
-    with AUDIT_LOG.open("a") as f:
-        f.write(
-            json.dumps(event) + "\n"
-        )
-
 
 
 def verify_request(headers):
@@ -129,32 +101,23 @@ class Handler(BaseHTTPRequestHandler):
             self.headers
         ):
 
-            audit_event(
-                self.headers.get(
-                    "X-Portal-Client",
-                    "unknown"
-                ),
-                self.path,
-                403
-            )
-
             self.send_response(403)
             self.end_headers()
             return
 
 
-        routes = {
-            "/portal/status": "public-summary.json",
-            "/portal/carriers": "carrier-status.json",
-            "/portal/health": "health-summary.json",
-            "/portal/interconnects": "interconnect-status.json",
-            "/portal/numbers": "numbering-status.json",
-        }
-
-        if self.path in routes:
+        if self.path == "/portal/status":
 
             self.send_json(
-                routes[self.path]
+                "public-summary.json"
+            )
+            return
+
+
+        if self.path == "/portal/carriers":
+
+            self.send_json(
+                "carrier-status.json"
             )
             return
 
@@ -169,15 +132,6 @@ class Handler(BaseHTTPRequestHandler):
             PORTAL /
             filename
         ).read_bytes()
-
-        audit_event(
-            self.headers.get(
-                "X-Portal-Client",
-                "unknown"
-            ),
-            self.path,
-            200
-        )
 
         self.send_response(200)
         self.send_header(
