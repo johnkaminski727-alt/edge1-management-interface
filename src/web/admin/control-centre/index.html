@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WW.CX Control Centre</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Administration navigation">
+      <div class="brand"><span class="brand-mark">W</span><div><strong>WW.CX</strong><small>Control Centre</small></div></div>
+      <nav id="navigation"></nav>
+      <div class="environment"><span class="status-dot"></span><div><strong>Production</strong><small>Data refreshed 38s ago</small></div></div>
+    </aside>
+    <main id="main">
+      <header class="topbar">
+        <div><p class="eyebrow">Command / Operations Overview</p><h1>Operational posture</h1></div>
+        <div class="top-actions"><button class="secondary">Export report</button><button>Open change queue <span class="badge">3</span></button></div>
+      </header>
+
+      <section class="posture-grid" aria-label="Current posture">
+        <article class="metric"><span class="metric-label">Estate health</span><strong>98.7%</strong><span class="trend positive">↑ 0.4% vs 24h</span><small>12 of 13 critical checks healthy</small></article>
+        <article class="metric"><span class="metric-label">Active findings</span><strong>7</strong><span class="trend warning">2 require review</span><small>1 high · 3 medium · 3 low</small></article>
+        <article class="metric"><span class="metric-label">Pending changes</span><strong>3</strong><span class="trend neutral">1 awaiting approval</span><small>All rollback plans available</small></article>
+        <article class="metric"><span class="metric-label">Security posture</span><strong>Good</strong><span class="trend positive">No critical exposure</span><small>Block rate within baseline</small></article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel span-2" id="analytics">
+          <div class="panel-heading"><div><p class="eyebrow">Analyze</p><h2>Traffic and service health</h2></div><select aria-label="Analysis period"><option>Last 24 hours</option><option>Last 7 days</option><option>Last 30 days</option></select></div>
+          <div class="chart" role="img" aria-label="Illustrative service health chart">
+            <div class="chart-grid"></div><svg viewBox="0 0 800 240" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="M0 180 C80 170 120 95 200 118 S340 155 420 83 S570 105 650 55 S750 78 800 42 L800 240 L0 240Z"/><path class="line" d="M0 180 C80 170 120 95 200 118 S340 155 420 83 S570 105 650 55 S750 78 800 42"/></svg>
+            <div class="chart-legend"><span><i class="legend-primary"></i>Healthy requests</span><span><i class="legend-muted"></i>24h baseline</span></div>
+          </div>
+        </article>
+
+        <article class="panel" id="decisions">
+          <div class="panel-heading"><div><p class="eyebrow">Decision Centre</p><h2>Prioritized findings</h2></div><a href="#">View all</a></div>
+          <div class="finding high"><span class="severity">High</span><strong>DNS SERVFAIL rate elevated</strong><p>2.8× above the 14-day baseline in the last 40 minutes.</p><button class="text-button">Review evidence →</button></div>
+          <div class="finding medium"><span class="severity">Medium</span><strong>VPN handshake stale</strong><p>Two managed devices have not refreshed within policy.</p><button class="text-button">Inspect devices →</button></div>
+          <div class="finding low"><span class="severity">Low</span><strong>Firewall block shift</strong><p>Port 5060 blocks increased, but remain within seasonal range.</p><button class="text-button">Open analysis →</button></div>
+        </article>
+
+        <article class="panel span-2">
+          <div class="panel-heading"><div><p class="eyebrow">Observe</p><h2>Systems and dependencies</h2></div><span class="freshness">Live · 38s</span></div>
+          <div class="systems-table" role="table" aria-label="Systems and dependencies">
+            <div class="table-row table-head" role="row"><span>System</span><span>Status</span><span>Latency</span><span>Trend</span><span>Last event</span></div>
+            <div class="table-row" role="row"><span><b>Website</b><small>business159</small></span><span class="pill healthy">Healthy</span><span>84 ms</span><span class="spark">▂▃▅▃▆▅▇</span><span>2m ago</span></div>
+            <div class="table-row" role="row"><span><b>Edge1</b><small>Operations API</small></span><span class="pill healthy">Healthy</span><span>31 ms</span><span class="spark">▃▃▄▅▄▅▅</span><span>38s ago</span></div>
+            <div class="table-row" role="row"><span><b>Big Bird</b><small>AI gateway</small></span><span class="pill healthy">Healthy</span><span>122 ms</span><span class="spark">▂▄▃▅▆▅▆</span><span>1m ago</span></div>
+            <div class="table-row" role="row"><span><b>Authoritative DNS</b><small>Dyn</small></span><span class="pill warning">Investigate</span><span>47 ms</span><span class="spark">▂▂▃▅▇▇▆</span><span>40s ago</span></div>
+          </div>
+        </article>
+
+        <article class="panel change-panel">
+          <div class="panel-heading"><div><p class="eyebrow">Control</p><h2>Change pipeline</h2></div><a href="#">Open queue</a></div>
+          <ol class="pipeline">
+            <li class="complete"><span>1</span><div><strong>Draft</strong><small>3 changes</small></div></li>
+            <li class="complete"><span>2</span><div><strong>Validated</strong><small>2 changes</small></div></li>
+            <li class="active"><span>3</span><div><strong>Approval</strong><small>1 waiting</small></div></li>
+            <li><span>4</span><div><strong>Execute</strong><small>Bounded adapter</small></div></li>
+            <li><span>5</span><div><strong>Verify</strong><small>Evidence required</small></div></li>
+          </ol>
+          <div class="safety-note"><strong>Production safety gate</strong><p>Firewall and DNS changes cannot execute directly from the browser. All changes require validation, separate approval, verification, and rollback metadata.</p></div>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
