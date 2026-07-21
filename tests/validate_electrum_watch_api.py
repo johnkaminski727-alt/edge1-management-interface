@@ -41,7 +41,12 @@ for marker in (
         raise SystemExit(f"Missing API unit hardening marker: {marker}")
 
 config = CONFIG.read_text(encoding="utf-8")
-for marker in ("secrets.token_urlsafe", "/etc/electrum-watch/api.env", "chmod 0640"):
+for marker in (
+    "secrets.token_urlsafe",
+    'CONFIG_DIR="/etc/electrum-watch"',
+    'CONFIG_FILE="$CONFIG_DIR/api.env"',
+    'chmod 0640 "$CONFIG_FILE"',
+):
     if marker not in config:
         raise SystemExit(f"Missing API configuration marker: {marker}")
 
