@@ -19,6 +19,7 @@ required_page = [
     "cache:'no-store'",
 ]
 required_api = [
+    "require_once dirname(__DIR__) . '/bootstrap.php'",
     "wwcx_require_user('admin')",
     "Cache-Control: no-store, private",
     "ELECTRUM_API_BASE_URL",
@@ -26,6 +27,11 @@ required_api = [
     "'/v1/wallet/info'",
     "'/v1/wallet/balance'",
     "scheme'] ?? '') !== 'https'",
+    "'follow_location' => 0",
+    "'max_redirects' => 0",
+    "'verify_peer' => true",
+    "REQUEST_METHOD",
+    "respond(405",
 ]
 for needle in required_page:
     if needle not in page:
@@ -41,5 +47,6 @@ for forbidden in ('seed phrase', 'private key input', 'sendtoaddress', 'payto', 
 print('WW.CX Electrum admin module validation passed')
 print('admin authorization: present')
 print('server-side proxy: present')
-print('HTTPS requirement: present')
+print('HTTPS and certificate verification: present')
+print('redirect forwarding: disabled')
 print('read-only endpoints: 2')
