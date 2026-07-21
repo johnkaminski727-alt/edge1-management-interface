@@ -2,9 +2,9 @@
 
 ## Current Phase
 
-Phase 13H — Carrier Service Workflows
+Phase 13I — Internal Carrier-Support Review Console
 
-Status: COMPLETE
+Status: IMPLEMENTATION IN PROGRESS
 
 ## Completed Milestones
 
@@ -62,6 +62,40 @@ Operational completion archive:
 docs/archive/WWCX-Carrier-Portal-Phase-13H-Operational-Completion-Archive.md
 ```
 
+## Active Milestone
+
+### Phase 13I — Internal Carrier-Support Review Console
+
+Current implementation unit:
+
+- internal review queue model over Phase 13H append-only records;
+- append-only internal review events;
+- explicit internal read and review-write scopes;
+- lifecycle states for acknowledgement, review, information requests, ticket closure, and change rejection;
+- forced `approval_granted: false` and `execution_authorized: false`;
+- explicit rejection of approve, authorize, schedule, and execute actions;
+- focused unit tests and operator documentation.
+
+Current implementation file:
+
+```text
+server/portal/carrier_review.py
+```
+
+Current documentation:
+
+```text
+docs/carrier-portal/phase-13i-internal-review-foundation.md
+```
+
+Remaining Phase 13I work:
+
+- validate the internal review model on Edge1;
+- integrate internal-only authenticated queue and lifecycle endpoints;
+- reject carrier identities even if internal scopes are misconfigured;
+- validate append-only review records and audit evidence;
+- deploy without creating approval or execution authority.
+
 ## Security Boundaries
 
 Carrier users remain isolated from:
@@ -72,20 +106,7 @@ Carrier users remain isolated from:
 - Edge1 filesystem access;
 - AI gateway credentials;
 - direct routing or numbering mutation;
-- automatic change approval or execution.
+- automatic change approval or execution;
+- internal carrier-support review scopes and records.
 
-Carrier workflow scopes are explicit and are not part of the default read-only scope set. No production carrier client received a workflow scope during Phase 13H validation or deployment.
-
-## Next Milestone
-
-### Phase 13I — Internal Carrier-Support Review Console
-
-Goals:
-
-- internal read-only review of carrier tickets and change requests;
-- controlled lifecycle transitions with append-only audit evidence;
-- separation of review, approval, scheduling, execution, and verification roles;
-- no carrier-originated approval or execution authority;
-- no automatic routing, numbering, credential, firewall, certificate, emergency-calling, STIR/SHAKEN, or traffic changes.
-
-Phase 13I must begin as an internal review and lifecycle-management foundation. Any endpoint or workflow that can authorize or execute a production change remains separately gated and outside standing routine authority.
+Phase 13I review actions cannot grant approval or execution authority. Any future production approval or execution plane requires separate identities, scopes, records, controls, and explicit authorization outside standing routine authority.
