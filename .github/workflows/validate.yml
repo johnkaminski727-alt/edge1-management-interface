@@ -29,12 +29,27 @@ jobs:
 
       - name: Run Python validations
         run: |
-          set -eu
+          set -u
+          status=0
+          : > /tmp/python-validation-summary.txt
           for test_file in tests/validate_*.py; do
             echo "=== Running $test_file ==="
-            python3 "$test_file"
+            if python3 "$test_file"; then
+              echo "PASS $test_file" | tee -a /tmp/python-validation-summary.txt
+            else
+              echo "FAIL $test_file" | tee -a /tmp/python-validation-summary.txt
+              status=1
+            fi
           done
-          python3 -m compileall -q bin server tests tools
+          if python3 -m compileall -q bin server tests tools; then
+            echo "PASS compileall" | tee -a /tmp/python-validation-summary.txt
+          else
+            echo "FAIL compileall" | tee -a /tmp/python-validation-summary.txt
+            status=1
+          fi
+          echo "=== Python validation summary ==="
+          cat /tmp/python-validation-summary.txt
+          exit "$status"
 
       - name: Validate JSON, shell, and JavaScript
         run: |
