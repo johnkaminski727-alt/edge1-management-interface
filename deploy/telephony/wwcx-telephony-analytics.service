@@ -1,0 +1,13 @@
+[Unit]
+Description=WW.CX Telephony Analytics API
+After=network.target wwcx-telephony-console.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/telephony_analytics_api.py --host 127.0.0.1 --port 8098
+Restart=on-failure
+RestartSec
