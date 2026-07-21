@@ -31,7 +31,7 @@ PY
 
 run_electrum() {
   sudo -u "$SERVICE_USER" env HOME="$SERVICE_HOME" ELECTRUMDIR="$SERVICE_HOME/.electrum" \
-    "$ELECTRUM" "$@"
+    "$ELECTRUM" --offline "$@"
 }
 
 run_electrum setconfig rpchost 127.0.0.1
