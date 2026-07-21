@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "product": "WW.CX Unified Administration Control Centre",
+  "default_route": "/admin/control-centre/index.html",
+  "sections": [
+    {"id":"command","label":"Command","order":10},
+    {"id":"observe","label":"Observe","order":20},
+    {"id":"analyze","label":"Analyze","order":30},
+    {"id":"control","label":"Control","order":
