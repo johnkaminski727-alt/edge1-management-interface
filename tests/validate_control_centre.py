@@ -10,10 +10,17 @@ APP = ROOT / "src" / "web" / "admin" / "control-centre" / "app.js"
 
 VALID_CAPABILITIES = {"observe", "analyze", "control", "govern", "assist"}
 VALID_RISKS = {"read_only", "sensitive_read", "conditional_change", "privileged_change"}
+EXPECTED_BOUNDARIES = {
+    "electrum-watch": "watch_only_read_only",
+    "carrier-operations": "scoped_exported_summaries",
+    "carrier-workflows": "request_only_no_execution",
+    "carrier-review": "review_only_no_approval_or_execution",
+}
 
 registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
 sections = {item["id"] for item in registry["sections"]}
 modules = registry["modules"]
+module_by_id = {item["id"]: item for item in modules}
 
 ids = [item["id"] for item in modules]
 routes = [item["route"] for item in modules]
@@ -29,8 +36,9 @@ for module in modules:
     if module["capability"] == "control" and module["risk"] == "privileged_change":
         assert module.get("transaction_required") is True, module
 
-for module_id in ("electrum-watch", "carrier-operations", "carrier-analysis", "carrier-workflows", "carrier-review"):
-    assert module_id in ids, module_id
+for module_id, boundary in EXPECTED_BOUNDARIES.items():
+    assert module_by_id[module_id].get("operational_boundary") == boundary, module_id
+assert "carrier-analysis" in module_by_id
 
 states = registry["control_transaction"]["states"]
 for state in ("draft", "validated", "approved", "executing", "verifying", "completed", "rolled_back"):
@@ -39,9 +47,9 @@ for state in ("draft", "validated", "approved", "executing", "verifying", "compl
 html = HTML.read_text(encoding="utf-8")
 css = CSS.read_text(encoding="utf-8")
 app = APP.read_text(encoding="utf-8")
-for marker in ("Decision Centre", "Change pipeline"):
+for marker in ("Decision Centre", "Change pipeline", 'script src="app.js"'):
     assert marker in html, marker
-for marker in ("Command", "Observe", "Analyze", "Control", "Govern", "Electrum Watch Console", "Carrier Operations"):
+for marker in ("Command", "Observe", "Analyze", "Control", "Govern", "Electrum Watch Console", "Carrier Operations", "Carrier Analysis", "Carrier Requests", "Carrier Review Queue"):
     assert marker in app, marker
 assert "@media" in css
 assert "grid-template-columns" in css
