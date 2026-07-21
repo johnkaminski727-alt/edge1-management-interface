@@ -6,14 +6,12 @@ conservative metadata, and emits JSON for human review before a canonical
 navigation registry is built.
 """
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 TITLE_PATTERNS = (
     re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL),
@@ -22,8 +20,32 @@ TITLE_PATTERNS = (
 )
 HREF_PATTERN = re.compile(r"href\s*=\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
 AUTH_PATTERN = re.compile(r"(?:require_role|require_permission|has_permission|can_access|is_admin)\s*\(([^)]*)\)", re.IGNORECASE)
-EXCLUDED_NAMES = {"login.php", "logout.php", "callback.php", "webhook.php", "api.php"}
-EXCLUDED_PARTS = {"api", "includes", "include", "vendor", "actions", "callbacks"}
+EXCLUDED_NAMES = {
+    "api.php",
+    "autoload.php",
+    "bootstrap.php",
+    "callback.php",
+    "config.php",
+    "functions.php",
+    "helpers.php",
+    "login.php",
+    "logout.php",
+    "renderer.php",
+    "renderers.php",
+    "webhook.php",
+}
+EXCLUDED_PARTS = {
+    "_private",
+    "actions",
+    "api",
+    "callbacks",
+    "include",
+    "includes",
+    "payload",
+    "private",
+    "src",
+    "vendor",
+}
 
 
 def clean_text(value: str) -> str:
@@ -31,14 +53,14 @@ def clean_text(value: str) -> str:
 
 
 def relative_route(root: Path, path: Path, url_prefix: str) -> str:
-    return f"{url_prefix.rstrip('/')}/{path.relative_to(root).as_posix()}"
+    return "{}/{}".format(url_prefix.rstrip("/"), path.relative_to(root).as_posix())
 
 
-def classify(path: Path, source: str) -> tuple[bool, list[str]]:
-    reasons: list[str] = []
+def classify(path: Path, source: str) -> Tuple[bool, List[str]]:
+    reasons = []  # type: List[str]
     lower_parts = {part.lower() for part in path.parts}
     if path.name.lower() in EXCLUDED_NAMES:
-        reasons.append("excluded handler filename")
+        reasons.append("excluded implementation filename")
     if lower_parts & EXCLUDED_PARTS:
         reasons.append("excluded implementation directory")
     if re.search(r"\b(?:header\s*\(\s*['\"]Location:|http_response_code\s*\(\s*(?:30[12378]|204))", source, re.I):
@@ -48,7 +70,7 @@ def classify(path: Path, source: str) -> tuple[bool, list[str]]:
     return (not reasons, reasons)
 
 
-def inspect_page(root: Path, path: Path, url_prefix: str) -> dict[str, Any]:
+def inspect_page(root: Path, path: Path, url_prefix: str) -> Dict[str, Any]:
     source = path.read_text(encoding="utf-8", errors="replace")
     title = None
     for pattern in TITLE_PATTERNS:
@@ -80,10 +102,10 @@ def main() -> int:
     args = parser.parse_args()
     root = args.document_root.resolve()
     if not root.is_dir():
-        parser.error(f"document root is not a directory: {root}")
+        parser.error("document root is not a directory: {}".format(root))
     pages = [inspect_page(root, path, args.url_prefix) for path in sorted(root.rglob("*.php"))]
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "document_root": str(root),
         "url_prefix": args.url_prefix,
         "known_required_routes": ["/admin/bigbird-operations-console.php"],
