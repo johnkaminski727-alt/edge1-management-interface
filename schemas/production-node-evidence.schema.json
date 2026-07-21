@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/production-node-evidence.schema.json",
+  "title": "WW.CX Production Node Staging Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "node_name",
+    "lifecycle_state",
+    "release_commit",
+    "captured_at_utc",
+    "checks",
+    "production_impact_authorized"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "node_name": {"type": "string", "minLength": 1},
+    "lifecycle_state": {
+      "enum": ["provisioning", "isolated", "validated", "production-candidate", "canary", "active", "draining", "retired"]
+    },
+    "release_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "captured_at_utc": {"type": "string", "format": "date-time"},
+    "production_impact_authorized": {"const": false},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "host_preflight", "listeners", "failed_units", "monitoring", "backup_restore", "reboot_persistence", "rollback"],
+      "properties": {
+        "manifest": {"enum": ["pass", "fail", "not_run"]},
+        "host_preflight": {"enum": ["pass", "fail", "not_run"]},
+        "listeners": {"enum": ["pass", "fail", "not_run"]},
+        "failed_units": {"enum": ["pass", "fail", "not_run"]},
+        "monitoring": {"enum": ["pass", "fail", "not_run"]},
+        "backup_restore": {"enum": ["pass", "fail", "not_run"]},
+        "reboot_persistence": {"enum": ["pass", "fail", "not_run"]},
+        "rollback": {"enum": ["pass", "fail", "not_run"]}
+      }
+    },
+    "notes": {"type": "array", "items": {"type": "string"}}
+  }
+}
