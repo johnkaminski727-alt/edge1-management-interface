@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "source": {
+    "inventory_schema_version": 2,
+    "generated_utc": "2026-07-21T04:03:30Z",
+    "hostname": "business159.web-hosting.com",
+    "php_files_scanned": 42,
+    "navigation_candidates": 13,
+    "sanitized_inventory_sha256": "b975469d3a4b0a69c37d86e32c711d28d42162de1b315a8abab81c7675b32cd0"
+  },
+  "deployment_status": "discovery_only",
+  "modules": [
+    {"id":"bigbird-ai
