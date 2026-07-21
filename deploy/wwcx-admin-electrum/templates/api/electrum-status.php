@@ -1,8 +1,9 @@
 <?php
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/bootstrap.php';
-wwcx_require_user('admin');
+require dirname(__DIR__, 2) . '/includes/store-lib.php';
+wwcx_session_start();
+$user = wwcx_require_user('admin');
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, private');
