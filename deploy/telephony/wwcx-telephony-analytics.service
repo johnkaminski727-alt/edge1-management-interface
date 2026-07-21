@@ -10,4 +10,18 @@ Group=wwadmin
 WorkingDirectory=/opt/edge1-management-interface
 ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/telephony_analytics_api.py --host 127.0.0.1 --port 8098
 Restart=on-failure
-RestartSec
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
