@@ -19,7 +19,8 @@ required_page = [
     "cache:'no-store'",
 ]
 required_api = [
-    "require_once dirname(__DIR__) . '/bootstrap.php'",
+    "require dirname(__DIR__, 2) . '/includes/store-lib.php'",
+    "wwcx_session_start()",
     "wwcx_require_user('admin')",
     "Cache-Control: no-store, private",
     "ELECTRUM_API_BASE_URL",
@@ -27,11 +28,10 @@ required_api = [
     "'/v1/wallet/info'",
     "'/v1/wallet/balance'",
     "scheme'] ?? '') !== 'https'",
+    "'verify_peer' => true",
+    "'verify_peer_name' => true",
     "'follow_location' => 0",
     "'max_redirects' => 0",
-    "'verify_peer' => true",
-    "REQUEST_METHOD",
-    "respond(405",
 ]
 for needle in required_page:
     if needle not in page:

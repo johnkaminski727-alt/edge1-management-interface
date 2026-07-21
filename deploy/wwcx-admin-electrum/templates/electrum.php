@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/bootstrap.php';
-wwcx_require_user('admin');
+require dirname(__DIR__) . '/includes/store-lib.php';
+wwcx_session_start();
+$user = wwcx_require_user('admin');
 header('Cache-Control: no-store, private');
 header('X-Content-Type-Options: nosniff');
 ?>
