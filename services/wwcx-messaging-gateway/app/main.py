@@ -7,11 +7,19 @@ from pydantic import BaseModel, Field
 from .models import NormalizedMessage
 from .persistence import PostgresEventStore
 from .store import InMemoryEventStore
+from .telegraph_office import build_router
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.3.0")
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.0")
 
 database_url = os.getenv("DATABASE_URL")
 store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
+
+
+def simulator_token() -> str:
+    return os.getenv("WWCX_SIMULATOR_TOKEN", "development-only")
+
+
+app.include_router(build_router(store, simulator_token))
 
 
 class ControlRequest(BaseModel):
@@ -85,8 +93,7 @@ def receive_simulated_message(
     message: NormalizedMessage,
     x_wwcx_simulator_token: str | None = Header(default=None),
 ) -> dict[str, object]:
-    expected = os.getenv("WWCX_SIMULATOR_TOKEN", "development-only")
-    if x_wwcx_simulator_token != expected:
+    if x_wwcx_simulator_token != simulator_token():
         raise HTTPException(status_code=401, detail="invalid simulator token")
 
     if store.get_control_state()["paused"]:
