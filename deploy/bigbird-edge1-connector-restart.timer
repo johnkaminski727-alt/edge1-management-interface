@@ -1,0 +1,10 @@
+[Unit]
+Description=BigBird Edge1 connector maintenance schedule
+
+[Timer]
+OnBootSec=6h
+Persistent=true
+Unit=bigbird-edge1-connector-maintenance.service
+
+[Install]
+WantedBy=timers.target
