@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<title>WW.CX Messaging Operations</title>
+</head>
+
+<body>
+<h1>Messaging Operations</h1>
+
+<div id="status">
+Loading status...
+</div>
+
+<script>
+fetch("/messaging/status")
+.then(r => r.json())
+.then(data => {
+    document.getElementById("status").innerHTML =
+    `
+    <h2>${data.gateway}</h2>
+    <p>State: ${data.state}</p>
+    <p>Service Active: ${data.service_active}</p>
+    <p>Listener Reachable: ${data.listener_reachable}</p>
+    <p>Production Actions Enabled: ${data.production_actions_enabled}</p>
+    `;
+});
+</script>
+
+</body>
+</html>
