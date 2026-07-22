@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "connector": "bigbird-edge1",
+  "base_url": "http://127.0.0.1:8097",
+  "mode": "read_only",
+  "restart_policy": {
+    "initial_interval_minutes": 360,
+    "increment_minutes": 10,
+    "maximum_interval_minutes": 720,
+    "restart_scope": "connector_only"
+  },
+  "enabled_tools": [
+    "edge1.repository.status",
+    "edge1.numbering.health",
+    "edge1.numbering.validate",
+    "edge1.interconnect.validate",
+    "edge1.telephony.health"
+  ],
+  "disabled_tools": [
+    "edge1.repository.fetch",
+    "edge1.repository.fast_forward_main"
+  ]
+}
