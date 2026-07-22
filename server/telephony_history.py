@@ -83,8 +83,8 @@ def latest_snapshot(
 
 
 def list_snapshots(
-    limit: int = 50,
     db_path: Path = DEFAULT_DB,
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     initialize(db_path)
 
