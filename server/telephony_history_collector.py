@@ -12,8 +12,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from telephony_history import record_snapshot
-from telephony_status_server import status_payload
+try:
+    from .telephony_history import record_snapshot
+    from .telephony_status_server import status_payload
+except ImportError:
+    from telephony_history import record_snapshot
+    from telephony_status_server import status_payload
 
 
 def capture_snapshot(
