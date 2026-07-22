@@ -1,30 +1,111 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WW.CX Messaging Operations</title>
+<style>
+:root { color-scheme: dark; font-family: system-ui, sans-serif; }
+body { max-width: 1100px; margin: 0 auto; padding: 24px; background: #111; color: #eee; }
+header, section { border: 1px solid #444; border-radius: 12px; padding: 18px; margin-bottom: 18px; background: #191919; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.card { border: 1px solid #383838; border-radius: 10px; padding: 14px; background: #202020; }
+.label { color: #aaa; font-size: .85rem; }
+.value { font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
+.warning { border-color: #b58b00; }
+.safe { border-color: #397b51; }
+input, textarea, button { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; margin-bottom: 12px; }
+button { cursor: pointer; font-weight: 700; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0e0e0e; padding: 12px; border-radius: 8px; }
+small { color: #aaa; }
+</style>
 </head>
-
 <body>
-<h1>Messaging Operations</h1>
+<header>
+<h1>WW.CX Messaging Operations</h1>
+<p>Read-only gateway visibility and local sandbox simulation. Live SMS/MMS and carrier delivery are disabled.</p>
+</header>
 
-<div id="status">
-Loading status...
-</div>
+<section>
+<h2>Gateway Health</h2>
+<div id="status" class="grid"><div class="card">Loading status...</div></div>
+</section>
+
+<section>
+<h2>Diagnostics</h2>
+<div id="diagnostics">Loading diagnostics...</div>
+</section>
+
+<section class="safe">
+<h2>Sandbox Message Simulation</h2>
+<p><strong>No external delivery occurs.</strong> This validates a synthetic payload and simulates internal stages in memory.</p>
+<form id="sandbox-form">
+<label>Sender label<input name="sender_label" value="Spirit Creek Telegraph Office" required></label>
+<label>Synthetic E.164 recipient<input name="recipient" value="+15555550100" required></label>
+<label>Message<textarea name="body" rows="5" required>Sandbox test message. No live delivery.</textarea></label>
+<button type="submit">Run sandbox simulation</button>
+</form>
+<pre id="sandbox-result">No simulation run yet.</pre>
+</section>
+
+<section>
+<h2>Recent Health Snapshots</h2>
+<pre id="history">No history loaded yet.</pre>
+</section>
 
 <script>
-fetch("/messaging/status")
-.then(r => r.json())
-.then(data => {
-    document.getElementById("status").innerHTML =
-    `
-    <h2>${data.gateway}</h2>
-    <p>State: ${data.state}</p>
-    <p>Service Active: ${data.service_active}</p>
-    <p>Listener Reachable: ${data.listener_reachable}</p>
-    <p>Production Actions Enabled: ${data.production_actions_enabled}</p>
-    `;
+const escapeHtml = value => String(value)
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
+
+async function loadStatus() {
+  const response = await fetch("/messaging/status", {cache: "no-store"});
+  if (!response.ok) throw new Error(`Status request failed: ${response.status}`);
+  const data = await response.json();
+  const entries = [
+    ["Gateway", data.gateway], ["State", data.state],
+    ["Service Active", data.service_active], ["Listener Reachable", data.listener_reachable],
+    ["Production Actions", data.production_actions_enabled], ["Checked At", data.checked_at]
+  ];
+  document.getElementById("status").innerHTML = entries.map(([label, value]) =>
+    `<div class="card ${value === false ? "warning" : ""}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`
+  ).join("");
+}
+
+async function loadDiagnostics() {
+  const response = await fetch("/messaging/diagnostics", {cache: "no-store"});
+  if (!response.ok) throw new Error(`Diagnostics request failed: ${response.status}`);
+  const data = await response.json();
+  document.getElementById("diagnostics").innerHTML = data.observations.map(item =>
+    `<div class="card ${item.severity === "warning" || item.severity === "critical" ? "warning" : ""}"><strong>${escapeHtml(item.code)}</strong><br>${escapeHtml(item.message)}</div>`
+  ).join("") + `<p><small>Disabled: ${escapeHtml(data.disabled_actions.join(", "))}</small></p>`;
+}
+
+async function loadHistory() {
+  const response = await fetch("/messaging/history?limit=10", {cache: "no-store"});
+  if (!response.ok) throw new Error(`History request failed: ${response.status}`);
+  document.getElementById("history").textContent = JSON.stringify(await response.json(), null, 2);
+}
+
+document.getElementById("sandbox-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const payload = Object.fromEntries(form.entries());
+  const response = await fetch("/messaging/sandbox/simulate", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  document.getElementById("sandbox-result").textContent = JSON.stringify(result, null, 2);
+});
+
+Promise.all([loadStatus(), loadDiagnostics()]).then(loadHistory).catch(error => {
+  document.getElementById("diagnostics").textContent = error.message;
 });
 </script>
-
 </body>
 </html>
