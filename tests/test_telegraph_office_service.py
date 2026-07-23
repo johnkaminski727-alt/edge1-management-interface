@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import threading
 import unittest
@@ -10,11 +11,8 @@ from http import HTTPStatus
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from reference.telegraph_federation_demo import encrypt_envelope
-from reference.telegraph_office_service import (
-    TelegraphOfficeHTTPServer,
-    build_state,
-)
+from reference.telegraph_federation_demo import canonical_json, encrypt_envelope, sha256
+from reference.telegraph_office_service import TelegraphOfficeHTTPServer, build_state
 
 
 def request_json(method: str, url: str, payload: dict | None = None) -> tuple[int, dict]:
@@ -60,12 +58,26 @@ class TelegraphOfficeServiceTests(unittest.TestCase):
         self.alpha.stop()
         self.bravo.stop()
 
-    def test_two_office_exchange_and_replay_rejection(self) -> None:
-        alpha_identity_status, alpha_identity = request_json("GET", self.alpha.base_url + "/identity")
-        bravo_identity_status, bravo_identity = request_json("GET", self.bravo.base_url + "/identity")
-        self.assertEqual(alpha_identity_status, HTTPStatus.OK)
-        self.assertEqual(bravo_identity_status, HTTPStatus.OK)
+    def register_alpha_with_bravo(self) -> dict:
+        status, identity = request_json("GET", self.alpha.base_url + "/identity")
+        self.assertEqual(status, HTTPStatus.OK)
+        status, record = request_json(
+            "POST",
+            self.bravo.base_url + "/directory/peers",
+            {
+                "office_id": self.alpha.state.office.office_id,
+                "identity": identity,
+                "trust_status": "trusted",
+            },
+        )
+        self.assertEqual(status, HTTPStatus.CREATED)
+        self.assertTrue(record["identity_verified"])
+        return identity
 
+    def test_two_office_exchange_and_replay_rejection(self) -> None:
+        alpha_identity = self.register_alpha_with_bravo()
+        status, bravo_identity = request_json("GET", self.bravo.base_url + "/identity")
+        self.assertEqual(status, HTTPStatus.OK)
         status, peer_record = request_json(
             "POST",
             self.alpha.base_url + "/directory/peers",
@@ -77,17 +89,7 @@ class TelegraphOfficeServiceTests(unittest.TestCase):
         )
         self.assertEqual(status, HTTPStatus.CREATED)
         self.assertEqual(peer_record["trust_status"], "trusted")
-
-        status, _ = request_json(
-            "POST",
-            self.bravo.base_url + "/directory/peers",
-            {
-                "office_id": self.alpha.state.office.office_id,
-                "identity": alpha_identity,
-                "trust_status": "trusted",
-            },
-        )
-        self.assertEqual(status, HTTPStatus.CREATED)
+        self.assertEqual(alpha_identity["office_id"], self.alpha.state.office.office_id)
 
         envelope, _key = encrypt_envelope(
             self.alpha.state.office,
@@ -99,6 +101,7 @@ class TelegraphOfficeServiceTests(unittest.TestCase):
         status, accepted = request_json("POST", self.bravo.base_url + "/message", envelope)
         self.assertEqual(status, HTTPStatus.ACCEPTED)
         self.assertEqual(accepted["status"], "accepted")
+        self.assertTrue(accepted["signature_verified"])
         self.assertEqual(accepted["receipt"]["event"], "accepted")
 
         duplicate_status, duplicate = request_json("POST", self.bravo.base_url + "/message", envelope)
@@ -114,8 +117,56 @@ class TelegraphOfficeServiceTests(unittest.TestCase):
         self.assertEqual(len(receipt_chain["receipts"]), 2)
         self.assertEqual(
             receipt_chain["receipts"][1]["previous_receipt_digest"],
-            accepted["receipt"] and duplicate["receipt"]["previous_receipt_digest"],
+            sha256(canonical_json(accepted["receipt"])),
         )
+
+    def test_tampered_peer_identity_is_rejected(self) -> None:
+        status, identity = request_json("GET", self.alpha.base_url + "/identity")
+        self.assertEqual(status, HTTPStatus.OK)
+        tampered = copy.deepcopy(identity)
+        tampered["policy"]["requires_mutual_tls"] = False
+
+        status, response = request_json(
+            "POST",
+            self.bravo.base_url + "/directory/peers",
+            {
+                "office_id": self.alpha.state.office.office_id,
+                "identity": tampered,
+                "trust_status": "trusted",
+            },
+        )
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertEqual(response["error"], "invalid_peer_signature")
+
+    def test_tampered_envelope_is_rejected_before_replay_tracking(self) -> None:
+        self.register_alpha_with_bravo()
+        envelope, _key = encrypt_envelope(
+            self.alpha.state.office,
+            self.bravo.state.office,
+            "Integrity test",
+            "CHECKPOINT",
+        )
+        tampered = copy.deepcopy(envelope)
+        tampered["payload"]["ciphertext"] += "A"
+
+        status, response = request_json("POST", self.bravo.base_url + "/message", tampered)
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertEqual(response["error"], "invalid_envelope_signature")
+
+        status, accepted = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(status, HTTPStatus.ACCEPTED)
+        self.assertEqual(accepted["status"], "accepted")
+
+    def test_unknown_origin_is_rejected(self) -> None:
+        envelope, _key = encrypt_envelope(
+            self.alpha.state.office,
+            self.bravo.state.office,
+            "Unknown origin test",
+            "CHECKPOINT",
+        )
+        status, response = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(response["error"], "unknown_origin")
 
     def test_wrong_destination_is_rejected(self) -> None:
         envelope, _key = encrypt_envelope(
