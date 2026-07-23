@@ -4,16 +4,7 @@
   "title": "WW.CX Telegraph Federation Envelope",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "version",
-    "message_id",
-    "created_at",
-    "origin",
-    "destination",
-    "payload",
-    "security",
-    "signature"
-  ],
+  "required": ["version", "message_id", "created_at", "origin", "destination", "payload", "security", "signature"],
   "properties": {
     "version": {"const": "1.0"},
     "message_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{16,128}$"},
@@ -21,11 +12,8 @@
     "expires_at": {"type": "string", "format": "date-time"},
     "origin": {"$ref": "#/$defs/address"},
     "destination": {"$ref": "#/$defs/address"},
-    "route": {
-      "type": "array",
-      "maxItems": 32,
-      "items": {"$ref": "#/$defs/hop"}
-    },
+    "route": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/hop"}},
+    "code_words": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/code_word"}},
     "payload": {
       "type": "object",
       "additionalProperties": false,
@@ -81,37 +69,33 @@
         "transport": {"enum": ["https-mtls", "private-wan", "test-loopback"]}
       }
     },
+    "code_word": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["purpose", "visibility", "value_encoding", "value"],
+      "properties": {
+        "purpose": {"enum": ["message_verification", "sender_authentication", "recipient_challenge", "duress_indicator", "routing_instruction", "operator_instruction", "custom"]},
+        "label": {"type": "string", "minLength": 1, "maxLength": 64},
+        "visibility": {"enum": ["encrypted_payload", "recipient_only", "signed_metadata", "operator_visible"]},
+        "value_encoding": {"enum": ["utf-8", "base64url", "sha256"]},
+        "value": {"type": "string", "minLength": 1, "maxLength": 512},
+        "one_time": {"type": "boolean"},
+        "expires_at": {"type": "string", "format": "date-time"}
+      }
+    },
     "security": {
       "type": "object",
       "additionalProperties": false,
       "required": ["state", "content_encryption", "key_visibility", "downgrades"],
       "properties": {
-        "state": {
-          "enum": [
-            "end_to_end_encrypted",
-            "gateway_decrypted",
-            "relay_accessible",
-            "transport_encrypted_only",
-            "plaintext_test"
-          ]
-        },
+        "state": {"enum": ["end_to_end_encrypted", "gateway_decrypted", "relay_accessible", "transport_encrypted_only", "plaintext_test"]},
         "content_encryption": {"enum": ["XChaCha20-Poly1305", "AES-256-GCM", "none"]},
         "key_visibility": {"enum": ["endpoints_only", "gateway", "relay_operator", "server", "none"]},
         "forward_secrecy": {"type": "boolean"},
         "downgrades": {
           "type": "array",
           "uniqueItems": true,
-          "items": {
-            "enum": [
-              "legacy_tty_conversion",
-              "human_relay",
-              "server_side_transformation",
-              "plaintext_archival",
-              "endpoint_key_escrow",
-              "unsupported_peer",
-              "test_mode"
-            ]
-          }
+          "items": {"enum": ["legacy_tty_conversion", "human_relay", "server_side_transformation", "plaintext_archival", "endpoint_key_escrow", "unsupported_peer", "test_mode"]}
         }
       }
     }
