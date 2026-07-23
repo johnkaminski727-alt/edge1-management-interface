@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Operator CLI for the read-only BigBird Edge1 connector."""
+
+import argparse
+import json
+import subprocess
+from pathlib import Path
+
+STATE = Path('/var/lib/bigbird-edge1-connector/restart-state.json')
+CONFIG = Path('/opt/edge1-management-interface/config/bigbird-edge1-connector.json')
+
+
+def run(*cmd):
+    return subprocess.run(cmd, text=True, capture_output=True, check=False)
+
+
+def status():
+    result = run('systemctl', 'is-active', 'bigbird-edge1-connector.service')
+    timer = run('systemctl', 'is-active', 'bigbird-edge1-connector-restart.timer')
+    print(json.dumps({
+        'service': result.stdout.strip() or result.stderr.strip(),
+        'timer': timer.stdout.strip() or timer.stderr.strip(),
+        'state': json.loads(STATE.read_text()) if STATE.exists() else None,
+    }, indent=2))
+
+
+def validate():
+    cfg = json.loads(CONFIG.read_text())
+    assert cfg['mode'] == 'read_only'
+    assert cfg['restart_policy']['restart_scope'] == 'connector_only'
+    assert cfg['restart_policy']['maximum_interval_minutes'] == 720
+    print('BigBird Edge1 connector validation passed')
+
+
+def history():
+    print(STATE.read_text() if STATE.exists() else '{}')
+
+
+def main():
+    parser = argparse.ArgumentParser(prog='wwcx-ops')
+    sub = parser.add_subparsers(dest='group', required=True)
+    connector = sub.add_parser('connector')
+    connector.add_argument('command', choices=['status', 'validate', 'history'])
+    args = parser.parse_args()
+    {'status': status, 'validate': validate, 'history': history}[args.command]()
+
+
+if __name__ == '__main__':
+    main()
