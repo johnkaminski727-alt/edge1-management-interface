@@ -1,0 +1,4 @@
+interface:
+  display_name: "WW.CX Engineering Agent"
+  short_description: "Autonomous engineering, validation, publishing, and handoffs for WW.CX projects."
+  brand_color: "#1F6FEB"

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WW.CX Internal Carrier Review</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#queue">Skip to review queue</a>
+  <main class="app-shell">
+    <header class="topbar">
+      <div><p class="eyebrow">WW.CX Carrier Portal</p><h1>Internal Review Console</h1></div>
+      <div class="status-pill">Review-only</div>
+    </header>
+    <nav class="module-nav" aria-label="Modules">
+      <a href="../">Private Library Search</a>
+      <a href="../time-authority/">Time Authority</a>
+      <a href="./" aria-current="page">Carrier Review</a>
+    </nav>
+    <section class="notice"><strong>No approval or execution authority.</strong> This console presents review state only. It cannot authorize routing, numbering, credentials, emergency calling, STIR/SHAKEN, firewall, certificate, or production traffic changes.</section>
+    <section class="summary-grid" aria-label="Queue summary">
+      <article><span id="count-total">0</span><small>Total</small></article>
+      <article><span id="count-new">0</span><small>New</small></article>
+      <article><span id="count-review">0</span><small>In review</small></article>
+      <article><span id="count-info">0</span><small>Needs information</small></article>
+    </section>
+    <section class="workspace">
+      <aside class="filters" aria-label="Queue filters">
+        <label for="state-filter">Review state</label>
+        <select id="state-filter"><option value="all">All states</option><option value="new">New</option><option value="in_review">In review</option><option value="information_requested">Information requested</option><option value="closed">Closed</option><option value="rejected">Rejected</option></select>
+        <label for="type-filter">Record type</label>
+        <select id="type-filter"><option value="all">All types</option><option value="ticket">Ticket</option><option value="change_request">Change request</option></select>
+        <label for="query-filter">Search</label>
+        <input id="query-filter" type="search" autocomplete="off" placeholder="ID, carrier, subject">
+        <button id="reset-filters" type="button">Reset filters</button>
+      </aside>
+      <section class="queue-panel" aria-label="Review queue">
+        <div class="panel-heading"><div><p class="eyebrow">Queue</p><h2 id="queue">Review items</h2></div><p id="visible-count" aria-live="polite"></p></div>
+        <div id="queue-list" class="queue-list"></div>
+      </section>
+      <section class="detail-panel" aria-label="Selected review item">
+        <p class="eyebrow">Detail</p><h2 id="detail-title">Select an item</h2>
+        <dl id="detail-metadata" class="metadata-grid"></dl>
+        <div class="detail-note"><h3>Review note</h3><p id="detail-note">Choose a queue item to inspect its sanitized summary.</p></div>
+        <div class="safety-box"><strong>Execution authorized:</strong> <span id="execution-authorized">false</span><br><strong>Approval granted:</strong> <span id="approval-granted">false</span></div>
+      </section>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

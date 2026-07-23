@@ -20,7 +20,7 @@ class OperatorDispatcher:
     def register(self, name: str, handler: Callable[..., Any]) -> None:
         self.registry[name] = handler
 
-    def dispatch(self, name: str, **kwargs: Any) -> Any:
-        if name not in self.registry:
-            raise OperatorDispatchError(f"unknown tool: {name}")
-        return self.registry[name](**kwargs)
+    def dispatch(self, tool_name: str, **kwargs: Any) -> Any:
+        if tool_name not in self.registry:
+            raise OperatorDispatchError(f"unknown tool: {tool_name}")
+        return self.registry[tool_name](**kwargs)
