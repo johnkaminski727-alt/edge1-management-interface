@@ -42,7 +42,22 @@ def build_document(config: dict[str, Any], telemetry: dict[str, Any]) -> dict[st
     hardware = config.get("hardware") if isinstance(config.get("hardware"), dict) else {}
     economics = config.get("economics") if isinstance(config.get("economics"), dict) else {}
 
+    hashrate_hs = safe_number(telemetry.get("hashrate_hs"))
     hashrate_ths = safe_number(telemetry.get("hashrate_ths"))
+
+    if hashrate_hs <= 0 and hashrate_ths > 0:
+        hashrate_hs = hashrate_ths * 1_000_000_000_000.0
+    elif hashrate_ths <= 0 and hashrate_hs > 0:
+        hashrate_ths = hashrate_hs / 1_000_000_000_000.0
+
+    hashrate_khs = hashrate_hs / 1000.0
+    if hashrate_hs >= 1_000_000:
+        hashrate_display = f"{hashrate_hs / 1_000_000:.2f} MH/s"
+    elif hashrate_hs >= 1000:
+        hashrate_display = f"{hashrate_khs:.2f} kH/s"
+    else:
+        hashrate_display = f"{hashrate_hs:.2f} H/s"
+
     power_watts = safe_number(telemetry.get("power_watts", hardware.get("rated_power_watts", 0)))
     electricity_per_kwh = safe_number(economics.get("electricity_cost_per_kwh"))
     daily_energy_kwh = power_watts * 24.0 / 1000.0
@@ -66,7 +81,13 @@ def build_document(config: dict[str, Any], telemetry: dict[str, Any]) -> dict[st
             "configured": configured,
             "online": online,
             "model": str(hardware.get("model", "Not selected")),
-            "hashrate_ths": round(hashrate_ths, 3),
+            "hashrate_hs": round(hashrate_hs, 3),
+            "hashrate_khs": round(hashrate_khs, 6),
+            "hashrate_ths": hashrate_ths,
+            "hashrate_display": hashrate_display,
+            "benchmark": telemetry.get("benchmark") is True,
+            "benchmark_seconds": round(safe_number(telemetry.get("benchmark_seconds")), 3),
+            "benchmark_hashes": int(safe_number(telemetry.get("benchmark_hashes"))),
             "power_watts": round(power_watts, 1),
             "temperature_c": round(safe_number(telemetry.get("temperature_c")), 1),
             "fan_rpm": int(safe_number(telemetry.get("fan_rpm"))),
