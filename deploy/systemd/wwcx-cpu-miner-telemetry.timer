@@ -1,0 +1,12 @@
+[Unit]
+Description=Collect WW.CX CPU miner telemetry every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Persistent=true
+Unit=wwcx-cpu-miner-telemetry.service
+
+[Install]
+WantedBy=timers.target
