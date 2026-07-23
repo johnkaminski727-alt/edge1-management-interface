@@ -42,7 +42,7 @@ def api_get(base: str, token: str, path: str) -> Any:
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
-            "User-Agent": "WWCX-Electrum-Wallet-Exporter/1.0",
+            "User-Agent": "WWCX-Electrum-Wallet-Exporter/1.1",
         },
         method="GET",
     )
@@ -69,18 +69,18 @@ def number(value: Any) -> str:
     return "0"
 
 
-def normalize(info: Any, balance: Any) -> dict[str, Any]:
+def normalize(info: Any, balance: Any, state: Any) -> dict[str, Any]:
     info_map = info if isinstance(info, dict) else {}
     bal_map = balance if isinstance(balance, dict) else {}
+    state_map = state if isinstance(state, dict) else {}
 
     confirmed = bal_map.get("confirmed", bal_map.get("confirmed_balance", 0))
     unconfirmed = bal_map.get("unconfirmed", bal_map.get("unconfirmed_balance", 0))
     unmatured = bal_map.get("unmatured", bal_map.get("unmatured_balance", 0))
 
     connected = bool(info_map.get("connected", info_map.get("server")))
-    synchronized = bool(
-        info_map.get("synchronized", info_map.get("wallet_up_to_date", info_map.get("up_to_date", False)))
-    )
+    loaded = state_map.get("loaded") is True
+    synchronized = loaded and state_map.get("synchronized") is True
 
     return {
         "format": "wwcx-bitcoin-wallet-status-v1",
@@ -94,6 +94,7 @@ def normalize(info: Any, balance: Any) -> dict[str, Any]:
         "wallet": {
             "type": "watch-only",
             "private_keys_enabled": False,
+            "loaded": loaded,
             "synchronized": synchronized,
             "network": str(info_map.get("network", "mainnet")),
             "transaction_count": int(info_map.get("transactions", info_map.get("tx_count", 0)) or 0),
@@ -113,7 +114,7 @@ def failure_document(code: str) -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "generated_unix": int(time.time()),
         "service": {"state": "unavailable", "backend": "electrum", "connected": False},
-        "wallet": {"type": "watch-only", "private_keys_enabled": False, "synchronized": False},
+        "wallet": {"type": "watch-only", "private_keys_enabled": False, "loaded": False, "synchronized": False},
         "balance": {},
         "warnings": [code],
     }
@@ -153,7 +154,8 @@ def main() -> int:
             raise RuntimeError("API token is unavailable")
         info = api_get(args.api_base, token, "/v1/wallet/info")
         balance = api_get(args.api_base, token, "/v1/wallet/balance")
-        document = normalize(info, balance)
+        state = api_get(args.api_base, token, "/v1/wallet/state")
+        document = normalize(info, balance, state)
         exit_code = 0
     except (OSError, ValueError, RuntimeError, urllib.error.URLError, json.JSONDecodeError):
         document = failure_document("backend_unavailable")
