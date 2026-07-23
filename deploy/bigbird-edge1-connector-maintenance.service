@@ -6,13 +6,11 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=wwadmin
+Group=wwadmin
 WorkingDirectory=/opt/edge1-management-interface
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/bigbird_edge1_connector.py
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/bigbird_edge1_connector.py refresh
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadOnlyPaths=/opt/edge1-management-interface
-ReadWritePaths=/var/lib/bigbird-edge1-connector
-CapabilityBoundingSet=
-UMask=0077
+ReadOnlyPaths=/opt
