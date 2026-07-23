@@ -1,0 +1,13 @@
+● wwcx-telephony-console.service - WW.CX Big Bird Telephony Operations Console
+     Loaded: loaded (/etc/systemd/system/wwcx-telephony-console.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-07-20 20:42:13 UTC; 1 day 7h ago
+   Main PID: 361737 (python3)
+      Tasks: 1 (limit: 4653)
+     Memory: 17.3M
+        CPU: 10.196s
+     CGroup: /system.slice/wwcx-telephony-console.service
+             └─361737 /usr/bin/python3 /opt/edge1-management-interface/server/telephony_status_server.py --host 127.0.0.1 --port 8096
+
+Jul 22 04:05:54 edge1.ww.cx python3[361737]: 127.0.0.1 - - [22/Jul/2026 04:05:54] "GET /healthz HTTP/1.1" 200 -
+Jul 22 04:05:55 edge1.ww.cx python3[361737]: 127.0.0.1 - - [22/Jul/2026 04:05:55] "GET /api/telephony/status HTTP/1.1" 200 -
+Warning: journal has been rotated since unit was started and some journal files were not opened due to insufficient permissions, output may be incomplete.

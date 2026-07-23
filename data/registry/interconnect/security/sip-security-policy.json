@@ -1,0 +1,23 @@
+{
+  "signaling": {
+    "tls_required": true,
+    "certificate_required": true,
+    "supported_transports": [
+      "tls"
+    ]
+  },
+
+  "network": {
+    "authorized_networks_required": true,
+    "ip_allowlist_required": true
+  },
+
+  "authentication": {
+    "carrier_authentication_required": true
+  },
+
+  "compliance": {
+    "stir_shaken_required": true,
+    "emergency_calling_required": true
+  }
+}

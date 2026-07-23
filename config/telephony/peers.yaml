@@ -1,0 +1,20 @@
+# Edge1 SIP Peer Runtime Configuration
+
+peers:
+
+  - id: edge1-lab-peer
+    carrier_id: edge1-lab-carrier
+
+    signaling:
+      endpoint: 127.0.0.1
+      port: 5060
+      transport: udp
+
+    codecs:
+      allowed:
+        - PCMU
+        - PCMA
+
+    health:
+      method: options
+      interval_seconds: 60

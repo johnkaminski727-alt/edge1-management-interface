@@ -22,9 +22,9 @@ elif [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-EDGE1_MANAGEMENT_ROOT=$REPO_ROOT "$REPO_ROOT/deploy/time-authority-edge1-preflight.sh"
+EDGE1_MANAGEMENT_ROOT=$REPO_ROOT EDGE1_TIME_AUTHORITY_SIMULATION=$SIMULATION "$REPO_ROOT/deploy/time-authority-edge1-preflight.sh"
 
-if ! id "$SERVICE_USER" >/dev/null 2>&1; then
+if [ "$SIMULATION" != "1" ] && ! id "$SERVICE_USER" >/dev/null 2>&1; then
   useradd --system --home-dir "$DATA_DIR" --shell /usr/sbin/nologin "$SERVICE_USER"
 fi
 

@@ -1,0 +1,32 @@
+{
+  "carrier_id": "",
+  "name": "",
+  "status": "planned",
+
+  "contacts": {
+    "technical": "",
+    "noc": ""
+  },
+
+  "sip": {
+    "endpoints": [],
+    "transport": [
+      "tls"
+    ],
+    "codecs": [
+      "PCMU",
+      "PCMA"
+    ]
+  },
+
+  "testing": {
+    "options_required": true,
+    "invite_required": true
+  },
+
+  "readiness": {
+    "registry_complete": false,
+    "sip_test_complete": false,
+    "routing_complete": false
+  }
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-20T09:10:41.576401+00:00",
+  "generated_at": "2026-07-20T19:19:01.703533+00:00",
   "datasets": {
     "calling_codes.json": {
       "sha256": "aa7bd180e4a0e965e63df5328a4059385c19c65cc9d505faf6caa3face1b8864",
@@ -8,9 +8,9 @@
       "updated": "2026-07-20T09:02:38.710039+00:00"
     },
     "timezones.json": {
-      "sha256": "c8ab93a90ada32e83cbf4dc412f2723a5956a65adfe6962d9aaab5f7d76efa67",
-      "bytes": 42928,
-      "updated": "2026-07-20T09:02:38.686040+00:00"
+      "sha256": "c4b818961d31e6b93fca33bf3cc7720a2504122b9eb3a80490d71f57092891d3",
+      "bytes": 43387,
+      "updated": "2026-07-20T09:25:53.527688+00:00"
     },
     "countries.schema.json": {
       "sha256": "c244e2ab1b0c9b8039f447c026965a44e88987591963f272adcc140578a5a652",
@@ -21,6 +21,11 @@
       "sha256": "c0034b1be79775ec905c28b7125f5ee0ff4f2ef6ce85cf75390609c105672fb7",
       "bytes": 15039,
       "updated": "2026-07-20T09:02:38.686040+00:00"
+    },
+    "country_registry.json": {
+      "sha256": "67b56091d99b05ef6b32b226b1f4fe21e08d87f77ec5a343e4cd79d6bc47b8d2",
+      "bytes": 63498,
+      "updated": "2026-07-20T09:37:53.076174+00:00"
     },
     "countries.json": {
       "sha256": "1c1d6b803deab3ea3e540b343a18a373e48d9c1f3a9bc70a4c267ba295c4e22e",

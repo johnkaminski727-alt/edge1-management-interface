@@ -1,0 +1,9 @@
+{
+  "rollbacks": [
+    {
+      "event": "rollback_checkpoint_created",
+      "timestamp": "2026-07-20T20:34:20.564933Z",
+      "status": "ready"
+    }
+  ]
+}

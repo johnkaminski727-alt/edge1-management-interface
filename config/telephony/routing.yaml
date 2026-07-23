@@ -1,0 +1,16 @@
+# Edge1 SIP Routing Runtime Configuration
+
+routes:
+
+  - id: default-lab-route
+
+    match:
+      prefix: "+"
+
+    destination:
+      peer: edge1-lab-peer
+
+    priority: 100
+
+    failover:
+      enabled: false

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Edge1 SIP Interconnect Registry",
+  "type": "object",
+  "properties": {
+    "carriers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/carrier"
+      }
+    },
+    "sip_peers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sip_peer"
+      }
+    },
+    "routing_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/routing_rule"
+      }
+    }
+  },
+  "$defs": {
+    "carrier": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "testing",
+            "active",
+            "disabled"
+          ]
+        },
+        "contacts": {
+          "type": "array"
+        }
+      }
+    },
+    "sip_peer": {
+      "type": "object",
+      "required": [
+        "id",
+        "carrier_id",
+        "endpoint",
+        "transport"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "carrier_id": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string"
+        },
+        "transport": {
+          "enum": [
+            "udp",
+            "tcp",
+            "tls"
+          ]
+        },
+        "codecs": {
+          "type": "array"
+        },
+        "health_check": {
+          "enum": [
+            "options",
+            "register",
+            "invite"
+          ]
+        }
+      }
+    },
+    "routing_rule": {
+      "type": "object",
+      "required": [
+        "id",
+        "match",
+        "destination"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "match": {
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

@@ -11,8 +11,181 @@ function render(data){
  document.querySelector('#peer-rows').innerHTML=data.interconnects.map(p=>`<tr><td>${text(p.name)}</td><td>${badge(p.status)}</td><td>${text(p.latency_ms)} ms</td><td>${text(p.success_rate)}%</td><td>${text(p.active_calls)}</td></tr>`).join('');
  document.querySelector('#registration-rows').innerHTML=data.registrations.map(r=>`<tr><td>${text(r.endpoint)}</td><td>${badge(r.state)}</td><td>${text(r.transport)}</td><td>${text(r.user_agent)}</td><td>${text(r.expires_in_seconds)}s</td></tr>`).join('');
  document.querySelector('#alerts').innerHTML=data.alerts.length?data.alerts.map(a=>`<article class="alert"><h3 class="${stateClass[a.severity]||''}">${text(a.title)}</h3><p>${text(a.summary)}</p><small>${text(a.source)} · ${text(a.opened_at)}</small></article>`).join(''):'<p class="alert ok">No active alerts.</p>';
+
+ document.querySelector('#sip-peer-cards').innerHTML=(data.interconnects||[]).map(p=>`
+ <article class="service-card">
+   <div class="section-heading">
+     <h3>${text(p.name)}</h3>
+     ${badge(p.status)}
+   </div>
+   <p>Endpoint: ${text(p.endpoint)}</p>
+   <p>Latency: ${text(p.latency_ms)} ms</p>
+   <p>Success: ${text(p.success_rate)}%</p>
+   <p>Active calls: ${text(p.active_calls)}</p>
+ </article>
+ `).join('');
 }
 async function fetchJson(url){const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();}
+async function loadSipHistory(){
+ const target=document.querySelector('#sip-history');
+ if(!target){return;}
+
+ try{
+  const history=await fetchJson('/api/telephony/health/history');
+
+  const checks=(history.checks||[]).slice(-10).reverse();
+
+  target.innerHTML=checks.length
+   ? checks.map(c=>`
+      <article class="alert">
+        <h3 class="${stateClass[c.status]||''}">
+          ${text(c.peer)} — ${text(c.status)}
+        </h3>
+        <p>
+          SIP ${text(c.response_code)}
+          · ${text(c.latency_ms)} ms
+        </p>
+        <small>${text(c.timestamp)}</small>
+      </article>
+    `).join('')
+   : '<p class="alert ok">No SIP history available.</p>';
+
+ }catch(error){
+  target.innerHTML =
+    '<p class="alert">SIP history unavailable.</p>';
+ }
+}
+
+
+
+async function loadSipReadiness(){
+ const target=document.querySelector('#sip-readiness');
+ if(!target){return;}
+
+ try{
+  const readiness=await fetchJson('/api/telephony/readiness');
+
+  const requirements =
+    Object.entries(
+      readiness.production_requirements || {}
+    ).map(([key,value]) => `
+      <li>${value ? '✓' : '□'} ${text(key)}</li>
+    `).join('');
+
+  target.innerHTML = `
+    <article class="alert">
+      <h3>${text(readiness.platform)}</h3>
+      <p>
+        Carriers: ${text(readiness.summary.carriers)}
+        · SIP Peers: ${text(readiness.summary.sip_peers)}
+        · Routes: ${text(readiness.summary.routing_rules)}
+      </p>
+      <ul>
+        ${requirements}
+      </ul>
+    </article>
+  `;
+
+ }catch(error){
+  target.innerHTML =
+    '<p class="alert">Readiness unavailable.</p>';
+ }
+}
+
+
+
+async function loadSipAcceptance(){
+ const target=document.querySelector('#sip-acceptance');
+ if(!target){return;}
+
+ try{
+  const acceptance=await fetchJson('/api/telephony/acceptance');
+
+  const tests=(acceptance.sip_peer_tests||[])
+    .map(t=>`
+      <li>
+        ${text(t.peer)}
+        — ${text(t.status)}
+        (${text(t.options)} / ${text(t.latency_ms)} ms)
+      </li>
+    `)
+    .join('');
+
+  const requirements =
+    Object.entries(
+      acceptance.production_requirements || {}
+    ).map(([key,value]) => `
+      <li>${value ? '✓' : '□'} ${text(key)}</li>
+    `).join('');
+
+  target.innerHTML = `
+    <article class="alert">
+      <h3>${text(acceptance.platform)}</h3>
+      <p>
+        Carriers: ${text(acceptance.carrier_count)}
+        · Routes: ${text(acceptance.routing_rules)}
+      </p>
+
+      <strong>SIP Tests</strong>
+      <ul>${tests || '<li>No tests</li>'}</ul>
+
+      <strong>Production Requirements</strong>
+      <ul>${requirements}</ul>
+    </article>
+  `;
+
+ }catch(error){
+  target.innerHTML =
+    '<p class="alert">Acceptance unavailable.</p>';
+ }
+}
+
+
+
+async function loadCarrierLifecycle(){
+ const target=document.querySelector('#carrier-lifecycle');
+ if(!target){return;}
+
+ try{
+  const data=await fetchJson('/api/telephony/carriers');
+
+  target.innerHTML=(data.carriers||[])
+   .map(c=>`
+    <article class="alert">
+      <h3 class="${stateClass[c.status]||''}">
+        ${text(c.name)}
+      </h3>
+
+      <p>
+        Status:
+        ${text(c.status)}
+      </p>
+
+      ${
+        (c.sip_peers||[])
+        .map(p=>`
+          <small>
+            Peer:
+            ${text(p.peer)}
+            · ${text(p.status)}
+          </small>
+        `)
+        .join('<br>')
+      }
+
+    </article>
+   `)
+   .join('');
+
+ }catch(error){
+
+  target.innerHTML =
+    '<p class="alert">Carrier lifecycle unavailable.</p>';
+
+ }
+}
+
+
 async function load(){
  const button=document.querySelector('#refresh');button.disabled=true;
  try{
@@ -20,6 +193,10 @@ async function load(){
   try{data=await fetchJson('/api/telephony/status');}
   catch(liveError){data=await fetchJson('./telephony.fixture.json');data.mode=`fixture fallback (${liveError.message})`;}
   render(data);
+  await loadSipHistory();
+  await loadSipReadiness();
+  await loadSipAcceptance();
+  await loadCarrierLifecycle();
  }catch(error){document.querySelector('#overall-title').textContent='Snapshot unavailable';document.querySelector('#generated-at').textContent=error.message;}
  finally{button.disabled=false;}
 }
