@@ -1,0 +1,22 @@
+[Unit]
+Description=WW.CX Bitcoin mining 24-hour history summary
+After=wwcx-cpu-miner-telemetry.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/wwcx-mining/libexec/bitcoin_mining_history_summary.py --history /var/lib/wwcx-mining/telemetry-history.jsonl --output /var/www/edge1-status/bitcoin-mining-history.json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadOnlyPaths=/opt/wwcx-mining /var/lib/wwcx-mining
+ReadWritePaths=/var/www/edge1-status
