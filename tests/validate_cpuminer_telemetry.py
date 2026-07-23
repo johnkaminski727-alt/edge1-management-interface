@@ -29,4 +29,11 @@ assert parsed["stratum_difficulty"] == 10000.0, parsed
 assert parsed["submitted_shares"] == 3, parsed
 assert parsed["accepted_shares"] == 2, parsed
 assert parsed["rejected_shares"] == 1, parsed
+
+assert collector.infer_pool_connected(True, sample) is True
+assert collector.infer_pool_connected(False, sample) is False
+assert collector.infer_pool_connected(True, "New Work: Block 959300\nTTF @ 291.21 kh/s") is True
+assert collector.infer_pool_connected(True, "Stratum connection established\nStratum connection failed") is False
+assert collector.infer_pool_connected(True, "Stratum connection failed\nNew Work: Block 959301") is True
+
 print("cpuminer telemetry validation passed")
