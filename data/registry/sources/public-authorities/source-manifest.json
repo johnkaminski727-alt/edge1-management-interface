@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-07-20",
+  "sources": [
+    {
+      "id": "un-m49",
+      "authority": "United Nations Statistics Division",
+      "dataset": "Standard country or area codes for statistical use (M49)",
+      "purpose": ["country_names", "iso_alpha2", "iso_alpha3", "m49_numeric", "regions", "development_groupings"],
+      "landing_page": "https://unstats.un.org/unsd/methodology/m49/overview/",
+      "retrieval": "html-table",
+      "status": "approved_for_ingestion",
+      "precedence": "primary_country_backbone"
+    },
+    {
+      "id": "statcan-sccai-2022",
+      "authority": "Statistics Canada",
+      "dataset": "Standard Classification of Countries and Areas of Interest 2022",
+      "purpose": ["country_code_validation", "canadian_names", "classification_hierarchy"],
+      "landing_page": "https://www.statcan.gc.ca/en/subjects/standard/sccai/2022/index",
+      "retrieval": "linked-csv",
+      "status": "approved_for_ingestion",
+      "precedence": "secondary_validation"
+    },
+    {
+      "id": "statcan-sccai-history",
+      "authority": "Statistics Canada",
+      "dataset": "Current and Historical Countries and Areas of Interest",
+      "purpose": ["historical_names", "valid_from", "valid_to", "change_notes"],
+      "landing_page": "https://www.statcan.gc.ca/en/subjects/standard/sccai/2022/countries",
+      "retrieval": "linked-csv",
+      "status": "approved_for_ingestion",
+      "precedence": "historical_supplement"
+    },
+    {
+      "id": "iana-tzdb",
+      "authority": "Internet Assigned Numbers Authority",
+      "dataset": "Time Zone Database",
+      "purpose": ["canonical_timezones", "country_zone_mapping", "timezone_history", "aliases"],
+      "landing_page": "https://www.iana.org/time-zones",
+      "download_url": "https://data.iana.org/time-zones/tzdata-latest.tar.gz",
+      "retrieval": "tar-gzip",
+      "status": "active",
+      "precedence": "primary_timezone_authority"
+    },
+    {
+      "id": "iana-root-zone",
+      "authority": "Internet Assigned Numbers Authority",
+      "dataset": "Root Zone Database",
+      "purpose": ["cctld", "idn_cctld", "delegation_status", "registry_operator"],
+      "landing_page": "https://www.iana.org/domains/root/db",
+      "retrieval": "html-records",
+      "status": "approved_for_ingestion",
+      "precedence": "primary_domain_authority"
+    },
+    {
+      "id": "iana-language-subtags",
+      "authority": "Internet Assigned Numbers Authority",
+      "dataset": "Language Subtag Registry",
+      "purpose": ["region_subtags", "deprecated_regions", "preferred_values", "registration_dates"],
+      "landing_page": "https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry",
+      "download_url": "https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry",
+      "retrieval": "text",
+      "status": "approved_for_ingestion",
+      "precedence": "locale_validation"
+    },
+    {
+      "id": "itu-e164",
+      "authority": "International Telecommunication Union",
+      "dataset": "List of ITU-T Recommendation E.164 assigned country codes",
+      "purpose": ["calling_codes", "shared_codes", "global_services", "assignment_status"],
+      "landing_page": "https://www.itu.int/pub/T-SP-OB.1114-2016",
+      "updates_page": "https://www.itu.int/itu-t/bulletin",
+      "retrieval": "publication-plus-operational-bulletins",
+      "status": "active_existing_pipeline",
+      "precedence": "primary_calling_code_authority"
+    },
+    {
+      "id": "unicode-cldr",
+      "authority": "Unicode Consortium",
+      "dataset": "Common Locale Data Repository",
+      "purpose": ["localized_names", "territory_variants", "currency_display", "timezone_display", "locale_metadata"],
+      "landing_page": "https://cldr.unicode.org/",
+      "download_url": "https://unicode.org/Public/cldr/latest/",
+      "retrieval": "zip-json-or-xml",
+      "status": "approved_for_display_metadata",
+      "precedence": "localized_display_only"
+    }
+  ]
+}
