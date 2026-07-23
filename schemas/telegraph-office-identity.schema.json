@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telegraph-office-identity.schema.json",
+  "title": "WW.CX Telegraph Office Identity Document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "office_id", "issued_at", "keys", "services", "policy", "signature"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "office_id": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"},
+    "display_name": {"type": "string", "minLength": 1, "maxLength": 200},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "previous_document_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/key"}
+    },
+    "services": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/service"}
+    },
+    "policy": {"$ref": "#/$defs/policy"},
+    "revocations": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/revocation"}
+    },
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_id", "purpose", "algorithm", "public_key", "not_before"],
+      "properties": {
+        "key_id": {"type": "string", "minLength": 8, "maxLength": 255},
+        "purpose": {"enum": ["office_signing", "transport_authentication", "endpoint_delegation", "receipt_signing", "recovery"]},
+        "algorithm": {"enum": ["Ed25519", "X25519", "P-256"]},
+        "public_key": {"type": "string", "minLength": 32, "maxLength": 4096},
+        "not_before": {"type": "string", "format": "date-time"},
+        "not_after": {"type": "string", "format": "date-time"},
+        "status": {"enum": ["active", "retiring", "revoked"]}
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "uri"],
+      "properties": {
+        "type": {"enum": ["federation_https", "directory", "receipt", "rtt_gateway", "tty_gateway", "status"]},
+        "uri": {"type": "string", "format": "uri"},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 65535}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepted_envelope_versions", "max_clock_skew_seconds", "replay_window_seconds"],
+      "properties": {
+        "accepted_envelope_versions": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "max_clock_skew_seconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+        "replay_window_seconds": {"type": "integer", "minimum": 60, "maximum": 604800},
+        "requires_mutual_tls": {"type": "boolean"},
+        "allows_store_and_forward": {"type": "boolean"},
+        "allows_gateway_decryption": {"type": "boolean"},
+        "requires_code_word_hashing_in_metadata": {"type": "boolean"}
+      }
+    },
+    "revocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_id", "revoked_at", "reason"],
+      "properties": {
+        "key_id": {"type": "string"},
+        "revoked_at": {"type": "string", "format": "date-time"},
+        "reason": {"enum": ["compromise", "rotation", "retired", "superseded", "administrative"]}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 8, "maxLength": 255},
+        "value": {"type": "string", "minLength": 32, "maxLength": 1024}
+      }
+    }
+  }
+}
