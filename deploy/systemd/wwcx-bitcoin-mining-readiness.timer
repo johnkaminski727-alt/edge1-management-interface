@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh WW.CX Bitcoin mining readiness status
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Persistent=true
+Unit=wwcx-bitcoin-mining-readiness.service
+
+[Install]
+WantedBy=timers.target
