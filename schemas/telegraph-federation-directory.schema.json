@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telegraph-federation-directory.schema.json",
+  "title": "WW.CX Telegraph Federation Directory Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "office_id", "identity_document", "capabilities", "trust", "updated_at", "signature"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "office_id": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"},
+    "identity_document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "digest", "sequence"],
+      "properties": {
+        "uri": {"type": "string", "format": "uri"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "sequence": {"type": "integer", "minimum": 1}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["envelope_versions", "transports", "media", "security"],
+      "properties": {
+        "envelope_versions": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "transports": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["https-mtls", "private-wan", "test-loopback"]}},
+        "media": {"type": "array", "uniqueItems": true, "items": {"enum": ["secure_message", "attachment", "rtt_t140", "tty_baudot", "voice", "vco", "hco", "human_relay"]}},
+        "security": {"type": "array", "uniqueItems": true, "items": {"enum": ["ed25519_signatures", "x25519_key_agreement", "xchacha20_poly1305", "aes_256_gcm", "forward_secrecy", "signed_receipts", "code_word_commitments"]}},
+        "max_message_bytes": {"type": "integer", "minimum": 1024, "maximum": 1073741824},
+        "max_attachment_bytes": {"type": "integer", "minimum": 0, "maximum": 10737418240}
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "basis", "effective_at"],
+      "properties": {
+        "status": {"enum": ["unverified", "observed", "trusted", "restricted", "suspended", "revoked"]},
+        "basis": {"enum": ["manual_pin", "federation_root", "cross_signature", "contractual_peer", "test_fixture"]},
+        "effective_at": {"type": "string", "format": "date-time"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "restrictions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["no_store_and_forward", "no_attachments", "no_gateway_decryption", "no_relay", "no_tty", "no_voice", "test_only"]}
+        },
+        "reason": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "revocation_feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "digest_algorithm"],
+      "properties": {
+        "uri": {"type": "string", "format": "uri"},
+        "digest_algorithm": {"const": "sha256"},
+        "last_sequence": {"type": "integer", "minimum": 0}
+      }
+    },
+    "updated_at": {"type": "string", "format": "date-time"},
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 8, "maxLength": 255},
+        "value": {"type": "string", "minLength": 32, "maxLength": 1024}
+      }
+    }
+  }
+}
