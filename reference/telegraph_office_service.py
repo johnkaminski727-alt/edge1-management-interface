@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Non-production HTTP reference service for a WW.CX Telegraph Office.
-
-The service intentionally uses Python's standard library HTTP server so the
-transport behaviour can be exercised without adding a web-framework runtime.
-TLS and mutual authentication are deployment concerns and are not enabled by
-this development fixture.
-"""
+"""Non-production HTTP reference service for a WW.CX Telegraph Office."""
 
 from __future__ import annotations
 
@@ -23,6 +17,8 @@ from urllib.parse import urlparse
 from reference.telegraph_crypto import verify_document, verify_identity
 from reference.telegraph_federation_demo import Office, canonical_json, sha256
 from reference.telegraph_storage import TelegraphStore
+
+TRUST_LEVEL = {"observed": 0, "trusted": 1, "restricted": 2}
 
 
 @dataclass
@@ -57,6 +53,7 @@ class TelegraphOfficeState:
             "media": sorted(self.office.media),
             "security": sorted(self.office.security),
             "persistent_storage": self.store is not None,
+            "directory_sync": True,
             "production_ready": False,
         }
 
@@ -64,9 +61,17 @@ class TelegraphOfficeState:
         with self.lock:
             return {
                 "office_id": self.office.office_id,
+                "generated_at": int(time.time()),
                 "peers": list(self.peers.values()),
                 "count": len(self.peers),
             }
+
+    def _save_peer(self, record: dict[str, Any]) -> None:
+        if self.store is not None:
+            self.store.save_peer(record)
+        office_id = record["office_id"]
+        self.peers[office_id] = record
+        self.office.trust[office_id] = record["trust_status"]
 
     def register_peer(self, document: dict[str, Any]) -> tuple[HTTPStatus, dict[str, Any]]:
         office_id = document.get("office_id")
@@ -76,11 +81,10 @@ class TelegraphOfficeState:
             return HTTPStatus.BAD_REQUEST, {"error": "invalid_peer_record"}
         if identity.get("office_id") != office_id:
             return HTTPStatus.BAD_REQUEST, {"error": "peer_identity_mismatch"}
-        if trust_status not in {"observed", "trusted", "restricted"}:
+        if trust_status not in TRUST_LEVEL:
             return HTTPStatus.BAD_REQUEST, {"error": "invalid_trust_status"}
         if not verify_identity(identity):
             return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_peer_signature"}
-
         record = {
             "office_id": office_id,
             "identity": identity,
@@ -89,11 +93,73 @@ class TelegraphOfficeState:
             "identity_verified": True,
         }
         with self.lock:
-            if self.store is not None:
-                self.store.save_peer(record)
-            self.peers[office_id] = record
-            self.office.trust[office_id] = trust_status
+            self._save_peer(record)
         return HTTPStatus.CREATED, record
+
+    def sync_directory(self, document: dict[str, Any]) -> tuple[HTTPStatus, dict[str, Any]]:
+        source_office = document.get("office_id")
+        peers = document.get("peers")
+        if not isinstance(source_office, str) or not isinstance(peers, list):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid_directory"}
+        if len(peers) > 1000:
+            return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "directory_too_large"}
+
+        imported = updated = skipped = rejected = 0
+        with self.lock:
+            for candidate in peers:
+                if not isinstance(candidate, dict):
+                    rejected += 1
+                    continue
+                office_id = candidate.get("office_id")
+                identity = candidate.get("identity")
+                remote_updated = candidate.get("updated_at", 0)
+                if office_id == self.office.office_id:
+                    skipped += 1
+                    continue
+                if not isinstance(office_id, str) or not isinstance(identity, dict):
+                    rejected += 1
+                    continue
+                if identity.get("office_id") != office_id or not verify_identity(identity):
+                    rejected += 1
+                    continue
+                try:
+                    remote_updated = int(remote_updated)
+                except (TypeError, ValueError):
+                    rejected += 1
+                    continue
+
+                existing = self.peers.get(office_id)
+                if existing is not None and remote_updated <= int(existing.get("updated_at", 0)):
+                    skipped += 1
+                    continue
+
+                # Federation gossip can introduce or refresh identity material, but it
+                # cannot grant trust or remove a local restriction.
+                trust_status = "observed"
+                if existing is not None:
+                    trust_status = existing["trust_status"]
+                record = {
+                    "office_id": office_id,
+                    "identity": identity,
+                    "trust_status": trust_status,
+                    "updated_at": remote_updated,
+                    "identity_verified": True,
+                    "directory_source": source_office,
+                }
+                self._save_peer(record)
+                if existing is None:
+                    imported += 1
+                else:
+                    updated += 1
+
+        return HTTPStatus.ACCEPTED, {
+            "status": "directory_synchronized",
+            "source_office": source_office,
+            "imported": imported,
+            "updated": updated,
+            "skipped": skipped,
+            "rejected": rejected,
+        }
 
     def _accept_nonce(self, nonce: str, now: float) -> bool:
         if self.store is not None:
@@ -111,12 +177,7 @@ class TelegraphOfficeState:
         if missing:
             return HTTPStatus.BAD_REQUEST, {"error": "invalid_envelope", "missing": missing}
         if envelope["destination"] != self.office.office_id:
-            return HTTPStatus.CONFLICT, {
-                "error": "wrong_destination",
-                "expected": self.office.office_id,
-                "received": envelope["destination"],
-            }
-
+            return HTTPStatus.CONFLICT, {"error": "wrong_destination", "expected": self.office.office_id, "received": envelope["destination"]}
         origin = envelope.get("origin")
         with self.lock:
             peer = self.peers.get(origin) if isinstance(origin, str) else None
@@ -126,16 +187,13 @@ class TelegraphOfficeState:
             return HTTPStatus.FORBIDDEN, {"error": "restricted_origin"}
         if not verify_document(envelope, peer["identity"]):
             return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_envelope_signature"}
-
         now = time.time()
         recorded_at = int(now)
         with self.lock:
-            accepted = self._accept_nonce(str(envelope["nonce"]), now)
-            if not accepted:
+            if not self._accept_nonce(str(envelope["nonce"]), now):
                 receipt = self.office.receipt(envelope, "duplicate_rejected", duplicate=True)
                 self._record_receipt(receipt, recorded_at)
                 return HTTPStatus.CONFLICT, {"status": "duplicate_rejected", "receipt": receipt}
-
             if self.store is not None:
                 self.store.save_message(envelope, recorded_at)
             self.messages[envelope["message_id"]] = envelope
@@ -163,11 +221,7 @@ class TelegraphOfficeState:
             return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_receipt_signature"}
         with self.lock:
             self._record_receipt(document, int(time.time()))
-        return HTTPStatus.ACCEPTED, {
-            "status": "receipt_recorded",
-            "message_id": message_id,
-            "signature_verified": True,
-        }
+        return HTTPStatus.ACCEPTED, {"status": "receipt_recorded", "message_id": message_id, "signature_verified": True}
 
     def close(self) -> None:
         if self.store is not None:
@@ -176,7 +230,7 @@ class TelegraphOfficeState:
 
 
 class TelegraphOfficeHandler(BaseHTTPRequestHandler):
-    server_version = "WWCXTelegraphOffice/0.3"
+    server_version = "WWCXTelegraphOffice/0.4"
 
     @property
     def state(self) -> TelegraphOfficeState:
@@ -210,53 +264,36 @@ class TelegraphOfficeHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         if path == "/health":
-            self._json(HTTPStatus.OK, {
-                "status": "ok",
-                "office_id": self.state.office.office_id,
-                "uptime_seconds": max(0, int(time.time() - self.state.started_at)),
-                "persistent_storage": self.state.store is not None,
-                "production_ready": False,
-            })
-            return
-        if path == "/identity":
+            self._json(HTTPStatus.OK, {"status": "ok", "office_id": self.state.office.office_id, "uptime_seconds": max(0, int(time.time() - self.state.started_at)), "persistent_storage": self.state.store is not None, "production_ready": False})
+        elif path == "/identity":
             self._json(HTTPStatus.OK, self.state.office.identity_document())
-            return
-        if path == "/capabilities":
+        elif path == "/capabilities":
             self._json(HTTPStatus.OK, self.state.capabilities())
-            return
-        if path == "/directory":
+        elif path == "/directory":
             self._json(HTTPStatus.OK, self.state.directory())
-            return
-        if path.startswith("/receipts/"):
+        elif path.startswith("/receipts/"):
             message_id = path.removeprefix("/receipts/")
             with self.state.lock:
                 receipts = self.state.receipts.get(message_id)
-            if receipts is None:
-                self._json(HTTPStatus.NOT_FOUND, {"error": "receipt_not_found"})
-            else:
-                self._json(HTTPStatus.OK, {"message_id": message_id, "receipts": receipts})
-            return
-        self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            self._json(HTTPStatus.NOT_FOUND, {"error": "receipt_not_found"}) if receipts is None else self._json(HTTPStatus.OK, {"message_id": message_id, "receipts": receipts})
+        else:
+            self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         document = self._read_json()
         if document is None:
             self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_json"})
-            return
-        if path == "/message":
-            status, payload = self.state.accept_message(document)
-            self._json(status, payload)
-            return
-        if path == "/directory/peers":
-            status, payload = self.state.register_peer(document)
-            self._json(status, payload)
-            return
-        if path == "/receipt":
-            status, payload = self.state.record_external_receipt(document)
-            self._json(status, payload)
-            return
-        self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+        elif path == "/message":
+            self._json(*self.state.accept_message(document))
+        elif path == "/directory/peers":
+            self._json(*self.state.register_peer(document))
+        elif path == "/directory/sync":
+            self._json(*self.state.sync_directory(document))
+        elif path == "/receipt":
+            self._json(*self.state.record_external_receipt(document))
+        else:
+            self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
 
 class TelegraphOfficeHTTPServer(ThreadingHTTPServer):
@@ -277,17 +314,10 @@ def build_state(office_id: str, database_path: str | Path | None = None) -> Tele
     office = Office(
         office_id=office_id,
         media={"secure_message", "attachment", "rtt_t140"},
-        security={
-            "end_to_end_encryption",
-            "forward_secrecy",
-            "mutual_tls",
-            "signed_receipts",
-            "code_word_commitments",
-        },
+        security={"end_to_end_encryption", "forward_secrecy", "mutual_tls", "signed_receipts", "code_word_commitments"},
         trust={},
     )
-    store = TelegraphStore(database_path) if database_path is not None else None
-    return TelegraphOfficeState(office=office, store=store)
+    return TelegraphOfficeState(office=office, store=TelegraphStore(database_path) if database_path is not None else None)
 
 
 def main() -> None:
@@ -297,11 +327,7 @@ def main() -> None:
     parser.add_argument("--office-id", default="alpha.telegraph.ww.cx")
     parser.add_argument("--database", help="SQLite database path; omit for ephemeral in-memory state")
     args = parser.parse_args()
-
-    server = TelegraphOfficeHTTPServer(
-        (args.host, args.port),
-        build_state(args.office_id, args.database),
-    )
+    server = TelegraphOfficeHTTPServer((args.host, args.port), build_state(args.office_id, args.database))
     print(f"Telegraph Office {args.office_id} listening on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
