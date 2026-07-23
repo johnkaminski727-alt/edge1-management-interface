@@ -69,6 +69,20 @@ def electrum_rpc(method: str) -> object:
     return payload["result"]
 
 
+def sanitized_wallet_state() -> dict[str, object]:
+    result = electrum_rpc("list_wallets")
+    wallets = result if isinstance(result, list) else []
+    synchronized = bool(wallets) and all(
+        isinstance(wallet, dict) and wallet.get("synchronized") is True
+        for wallet in wallets
+    )
+    return {
+        "loaded": bool(wallets),
+        "count": len(wallets),
+        "synchronized": synchronized,
+    }
+
+
 def expected_token() -> str:
     config = load_env(Path(os.environ.get("ELECTRUM_API_ENV", str(DEFAULT_API_ENV))))
     token = config.get("ELECTRUM_API_TOKEN", "")
@@ -78,7 +92,7 @@ def expected_token() -> str:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Edge1ElectrumWatchAPI/1.1"
+    server_version = "Edge1ElectrumWatchAPI/1.2"
 
     def send_json(self, status: HTTPStatus, payload: object) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -107,14 +121,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/healthz":
             self.send_json(HTTPStatus.OK, {"status": "ok", "service": "electrum-watch-api"})
             return
-        if path not in ALLOWED_METHODS:
+        if path not in ALLOWED_METHODS and path != "/v1/wallet/state":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
             return
         try:
             if not self.authorized():
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                 return
-            result = electrum_rpc(ALLOWED_METHODS[path])
+            result = sanitized_wallet_state() if path == "/v1/wallet/state" else electrum_rpc(ALLOWED_METHODS[path])
             self.send_json(HTTPStatus.OK, {"ok": True, "result": result})
         except (OSError, ValueError, RuntimeError, urllib.error.URLError):
             self.send_json(HTTPStatus.BAD_GATEWAY, {"error": "backend_unavailable"})
