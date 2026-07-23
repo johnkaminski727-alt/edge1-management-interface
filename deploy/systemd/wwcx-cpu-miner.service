@@ -1,0 +1,34 @@
+[Unit]
+Description=WW.CX bounded Bitcoin CPU miner
+After=network-online.target
+Wants=network-online.target
+ConditionPathIsExecutable=/opt/wwcx-cpuminer/cpuminer
+ConditionPathExists=/etc/wwcx-mining/cpuminer.env
+
+[Service]
+Type=simple
+User=electrum-watch
+Group=electrum-watch
+EnvironmentFile=/etc/wwcx-mining/cpuminer.env
+ExecStart=/opt/wwcx-cpuminer/cpuminer -a sha256d -o ${WWCX_MINING_POOL_URL} -u ${WWCX_MINING_USERNAME} -p ${WWCX_MINING_PASSWORD} -t 1 --cpu-affinity 1 --retry-pause=10
+Restart=on-failure
+RestartSec=30
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=10%
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
