@@ -1,0 +1,23 @@
+[Unit]
+Description=WW.CX CPU miner telemetry collector
+After=wwcx-cpu-miner.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/wwcx-mining/libexec/cpuminer_telemetry_collector.py --unit wwcx-cpu-miner.service --output /var/lib/wwcx-mining/telemetry.json --pool stratum.ckpool.org:3333 --worker edge1
+ExecStartPost=/usr/bin/systemctl start wwcx-bitcoin-mining-readiness.service
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadOnlyPaths=/opt/wwcx-mining /etc/wwcx-mining /var/log/journal /run/log/journal
+ReadWritePaths=/var/lib/wwcx-mining
