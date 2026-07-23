@@ -2,7 +2,7 @@
 Description=WW.CX bounded Bitcoin CPU miner
 After=network-online.target
 Wants=network-online.target
-ConditionPathIsExecutable=/opt/wwcx-cpuminer/cpuminer
+ConditionFileIsExecutable=/opt/wwcx-cpuminer/cpuminer
 ConditionPathExists=/etc/wwcx-mining/cpuminer.env
 
 [Service]
