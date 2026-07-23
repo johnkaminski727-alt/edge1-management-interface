@@ -1,0 +1,51 @@
+name: BigBird Edge1 connector
+
+on:
+  pull_request:
+    paths:
+      - "server/bigbird_edge1_connector.py"
+      - "config/bigbird-edge1-connector.json"
+      - "bin/wwcx-ops"
+      - "deploy/bigbird-edge1-connector-maintenance.service"
+      - "deploy/bigbird-edge1-connector-maintenance.timer"
+      - "deploy/bigbird-edge1-connector-restart.timer"
+      - "deploy/bigbird-edge1-connector.service"
+      - "docs/integrations/bigbird-edge1-connector-lifecycle.md"
+      - "tests/test_bigbird_edge1_connector.py"
+      - ".github/workflows/bigbird-edge1-connector.yml"
+  push:
+    branches:
+      - agent/bigbird-edge1-connector-lifecycle
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile connector and operator CLI
+        run: python3 -m py_compile server/bigbird_edge1_connector.py bin/wwcx-ops
+      - name: Run lifecycle tests
+        run: python3 -m unittest tests.test_bigbird_edge1_connector -v
+      - name: Validate connector configuration
+        run: python3 -m json.tool config/bigbird-edge1-connector.json >/dev/null
+      - name: Assert read-only defaults
+        run: |
+          grep -F '"mode": "read_only"' config/bigbird-edge1-connector.json
+          grep -F 'refresh' deploy/bigbird-edge1-connector-maintenance.service
+          grep -F 'Unit=bigbird-edge1-connector-maintenance.service' deploy/bigbird-edge1-connector-maintenance.timer
+      - name: Scan changed surfaces for embedded secrets
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
+            server/bigbird_edge1_connector.py \
+            config/bigbird-edge1-connector.json \
+            bin/wwcx-ops \
+            deploy/bigbird-edge1-connector-maintenance.service \
+            deploy/bigbird-edge1-connector-maintenance.timer \
+            deploy/bigbird-edge1-connector-restart.timer \
+            deploy/bigbird-edge1-connector.service \
+            docs/integrations/bigbird-edge1-connector-lifecycle.md \
+            tests/test_bigbird_edge1_connector.py

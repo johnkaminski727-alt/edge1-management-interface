@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""
-WW.CX Messaging Operations health models.
+"""WW.CX Messaging Operations health models.
 
-Read-only observation models only.
-No production messaging actions are implemented.
+Read-only observation models only. No production messaging actions are
+implemented by this module.
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass
@@ -24,12 +23,22 @@ class MessagingHealthSnapshot:
         return asdict(self)
 
 
-def degraded_snapshot() -> MessagingHealthSnapshot:
+def health_snapshot(
+    *,
+    service_active: bool,
+    listener_reachable: bool,
+) -> MessagingHealthSnapshot:
+    state = "healthy" if service_active and listener_reachable else "degraded"
     return MessagingHealthSnapshot(
         gateway="wwcx-messaging-gateway",
-        service_active=True,
-        listener_reachable=False,
-        state="degraded",
+        service_active=service_active,
+        listener_reachable=listener_reachable,
+        state=state,
         production_actions_enabled=False,
         checked_at=datetime.now(timezone.utc).isoformat(),
     )
+
+
+def degraded_snapshot() -> MessagingHealthSnapshot:
+    """Compatibility helper for an explicitly degraded observation."""
+    return health_snapshot(service_active=True, listener_reachable=False)
