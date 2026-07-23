@@ -23,7 +23,14 @@ def load_history(path: Path, cutoff: int) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             continue
         generated = item.get("generated_unix")
-        if isinstance(item, dict) and isinstance(generated, int) and generated >= cutoff:
+        samples = item.get("hashrate_samples")
+        if (
+            isinstance(item, dict)
+            and isinstance(generated, int)
+            and generated >= cutoff
+            and isinstance(samples, int)
+            and samples >= 3
+        ):
             records.append(item)
     return sorted(records, key=lambda item: item["generated_unix"])
 
