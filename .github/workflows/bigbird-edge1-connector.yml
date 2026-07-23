@@ -26,14 +26,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile connector
-        run: python3 -m py_compile server/bigbird_edge1_connector.py
+      - name: Compile connector and operator CLI
+        run: python3 -m py_compile server/bigbird_edge1_connector.py bin/wwcx-ops
       - name: Run lifecycle tests
         run: python3 -m unittest tests.test_bigbird_edge1_connector -v
       - name: Validate connector configuration
         run: python3 -m json.tool config/bigbird-edge1-connector.json >/dev/null
-      - name: Validate shell syntax
-        run: sh -n bin/wwcx-ops
       - name: Assert read-only defaults
         run: |
           grep -F '"mode": "read_only"' config/bigbird-edge1-connector.json
