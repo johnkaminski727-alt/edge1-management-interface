@@ -42,6 +42,8 @@ for marker in (
     "Nice=19",
     "IOSchedulingClass=idle",
     "CPUQuota=10%",
+    "StateDirectory=wwcx-mining",
+    "StateDirectoryMode=0750",
     "RestrictAddressFamilies=AF_UNIX",
     "NoNewPrivileges=true",
     "--seconds 120",
