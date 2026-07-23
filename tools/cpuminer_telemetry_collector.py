@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import re
+import statistics
 import subprocess
 import tempfile
 import time
@@ -40,7 +41,7 @@ def unit_property(unit: str, name: str) -> str:
 
 
 def parse_logs(text: str) -> dict[str, Any]:
-    hashrate_hs = 0.0
+    hashrates: list[float] = []
     block_height = 0
     stratum_difficulty = 0.0
     accepted = 0
@@ -50,7 +51,7 @@ def parse_logs(text: str) -> dict[str, Any]:
     for line in text.splitlines():
         match = HASHRATE_RE.search(line)
         if match:
-            hashrate_hs = float(match.group(1)) * UNITS[match.group(2).lower()]
+            hashrates.append(float(match.group(1)) * UNITS[match.group(2).lower()])
         match = BLOCK_RE.search(line)
         if match:
             block_height = int(match.group(1))
@@ -67,8 +68,12 @@ def parse_logs(text: str) -> dict[str, Any]:
         if match:
             rejected = int(match.group(1))
 
+    recent = hashrates[-9:]
+    hashrate_hs = float(statistics.median(recent)) if recent else 0.0
+
     return {
         "hashrate_hs": hashrate_hs,
+        "hashrate_samples": len(recent),
         "network_block": block_height,
         "stratum_difficulty": stratum_difficulty,
         "submitted_shares": submitted,
@@ -154,6 +159,7 @@ def main() -> int:
         "worker": args.worker,
         "hashrate_hs": parsed["hashrate_hs"],
         "hashrate_ths": parsed["hashrate_hs"] / 1_000_000_000_000.0,
+        "hashrate_samples": parsed["hashrate_samples"],
         "network_block": parsed["network_block"],
         "stratum_difficulty": parsed["stratum_difficulty"],
         "submitted_shares": parsed["submitted_shares"],
