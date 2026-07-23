@@ -78,7 +78,7 @@ def expected_token() -> str:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Edge1ElectrumWatchAPI/1.0"
+    server_version = "Edge1ElectrumWatchAPI/1.1"
 
     def send_json(self, status: HTTPStatus, payload: object) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -95,7 +95,12 @@ class Handler(BaseHTTPRequestHandler):
         if not header.startswith("Bearer "):
             return False
         supplied = header.removeprefix("Bearer ").strip()
-        return secrets.compare_digest(supplied, expected_token())
+        try:
+            supplied_bytes = supplied.encode("utf-8")
+            expected_bytes = expected_token().encode("utf-8")
+        except UnicodeError:
+            return False
+        return secrets.compare_digest(supplied_bytes, expected_bytes)
 
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
