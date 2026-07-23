@@ -95,10 +95,44 @@ def atomic_write(path: Path, payload: dict[str, Any]) -> None:
             pass
 
 
+def append_history(path: Path, payload: dict[str, Any], retention_seconds: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    now = int(time.time())
+    cutoff = now - retention_seconds
+    retained: list[str] = []
+
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            generated = item.get("generated_unix")
+            if isinstance(generated, int) and generated >= cutoff:
+                retained.append(json.dumps(item, sort_keys=True, separators=(",", ":")))
+
+    retained.append(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    fd, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(retained) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--unit", default="wwcx-cpu-miner.service")
     parser.add_argument("--output", type=Path, default=Path("/var/lib/wwcx-mining/telemetry.json"))
+    parser.add_argument("--history", type=Path, default=Path("/var/lib/wwcx-mining/telemetry-history.jsonl"))
+    parser.add_argument("--history-retention-seconds", type=int, default=7 * 24 * 60 * 60)
     parser.add_argument("--pool", default="stratum.ckpool.org:3333")
     parser.add_argument("--worker", default="edge1")
     parser.add_argument("--journal-lines", type=int, default=500)
@@ -128,6 +162,7 @@ def main() -> int:
         "unpaid_btc": "0.00000000",
     }
     atomic_write(args.output, payload)
+    append_history(args.history, payload, args.history_retention_seconds)
     return 0
 
 
