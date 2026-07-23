@@ -9,6 +9,7 @@ on:
 jobs:
   validate-edge1-operator:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,4 +26,4 @@ jobs:
         run: python3 -m compileall -q server
 
       - name: Validate Edge1 Operator import path
-        run: python3 -m server.edge1_operator_entrypoint
+        run: python3 -c "from server.edge1_operator_entrypoint import build_operator; assert callable(build_operator)"
