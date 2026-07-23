@@ -1,0 +1,18 @@
+[Unit]
+Description=WW.CX sanitized Bitcoin watch-only wallet status exporter
+After=edge1-electrum-watch-api.service
+Requires=edge1-electrum-watch-api.service
+ConditionPathExists=/etc/electrum-watch/api.env
+
+[Service]
+Type=oneshot
+User=electrum-watch
+Group=electrum-watch
+Environment=HOME=/var/lib/electrum-watch
+ExecStart=/usr/bin/python3 /opt/electrum-watch/libexec/electrum_wallet_status_exporter.py --output /var/www/edge1-status/bitcoin-wallet.json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/edge1-status
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
