@@ -1,0 +1,12 @@
+name: BigBird Edge1 connector
+
+on:
+  pull_request:
+    paths:
+      - "server/bigbird_edge1_connector.py"
+      - "config/bigbird-edge1-connector.json"
+      - "bin/wwcx-ops"
+      - "deploy/bigbird-edge1-connector-maintenance.service"
+      - "deploy/bigbird-edge1-connector-maintenance.timer"
+      - "tests/test_bigbird_edge1_connector.py"
+     
