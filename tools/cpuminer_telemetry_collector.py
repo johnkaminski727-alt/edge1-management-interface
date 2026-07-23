@@ -40,6 +40,31 @@ def unit_property(unit: str, name: str) -> str:
     return run("systemctl", "show", unit, f"--property={name}", "--value").strip()
 
 
+def infer_pool_connected(active: bool, text: str) -> bool:
+    if not active:
+        return False
+
+    latest_success = -1
+    latest_failure = -1
+    for index, line in enumerate(text.splitlines()):
+        lowered = line.lower()
+        if (
+            "stratum connection established" in lowered
+            or "new work:" in lowered
+            or "new block " in lowered
+            or "ttf @" in lowered
+        ):
+            latest_success = index
+        if (
+            "stratum connection failed" in lowered
+            or "stratum connection interrupted" in lowered
+            or "stratum connection lost" in lowered
+        ):
+            latest_failure = index
+
+    return latest_success >= 0 and latest_success > latest_failure
+
+
 def parse_logs(text: str) -> dict[str, Any]:
     hashrates: list[float] = []
     block_height = 0
@@ -146,7 +171,8 @@ def main() -> int:
     logs = run("journalctl", "--unit", args.unit, "--no-pager", "--output=cat", "--lines", str(args.journal_lines))
     parsed = parse_logs(logs)
     active = unit_property(args.unit, "ActiveState") == "active"
-    connected = active and "Stratum connection established" in logs and "Stratum connection failed" not in logs.splitlines()[-20:]
+    connected = infer_pool_connected(active, logs)
+    hashrate_hs = parsed["hashrate_hs"] if active else 0.0
 
     payload = {
         "generated_unix": int(time.time()),
@@ -157,9 +183,9 @@ def main() -> int:
         "algorithm": "sha256d",
         "pool": args.pool,
         "worker": args.worker,
-        "hashrate_hs": parsed["hashrate_hs"],
-        "hashrate_ths": parsed["hashrate_hs"] / 1_000_000_000_000.0,
-        "hashrate_samples": parsed["hashrate_samples"],
+        "hashrate_hs": hashrate_hs,
+        "hashrate_ths": hashrate_hs / 1_000_000_000_000.0,
+        "hashrate_samples": parsed["hashrate_samples"] if active else 0,
         "network_block": parsed["network_block"],
         "stratum_difficulty": parsed["stratum_difficulty"],
         "submitted_shares": parsed["submitted_shares"],
