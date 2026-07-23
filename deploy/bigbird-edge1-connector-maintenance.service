@@ -1,0 +1,18 @@
+[Unit]
+Description=WW.CX BigBird Edge1 connector maintenance
+After=network-online.target edge1-operations-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/bigbird_edge1_connector.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/edge1-management-interface
+ReadWritePaths=/var/lib/bigbird-edge1-connector
+CapabilityBoundingSet=
+UMask=0077
