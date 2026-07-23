@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WW.CX Control Centre</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Administration navigation">
+      <div class="brand"><span class="brand-mark">W</span><div><strong>WW.CX</strong><small>Control Centre</small></div></div>
+      <nav id="navigation"></nav>
+      <div class="environment"><span class="status-dot"></span><div><strong>Production</strong><small>Data refreshed 38s ago</small></div></div>
+    </aside>
+    <main id="main">
+      <header class="topbar">
+        <div><p class="eyebrow">Command / Operations Overview</p><h1>Operational posture</h1></div>
+        <div class="top-actions"><button class="secondary">Export report</button><button>Open change queue <span class="badge">3</span></button></div>
+      </header>
+
+      <section class="posture-grid" aria-label="Current posture">
+        <article class="metric"><span class="metric-label">Estate health</span><strong>98.7%</strong><span class="trend positive">↑ 0.4% vs 24h</span><small>12 of 13 critical checks healthy</small></article>
+        <article class="metric"><span class="metric-label">Active findings</span><strong>7</strong><span class="trend warning">2 require review</span><small>1 high · 3 medium · 3 low</small></article>
+        <article class="metric"><span class="metric-label">Pending changes</span><strong>3</strong><span class="trend neutral">1 awaiting approval</span><small>All rollback plans available</small></article>
+        <article class="metric"><span class="metric-label">Security posture</span><strong>Good</strong><span class="trend positive">No critical exposure</span><small>Block rate within baseline</small></article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel span-2" id="analytics">
+          <div class="panel-heading"><div><p class="eyebrow">Analyze</p><h2>Traffic and service health</h2></div><select aria-label="Analysis period"><option>Last 24 hours</option><option>Last 7 days</option><option>Last 30 days</option></select></div>
+          <div class="chart" role="img" aria-label="Illustrative service health chart"></div>
+        </article>
+
+        <article class="panel" id="decisions">
+          <div class="panel-heading"><div><p class="eyebrow">Decision Centre</p><h2>Prioritized findings</h2></div><a href="#">View all</a></div>
+          <div class="finding high"><span class="severity">High</span><strong>DNS SERVFAIL rate elevated</strong><p>2.8× above the 14-day baseline in the last 40 minutes.</p></div>
+          <div class="finding medium"><span class="severity">Medium</span><strong>VPN handshake stale</strong><p>Two managed devices have not refreshed within policy.</p></div>
+          <div class="finding low"><span class="severity">Low</span><strong>Firewall block shift</strong><p>Port 5060 blocks increased, but remain within seasonal range.</p></div>
+        </article>
+
+        <article class="panel span-2">
+          <div class="panel-heading"><div><p class="eyebrow">Observe</p><h2>Systems and dependencies</h2></div><span class="freshness">Live · 38s</span></div>
+          <table><thead><tr><th>System</th><th>Status</th><th>Latency</th><th>Last event</th></tr></thead><tbody>
+            <tr><td>Website</td><td><span class="pill">Healthy</span></td><td>84 ms</td><td>2m ago</td></tr>
+            <tr><td>Edge1 Operations API</td><td><span class="pill">Healthy</span></td><td>31 ms</td><td>38s ago</td></tr>
+            <tr><td>Big Bird AI gateway</td><td><span class="pill">Healthy</span></td><td>122 ms</td><td>1m ago</td></tr>
+          </tbody></table>
+        </article>
+
+        <article class="panel change-panel">
+          <div class="panel-heading"><div><p class="eyebrow">Control</p><h2>Change pipeline</h2></div><a href="#">Open queue</a></div>
+          <ol class="pipeline"><li>Draft</li><li>Validated</li><li>Approval</li><li>Execute</li><li>Verify</li></ol>
+          <div class="safety-note"><strong>Production safety gate</strong><p>Firewall and DNS changes cannot execute directly from the browser. All changes require validation, separate approval, verification, and rollback metadata.</p></div>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
