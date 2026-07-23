@@ -1,0 +1,23 @@
+{
+  "miners": [
+    {
+      "id": "edge1-cpu-01",
+      "name": "Edge1 CPU Miner",
+      "site": "Edge1",
+      "location": "Edge1 equipment room",
+      "model": "Managed cpuminer",
+      "algorithm": "sha256d",
+      "enabled": true,
+      "telemetry_path": "/var/lib/wwcx-mining/telemetry.json",
+      "telemetry_fresh_seconds": 180,
+      "telemetry_stale_seconds": 600,
+      "expected_hashrate_hs": 32000,
+      "amber_hashrate_ratio": 0.85,
+      "red_hashrate_ratio": 0.50,
+      "pool_name": "Configured mining pool",
+      "worker_label": "edge1-cpu-01",
+      "owner": "WW.CX Operations",
+      "notes": "Bounded demonstration miner. Registry entries contain no credentials or payout addresses."
+    }
+  ]
+}
