@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "hardware": {
+    "model": "",
+    "rated_power_watts": 0
+  },
+  "economics": {
+    "electricity_cost_per_kwh": 0,
+    "currency": "CAD"
+  },
+  "pool_configured": false,
+  "payout_configured": false
+}

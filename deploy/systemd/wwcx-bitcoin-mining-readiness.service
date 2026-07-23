@@ -1,0 +1,23 @@
+[Unit]
+Description=WW.CX sanitized Bitcoin mining readiness exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=electrum-watch
+Group=electrum-watch
+ExecStart=/usr/bin/python3 /opt/electrum-watch/libexec/bitcoin_mining_readiness_exporter.py --config /etc/wwcx-mining/readiness.json --telemetry /var/lib/wwcx-mining/telemetry.json --output /var/www/edge1-status/bitcoin-mining.json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadOnlyPaths=/etc/wwcx-mining /var/lib/wwcx-mining
+ReadWritePaths=/var/www/edge1-status
