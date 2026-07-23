@@ -54,17 +54,21 @@ class TelegraphOfficeState:
             "security": sorted(self.office.security),
             "persistent_storage": self.store is not None,
             "directory_sync": True,
+            "signed_directory_manifests": True,
             "production_ready": False,
         }
 
     def directory(self) -> dict[str, Any]:
         with self.lock:
-            return {
+            document = {
+                "version": "1.0",
                 "office_id": self.office.office_id,
                 "generated_at": int(time.time()),
                 "peers": list(self.peers.values()),
                 "count": len(self.peers),
             }
+            document["signature"] = self.office.sign(document)
+            return document
 
     def _save_peer(self, record: dict[str, Any]) -> None:
         if self.store is not None:
@@ -103,6 +107,14 @@ class TelegraphOfficeState:
             return HTTPStatus.BAD_REQUEST, {"error": "invalid_directory"}
         if len(peers) > 1000:
             return HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "directory_too_large"}
+        with self.lock:
+            source = self.peers.get(source_office)
+        if source is None:
+            return HTTPStatus.FORBIDDEN, {"error": "unknown_directory_source"}
+        if source["trust_status"] == "restricted":
+            return HTTPStatus.FORBIDDEN, {"error": "restricted_directory_source"}
+        if not verify_document(document, source["identity"]):
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_directory_signature"}
 
         imported = updated = skipped = rejected = 0
         with self.lock:
@@ -127,17 +139,11 @@ class TelegraphOfficeState:
                 except (TypeError, ValueError):
                     rejected += 1
                     continue
-
                 existing = self.peers.get(office_id)
                 if existing is not None and remote_updated <= int(existing.get("updated_at", 0)):
                     skipped += 1
                     continue
-
-                # Federation gossip can introduce or refresh identity material, but it
-                # cannot grant trust or remove a local restriction.
-                trust_status = "observed"
-                if existing is not None:
-                    trust_status = existing["trust_status"]
+                trust_status = existing["trust_status"] if existing is not None else "observed"
                 record = {
                     "office_id": office_id,
                     "identity": identity,
@@ -151,7 +157,6 @@ class TelegraphOfficeState:
                     imported += 1
                 else:
                     updated += 1
-
         return HTTPStatus.ACCEPTED, {
             "status": "directory_synchronized",
             "source_office": source_office,
@@ -159,12 +164,11 @@ class TelegraphOfficeState:
             "updated": updated,
             "skipped": skipped,
             "rejected": rejected,
+            "signature_verified": True,
         }
 
     def _accept_nonce(self, nonce: str, now: float) -> bool:
-        if self.store is not None:
-            return self.store.accept_nonce(nonce, now, 3600)
-        return self.office.replay_cache.accept(nonce, now, 3600)
+        return self.store.accept_nonce(nonce, now, 3600) if self.store is not None else self.office.replay_cache.accept(nonce, now, 3600)
 
     def _record_receipt(self, receipt: dict[str, Any], recorded_at: int) -> None:
         if self.store is not None:
@@ -230,7 +234,7 @@ class TelegraphOfficeState:
 
 
 class TelegraphOfficeHandler(BaseHTTPRequestHandler):
-    server_version = "WWCXTelegraphOffice/0.4"
+    server_version = "WWCXTelegraphOffice/0.5"
 
     @property
     def state(self) -> TelegraphOfficeState:
