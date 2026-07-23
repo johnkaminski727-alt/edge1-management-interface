@@ -16,21 +16,38 @@ import time
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from reference.telegraph_crypto import verify_document, verify_identity
 from reference.telegraph_federation_demo import Office, canonical_json, sha256
+from reference.telegraph_storage import TelegraphStore
 
 
 @dataclass
 class TelegraphOfficeState:
     office: Office
+    store: TelegraphStore | None = None
     peers: dict[str, dict[str, Any]] = field(default_factory=dict)
     messages: dict[str, dict[str, Any]] = field(default_factory=dict)
     receipts: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     started_at: float = field(default_factory=time.time)
     lock: threading.RLock = field(default_factory=threading.RLock)
+
+    def __post_init__(self) -> None:
+        if self.store is None:
+            return
+        self.peers = self.store.load_peers()
+        self.messages = self.store.load_messages()
+        self.receipts = self.store.load_receipts()
+        for office_id, record in self.peers.items():
+            self.office.trust[office_id] = record["trust_status"]
+        all_receipts = [receipt for chain in self.receipts.values() for receipt in chain]
+        if all_receipts:
+            latest = max(all_receipts, key=lambda receipt: int(receipt.get("sequence", 0)))
+            self.office.receipt_sequence = int(latest.get("sequence", 0))
+            self.office.last_receipt_digest = sha256(canonical_json(latest))
 
     def capabilities(self) -> dict[str, Any]:
         return {
@@ -39,6 +56,7 @@ class TelegraphOfficeState:
             "transports": ["http-development"],
             "media": sorted(self.office.media),
             "security": sorted(self.office.security),
+            "persistent_storage": self.store is not None,
             "production_ready": False,
         }
 
@@ -71,9 +89,21 @@ class TelegraphOfficeState:
             "identity_verified": True,
         }
         with self.lock:
+            if self.store is not None:
+                self.store.save_peer(record)
             self.peers[office_id] = record
             self.office.trust[office_id] = trust_status
         return HTTPStatus.CREATED, record
+
+    def _accept_nonce(self, nonce: str, now: float) -> bool:
+        if self.store is not None:
+            return self.store.accept_nonce(nonce, now, 3600)
+        return self.office.replay_cache.accept(nonce, now, 3600)
+
+    def _record_receipt(self, receipt: dict[str, Any], recorded_at: int) -> None:
+        if self.store is not None:
+            self.store.save_receipt(receipt, recorded_at)
+        self.receipts.setdefault(receipt["message_id"], []).append(receipt)
 
     def accept_message(self, envelope: dict[str, Any]) -> tuple[HTTPStatus, dict[str, Any]]:
         required = {"message_id", "origin", "destination", "nonce", "payload", "security_state", "signature"}
@@ -98,16 +128,19 @@ class TelegraphOfficeState:
             return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_envelope_signature"}
 
         now = time.time()
+        recorded_at = int(now)
         with self.lock:
-            accepted = self.office.replay_cache.accept(str(envelope["nonce"]), now, 3600)
+            accepted = self._accept_nonce(str(envelope["nonce"]), now)
             if not accepted:
                 receipt = self.office.receipt(envelope, "duplicate_rejected", duplicate=True)
-                self.receipts.setdefault(envelope["message_id"], []).append(receipt)
+                self._record_receipt(receipt, recorded_at)
                 return HTTPStatus.CONFLICT, {"status": "duplicate_rejected", "receipt": receipt}
 
+            if self.store is not None:
+                self.store.save_message(envelope, recorded_at)
             self.messages[envelope["message_id"]] = envelope
             receipt = self.office.receipt(envelope, "accepted")
-            self.receipts.setdefault(envelope["message_id"], []).append(receipt)
+            self._record_receipt(receipt, recorded_at)
             return HTTPStatus.ACCEPTED, {
                 "status": "accepted",
                 "message_id": envelope["message_id"],
@@ -116,9 +149,34 @@ class TelegraphOfficeState:
                 "receipt": receipt,
             }
 
+    def record_external_receipt(self, document: dict[str, Any]) -> tuple[HTTPStatus, dict[str, Any]]:
+        message_id = document.get("message_id")
+        office_id = document.get("office_id")
+        receipt_id = document.get("receipt_id")
+        if not all(isinstance(value, str) for value in (message_id, office_id, receipt_id)):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid_receipt"}
+        with self.lock:
+            peer = self.peers.get(office_id)
+        if peer is None:
+            return HTTPStatus.FORBIDDEN, {"error": "unknown_receipt_office"}
+        if not verify_document(document, peer["identity"]):
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_receipt_signature"}
+        with self.lock:
+            self._record_receipt(document, int(time.time()))
+        return HTTPStatus.ACCEPTED, {
+            "status": "receipt_recorded",
+            "message_id": message_id,
+            "signature_verified": True,
+        }
+
+    def close(self) -> None:
+        if self.store is not None:
+            self.store.close()
+            self.store = None
+
 
 class TelegraphOfficeHandler(BaseHTTPRequestHandler):
-    server_version = "WWCXTelegraphOffice/0.2"
+    server_version = "WWCXTelegraphOffice/0.3"
 
     @property
     def state(self) -> TelegraphOfficeState:
@@ -156,6 +214,7 @@ class TelegraphOfficeHandler(BaseHTTPRequestHandler):
                 "status": "ok",
                 "office_id": self.state.office.office_id,
                 "uptime_seconds": max(0, int(time.time() - self.state.started_at)),
+                "persistent_storage": self.state.store is not None,
                 "production_ready": False,
             })
             return
@@ -194,26 +253,8 @@ class TelegraphOfficeHandler(BaseHTTPRequestHandler):
             self._json(status, payload)
             return
         if path == "/receipt":
-            message_id = document.get("message_id")
-            office_id = document.get("office_id")
-            if not isinstance(message_id, str) or not isinstance(office_id, str):
-                self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_receipt"})
-                return
-            with self.state.lock:
-                peer = self.state.peers.get(office_id)
-            if peer is None:
-                self._json(HTTPStatus.FORBIDDEN, {"error": "unknown_receipt_office"})
-                return
-            if not verify_document(document, peer["identity"]):
-                self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_receipt_signature"})
-                return
-            with self.state.lock:
-                self.state.receipts.setdefault(message_id, []).append(document)
-            self._json(HTTPStatus.ACCEPTED, {
-                "status": "receipt_recorded",
-                "message_id": message_id,
-                "signature_verified": True,
-            })
+            status, payload = self.state.record_external_receipt(document)
+            self._json(status, payload)
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
@@ -225,8 +266,14 @@ class TelegraphOfficeHTTPServer(ThreadingHTTPServer):
         super().__init__(address, TelegraphOfficeHandler)
         self.state = state
 
+    def server_close(self) -> None:
+        try:
+            super().server_close()
+        finally:
+            self.state.close()
 
-def build_state(office_id: str) -> TelegraphOfficeState:
+
+def build_state(office_id: str, database_path: str | Path | None = None) -> TelegraphOfficeState:
     office = Office(
         office_id=office_id,
         media={"secure_message", "attachment", "rtt_t140"},
@@ -239,7 +286,8 @@ def build_state(office_id: str) -> TelegraphOfficeState:
         },
         trust={},
     )
-    return TelegraphOfficeState(office=office)
+    store = TelegraphStore(database_path) if database_path is not None else None
+    return TelegraphOfficeState(office=office, store=store)
 
 
 def main() -> None:
@@ -247,9 +295,13 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--office-id", default="alpha.telegraph.ww.cx")
+    parser.add_argument("--database", help="SQLite database path; omit for ephemeral in-memory state")
     args = parser.parse_args()
 
-    server = TelegraphOfficeHTTPServer((args.host, args.port), build_state(args.office_id))
+    server = TelegraphOfficeHTTPServer(
+        (args.host, args.port),
+        build_state(args.office_id, args.database),
+    )
     print(f"Telegraph Office {args.office_id} listening on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
