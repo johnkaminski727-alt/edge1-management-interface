@@ -1,0 +1,19 @@
+{
+  "carrier_id": "test-carrier-001",
+  "name": "Test Carrier",
+  "status": "planned",
+  "created": "2026-07-20T10:40:34.514239Z",
+  "sip": {
+    "peer_id": "test-carrier-001-peer",
+    "transport": "tls",
+    "codecs": [
+      "PCMU",
+      "PCMA"
+    ]
+  },
+  "readiness": {
+    "registry_complete": true,
+    "sip_test_complete": false,
+    "routing_complete": false
+  }
+}

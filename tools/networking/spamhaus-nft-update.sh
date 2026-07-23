@@ -31,17 +31,9 @@ require_command() {
 download_list() {
   local url="$1"
   local target="$2"
-  "$CURL" \
-    --fail \
-    --silent \
-    --show-error \
-    --location \
-    --retry 3 \
-    --retry-delay 5 \
-    --connect-timeout 15 \
-    --max-time 90 \
-    --user-agent "BigBirdEdge1SpamhausFilter/1.0" \
-    "$url" > "$target"
+  "$CURL" --fail --silent --show-error --location --retry 3 --retry-delay 5 \
+    --connect-timeout 15 --max-time 90 \
+    --user-agent "BigBirdEdge1SpamhausFilter/1.1" "$url" > "$target"
 }
 
 require_root
@@ -107,16 +99,19 @@ drop4 = parse_networks(work_dir / "drop.txt", 4)
 edrop4 = parse_networks(work_dir / "edrop.txt", 4)
 drop6 = parse_networks(work_dir / "dropv6.txt", 6) if have_v6 else []
 
-if len(drop4) < 1:
+if not drop4:
     raise SystemExit("Spamhaus DROP list parsed as empty; refusing to change nftables")
 
-all4 = sorted(set(drop4 + edrop4), key=lambda item: ipaddress.ip_network(item))
+all4 = [
+    str(network)
+    for network in ipaddress.collapse_addresses(
+        sorted({ipaddress.ip_network(item) for item in drop4 + edrop4})
+    )
+]
 
 
 def elements(items: list[str]) -> str:
-    if not items:
-        return ""
-    return ",\n      ".join(items)
+    return ",\n      ".join(items) if items else ""
 
 
 drop6_set = ""
@@ -134,7 +129,7 @@ if drop6:
     drop6_rules = """
     ip6 saddr @drop6 counter drop"""
 
-prefix = f"flush table {family} {table}\n\n" if table_exists else ""
+prefix = f"delete table {family} {table}\n\n" if table_exists else ""
 
 ruleset = f"""{prefix}table {family} {table} {{
 

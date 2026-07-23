@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "source": "IANA Time Zone Database",
+  "timezones": [
+    {
+      "iana_name": "Atlantic/Reykjavik",
+      "country": "IS",
+      "dst_supported": false
+    },
+    {
+      "iana_name": "America/Toronto",
+      "country": "CA",
+      "dst_supported": true
+    },
+    {
+      "iana_name": "America/Vancouver",
+      "country": "CA",
+      "dst_supported": true
+    },
+    {
+      "iana_name": "America/New_York",
+      "country": "US",
+      "dst_supported": true
+    }
+  ]
+}

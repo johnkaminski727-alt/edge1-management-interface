@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "source": "ITU E.164",
+  "calling_codes": [
+    {
+      "country": "IS",
+      "calling_code": "+354"
+    },
+    {
+      "country": "CA",
+      "calling_code": "+1",
+      "region": "NANPA"
+    },
+    {
+      "country": "US",
+      "calling_code": "+1",
+      "region": "NANPA"
+    }
+  ]
+}

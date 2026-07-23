@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "sources": {
+    "countries": {
+      "standard": "ISO 3166-1",
+      "status": "bootstrap",
+      "target": "countries"
+    },
+    "calling_codes": {
+      "standard": "ITU E.164",
+      "status": "bootstrap",
+      "target": "calling_codes"
+    },
+    "timezones": {
+      "standard": "IANA TZDB",
+      "status": "bootstrap",
+      "target": "country_timezones"
+    },
+    "nanpa": {
+      "standard": "NANPA",
+      "status": "bootstrap",
+      "target": "nanpa_npa"
+    }
+  }
+}

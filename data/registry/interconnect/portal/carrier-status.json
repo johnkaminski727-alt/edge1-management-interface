@@ -1,0 +1,15 @@
+{
+  "generated": "2026-07-20T20:41:00.154126Z",
+  "carriers": [
+    {
+      "id": "edge1-lab-carrier",
+      "name": "Edge1 Internal SIP Test Carrier",
+      "status": "testing"
+    },
+    {
+      "id": "lab-carrier-001",
+      "name": "Lab SIP Carrier",
+      "status": "planned"
+    }
+  ]
+}

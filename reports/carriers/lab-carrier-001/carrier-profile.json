@@ -1,0 +1,19 @@
+{
+  "carrier_id": "lab-carrier-001",
+  "name": "Lab SIP Carrier",
+  "status": "planned",
+  "created": "2026-07-20T10:34:46.253777Z",
+  "sip": {
+    "peer_id": "lab-carrier-001-peer",
+    "transport": "tls",
+    "codecs": [
+      "PCMU",
+      "PCMA"
+    ]
+  },
+  "readiness": {
+    "registry_complete": true,
+    "sip_test_complete": false,
+    "routing_complete": false
+  }
+}

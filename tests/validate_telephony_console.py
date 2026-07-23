@@ -55,7 +55,7 @@ for marker in (
     "/healthz",
     "asterisk_snapshot",
     "process_running",
-    '"interconnects": []',
+    '"interconnects": interconnects',
     '"registrations": []',
     "wwcx-numbering-node.service",
 ):

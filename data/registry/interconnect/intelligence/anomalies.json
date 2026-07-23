@@ -1,0 +1,10 @@
+{
+  "anomalies": [
+    {
+      "peer": "lab-carrier-001-peer",
+      "type": "sip_peer_failure",
+      "severity": "warning",
+      "timestamp": "2026-07-20T19:59:35.456101Z"
+    }
+  ]
+}

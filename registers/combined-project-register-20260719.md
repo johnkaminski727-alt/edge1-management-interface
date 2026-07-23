@@ -58,6 +58,33 @@ Evidence window: `2026-07-19T18:28:23Z` through `2026-07-19T18:28:26Z`.
 | Messaging gateway | Warning | Inactive/absent; aggregate telephony status remains critical |
 | Audit redaction | Failure | Temporary wrapper leaked a synthetic bearer value |
 
+## BigBird Operations Console completion
+
+Status: Phase 1 Monitoring Complete
+
+The BigBird Operations Console provides a secure read-only operational view between WW.CX shared hosting administration and Edge1 private infrastructure.
+
+| Component | State | Evidence |
+| --- | --- | --- |
+| Edge1 Operations API | Pass | Authenticated loopback API with read-only monitoring actions |
+| Shared hosting bridge | Pass | PHP HMAC SHA-256 authenticated connector |
+| Operations Console UI | Pass | WW.CX admin dashboard deployed |
+| BigBird health monitoring | Pass | Health action integrated |
+| Messaging monitoring | Pass | Read-only health action integrated |
+| Numbering monitoring | Pass | Read-only health action integrated |
+| Telephony monitoring | Pass | Read-only health action integrated |
+| Time Authority monitoring | Pass | Consensus monitoring integrated |
+
+Future phases:
+
+- Analytics layer
+- Historical operational metrics
+- Controlled management workflows
+
+Security boundary:
+
+No unrestricted management endpoint exists. Future management capabilities require separate authorization, validation, approval, audit logging, and rollback workflows.
+
 ## Corrective actions completed outside Git
 
 | Change | Result | Rollback note |

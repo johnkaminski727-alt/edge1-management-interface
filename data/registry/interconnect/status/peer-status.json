@@ -1,0 +1,21 @@
+{
+  "peers": {
+    "edge1-lab-peer": {
+      "status": "healthy",
+      "last_check": "2026-07-20T10:41:47.461529Z",
+      "sip_options": {
+        "status": "healthy",
+        "response_code": 200,
+        "latency_ms": 0.45
+      }
+    },
+    "lab-carrier-001-peer": {
+      "status": "failed",
+      "last_check": "2026-07-20T10:41:47.461529Z",
+      "sip_options": {
+        "status": "failed",
+        "error": "[Errno -2] Name or service not known"
+      }
+    }
+  }
+}

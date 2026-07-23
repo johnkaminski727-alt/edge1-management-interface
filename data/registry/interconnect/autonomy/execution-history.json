@@ -1,0 +1,10 @@
+{
+  "executions": [
+    {
+      "target": "lab-carrier-001-peer",
+      "action": "verify endpoint and carrier connectivity",
+      "state": "pending_approval",
+      "timestamp": "2026-07-20T20:33:57.458571Z"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "strategy": "priority",
+  "fallback_allowed": true
+}

@@ -1,0 +1,801 @@
+npa,country,region,state,timezone,status
+200,001,Easily Recognizable Code,,,available
+201,US,General Purpose Code | Overlay 201/551,NJ,E,active
+202,US,General Purpose Code | Overlay 202/771,DC,E,active
+203,US,General Purpose Code | Overlay 203/475,CT,E,active
+204,CA,General Purpose Code | Overlay 204/431/584,MANITOBA,C,active
+205,US,General Purpose Code | Overlay 205/659,AL,C,active
+206,US,General Purpose Code | Overlay 206/564,WA,P,active
+207,US,General Purpose Code,ME,E,active
+208,US,General Purpose Code | Overlay 208/986,ID,MP,active
+209,US,General Purpose Code | Overlay 209/350,CA,P,active
+210,US,General Purpose Code | Overlay 210/726,TX,C,active
+211,001,Easily Recognizable Code,,,unavailable
+212,US,General Purpose Code | Overlay 212/332/646/917,NY,E,active
+213,US,General Purpose Code | Overlay 213/323/738,CA,P,active
+214,US,General Purpose Code | Overlay 214/469/945/972,TX,C,active
+215,US,General Purpose Code | Overlay 215/267/445,PA,E,active
+216,US,General Purpose Code,OH,E,active
+217,US,General Purpose Code | Overlay 217/447,IL,C,active
+218,US,General Purpose Code,MN,C,active
+219,US,General Purpose Code,IN,EC,active
+220,US,General Purpose Code | Overlay 220/740,OH,E,active
+221,001,General Purpose Code,,,available
+222,001,Easily Recognizable Code,,,available
+223,US,General Purpose Code | Overlay 223/717,PA,E,active
+224,US,General Purpose Code | Overlay 224/847,IL,C,active
+225,US,General Purpose Code,LA,C,active
+226,CA,General Purpose Code | Overlay 226/382/519/548,ONTARIO,E,active
+227,US,General Purpose Code | Overlay 227/240/301,MD,E,active
+228,US,General Purpose Code,MS,C,active
+229,US,General Purpose Code,GA,E,active
+230,001,General Purpose Code,,,available
+231,US,General Purpose Code,MI,E,active
+232,001,General Purpose Code,,,reserved
+233,001,Easily Recognizable Code,,,available
+234,US,General Purpose Code | Overlay 234/330,OH,E,active
+235,US,General Purpose Code | Overlay 235/573,MO,C,active
+236,CA,General Purpose Code | Overlay 236/250/257/604/672/778,BRITISH COLUMBIA,P,active
+237,001,General Purpose Code,,,reserved
+238,001,General Purpose Code,,,available
+239,US,General Purpose Code,FL,E,active
+240,US,General Purpose Code | Overlay 227/240/301,MD,E,active
+241,001,General Purpose Code,,,available
+242,BS,General Purpose Code,BAHAMAS,E,active
+243,001,General Purpose Code,,,available
+244,001,Easily Recognizable Code,,,available
+245,001,General Purpose Code,,,reserved
+246,BB,General Purpose Code,BARBADOS,A,active
+247,001,General Purpose Code,,,available
+248,US,General Purpose Code | Overlay 248/947,MI,E,active
+249,CA,central and northeastern Ontario | General Purpose Code | Overlay 249/683/705,ONTARIO,E,active
+250,CA,General Purpose Code | Overlay 236/250/257/672/778,BRITISH COLUMBIA,P,active
+251,US,General Purpose Code,AL,C,active
+252,US,General Purpose Code,NC,E,active
+253,US,General Purpose Code,WA,P,active
+254,US,General Purpose Code,TX,C,active
+255,001,Easily Recognizable Code,,,available
+256,US,General Purpose Code | Overlay 256/938,AL,C,active
+257,CA,General Purpose Code | Overlay 236/250/257/604/672/778,BRITISH COLUMBIA,P,active
+258,001,General Purpose Code,,,available
+259,001,General Purpose Code,,,available
+260,US,General Purpose Code,IN,E,active
+261,001,General Purpose Code,,,reserved
+262,US,General Purpose Code,WI,C,active
+263,CA,Montreal Quebec Canada | General Purpose Code | Overlay 263/438/514,QUEBEC,E,active
+264,AI,General Purpose Code,ANGUILLA,A,active
+265,001,General Purpose Code,,,reserved
+266,001,Easily Recognizable Code,,,available
+267,US,General Purpose Code | Overlay 215/267/445,PA,E,active
+268,AG,General Purpose Code,ANTIGUA/BARBUDA,A,active
+269,US,General Purpose Code,MI,E,active
+270,US,General Purpose Code | Overlay 270/364,KY,EC,active
+271,001,General Purpose Code,,,available
+272,US,General Purpose Code | Overlay 272/570,PA,E,active
+273,CA,Eastern Québec | General Purpose Code | Overlay 273/367/418/581,QUEBEC,E,assigned
+274,US,General Purpose Code | Overlay 274/920,WI,C,active
+275,001,General Purpose Code,,,available
+276,US,General Purpose Code,VA,E,active
+277,001,Easily Recognizable Code,,,available
+278,001,General Purpose Code,,,reserved
+279,US,General Purpose Code | Overlay 279/916,CA,P,active
+280,001,General Purpose Code,,,reserved
+281,US,General Purpose Code | Overlay 281/346/621/713/832,TX,C,active
+282,001,General Purpose Code,,,available
+283,US,General Purpose Code | Overlay 283/513,OH,E,active
+284,VG,General Purpose Code,BRITISH VIRGIN ISLANDS,A,active
+285,001,General Purpose Code,,,available
+286,001,General Purpose Code,,,available
+287,001,General Purpose Code,,,reserved
+288,001,Easily Recognizable Code,,,available
+289,CA,General Purpose Code | Overlay 289/365/742/905,ONTARIO,E,active
+290,001,General Purpose Code,,,reserved
+291,001,General Purpose Code,,,reserved
+292,001,General Purpose Code,,,reserved
+293,001,General Purpose Code,,,reserved
+294,001,General Purpose Code,,,reserved
+295,001,General Purpose Code,,,reserved
+296,001,General Purpose Code,,,reserved
+297,001,General Purpose Code,,,reserved
+298,001,General Purpose Code,,,reserved
+299,001,Easily Recognizable Code,,,reserved
+300,001,Easily Recognizable Code,,,available
+301,US,General Purpose Code | Overlay 240/227/301,MD,E,active
+302,US,General Purpose Code,DE,E,active
+303,US,General Purpose Code | Overlay 303/720/983,CO,M,active
+304,US,General Purpose Code | Overlay 304/681,WV,E,active
+305,US,General Purpose Code | Overlay 305/645/786,FL,E,active
+306,CA,General Purpose Code | Overlay 306/474/639,SASKATCHEWAN,C,active
+307,US,General Purpose Code,WY,M,active
+308,US,General Purpose Code,NE,CM,active
+309,US,General Purpose Code | Overlay 309/861,IL,C,active
+310,US,General Purpose Code | Overlay 310/424,CA,P,active
+311,001,Easily Recognizable Code,,,unavailable
+312,US,General Purpose Code | Overlay 312/872,IL,C,active
+313,US,General Purpose Code | Overlay 313/679,MI,E,active
+314,US,General Purpose Code | Overlay 314/557,MO,C,active
+315,US,General Purpose Code | Overlay 315/680,NY,E,active
+316,US,General Purpose Code,KS,C,active
+317,US,General Purpose Code | Overlay 317/463,IN,E,active
+318,US,General Purpose Code | Overlay 318/457,LA,C,active
+319,US,General Purpose Code,IA,C,active
+320,US,General Purpose Code,MN,C,active
+321,US,General Purpose Code,FL,E,active
+322,001,Easily Recognizable Code,,,available
+323,US,General Purpose Code | Overlay 213/323/738,CA,P,active
+324,US,General Purpose Code | Overlay 324/904,FL,E,active
+325,US,General Purpose Code,TX,C,active
+326,US,General Purpose Code | Overlay 326/937,OH,E,active
+327,US,General Purpose Code | Overlay 327/870,AR,C,active
+328,001,General Purpose Code,,,available
+329,US,General Purpose Code | Overlay 329/845,NY,E,active
+330,US,General Purpose Code | Overlay 234/330,OH,E,active
+331,US,General Purpose Code | Overlay 331/630,IL,C,active
+332,US,General Purpose Code | Overlay 212/332/646/917,NY,E,active
+333,001,Easily Recognizable Code,,,available
+334,US,General Purpose Code | Overlay 334/483,AL,C,active
+335,001,General Purpose Code,,,available
+336,US,General Purpose Code | Overlay 336/743,NC,E,active
+337,US,General Purpose Code,LA,C,active
+338,001,General Purpose Code,,,available
+339,US,General Purpose Code | Overlay 339/781,MA,E,active
+340,US,General Purpose Code,VI,A,active
+341,US,General Purpose Code | Overlay 341/510,CA,P,active
+342,001,General Purpose Code,,,available
+343,CA,eastern Ontario | General Purpose Code | Overlay 343/613/753,ONTARIO,E,active
+344,001,Easily Recognizable Code,,,available
+345,KY,General Purpose Code,CAYMAN ISLANDS,E,active
+346,US,General Purpose Code | Overlay 281/346/621/713/832,TX,C,active
+347,US,General Purpose Code | Overlay 347/465/718/917/929,NY,E,active
+348,001,General Purpose Code,,,available
+349,001,General Purpose Code,,,available
+350,US,General Purpose Code | Overlay 209/350,CA,P,active
+351,US,General Purpose Code | Overlay 351/978,MA,E,active
+352,US,General Purpose Code,FL,E,active
+353,US,General Purpose Code | Overlay 353/608,WI,C,active
+354,CA,General Purpose Code | Overlay 354/450/579,QUEBEC,E,active
+355,001,Easily Recognizable Code,,,available
+356,001,General Purpose Code,,,available
+357,US,General Purpose Code | Overlay 357/559,CA,P,active
+358,001,General Purpose Code,,,available
+359,001,General Purpose Code,,,reserved
+360,US,General Purpose Code | Overlay 360/564,WA,P,active
+361,US,General Purpose Code,TX,C,active
+362,001,General Purpose Code,,,available
+363,US,General Purpose Code | Overlay 363/516,NY,E,active
+364,US,General Purpose Code | Overlay 270/364,KY,EC,active
+365,CA,General Purpose Code | Overlay 289/365/742/905,ONTARIO,E,active
+366,001,Easily Recognizable Code,,,available
+367,CA,General Purpose Code | Overlay 367/418/581,QUEBEC,E,active
+368,CA,Alberta Canada | General Purpose Code | Overlay 368/403/587/780/825,ALBERTA,M,active
+369,US,General Purpose Code | Overlay 369/707,CA,P,active
+370,001,General Purpose Code,,,reserved
+371,001,General Purpose Code,,,reserved
+372,001,General Purpose Code,,,reserved
+373,001,General Purpose Code,,,reserved
+374,001,General Purpose Code,,,reserved
+375,001,General Purpose Code,,,reserved
+376,001,General Purpose Code,,,reserved
+377,001,Easily Recognizable Code,,,reserved
+378,001,General Purpose Code,,,reserved
+379,001,General Purpose Code,,,reserved
+380,US,General Purpose Code | Overlay 380/614,OH,E,active
+381,001,General Purpose Code,,,reserved
+382,CA,southwestern Ontario | General Purpose Code | Overlay 226/382/519/548,ONTARIO,E,active
+383,001,General Purpose Code,,,available
+384,001,General Purpose Code,,,reserved
+385,US,General Purpose Code | Overlay 385/801,UT,M,active
+386,US,General Purpose Code,FL,E,active
+387,CA,General Purpose Code,,,reserved
+388,001,Easily Recognizable Code,,,available
+389,001,General Purpose Code,,,reserved
+390,001,General Purpose Code,,,reserved
+391,001,General Purpose Code,,,reserved
+392,001,General Purpose Code,,,reserved
+393,001,General Purpose Code,,,reserved
+394,001,General Purpose Code,,,reserved
+395,001,General Purpose Code,,,reserved
+396,001,General Purpose Code,,,reserved
+397,001,General Purpose Code,,,reserved
+398,001,General Purpose Code,,,reserved
+399,001,Easily Recognizable Code,,,reserved
+400,001,Easily Recognizable Code,,,available
+401,US,General Purpose Code,RI,E,active
+402,US,General Purpose Code | Overlay 402/531,NE,C,active
+403,CA,General Purpose Code | Overlay 368/403/587/825,ALBERTA,M,active
+404,US,General Purpose Code | Overlay 404/470/678/943,GA,E,active
+405,US,General Purpose Code | Overlay 405/572,OK,C,active
+406,US,General Purpose Code,MT,M,active
+407,US,General Purpose Code | Overlay 321/407/689,FL,E,active
+408,US,General Purpose Code | Overlay 408/669,CA,P,active
+409,US,General Purpose Code,TX,C,active
+410,US,General Purpose Code | Overlay 410/443/667,MD,E,active
+411,001,Easily Recognizable Code,,,unavailable
+412,US,General Purpose Code | Overlay 412/878,PA,E,active
+413,US,General Purpose Code,MA,E,active
+414,US,General Purpose Code,WI,C,active
+415,US,General Purpose Code | Overlay 415/628,CA,P,active
+416,CA,General Purpose Code | Overlay 416/437/647,ONTARIO,E,active
+417,US,General Purpose Code,MO,C,active
+418,CA,General Purpose Code | Overlay 367/418/581,QUEBEC,E,active
+419,US,General Purpose Code | Overlay 419/567,OH,E,active
+420,001,General Purpose Code,,,reserved
+421,001,General Purpose Code,,,reserved
+422,001,Easily Recognizable Code,,,available
+423,US,General Purpose Code | Overlay 423/729,TN,EC,active
+424,US,General Purpose Code | Overlay 310/424,CA,P,active
+425,US,General Purpose Code,WA,P,active
+426,001,General Purpose Code,,,reserved
+427,001,General Purpose Code,,,available
+428,CA,New Brunswick CA | General Purpose Code | Overlay 428/506,NEW BRUNSWICK,A,active
+429,001,General Purpose Code,,,reserved
+430,US,General Purpose Code | Overlay 430/903,TX,C,active
+431,CA,General Purpose Code | Overlay 204/431/584,MANITOBA,C,active
+432,US,General Purpose Code,TX,C,active
+433,001,Easily Recognizable Code,,,available
+434,US,General Purpose Code,VA,E,active
+435,US,General Purpose Code,UT,M,active
+436,US,General Purpose Code | Overlay 436/440,OH,E,active
+437,CA,General Purpose Code | Overlay 416/437/647,ONTARIO,E,active
+438,CA,General Purpose Code | Overlay 263/438/514,QUEBEC,E,active
+439,001,General Purpose Code,,,available
+440,US,General Purpose Code | Overlay 440/436,OH,E,active
+441,BM,General Purpose Code,BERMUDA,A,active
+442,US,General Purpose Code | Overlay 442/760,CA,P,active
+443,US,General Purpose Code | Overlay 410/443/667,MD,E,active
+444,001,Easily Recognizable Code,,,available
+445,US,General Purpose Code | Overlay 215/267/445,PA,E,active
+446,001,General Purpose Code,,,available
+447,US,General Purpose Code | Overlay 217/447,IL,C,active
+448,US,Florida | General Purpose Code | Overlay 448/850,FL,EC,active
+449,001,General Purpose Code,,,reserved
+450,CA,General Purpose Code | Overlay 354/450/579,QUEBEC,E,active
+451,001,General Purpose Code,,,reserved
+452,001,General Purpose Code,,,available
+453,001,General Purpose Code,,,reserved
+454,001,General Purpose Code,,,available
+455,001,Easily Recognizable Code,,,available
+456,001,General Purpose Code,,,available
+457,US,General Purpose Code | Overlay 318/457,LA,C,active
+458,US,General Purpose Code | Overlay 458/541,OR,MP,active
+459,001,General Purpose Code,,,reserved
+460,CA,General Purpose Code,,,reserved
+461,001,General Purpose Code,,,available
+462,001,General Purpose Code,,,reserved
+463,US,General Purpose Code | Overlay 317/463,IN,E,active
+464,US,General Purpose Code | Overlay 464/708,IL,C,active
+465,US,General Purpose Code | Overlay 347/465/718/917/929,NY,E,active
+466,001,Easily Recognizable Code,,,available
+467,001,General Purpose Code,,,available
+468,CA,western Quebec | General Purpose Code | Overlay 468/819/873,QUEBEC,E,active
+469,US,General Purpose Code | Overlay 214/469/945/972,TX,C,active
+470,US,General Purpose Code | Overlay 404/470/678/770/943,GA,E,active
+471,US,General Purpose Code | Overlay 471/662,MS,C,active
+472,US,General Purpose Code | Overlay 472/910,NC,E,active
+473,GD,General Purpose Code,GRENADA,A,active
+474,CA,Saskatchewan Canada | General Purpose Code | Overlay 306/474/639,SASKATCHEWAN,C,active
+475,US,General Purpose Code | Overlay 203/475,CT,E,active
+476,001,General Purpose Code,,,reserved
+477,001,Easily Recognizable Code,,,available
+478,US,General Purpose Code,GA,E,active
+479,US,General Purpose Code,AR,C,active
+480,US,General Purpose Code | Overlay 480/602/623,AZ,M,active
+481,001,General Purpose Code,,,reserved
+482,001,General Purpose Code,,,available
+483,US,General Purpose Code | Overlay 334/483,AL,C,active
+484,US,General Purpose Code | Overlay 484/610/835,PA,E,active
+485,001,General Purpose Code,,,available
+486,001,General Purpose Code,,,available
+487,CA,General Purpose Code,,,reserved
+488,001,Easily Recognizable Code,,,available
+489,001,General Purpose Code,,,available
+490,001,General Purpose Code,,,reserved
+491,001,General Purpose Code,,,reserved
+492,001,General Purpose Code,,,reserved
+493,001,General Purpose Code,,,reserved
+494,001,General Purpose Code,,,reserved
+495,001,General Purpose Code,,,reserved
+496,001,General Purpose Code,,,reserved
+497,001,General Purpose Code,,,reserved
+498,001,General Purpose Code,,,reserved
+499,001,Easily Recognizable Code,,,reserved
+500,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+501,US,General Purpose Code,AR,C,active
+502,US,General Purpose Code | Overlay 502/761,KY,E,active
+503,US,General Purpose Code | Overlay 503/971,OR,P,active
+504,US,General Purpose Code,LA,C,active
+505,US,General Purpose Code,NM,M,active
+506,CA,General Purpose Code | Overlay 428/506,NEW BRUNSWICK,A,active
+507,US,General Purpose Code | Overlay 507/924,MN,C,active
+508,US,General Purpose Code | Overlay 508/774,MA,E,active
+509,US,General Purpose Code,WA,P,active
+510,US,General Purpose Code | Overlay 341/510,CA,P,active
+511,001,Easily Recognizable Code,,,unavailable
+512,US,General Purpose Code | Overlay 512/737,TX,C,active
+513,US,General Purpose Code | Overlay 283/513,OH,E,active
+514,CA,General Purpose Code | Overlay 263/438/514,QUEBEC,E,active
+515,US,General Purpose Code,IA,C,active
+516,US,General Purpose Code | Overlay 363/516,NY,E,active
+517,US,General Purpose Code,MI,E,active
+518,US,General Purpose Code | Overlay 518/838,NY,E,active
+519,CA,General Purpose Code | Overlay 226/382/519/548,ONTARIO,E,active
+520,US,General Purpose Code,AZ,M,active
+521,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+522,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+523,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+524,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+525,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+526,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+527,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+528,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+529,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+530,US,General Purpose Code | Overlay 530/837,CA,P,active
+531,US,General Purpose Code | Overlay 402/531,NE,C,active
+532,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+533,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+534,US,General Purpose Code | Overlay 534/715,WI,C,active
+535,001,General Purpose Code,NANP AREA,,reserved
+536,001,General Purpose Code,,,available
+537,CA,General Purpose Code,,,reserved
+538,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+539,US,General Purpose Code | Overlay 539/918,OK,C,active
+540,US,General Purpose Code | Overlay 540/826,VA,E,active
+541,US,General Purpose Code | Overlay 458/541,OR,MP,active
+542,US,General Purpose Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+543,001,General Purpose Code,NANP AREA,,assigned
+544,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+545,001,General Purpose Code,NANP AREA,,reserved
+546,001,General Purpose Code,NANP AREA,,reserved
+547,001,General Purpose Code,NANP AREA,,reserved
+548,CA,General Purpose Code | Overlay 226/382/519/548,ONTARIO,E,active
+549,001,General Purpose Code,NANP AREA,,reserved
+550,001,General Purpose Code,NANP AREA,,reserved
+551,US,General Purpose Code | Overlay 201/551,NJ,E,active
+552,001,General Purpose Code,NANP AREA,,reserved
+553,001,General Purpose Code,NANP AREA,,reserved
+554,001,General Purpose Code,NANP AREA,,reserved
+555,001,Easily Recognizable Code,,,unavailable
+556,001,General Purpose Code,NANP AREA,,reserved
+557,US,General Purpose Code | Overlay 314/557,MO,C,active
+558,001,General Purpose Code,NANP AREA,,reserved
+559,US,General Purpose Code | Overlay 357/559,CA,P,active
+560,001,General Purpose Code,,,available
+561,US,General Purpose Code | Overlay 561/728,FL,E,active
+562,US,General Purpose Code,CA,P,active
+563,US,General Purpose Code,IA,C,active
+564,US,"General Purpose Code | Overlay 206/564, 360/564",WA,P,active
+565,US,General Purpose Code | Overlay 565/912,GA,E,assigned
+566,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+567,US,General Purpose Code | Overlay 419/567,OH,E,active
+568,CA,General Purpose Code,,,reserved
+569,001,General Purpose Code,NANP AREA,,reserved
+570,US,General Purpose Code | Overlay 272/570,PA,E,active
+571,US,General Purpose Code | Overlay 571/703,VA,E,active
+572,US,General Purpose Code | Overlay 405/572,OK,C,active
+573,US,General Purpose Code | Overlay 235/573,MO,C,active
+574,US,General Purpose Code,IN,EC,active
+575,US,General Purpose Code,NM,M,active
+576,001,General Purpose Code,,,available
+577,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+578,001,General Purpose Code,NANP AREA,,reserved
+579,CA,General Purpose Code | Overlay 354/450/579,QUEBEC,E,active
+580,US,General Purpose Code,OK,C,active
+581,CA,General Purpose Code | Overlay 367/418/581,QUEBEC,E,active
+582,US,General Purpose Code | Overlay 582/814,PA,E,active
+583,001,General Purpose Code,,,reserved
+584,CA,General Purpose Code | Overlay 204/431/584,MANITOBA,C,active
+585,US,General Purpose Code,NY,E,active
+586,US,General Purpose Code,MI,E,active
+587,CA,General Purpose Code | Overlay 368/403/587/780/825,ALBERTA,M,active
+588,US,Easily Recognizable Code | Overlay 500/533/544/566/577/588/521/522/523/524/525/526/527/528/529/532/538/542,NANP AREA,E,active
+589,001,General Purpose Code,NANP AREA,,reserved
+590,001,General Purpose Code,,,reserved
+591,001,General Purpose Code,,,reserved
+592,001,General Purpose Code,,,reserved
+593,001,General Purpose Code,,,reserved
+594,001,General Purpose Code,,,reserved
+595,001,General Purpose Code,,,reserved
+596,001,General Purpose Code,,,reserved
+597,001,General Purpose Code,,,reserved
+598,001,General Purpose Code,,,reserved
+599,001,Easily Recognizable Code,,,reserved
+600,CA,Easily Recognizable Code,,E,active
+601,US,General Purpose Code | Overlay 601/769,MS,C,active
+602,US,General Purpose Code | Overlay 480/602/623,AZ,M,active
+603,US,General Purpose Code,NH,E,active
+604,CA,General Purpose Code | Overlay 236/257/604/672/778,BRITISH COLUMBIA,P,active
+605,US,General Purpose Code,SD,CM,active
+606,US,General Purpose Code,KY,EC,active
+607,US,General Purpose Code,NY,E,active
+608,US,General Purpose Code | Overlay 353/608,WI,C,active
+609,US,General Purpose Code | Overlay 609/640,NJ,E,active
+610,US,General Purpose Code | Overlay 484/610/835,PA,E,active
+611,001,Easily Recognizable Code,,,unavailable
+612,US,General Purpose Code,MN,C,active
+613,CA,General Purpose Code | Overlay 343/613/753,ONTARIO,E,active
+614,US,General Purpose Code | Overlay 380/614,OH,E,active
+615,US,General Purpose Code | Overlay 615/629,TN,C,active
+616,US,General Purpose Code,MI,E,active
+617,US,General Purpose Code | Overlay 617/857,MA,E,active
+618,US,General Purpose Code | Overlay 618/730,IL,C,active
+619,US,General Purpose Code | Overlay 619/858,CA,P,active
+620,US,General Purpose Code,KS,CM,active
+621,US,General Purpose Code | Overlay 281/346/621/713/832,TX,C,active
+622,CA,Easily Recognizable Code | Overlay 622/633,,E,active
+623,US,General Purpose Code | Overlay 480/602/623,AZ,M,active
+624,US,General Purpose Code | Overlay 624/716,NY,E,active
+625,001,General Purpose Code,,,reserved
+626,US,General Purpose Code,CA,P,active
+627,001,General Purpose Code,,,reserved
+628,US,General Purpose Code | Overlay 415/628,CA,P,active
+629,US,General Purpose Code | Overlay 615/629,TN,C,active
+630,US,General Purpose Code | Overlay 331/630,IL,C,active
+631,US,General Purpose Code | Overlay 631/934,NY,E,active
+632,001,General Purpose Code,,,available
+633,CA,Easily Recognizable Code | Overlay 622/633,,E,active
+634,001,General Purpose Code,,,reserved
+635,001,General Purpose Code,,,available
+636,US,General Purpose Code,MO,C,active
+637,001,General Purpose Code,,,available
+638,001,General Purpose Code,,,available
+639,CA,General Purpose Code | Overlay 306/474/639,SASKATCHEWAN,C,active
+640,US,General Purpose Code | Overlay 609/640,NJ,E,active
+641,US,General Purpose Code,IA,C,active
+642,001,General Purpose Code,,,available
+643,001,General Purpose Code,,,available
+644,001,Easily Recognizable Code,,,reserved
+645,US,General Purpose Code | Overlay 305/645/786,FL,E,active
+646,US,General Purpose Code | Overlay 212/332/646/917,NY,E,active
+647,CA,General Purpose Code | Overlay 416/437/647,ONTARIO,E,active
+648,001,General Purpose Code,,,available
+649,TC,General Purpose Code,TURKS & CAICOS ISLANDS,E,active
+650,US,General Purpose Code,CA,P,active
+651,US,General Purpose Code,MN,C,active
+652,001,General Purpose Code,,,available
+653,001,General Purpose Code,,,available
+654,001,General Purpose Code,,,available
+655,001,Easily Recognizable Code,,,reserved
+656,US,General Purpose Code | Overlay 813/656,FL,E,active
+657,US,General Purpose Code | Overlay 657/714,CA,P,active
+658,JM,General Purpose Code | Overlay 658/876,JAMAICA,E,active
+659,US,General Purpose Code | Overlay 205/659,AL,C,active
+660,US,General Purpose Code,MO,C,active
+661,US,General Purpose Code,CA,P,active
+662,US,General Purpose Code | Overlay 471/662,MS,C,active
+663,001,General Purpose Code,,,available
+664,MS,General Purpose Code,MONTSERRAT,A,active
+665,001,General Purpose Code,,,reserved
+666,001,Easily Recognizable Code,,,available
+667,US,General Purpose Code | Overlay 410/443/667,MD,E,active
+668,001,General Purpose Code,,,available
+669,US,General Purpose Code | Overlay 408/669,CA,P,active
+670,US,General Purpose Code,CNMI,(UTC+10),active
+671,US,General Purpose Code,GU,(UTC+10),active
+672,CA,General Purpose Code | Overlay 236/250/257/604/672/778,BRITISH COLUMBIA,P,active
+673,001,General Purpose Code,,,reserved
+674,001,General Purpose Code,,,available
+675,001,General Purpose Code,,,available
+676,001,General Purpose Code,,,reserved
+677,001,Easily Recognizable Code,,,reserved
+678,US,General Purpose Code | Overlay 404/470/678/770/943,GA,E,active
+679,US,General Purpose Code | Overlay 313/679,MI,E,active
+680,US,General Purpose Code | Overlay 315/680,NY,E,active
+681,US,General Purpose Code | Overlay 304/681,WV,E,active
+682,US,General Purpose Code | Overlay 682/817,TX,C,active
+683,CA,central and northeastern Ontario | General Purpose Code | Overlay 249/683/705,ONTARIO,E,active
+684,US,General Purpose Code,AS,UTC-11,active
+685,001,General Purpose Code,,,available
+686,US,General Purpose Code | Overlay 686/804,VA,E,active
+687,001,General Purpose Code,,,reserved
+688,001,Easily Recognizable Code,,,reserved
+689,US,General Purpose Code | Overlay 321/407/689,FL,E,active
+690,001,General Purpose Code,,,reserved
+691,001,General Purpose Code,,,reserved
+692,001,General Purpose Code,,,reserved
+693,001,General Purpose Code,,,reserved
+694,001,General Purpose Code,,,reserved
+695,001,General Purpose Code,,,reserved
+696,001,General Purpose Code,,,reserved
+697,001,General Purpose Code,,,reserved
+698,001,General Purpose Code,,,reserved
+699,001,Easily Recognizable Code,,,reserved
+700,001,Easily Recognizable Code,NANP AREA,E,active
+701,US,General Purpose Code,ND,CM,active
+702,US,General Purpose Code | Overlay 702/725,NV,P,active
+703,US,General Purpose Code | Overlay 571/703,VA,E,active
+704,US,General Purpose Code | Overlay 704/980,NC,E,active
+705,CA,General Purpose Code | Overlay 249/683/705,ONTARIO,E,active
+706,US,General Purpose Code | Overlay 706/762,GA,E,active
+707,US,General Purpose Code | Overlay 369/707,CA,P,active
+708,US,General Purpose Code | Overlay 464/708,IL,C,active
+709,CA,General Purpose Code | Overlay 709/879,NEWFOUNDLAND AND LABRADOR,N,active
+710,US,General Purpose Code,,E,active
+711,001,Easily Recognizable Code,,,unavailable
+712,US,General Purpose Code,IA,C,active
+713,US,General Purpose Code | Overlay 281/346/621/713/832,TX,C,active
+714,US,General Purpose Code | Overlay 657/714,CA,P,active
+715,US,General Purpose Code | Overlay 534/715,WI,C,active
+716,US,General Purpose Code | Overlay 624/716,NY,E,active
+717,US,General Purpose Code | Overlay 223/717,PA,E,active
+718,US,General Purpose Code | Overlay 347/465/718/917/929,NY,E,active
+719,US,General Purpose Code,CO,M,active
+720,US,General Purpose Code | Overlay 303/720/983,CO,M,active
+721,SX,General Purpose Code,SINT MAARTEN,A,active
+722,001,Easily Recognizable Code,,,available
+723,001,General Purpose Code,,,reserved
+724,US,General Purpose Code | Overlay 724/878,PA,E,active
+725,US,General Purpose Code | Overlay 702/725,NV,P,active
+726,US,General Purpose Code | Overlay 210/726,TX,C,active
+727,US,General Purpose Code,FL,E,active
+728,US,General Purpose Code | Overlay 561/728,FL,E,active
+729,US,General Purpose Code | Overlay 423/729,TN,EC,active
+730,US,General Purpose Code | Overlay 618/730,IL,C,active
+731,US,General Purpose Code,TN,C,active
+732,US,General Purpose Code | Overlay 732/848,NJ,E,active
+733,001,Easily Recognizable Code,,,available
+734,US,General Purpose Code | Overlay 679/734,MI,E,active
+735,001,General Purpose Code,,,available
+736,001,General Purpose Code,,,available
+737,US,General Purpose Code | Overlay 512/737,TX,C,active
+738,US,General Purpose Code | Overlay 213/323/738,CA,P,active
+739,001,General Purpose Code,,,available
+740,US,General Purpose Code | Overlay 220/740,OH,E,active
+741,001,General Purpose Code,,,reserved
+742,CA,General Purpose Code | Overlay 289/365/742/905,ONTARIO,E,active
+743,US,General Purpose Code | Overlay 336/743,NC,E,active
+744,001,Easily Recognizable Code,,,available
+745,001,General Purpose Code,,,available
+746,001,General Purpose Code,,,available
+747,US,General Purpose Code | Overlay 747/818,CA,P,active
+748,US,General Purpose Code | Overlay 748/970,CO,M,active
+749,001,General Purpose Code,,,available
+750,001,General Purpose Code,,,reserved
+751,001,General Purpose Code,,,available
+752,001,General Purpose Code,,,reserved
+753,CA,eastern Ontario | General Purpose Code | Overlay 343/613/753,ONTARIO,E,active
+754,US,General Purpose Code | Overlay 754/954,FL,E,active
+755,001,Easily Recognizable Code,,,available
+756,001,General Purpose Code,,,available
+757,US,General Purpose Code | Overlay 757/948,VA,E,active
+758,LC,General Purpose Code,ST. LUCIA,A,active
+759,001,General Purpose Code,,,available
+760,US,General Purpose Code | Overlay 442/760,CA,P,active
+761,US,General Purpose Code | Overlay 502/761,KY,E,assigned
+762,US,General Purpose Code | Overlay 706/762,GA,E,active
+763,US,General Purpose Code,MN,C,active
+764,001,General Purpose Code,,,available
+765,US,General Purpose Code,IN,E,active
+766,001,Easily Recognizable Code,,,available
+767,DM,General Purpose Code,DOMINICA,A,active
+768,001,General Purpose Code,,,available
+769,US,General Purpose Code | Overlay 601/769,MS,C,active
+770,US,General Purpose Code | Overlay 470/678/770/943,GA,E,active
+771,US,DISTRICT OF COLUMBIA | General Purpose Code | Overlay 202/771,DC,E,active
+772,US,General Purpose Code,FL,E,active
+773,US,General Purpose Code | Overlay 773/872,IL,C,active
+774,US,General Purpose Code | Overlay 508/774,MA,E,active
+775,US,General Purpose Code,NV,PT/MT only for W Wendover,active
+776,001,General Purpose Code,,,available
+777,001,Easily Recognizable Code,,,available
+778,CA,General Purpose Code | Overlay 236/250/257/604/672/778,BRITISH COLUMBIA,P,active
+779,US,General Purpose Code | Overlay 779/815,IL,C,active
+780,CA,General Purpose Code | Overlay 368/587/780/825,ALBERTA,M,active
+781,US,General Purpose Code | Overlay 339/781,MA,E,active
+782,CA,General Purpose Code | Overlay 782/902,NOVA SCOTIA - PRINCE EDWARD ISLAND,A,active
+783,001,General Purpose Code,,,available
+784,VC,General Purpose Code,ST. VINCENT & GRENADINES,A,active
+785,US,General Purpose Code,KS,CM,active
+786,US,General Purpose Code | Overlay 305/645/786,FL,E,active
+787,US,General Purpose Code | Overlay 787/939,PR,A,active
+788,001,Easily Recognizable Code,,,available
+789,001,General Purpose Code,,,available
+790,001,General Purpose Code,,,reserved
+791,001,General Purpose Code,,,reserved
+792,001,General Purpose Code,,,reserved
+793,001,General Purpose Code,,,reserved
+794,001,General Purpose Code,,,reserved
+795,001,General Purpose Code,,,reserved
+796,001,General Purpose Code,,,reserved
+797,001,General Purpose Code,,,reserved
+798,001,General Purpose Code,,,reserved
+799,001,Easily Recognizable Code,,,reserved
+800,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+801,US,General Purpose Code | Overlay 385/801,UT,M,active
+802,US,General Purpose Code,VT,E,active
+803,US,General Purpose Code | Overlay 803/839,SC,E,active
+804,US,General Purpose Code | Overlay 686/804,VA,E,active
+805,US,General Purpose Code | Overlay 805/820,CA,P,active
+806,US,General Purpose Code,TX,C,active
+807,CA,General Purpose Code,ONTARIO,EC,active
+808,US,General Purpose Code,HI,(UTC-10),active
+809,DO,General Purpose Code | Overlay 809/829/849,DOMINICAN REPUBLIC,A,active
+810,US,General Purpose Code,MI,E,active
+811,001,Easily Recognizable Code,,,unavailable
+812,US,General Purpose Code | Overlay 812/930,IN,EC,active
+813,US,General Purpose Code | Overlay 813/656,FL,E,active
+814,US,General Purpose Code | Overlay 582/814,PA,E,active
+815,US,General Purpose Code | Overlay 779/815,IL,C,active
+816,US,General Purpose Code | Overlay 816/975,MO,C,active
+817,US,General Purpose Code | Overlay 682/817,TX,C,active
+818,US,General Purpose Code | Overlay 747/818,CA,P,active
+819,CA,General Purpose Code | Overlay 468/819/873,QUEBEC,E,active
+820,US,General Purpose Code | Overlay 805/820,CA,P,active
+821,US,General Purpose Code | Overlay 821/864,SC,E,active
+822,001,Easily Recognizable Code,NANP AREA,,assigned
+823,001,General Purpose Code,,,reserved
+824,001,General Purpose Code,,,reserved
+825,CA,General Purpose Code | Overlay 368/403/587/780/825,ALBERTA,M,active
+826,US,General Purpose Code | Overlay 540/826,VA,E,active
+827,001,General Purpose Code,,,available
+828,US,General Purpose Code,NC,E,active
+829,DO,General Purpose Code | Overlay 809/829/849,DOMINICAN REPUBLIC,E,active
+830,US,General Purpose Code,TX,C,active
+831,US,General Purpose Code,CA,P,active
+832,US,General Purpose Code | Overlay 281/346/713/832,TX,C,active
+833,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+834,001,General Purpose Code,,,available
+835,US,General Purpose Code | Overlay 484/610/835,PA,E,active
+836,001,General Purpose Code,,,available
+837,US,General Purpose Code | Overlay 530/837,CA,P,active
+838,US,General Purpose Code | Overlay 518/838,NY,E,active
+839,US,General Purpose Code | Overlay 803/839,SC,E,active
+840,US,General Purpose Code | Overlay 840/909,CA,P,active
+841,001,General Purpose Code,,,available
+842,001,General Purpose Code,,,available
+843,US,General Purpose Code | Overlay 843/854,SC,E,active
+844,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+845,US,General Purpose Code | Overlay 329/845,NY,E,active
+846,001,General Purpose Code,,,available
+847,US,General Purpose Code | Overlay 224/847,IL,C,active
+848,US,General Purpose Code | Overlay 732/848,NJ,E,active
+849,DO,General Purpose Code | Overlay 809/829/849,DOMINICAN REPUBLIC,E,active
+850,US,General Purpose Code | Overlay 448/850,FL,EC,active
+851,CA,General Purpose Code,,,reserved
+852,001,General Purpose Code,,,available
+853,001,General Purpose Code,,,available
+854,US,General Purpose Code | Overlay 843/854,SC,E,active
+855,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+856,US,General Purpose Code,NJ,E,active
+857,US,General Purpose Code | Overlay 617/857,MA,E,active
+858,US,General Purpose Code | Overlay 619/858,CA,P,active
+859,US,General Purpose Code,KY,E,active
+860,US,General Purpose Code | Overlay 860/959,CT,E,active
+861,US,General Purpose Code | Overlay 309/861,IL,C,active
+862,US,General Purpose Code | Overlay 862/973,NJ,E,active
+863,US,General Purpose Code,FL,E,active
+864,US,General Purpose Code | Overlay 821/864,SC,E,active
+865,US,General Purpose Code,TN,E,active
+866,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+867,CA,General Purpose Code,NORTHWEST TERRITORIES -YUKON - NUNAVUT,CMP,active
+868,TT,General Purpose Code,TRINIDAD & TOBAGO,A,active
+869,KN,General Purpose Code,ST. KITTS & NEVIS,A,active
+870,US,General Purpose Code | Overlay 327/870,AR,C,active
+871,CA,General Purpose Code,,,reserved
+872,US,"General Purpose Code | Overlay 312/872, 773/872",IL,C,active
+873,CA,western Quebec | General Purpose Code | Overlay 468/819/873,QUEBEC,E,active
+874,001,General Purpose Code,,,available
+875,001,General Purpose Code,,,available
+876,JM,General Purpose Code | Overlay 658/876,JAMAICA,E,active
+877,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+878,US,"General Purpose Code | Overlay 412/878, 724/878",PA,E,active
+879,CA,General Purpose Code | Overlay 709/879,NEWFOUNDLAND AND LABRADOR,N,active
+880,001,General Purpose Code,,,reserved
+881,001,General Purpose Code,,,reserved
+882,001,General Purpose Code,,,reserved
+883,001,General Purpose Code,,,reserved
+884,001,General Purpose Code,,,reserved
+885,001,General Purpose Code,,,reserved
+886,001,General Purpose Code,,,reserved
+887,001,General Purpose Code,,,reserved
+888,001,Easily Recognizable Code | Overlay 800/888/877/866/855/844/833,NANP AREA,E,active
+889,001,General Purpose Code,,,reserved
+890,001,General Purpose Code,,,reserved
+891,001,General Purpose Code,,,reserved
+892,001,General Purpose Code,,,reserved
+893,001,General Purpose Code,,,reserved
+894,001,General Purpose Code,,,reserved
+895,001,General Purpose Code,,,reserved
+896,001,General Purpose Code,,,reserved
+897,001,General Purpose Code,,,reserved
+898,001,General Purpose Code,,,reserved
+899,001,Easily Recognizable Code,,,reserved
+900,001,Easily Recognizable Code,NANP AREA,E,active
+901,US,General Purpose Code,TN,C,active
+902,CA,General Purpose Code | Overlay 782/902,NOVA SCOTIA - PRINCE EDWARD ISLAND,A,active
+903,US,General Purpose Code | Overlay 430/903,TX,C,active
+904,US,General Purpose Code | Overlay 324/904,FL,E,active
+905,CA,General Purpose Code | Overlay 289/365/742/905,ONTARIO,E,active
+906,US,General Purpose Code,MI,EC,active
+907,US,General Purpose Code,AK,AK,active
+908,US,General Purpose Code,NJ,E,active
+909,US,General Purpose Code | Overlay 840/909,CA,P,active
+910,US,General Purpose Code | Overlay 472/910,NC,E,active
+911,001,Easily Recognizable Code,,,unavailable
+912,US,General Purpose Code | Overlay 565/912,GA,E,active
+913,US,General Purpose Code,KS,C,active
+914,US,General Purpose Code,NY,E,active
+915,US,General Purpose Code,TX,CM,active
+916,US,General Purpose Code | Overlay 279/916,CA,P,active
+917,US,"General Purpose Code | Overlay 212/332/646/917, 347/465/718/917/929",NY,E,active
+918,US,General Purpose Code | Overlay 539/918,OK,C,active
+919,US,General Purpose Code | Overlay 919/984,NC,E,active
+920,US,General Purpose Code | Overlay 274/920,WI,C,active
+921,001,General Purpose Code,,,reserved
+922,001,Easily Recognizable Code,,,available
+923,001,General Purpose Code,,,reserved
+924,US,General Purpose Code | Overlay 507/924,MN,C,active
+925,US,General Purpose Code,CA,P,active
+926,CA,General Purpose Code,,,reserved
+927,001,General Purpose Code,,,available
+928,US,General Purpose Code,AZ,M,active
+929,US,General Purpose Code | Overlay 347/465/718/917/929,NY,E,active
+930,US,General Purpose Code | Overlay 812/930,IN,E,active
+931,US,General Purpose Code,TN,EC,active
+932,001,General Purpose Code,,,available
+933,001,Easily Recognizable Code,,,available
+934,US,General Purpose Code | Overlay 631/934,NY,E,active
+935,US,General Purpose Code,,,available
+936,US,General Purpose Code,TX,C,active
+937,US,General Purpose Code | Overlay 326/937,OH,E,active
+938,US,General Purpose Code | Overlay 256/938,AL,C,active
+939,US,General Purpose Code | Overlay 787/939,PR,A,active
+940,US,General Purpose Code,TX,C,active
+941,US,General Purpose Code,FL,E,active
+942,CA,Toronto Ontario | General Purpose Code | Overlay 416/437/647/942,ONTARIO,E,active
+943,US,"General Purpose Code | Overlay 404/470/678/943, 470/678/770/943",GA,E,active
+944,001,Easily Recognizable Code,,,available
+945,US,General Purpose Code | Overlay 214/469/945/972,TX,C,active
+946,001,General Purpose Code,,,available
+947,US,General Purpose Code | Overlay 248/947,MI,E,active
+948,US,General Purpose Code | Overlay 757/948,VA,E,active
+949,US,General Purpose Code,CA,P,active
+950,001,General Purpose Code,,,unavailable
+951,US,General Purpose Code,CA,P,active
+952,US,General Purpose Code,MN,C,active
+953,001,General Purpose Code,,,available
+954,US,General Purpose Code | Overlay 754/954,FL,E,active
+955,001,Easily Recognizable Code,,,available
+956,US,General Purpose Code,TX,C,active
+957,001,General Purpose Code,,,reserved
+958,001,General Purpose Code,,,available
+959,US,General Purpose Code | Overlay 860/959,CT,E,active
+960,001,General Purpose Code,,,reserved
+961,001,General Purpose Code,,,reserved
+962,001,General Purpose Code,,,reserved
+963,001,General Purpose Code,,,reserved
+964,001,General Purpose Code,,,reserved
+965,001,General Purpose Code,,,reserved
+966,001,Easily Recognizable Code,,,reserved
+967,001,General Purpose Code,,,reserved
+968,001,General Purpose Code,,,reserved
+969,001,General Purpose Code,,,reserved
+970,US,General Purpose Code | Overlay 748/970,CO,M,active
+971,US,General Purpose Code | Overlay 503/971,OR,P,active
+972,US,General Purpose Code | Overlay 214/469/945/972,TX,C,active
+973,US,General Purpose Code | Overlay 862/973,NJ,E,active
+974,001,General Purpose Code,,,available
+975,US,General Purpose Code | Overlay 816/975,MO,C,active
+976,001,General Purpose Code,,,available
+977,001,Easily Recognizable Code,,,available
+978,US,General Purpose Code | Overlay 351/978,MA,E,active
+979,US,General Purpose Code,TX,C,active
+980,US,General Purpose Code | Overlay 704/980,NC,E,active
+981,001,General Purpose Code,,,available
+982,001,General Purpose Code,,,available
+983,US,General Purpose Code | Overlay 303/720/983,CO,M,active
+984,US,General Purpose Code | Overlay 919/984,NC,E,active
+985,US,General Purpose Code,LA,C,active
+986,US,General Purpose Code | Overlay 208/986,ID,P,active
+987,001,General Purpose Code,,,available
+988,001,Easily Recognizable Code,NANP AREA,,unavailable
+989,US,General Purpose Code,MI,E,active
+990,001,General Purpose Code,,,reserved
+991,001,General Purpose Code,,,reserved
+992,001,General Purpose Code,,,reserved
+993,001,General Purpose Code,,,reserved
+994,001,General Purpose Code,,,reserved
+995,001,General Purpose Code,,,reserved
+996,001,General Purpose Code,,,reserved
+997,001,General Purpose Code,,,reserved
+998,001,General Purpose Code,,,reserved
+999,001,Easily Recognizable Code,,,reserved

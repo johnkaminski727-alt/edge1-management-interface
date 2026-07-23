@@ -1,0 +1,11 @@
+{
+  "actions": [
+    {
+      "type": "recommendation",
+      "target": "lab-carrier-001-peer",
+      "action": "verify endpoint and carrier connectivity",
+      "status": "pending_approval",
+      "created": "2026-07-20T20:33:27.907583Z"
+    }
+  ]
+}

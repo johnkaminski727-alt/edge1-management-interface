@@ -1,0 +1,6 @@
+{
+  "sip_latency_warning_ms": 100,
+  "sip_latency_critical_ms": 500,
+  "failure_threshold_count": 3,
+  "check_interval_seconds": 60
+}

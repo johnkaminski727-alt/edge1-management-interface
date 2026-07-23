@@ -1,0 +1,28 @@
+[Unit]
+Description=Edge1 Electrum watch-only wallet service
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/electrum-watch/wallets/wwcx-watch-only
+ConditionPathExists=/etc/electrum-watch/rpc.env
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=electrum-watch
+Group=electrum-watch
+Environment=HOME=/var/lib/electrum-watch
+ExecStart=/opt/electrum-watch/bin/electrum --dir /var/lib/electrum-watch/.electrum daemon -d
+ExecStartPost=/opt/electrum-watch/bin/electrum --dir /var/lib/electrum-watch/.electrum load_wallet -w /var/lib/electrum-watch/wallets/wwcx-watch-only
+ExecStop=/opt/electrum-watch/bin/electrum --dir /var/lib/electrum-watch/.electrum stop
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/electrum-watch
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

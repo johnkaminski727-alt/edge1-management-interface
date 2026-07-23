@@ -1,0 +1,10 @@
+{
+  "events": [
+    {
+      "carrier_id": "edge1-lab-carrier",
+      "event": "lifecycle-check",
+      "timestamp": "2026-07-20T19:45:44.520332Z",
+      "operator": "operator"
+    }
+  ]
+}
