@@ -32,7 +32,7 @@ systemctl enable --now wwcx-telephony-analytics.service
 
 ready=false
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -fsS http://127.0.0.1:8098/healthz >/dev/null 2>&1; then
+  if curl -fsS http://127.0.0.1:8099/healthz >/dev/null 2>&1; then
     ready=true
     break
   fi
@@ -42,18 +42,18 @@ done
 if [ "$ready" != true ]; then
   systemctl status wwcx-telephony-analytics.service --no-pager -l >&2 || true
   journalctl -u wwcx-telephony-analytics.service -n 50 --no-pager >&2 || true
-  echo "Telephony analytics failed to become ready on 127.0.0.1:8098" >&2
+  echo "Telephony analytics failed to become ready on 127.0.0.1:8099" >&2
   exit 1
 fi
 
-curl -fsS http://127.0.0.1:8098/api/telephony/platform/health >/dev/null
-curl -fsS http://127.0.0.1:8098/api/telephony/platform/calls/summary >/dev/null
-curl -fsS http://127.0.0.1:8098/api/telephony/platform/interconnects/summary >/dev/null
+curl -fsS http://127.0.0.1:8099/api/telephony/platform/health >/dev/null
+curl -fsS http://127.0.0.1:8099/api/telephony/platform/calls/summary >/dev/null
+curl -fsS http://127.0.0.1:8099/api/telephony/platform/interconnects/summary >/dev/null
 
-if ss -lnt | grep -E '0\.0\.0\.0:8098|\[::\]:8098' >/dev/null; then
-  echo "ERROR: unsafe public listener detected on 8098" >&2
+if ss -lnt | grep -E '0\.0\.0\.0:8099|\[::\]:8099' >/dev/null; then
+  echo "ERROR: unsafe public listener detected on 8099" >&2
   exit 1
 fi
 
 echo "Telephony analytics installed successfully."
-echo "Local health: http://127.0.0.1:8098/healthz"
+echo "Local health: http://127.0.0.1:8099/healthz"

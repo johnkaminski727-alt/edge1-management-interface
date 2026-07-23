@@ -120,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8098)
+    parser.add_argument("--port", type=int, default=8099)
     args = parser.parse_args()
     if args.host not in LOOPBACK_HOSTS:
         parser.error("telephony analytics API must remain loopback-only")

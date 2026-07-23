@@ -43,7 +43,7 @@ if "do_PUT" in source or "do_DELETE" in source or "do_PATCH" in source:
 unit = UNIT.read_text(encoding="utf-8")
 for marker in (
     "--host 127.0.0.1",
-    "--port 8098",
+    "--port 8099",
     "NoNewPrivileges=true",
     "ProtectSystem=strict",
     "ProtectHome=true",
@@ -55,8 +55,8 @@ for marker in (
 installer = INSTALLER.read_text(encoding="utf-8")
 for marker in (
     "systemctl enable --now wwcx-telephony-analytics.service",
-    "127.0.0.1:8098/healthz",
-    "unsafe public listener detected on 8098",
+    "127.0.0.1:8099/healthz",
+    "unsafe public listener detected on 8099",
     "validate_telephony_platform.py",
     "validate_telephony_analytics_api.py",
 ):
@@ -70,7 +70,7 @@ for marker in (
     "/api/telephony/platform/interconnects/summary",
     "-X POST",
     "[ \"$code\" = 405 ]",
-    "unsafe public listener detected on 8098",
+    "unsafe public listener detected on 8099",
 ):
     if marker not in smoke:
         raise SystemExit(f"analytics smoke test missing marker: {marker}")
