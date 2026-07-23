@@ -8,6 +8,7 @@ User=root
 Group=root
 ExecStart=/usr/bin/python3 /opt/wwcx-mining/libexec/cpuminer_telemetry_collector.py --unit wwcx-cpu-miner.service --output /var/lib/wwcx-mining/telemetry.json --pool stratum.ckpool.org:3333 --worker edge1
 ExecStartPost=/usr/bin/systemctl start wwcx-bitcoin-mining-readiness.service
+ExecStartPost=/usr/bin/systemctl start wwcx-bitcoin-mining-history.service
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
