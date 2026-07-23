@@ -1,23 +1,27 @@
 {
-  "version": 1,
-  "connector": "bigbird-edge1",
   "base_url": "http://127.0.0.1:8097",
+  "connector": "bigbird-edge1",
+  "disabled_tools": [
+    "bigbird.health",
+    "bigbird.tools",
+    "messaging.health",
+    "repository.fast_forward_main",
+    "repository.fetch",
+    "time_authority.summary"
+  ],
+  "enabled_tools": [
+    "repository.status",
+    "validation.interconnect",
+    "validation.numbering_node",
+    "numbering.health",
+    "telephony.health"
+  ],
   "mode": "read_only",
   "restart_policy": {
-    "initial_interval_minutes": 360,
     "increment_minutes": 10,
+    "initial_interval_minutes": 360,
     "maximum_interval_minutes": 720,
     "restart_scope": "connector_only"
   },
-  "enabled_tools": [
-    "edge1.repository.status",
-    "edge1.numbering.health",
-    "edge1.numbering.validate",
-    "edge1.interconnect.validate",
-    "edge1.telephony.health"
-  ],
-  "disabled_tools": [
-    "edge1.repository.fetch",
-    "edge1.repository.fast_forward_main"
-  ]
+  "version": 1
 }
