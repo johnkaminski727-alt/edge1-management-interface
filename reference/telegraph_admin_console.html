@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>WW.CX Telegraph Administration</title>
+  <style>
+    :root {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+      --bg: Canvas;
+      --fg: CanvasText;
+      --muted: color-mix(in srgb, CanvasText 65%, Canvas 35%);
+      --panel: color-mix(in srgb, Canvas 92%, CanvasText 8%);
+      --border: color-mix(in srgb, CanvasText 25%, Canvas 75%);
+      --focus: LinkText;
+      --ok: #16803a;
+      --warn: #9a6700;
+      --bad: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); }
+    a { color: LinkText; }
+    button, input, select { font: inherit; }
+    button, input, select {
+      border: 1px solid var(--border); border-radius: .45rem; padding: .55rem .7rem;
+      background: Canvas; color: CanvasText;
+    }
+    button { cursor: pointer; }
+    button:hover { filter: brightness(.96); }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .skip { position: absolute; left: -9999px; top: .5rem; }
+    .skip:focus { left: .5rem; z-index: 100; background: Canvas; padding: .6rem; }
+    header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    header h1 { margin: 0; font-size: 1.35rem; }
+    header p { margin: .25rem 0 0; color: var(--muted); }
+    .connection { display: grid; grid-template-columns: minmax(16rem, 1fr) minmax(14rem, 1fr) auto auto; gap: .75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); align-items: end; }
+    label { display: grid; gap: .3rem; font-weight: 650; }
+    label small { font-weight: 400; color: var(--muted); }
+    nav { display: flex; gap: .35rem; flex-wrap: wrap; padding: .75rem 1.25rem; border-bottom: 1px solid var(--border); }
+    nav button[aria-selected="true"] { border-color: var(--focus); box-shadow: inset 0 -3px 0 var(--focus); }
+    main { padding: 1.25rem; max-width: 96rem; margin: 0 auto; }
+    .statusline { min-height: 1.5rem; margin-bottom: .8rem; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .8rem; }
+    .card { border: 1px solid var(--border); border-radius: .65rem; padding: 1rem; background: var(--panel); }
+    .card h2, .card h3 { margin-top: 0; }
+    .metric { font-size: 1.8rem; font-weight: 750; }
+    .muted { color: var(--muted); }
+    .badge { display: inline-block; border: 1px solid currentColor; border-radius: 999px; padding: .15rem .5rem; font-size: .82rem; font-weight: 700; }
+    .healthy, .info, .resolved { color: var(--ok); }
+    .degraded, .warning { color: var(--warn); }
+    .critical { color: var(--bad); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); padding: .65rem .5rem; }
+    th { position: sticky; top: 0; background: var(--bg); }
+    .table-wrap { overflow: auto; max-height: 34rem; border: 1px solid var(--border); border-radius: .6rem; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--border); border-radius: .6rem; padding: 1rem; }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .hidden { display: none !important; }
+    .empty { padding: 2rem; text-align: center; color: var(--muted); }
+    dialog { max-width: 42rem; width: calc(100% - 2rem); border: 1px solid var(--border); border-radius: .7rem; }
+    dialog::backdrop { background: rgb(0 0 0 / .55); }
+    @media (max-width: 760px) {
+      .connection { grid-template-columns: 1fr; }
+      th { position: static; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header>
+  <h1>WW.CX Telegraph Administration</h1>
+  <p>Read-mostly federation operations console</p>
+</header>
+<section class="connection" aria-label="API connection">
+  <label>Administration API URL
+    <input id="apiUrl" type="url" value="http://127.0.0.1:8098" autocomplete="url" spellcheck="false">
+  </label>
+  <label>Bearer token
+    <input id="token" type="password" autocomplete="off" aria-describedby="tokenHelp">
+    <small id="tokenHelp">Kept only in this page's memory and never saved.</small>
+  </label>
+  <button id="connect" type="button">Connect</button>
+  <button id="refresh" type="button" disabled>Refresh</button>
+</section>
+<nav aria-label="Console sections">
+  <button type="button" data-view="dashboard" aria-selected="true">Dashboard</button>
+  <button type="button" data-view="federation" aria-selected="false">Federation</button>
+  <button type="button" data-view="queue" aria-selected="false">Queue</button>
+  <button type="button" data-view="alerts" aria-selected="false">Alerts</button>
+  <button type="button" data-view="events" aria-selected="false">Events</button>
+  <button type="button" data-view="routes" aria-selected="false">Routes</button>
+  <button type="button" data-view="diagnostics" aria-selected="false">Diagnostics</button>
+</nav>
+<main id="content" tabindex="-1">
+  <div id="status" class="statusline" role="status" aria-live="polite">Not connected.</div>
+  <section id="view-dashboard"></section>
+  <section id="view-federation" class="hidden"></section>
+  <section id="view-queue" class="hidden"></section>
+  <section id="view-alerts" class="hidden"></section>
+  <section id="view-events" class="hidden"></section>
+  <section id="view-routes" class="hidden"></section>
+  <section id="view-diagnostics" class="hidden"></section>
+</main>
+<dialog id="messageDialog" aria-labelledby="messageDialogTitle">
+  <h2 id="messageDialogTitle">Message trace</h2>
+  <div id="messageDialogBody"></div>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
+<script>
+(() => {
+  'use strict';
+  const state = { token: '', api: '', connected: false, currentView: 'dashboard', data: {} };
+  const $ = (id) => document.getElementById(id);
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtTime = (value) => value ? new Date(Number(value) * 1000).toLocaleString() : '—';
+  const fmtBytes = (value) => {
+    let n = Number(value || 0); const units = ['B','KB','MB','GB','TB']; let i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return `${n.toFixed(i ? 1 : 0)} ${units[i]}`;
+  };
+  const status = (text, isError = false) => { $('status').textContent = text; $('status').className = `statusline ${isError ? 'critical' : ''}`; };
+  async function api(path, options = {}) {
+    const response = await fetch(state.api + path, {
+      ...options,
+      headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${state.token}`, ...(options.headers || {}) }
+    });
+    let body;
+    try { body = await response.json(); } catch { body = { error: 'invalid_json_response' }; }
+    if (!response.ok) throw new Error(body.detail || body.error || `HTTP ${response.status}`);
+    return body;
+  }
+  function card(title, value, detail = '') {
+    return `<article class="card"><h2>${esc(title)}</h2><div class="metric">${esc(value)}</div>${detail ? `<p class="muted">${esc(detail)}</p>` : ''}</article>`;
+  }
+  function renderDashboard(d) {
+    const q = d.queue || {}, f = d.federation || {}, r = d.routing || {};
+    $('view-dashboard').innerHTML = `<div class="grid">
+      ${card('Overall status', d.overall_status || 'unknown')}
+      ${card('Active messages', q.active_messages || 0, fmtBytes(q.active_bytes || 0))}
+      ${card('Federation peers', f.peer_count || 0)}
+      ${card('Active alerts', (d.alerts || []).length)}
+      ${card('Routes selected', r.selected || 0)}
+      ${card('Routes rejected', r.rejected || 0)}
+    </div><h2>Recent events</h2>${eventTable(d.recent_events || [])}`;
+  }
+  function eventTable(events) {
+    if (!events.length) return '<div class="empty">No events available.</div>';
+    return `<div class="table-wrap"><table><thead><tr><th>Time</th><th>Severity</th><th>Source</th><th>Event</th><th>Summary</th></tr></thead><tbody>${events.map(e => `<tr><td>${esc(fmtTime(e.recorded_at))}</td><td><span class="badge ${esc(e.severity)}">${esc(e.severity)}</span></td><td>${esc(e.source)}</td><td>${esc(e.event_type)}</td><td>${esc(e.summary)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function renderFederation(payload) {
+    const peers = payload.snapshot?.peers || [];
+    $('view-federation').innerHTML = `<h2>Federation offices</h2>${!peers.length ? '<div class="empty">No peer heartbeats have been observed.</div>' : `<div class="table-wrap"><table><thead><tr><th>Office</th><th>Status</th><th>Health</th><th>Latency</th><th>Queue</th><th>Last heartbeat</th></tr></thead><tbody>${peers.map(p => `<tr><td>${esc(p.office_id)}</td><td><span class="badge ${esc(p.derived_status)}">${esc(p.derived_status)}</span></td><td>${esc(p.health_score ?? '—')}</td><td>${esc(p.latency_ms ?? '—')} ms</td><td>${esc(p.queue_utilization_percent ?? '—')}%</td><td>${esc(fmtTime(p.last_heartbeat_at))}</td></tr>`).join('')}</tbody></table></div>`}`;
+  }
+  function renderQueue(q) {
+    const states = Object.entries(q.states || {});
+    $('view-queue').innerHTML = `<div class="grid">${card('Active messages', q.active_messages || 0)}${card('Active storage', fmtBytes(q.active_bytes || 0))}${card('Retry wait', q.retry_wait_messages || 0)}${card('Maximum attempts', q.maximum_attempt_count || 0)}</div><h2>Queue states</h2>${states.length ? `<div class="table-wrap"><table><thead><tr><th>State</th><th>Messages</th><th>Storage</th></tr></thead><tbody>${states.map(([name,v]) => `<tr><td>${esc(name)}</td><td>${esc(v.messages)}</td><td>${esc(fmtBytes(v.bytes))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Queue is empty.</div>'}<h2>Inspect message</h2><form id="traceForm" class="actions"><label>Message ID<input id="messageId" required></label><button type="submit">Open trace</button></form>`;
+    $('traceForm').addEventListener('submit', async e => { e.preventDefault(); await traceMessage($('messageId').value.trim()); });
+  }
+  async function traceMessage(id) {
+    try {
+      status(`Loading message ${id}…`);
+      const payload = await api(`/v1/queue/messages/${encodeURIComponent(id)}`);
+      $('messageDialogBody').innerHTML = `<pre>${esc(JSON.stringify(payload, null, 2))}</pre>`;
+      $('messageDialog').showModal(); status('Message trace loaded.');
+    } catch (error) { status(`Message trace failed: ${error.message}`, true); }
+  }
+  function renderAlerts(payload) {
+    const alerts = payload.alerts || [];
+    $('view-alerts').innerHTML = `<h2>Alerts</h2>${!alerts.length ? '<div class="empty">No alerts.</div>' : `<div class="table-wrap"><table><thead><tr><th>Severity</th><th>Title</th><th>Status</th><th>First seen</th><th>Last seen</th><th>Operator action</th></tr></thead><tbody>${alerts.map(a => `<tr><td><span class="badge ${esc(a.severity)}">${esc(a.severity)}</span></td><td>${esc(a.title)}</td><td>${esc(a.status)}</td><td>${esc(fmtTime(a.first_seen_at))}</td><td>${esc(fmtTime(a.last_seen_at))}</td><td>${a.status === 'active' && !a.acknowledged_at ? `<button data-ack="${esc(a.alert_key)}">Acknowledge</button>` : esc(a.acknowledged_by || '—')}</td></tr>`).join('')}</tbody></table></div>`}`;
+    document.querySelectorAll('[data-ack]').forEach(button => button.addEventListener('click', () => acknowledge(button.dataset.ack)));
+  }
+  async function acknowledge(key) {
+    try { await api(`/v1/alerts/${encodeURIComponent(key)}/acknowledge`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' }); status('Alert acknowledged.'); await loadView('alerts'); }
+    catch (error) { status(`Acknowledgement failed: ${error.message}`, true); }
+  }
+  function renderRoutes(payload) {
+    const decisions = payload.recent_decisions || [];
+    $('view-routes').innerHTML = `<div class="grid">${card('Selected', payload.summary?.selected || 0)}${card('Rejected', payload.summary?.rejected || 0)}${card('Average hops', payload.summary?.average_hops ?? '—')}${card('Average latency', payload.summary?.average_latency_ms == null ? '—' : `${payload.summary.average_latency_ms} ms`)}</div><h2>Recent route decisions</h2><pre>${esc(JSON.stringify(decisions, null, 2))}</pre>`;
+  }
+  function renderDiagnostics(payload) {
+    $('view-diagnostics').innerHTML = `<div class="actions"><button id="downloadDiagnostics" type="button">Download JSON</button></div><p class="muted">The server excludes message payloads, credentials, and private key material.</p><pre>${esc(JSON.stringify(payload, null, 2))}</pre>`;
+    $('downloadDiagnostics').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `telegraph-diagnostics-${Date.now()}.json`; link.click(); URL.revokeObjectURL(link.href);
+    });
+  }
+  async function loadView(view = state.currentView) {
+    if (!state.connected) return;
+    const endpoints = { dashboard:'/v1/dashboard', federation:'/v1/federation', queue:'/v1/queue', alerts:'/v1/alerts', events:'/v1/events?limit=250', routes:'/v1/routes', diagnostics:'/v1/diagnostics' };
+    try {
+      status(`Loading ${view}…`); const payload = await api(endpoints[view]); state.data[view] = payload;
+      if (view === 'dashboard') renderDashboard(payload);
+      else if (view === 'federation') renderFederation(payload);
+      else if (view === 'queue') renderQueue(payload);
+      else if (view === 'alerts') renderAlerts(payload);
+      else if (view === 'events') $('view-events').innerHTML = `<h2>Operational events</h2>${eventTable(payload.events || [])}`;
+      else if (view === 'routes') renderRoutes(payload);
+      else if (view === 'diagnostics') renderDiagnostics(payload);
+      status(`Updated ${view} at ${new Date().toLocaleTimeString()}.`);
+    } catch (error) { status(`Unable to load ${view}: ${error.message}`, true); }
+  }
+  function selectView(view) {
+    state.currentView = view;
+    document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === view)));
+    document.querySelectorAll('main > section').forEach(s => s.classList.toggle('hidden', s.id !== `view-${view}`));
+    loadView(view);
+  }
+  $('connect').addEventListener('click', async () => {
+    state.api = $('apiUrl').value.trim().replace(/\/$/, ''); state.token = $('token').value;
+    if (!state.api || !state.token) { status('API URL and bearer token are required.', true); return; }
+    try { const health = await fetch(state.api + '/healthz').then(r => r.json()); state.connected = true; $('refresh').disabled = false; status(`Connected to ${health.office_id || 'Telegraph office'}.`); await loadView(); }
+    catch (error) { state.connected = false; $('refresh').disabled = true; status(`Connection failed: ${error.message}`, true); }
+  });
+  $('refresh').addEventListener('click', () => loadView());
+  document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => selectView(button.dataset.view)));
+})();
+</script>
+</body>
+</html>

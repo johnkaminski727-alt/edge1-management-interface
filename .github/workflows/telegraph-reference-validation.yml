@@ -1,0 +1,114 @@
+name: Telegraph reference validation
+
+on:
+  push:
+    paths:
+      - "reference/telegraph_*.py"
+      - "reference/telegraph_admin_console.html"
+      - "tests/test_telegraph_*.py"
+      - ".github/workflows/telegraph-reference-validation.yml"
+  pull_request:
+    paths:
+      - "reference/telegraph_*.py"
+      - "reference/telegraph_admin_console.html"
+      - "tests/test_telegraph_*.py"
+      - ".github/workflows/telegraph-reference-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegraph-reference-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements*.txt
+            pyproject.toml
+
+      - name: Install Telegraph test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "cryptography>=42,<46"
+
+      - name: Compile Telegraph Python modules
+        run: |
+          python -m compileall -q reference tests
+
+      - name: Run Telegraph unit tests
+        run: |
+          python -m unittest discover -s tests -p 'test_telegraph_*.py' -v
+
+      - name: Validate administration console structure
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class ConsoleParser(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.ids = set()
+                  self.duplicate_ids = set()
+                  self.scripts = 0
+                  self.forms = 0
+
+              def handle_starttag(self, tag, attrs):
+                  values = dict(attrs)
+                  element_id = values.get("id")
+                  if element_id:
+                      if element_id in self.ids:
+                          self.duplicate_ids.add(element_id)
+                      self.ids.add(element_id)
+                  if tag == "script":
+                      self.scripts += 1
+                  if tag == "form":
+                      self.forms += 1
+
+          source = Path("reference/telegraph_admin_console.html").read_text(encoding="utf-8")
+          parser = ConsoleParser()
+          parser.feed(source)
+          parser.close()
+
+          required_ids = {
+              "apiUrl", "token", "connect", "refresh", "content", "status",
+              "view-dashboard", "view-federation", "view-queue", "view-alerts",
+              "view-events", "view-routes", "view-diagnostics", "messageDialog",
+          }
+          missing = sorted(required_ids - parser.ids)
+          if missing:
+              raise SystemExit(f"Missing required console IDs: {missing}")
+          if parser.duplicate_ids:
+              raise SystemExit(f"Duplicate console IDs: {sorted(parser.duplicate_ids)}")
+          if parser.scripts != 1:
+              raise SystemExit(f"Expected one self-contained script, found {parser.scripts}")
+          if "localStorage" in source or "sessionStorage" in source:
+              raise SystemExit("Administration console must not persist bearer credentials")
+          if 'autocomplete="off"' not in source:
+              raise SystemExit("Bearer token field must disable autocomplete")
+          print("Telegraph administration console structure passed")
+          PY
+
+      - name: Verify reference-only safety markers
+        run: |
+          grep -q "defaults to read-only" reference/telegraph_admin_api.py
+          grep -q "private_keys_included.*False" reference/telegraph_observability.py
+          grep -q "credentials_included.*False" reference/telegraph_observability.py
