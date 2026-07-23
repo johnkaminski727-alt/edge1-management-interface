@@ -1,0 +1,31 @@
+[Unit]
+Description=WW.CX Edge1 Portal API Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+Environment=WWCX_PORTAL_HOST=127.0.0.1
+Environment=WWCX_PORTAL_PORT=8098
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/portal/portal_api_server.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wwcx-portal
+ReadOnlyPaths=/opt/edge1-management-interface
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

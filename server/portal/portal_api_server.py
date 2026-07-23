@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -276,7 +277,15 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    HTTPServer(("127.0.0.1", 8097), Handler).serve_forever()
+    host = os.environ.get("WWCX_PORTAL_HOST", "127.0.0.1")
+    port = int(os.environ.get("WWCX_PORTAL_PORT", "8098"))
+
+    if host not in ("127.0.0.1", "::1"):
+        raise SystemExit("refusing non-loopback portal bind")
+    if port < 1 or port > 65535:
+        raise SystemExit("invalid portal port")
+
+    HTTPServer((host, port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
