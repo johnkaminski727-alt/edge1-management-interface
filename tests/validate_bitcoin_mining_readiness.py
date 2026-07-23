@@ -42,6 +42,8 @@ for marker in (
     "ProtectSystem=strict",
     "NoNewPrivileges=true",
     "ReadWritePaths=/var/www/edge1-status",
+    "ExecStart=/usr/bin/python3 /opt/wwcx-mining/libexec/bitcoin_mining_readiness_exporter.py",
+    "ReadOnlyPaths=/etc/wwcx-mining /var/lib/wwcx-mining /opt/wwcx-mining",
 ):
     if marker not in service:
         raise SystemExit(f"Missing service hardening marker: {marker}")
