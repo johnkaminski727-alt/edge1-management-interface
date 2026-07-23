@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
 
+from reference.telegraph_crypto import verify_document, verify_identity
 from reference.telegraph_federation_demo import Office, canonical_json, sha256
 
 
@@ -49,6 +50,31 @@ class TelegraphOfficeState:
                 "count": len(self.peers),
             }
 
+    def register_peer(self, document: dict[str, Any]) -> tuple[HTTPStatus, dict[str, Any]]:
+        office_id = document.get("office_id")
+        identity = document.get("identity")
+        trust_status = document.get("trust_status", "observed")
+        if not isinstance(office_id, str) or not isinstance(identity, dict):
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid_peer_record"}
+        if identity.get("office_id") != office_id:
+            return HTTPStatus.BAD_REQUEST, {"error": "peer_identity_mismatch"}
+        if trust_status not in {"observed", "trusted", "restricted"}:
+            return HTTPStatus.BAD_REQUEST, {"error": "invalid_trust_status"}
+        if not verify_identity(identity):
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_peer_signature"}
+
+        record = {
+            "office_id": office_id,
+            "identity": identity,
+            "trust_status": trust_status,
+            "updated_at": int(time.time()),
+            "identity_verified": True,
+        }
+        with self.lock:
+            self.peers[office_id] = record
+            self.office.trust[office_id] = trust_status
+        return HTTPStatus.CREATED, record
+
     def accept_message(self, envelope: dict[str, Any]) -> tuple[HTTPStatus, dict[str, Any]]:
         required = {"message_id", "origin", "destination", "nonce", "payload", "security_state", "signature"}
         missing = sorted(required - envelope.keys())
@@ -60,6 +86,16 @@ class TelegraphOfficeState:
                 "expected": self.office.office_id,
                 "received": envelope["destination"],
             }
+
+        origin = envelope.get("origin")
+        with self.lock:
+            peer = self.peers.get(origin) if isinstance(origin, str) else None
+        if peer is None:
+            return HTTPStatus.FORBIDDEN, {"error": "unknown_origin"}
+        if peer["trust_status"] == "restricted":
+            return HTTPStatus.FORBIDDEN, {"error": "restricted_origin"}
+        if not verify_document(envelope, peer["identity"]):
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_envelope_signature"}
 
         now = time.time()
         with self.lock:
@@ -76,12 +112,13 @@ class TelegraphOfficeState:
                 "status": "accepted",
                 "message_id": envelope["message_id"],
                 "envelope_digest": sha256(canonical_json(envelope)),
+                "signature_verified": True,
                 "receipt": receipt,
             }
 
 
 class TelegraphOfficeHandler(BaseHTTPRequestHandler):
-    server_version = "WWCXTelegraphOffice/0.1"
+    server_version = "WWCXTelegraphOffice/0.2"
 
     @property
     def state(self) -> TelegraphOfficeState:
@@ -153,34 +190,30 @@ class TelegraphOfficeHandler(BaseHTTPRequestHandler):
             self._json(status, payload)
             return
         if path == "/directory/peers":
-            office_id = document.get("office_id")
-            identity = document.get("identity")
-            trust_status = document.get("trust_status", "observed")
-            if not isinstance(office_id, str) or not isinstance(identity, dict):
-                self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_peer_record"})
-                return
-            if trust_status not in {"observed", "trusted", "restricted"}:
-                self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_trust_status"})
-                return
-            record = {
-                "office_id": office_id,
-                "identity": identity,
-                "trust_status": trust_status,
-                "updated_at": int(time.time()),
-            }
-            with self.state.lock:
-                self.state.peers[office_id] = record
-                self.state.office.trust[office_id] = trust_status
-            self._json(HTTPStatus.CREATED, record)
+            status, payload = self.state.register_peer(document)
+            self._json(status, payload)
             return
         if path == "/receipt":
             message_id = document.get("message_id")
-            if not isinstance(message_id, str):
+            office_id = document.get("office_id")
+            if not isinstance(message_id, str) or not isinstance(office_id, str):
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid_receipt"})
                 return
             with self.state.lock:
+                peer = self.state.peers.get(office_id)
+            if peer is None:
+                self._json(HTTPStatus.FORBIDDEN, {"error": "unknown_receipt_office"})
+                return
+            if not verify_document(document, peer["identity"]):
+                self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "invalid_receipt_signature"})
+                return
+            with self.state.lock:
                 self.state.receipts.setdefault(message_id, []).append(document)
-            self._json(HTTPStatus.ACCEPTED, {"status": "receipt_recorded", "message_id": message_id})
+            self._json(HTTPStatus.ACCEPTED, {
+                "status": "receipt_recorded",
+                "message_id": message_id,
+                "signature_verified": True,
+            })
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
