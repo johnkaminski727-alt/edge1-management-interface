@@ -12,13 +12,18 @@ spec.loader.exec_module(collector)
 sample = """
 Stratum connection established
 New Stratum Diff 10000, Block 959300, Tx 10, Job abc
-TTF @ 294.77 kh/s: Block 1y, Share 4y
+TTF @ 20.00 h/s: Block 0s, Share 1y
+TTF @ 2403.23 kh/s: Block 1y, Share 1y
+TTF @ 291.21 kh/s: Block 1y, Share 4y
+TTF @ 284.03 kh/s: Block 1y, Share 4y
+TTF @ 300.81 kh/s: Block 1y, Share 4y
 Submitted             3            3
 Accepted              2            2        66.7%
 Rejected              1            1
 """
 parsed = collector.parse_logs(sample)
-assert parsed["hashrate_hs"] == 294770.0, parsed
+assert parsed["hashrate_hs"] == 291210.0, parsed
+assert parsed["hashrate_samples"] == 5, parsed
 assert parsed["network_block"] == 959300, parsed
 assert parsed["stratum_difficulty"] == 10000.0, parsed
 assert parsed["submitted_shares"] == 3, parsed
