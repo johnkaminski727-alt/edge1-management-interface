@@ -1,0 +1,15 @@
+[Unit]
+Description=Publish WW.CX mining operations status
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/mining_operations_exporter.py --registry /etc/wwcx-mining/miners.json --output /var/www/edge1-status/mining-operations.json
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/wwcx-mining /var/lib/wwcx-mining /opt/edge1-management-interface
+ReadWritePaths=/var/www/edge1-status
