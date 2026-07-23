@@ -1,6 +1,5 @@
 [Unit]
 Description=WW.CX Bitcoin mining 24-hour history summary
-After=wwcx-cpu-miner-telemetry.service
 
 [Service]
 Type=oneshot
