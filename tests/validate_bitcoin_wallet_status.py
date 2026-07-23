@@ -16,25 +16,23 @@ for marker in (
     '"format": "wwcx-bitcoin-wallet-status-v1"',
     '"private_keys_enabled": False',
     '"type": "watch-only"',
+    '"loaded": loaded',
     'http://127.0.0.1:8094',
     '/v1/wallet/info',
     '/v1/wallet/balance',
+    '/v1/wallet/state',
     'os.replace(temporary, path)',
 ):
     if marker not in source:
         raise SystemExit(f"Missing exporter marker: {marker}")
 
 for forbidden in (
-    "seed",
-    "private_key",
-    "descriptor",
-    "xpub",
     "payto",
     "broadcast",
     "signtransaction",
     "getunusedaddress",
 ):
-    if forbidden in source.lower() and forbidden not in {"private_key", "descriptor", "xpub", "seed"}:
+    if forbidden in source.lower():
         raise SystemExit(f"Mutating wallet operation found: {forbidden}")
 
 service = SERVICE.read_text(encoding="utf-8")
@@ -48,7 +46,23 @@ for marker in (
         raise SystemExit(f"Missing service hardening marker: {marker}")
 
 api = API.read_text(encoding="utf-8")
-if '.encode("utf-8")' not in api or "secrets.compare_digest" not in api:
-    raise SystemExit("Electrum API token comparison is not byte-safe")
+for marker in (
+    '.encode("utf-8")',
+    "secrets.compare_digest",
+    'electrum_rpc("list_wallets")',
+    '"/v1/wallet/state"',
+    '"loaded": bool(wallets)',
+    '"synchronized": synchronized',
+):
+    if marker not in api:
+        raise SystemExit(f"Missing sanitized wallet-state marker: {marker}")
+
+for forbidden in (
+    '"path"',
+    '"unlocked"',
+    '"wallet_path"',
+):
+    if forbidden in api:
+        raise SystemExit(f"Wallet-identifying state exposed by API: {forbidden}")
 
 print("Bitcoin watch-only wallet status validation passed")
