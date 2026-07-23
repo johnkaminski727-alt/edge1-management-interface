@@ -30,17 +30,27 @@ systemctl start wwcx-bitcoin-wallet-status.service || true
 python3 - <<'PY'
 import json
 from pathlib import Path
-path=Path('/var/www/edge1-status/bitcoin-wallet.json')
+
+path = Path('/var/www/edge1-status/bitcoin-wallet.json')
 if not path.is_file():
     raise SystemExit('wallet status document was not created')
-data=json.loads(path.read_text(encoding='utf-8'))
-if data.get('format')!='wwcx-bitcoin-wallet-status-v1':
+
+raw = path.read_text(encoding='utf-8')
+data = json.loads(raw)
+if data.get('format') != 'wwcx-bitcoin-wallet-status-v1':
     raise SystemExit('wallet status format is invalid')
-wallet=data.get('wallet') or {}
-if wallet.get('type')!='watch-only' or wallet.get('private_keys_enabled') is not False:
+
+wallet = data.get('wallet') or {}
+if wallet.get('type') != 'watch-only' or wallet.get('private_keys_enabled') is not False:
     raise SystemExit('wallet status security boundary is invalid')
-for forbidden in ('address','descriptor','xpub','seed','private_key','token','password'):
-    if forbidden in path.read_text(encoding='utf-8').lower():
-        raise SystemExit('wallet status document contains forbidden field: '+forbidden)
+
+for forbidden_key in ('address', 'descriptor', 'xpub', 'seed', 'token', 'password'):
+    if forbidden_key in raw.lower():
+        raise SystemExit('wallet status document contains forbidden field: ' + forbidden_key)
+
+for key in wallet:
+    if key.startswith('private_key') and key != 'private_keys_enabled':
+        raise SystemExit('wallet status document contains forbidden private-key field')
+
 print('Bitcoin wallet status exporter installation passed')
 PY
