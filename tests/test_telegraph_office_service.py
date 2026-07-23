@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""Integration tests for two independent Telegraph Office HTTP services."""
+
+from __future__ import annotations
+
+import copy
+import json
+import threading
+import unittest
+from http import HTTPStatus
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from reference.telegraph_federation_demo import canonical_json, encrypt_envelope, sha256
+from reference.telegraph_office_service import TelegraphOfficeHTTPServer, build_state
+
+
+def request_json(method: str, url: str, payload: dict | None = None) -> tuple[int, dict]:
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    request = Request(url, data=body, method=method)
+    if body is not None:
+        request.add_header("Content-Type", "application/json")
+    try:
+        with urlopen(request, timeout=5) as response:
+            return response.status, json.loads(response.read())
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read())
+
+
+class RunningOffice:
+    def __init__(self, office_id: str):
+        self.state = build_state(office_id)
+        self.server = TelegraphOfficeHTTPServer(("127.0.0.1", 0), self.state)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    @property
+    def base_url(self) -> str:
+        host, port = self.server.server_address
+        return f"http://{host}:{port}"
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def stop(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=5)
+
+
+class TelegraphOfficeServiceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.alpha = RunningOffice("alpha.telegraph.ww.cx")
+        self.bravo = RunningOffice("bravo.telegraph.ww.cx")
+        self.alpha.start()
+        self.bravo.start()
+
+    def tearDown(self) -> None:
+        self.alpha.stop()
+        self.bravo.stop()
+
+    def register_alpha_with_bravo(self) -> dict:
+        status, identity = request_json("GET", self.alpha.base_url + "/identity")
+        self.assertEqual(status, HTTPStatus.OK)
+        status, record = request_json(
+            "POST",
+            self.bravo.base_url + "/directory/peers",
+            {
+                "office_id": self.alpha.state.office.office_id,
+                "identity": identity,
+                "trust_status": "trusted",
+            },
+        )
+        self.assertEqual(status, HTTPStatus.CREATED)
+        self.assertTrue(record["identity_verified"])
+        return identity
+
+    def test_two_office_exchange_and_replay_rejection(self) -> None:
+        alpha_identity = self.register_alpha_with_bravo()
+        status, bravo_identity = request_json("GET", self.bravo.base_url + "/identity")
+        self.assertEqual(status, HTTPStatus.OK)
+        status, peer_record = request_json(
+            "POST",
+            self.alpha.base_url + "/directory/peers",
+            {
+                "office_id": self.bravo.state.office.office_id,
+                "identity": bravo_identity,
+                "trust_status": "trusted",
+            },
+        )
+        self.assertEqual(status, HTTPStatus.CREATED)
+        self.assertEqual(peer_record["trust_status"], "trusted")
+        self.assertEqual(alpha_identity["office_id"], self.alpha.state.office.office_id)
+
+        envelope, _key = encrypt_envelope(
+            self.alpha.state.office,
+            self.bravo.state.office,
+            "Networked accessible test message",
+            "NORTHERN LIGHT",
+        )
+
+        status, accepted = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(status, HTTPStatus.ACCEPTED)
+        self.assertEqual(accepted["status"], "accepted")
+        self.assertTrue(accepted["signature_verified"])
+        self.assertEqual(accepted["receipt"]["event"], "accepted")
+
+        duplicate_status, duplicate = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(duplicate_status, HTTPStatus.CONFLICT)
+        self.assertEqual(duplicate["status"], "duplicate_rejected")
+        self.assertEqual(duplicate["receipt"]["event"], "duplicate_rejected")
+
+        receipt_status, receipt_chain = request_json(
+            "GET",
+            self.bravo.base_url + "/receipts/" + envelope["message_id"],
+        )
+        self.assertEqual(receipt_status, HTTPStatus.OK)
+        self.assertEqual(len(receipt_chain["receipts"]), 2)
+        self.assertEqual(
+            receipt_chain["receipts"][1]["previous_receipt_digest"],
+            sha256(canonical_json(accepted["receipt"])),
+        )
+
+    def test_tampered_peer_identity_is_rejected(self) -> None:
+        status, identity = request_json("GET", self.alpha.base_url + "/identity")
+        self.assertEqual(status, HTTPStatus.OK)
+        tampered = copy.deepcopy(identity)
+        tampered["policy"]["requires_mutual_tls"] = False
+
+        status, response = request_json(
+            "POST",
+            self.bravo.base_url + "/directory/peers",
+            {
+                "office_id": self.alpha.state.office.office_id,
+                "identity": tampered,
+                "trust_status": "trusted",
+            },
+        )
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertEqual(response["error"], "invalid_peer_signature")
+
+    def test_tampered_envelope_is_rejected_before_replay_tracking(self) -> None:
+        self.register_alpha_with_bravo()
+        envelope, _key = encrypt_envelope(
+            self.alpha.state.office,
+            self.bravo.state.office,
+            "Integrity test",
+            "CHECKPOINT",
+        )
+        tampered = copy.deepcopy(envelope)
+        tampered["payload"]["ciphertext"] += "A"
+
+        status, response = request_json("POST", self.bravo.base_url + "/message", tampered)
+        self.assertEqual(status, HTTPStatus.UNPROCESSABLE_ENTITY)
+        self.assertEqual(response["error"], "invalid_envelope_signature")
+
+        status, accepted = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(status, HTTPStatus.ACCEPTED)
+        self.assertEqual(accepted["status"], "accepted")
+
+    def test_unknown_origin_is_rejected(self) -> None:
+        envelope, _key = encrypt_envelope(
+            self.alpha.state.office,
+            self.bravo.state.office,
+            "Unknown origin test",
+            "CHECKPOINT",
+        )
+        status, response = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(response["error"], "unknown_origin")
+
+    def test_wrong_destination_is_rejected(self) -> None:
+        envelope, _key = encrypt_envelope(
+            self.alpha.state.office,
+            self.bravo.state.office,
+            "Wrong destination test",
+            "CHECKPOINT",
+        )
+        envelope["destination"] = "charlie.telegraph.ww.cx"
+        status, response = request_json("POST", self.bravo.base_url + "/message", envelope)
+        self.assertEqual(status, HTTPStatus.CONFLICT)
+        self.assertEqual(response["error"], "wrong_destination")
+
+    def test_health_capabilities_and_directory(self) -> None:
+        health_status, health = request_json("GET", self.alpha.base_url + "/health")
+        capabilities_status, capabilities = request_json("GET", self.alpha.base_url + "/capabilities")
+        directory_status, directory = request_json("GET", self.alpha.base_url + "/directory")
+
+        self.assertEqual(health_status, HTTPStatus.OK)
+        self.assertEqual(health["status"], "ok")
+        self.assertFalse(health["production_ready"])
+        self.assertEqual(capabilities_status, HTTPStatus.OK)
+        self.assertIn("rtt_t140", capabilities["media"])
+        self.assertEqual(directory_status, HTTPStatus.OK)
+        self.assertEqual(directory["count"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

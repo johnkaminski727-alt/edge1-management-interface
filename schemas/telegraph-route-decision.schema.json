@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telegraph-route-decision.schema.json",
+  "title": "WW.CX Telegraph Federation Route Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "decision_id", "message_id", "evaluated_at", "origin_office", "destination_office", "requirements", "selected_path", "result", "signature"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "decision_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{16,128}$"},
+    "message_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{16,128}$"},
+    "evaluated_at": {"type": "string", "format": "date-time"},
+    "origin_office": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"},
+    "destination_office": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"},
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_trust", "security", "media", "downgrade_policy"],
+      "properties": {
+        "minimum_trust": {"enum": ["observed", "trusted"]},
+        "security": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["end_to_end_encryption", "forward_secrecy", "mutual_tls", "signed_receipts", "code_word_commitments"]}
+        },
+        "media": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["secure_message", "attachment", "rtt_t140", "tty_baudot", "voice", "vco", "hco", "human_relay"]}
+        },
+        "max_latency_ms": {"type": "integer", "minimum": 1, "maximum": 86400000},
+        "store_and_forward": {"enum": ["required", "allowed", "forbidden"]},
+        "downgrade_policy": {"enum": ["forbid", "require_recipient_consent", "allow_with_disclosure"]},
+        "required_code_word_purposes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["message_verification", "sender_authentication", "recipient_challenge", "duress_indicator", "routing_instruction", "operator_instruction", "custom"]}
+        }
+      }
+    },
+    "candidate_paths": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/path_evaluation"}
+    },
+    "selected_path": {"$ref": "#/$defs/path_evaluation"},
+    "result": {"enum": ["selected", "deferred", "rejected", "consent_required"]},
+    "reason_codes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["destination_unreachable", "insufficient_trust", "security_mismatch", "media_mismatch", "message_too_large", "attachment_too_large", "maintenance", "latency_exceeded", "store_forward_unavailable", "downgrade_required", "code_word_requirement_unsatisfied", "policy_restricted", "peer_revoked"]}
+    },
+    "disclosures": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["legacy_tty_conversion", "human_relay", "gateway_decryption", "server_side_transformation", "transport_encryption_only", "store_and_forward", "operator_visibility"]}
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 8, "maxLength": 255},
+        "value": {"type": "string", "minLength": 32, "maxLength": 1024}
+      }
+    }
+  },
+  "$defs": {
+    "path_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_id", "offices", "eligible", "score", "security_state", "media"],
+      "properties": {
+        "path_id": {"type": "string", "minLength": 8, "maxLength": 128},
+        "offices": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"}
+        },
+        "eligible": {"type": "boolean"},
+        "score": {"type": "number", "minimum": 0, "maximum": 1000000},
+        "estimated_latency_ms": {"type": "integer", "minimum": 0, "maximum": 86400000},
+        "security_state": {"enum": ["end_to_end_encrypted", "gateway_decrypted", "relay_accessible", "transport_encrypted_only", "plaintext_test"]},
+        "media": {"type": "array", "uniqueItems": true, "items": {"enum": ["secure_message", "attachment", "rtt_t140", "tty_baudot", "voice", "vco", "hco", "human_relay"]}},
+        "downgrades": {"type": "array", "uniqueItems": true, "items": {"enum": ["legacy_tty_conversion", "human_relay", "server_side_transformation", "plaintext_archival", "endpoint_key_escrow", "unsupported_peer", "test_mode"]}},
+        "rejection_reasons": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128}}
+      }
+    }
+  }
+}
