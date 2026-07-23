@@ -3,13 +3,21 @@ set -eu
 
 REPO_ROOT=${EDGE1_MANAGEMENT_ROOT:-/opt/edge1-management-interface}
 SYSTEMCTL_BIN=${EDGE1_TIME_AUTHORITY_SYSTEMCTL:-systemctl}
+SIMULATION=${EDGE1_TIME_AUTHORITY_SIMULATION:-0}
 
-for command_name in python3 "$SYSTEMCTL_BIN" curl install useradd; do
+for command_name in python3 "$SYSTEMCTL_BIN" curl install; do
     command -v "$command_name" >/dev/null 2>&1 || {
         echo "Missing required command: $command_name" >&2
         exit 1
     }
 done
+
+if [ "$SIMULATION" != "1" ]; then
+    command -v useradd >/dev/null 2>&1 || {
+        echo "Missing required command: useradd" >&2
+        exit 1
+    }
+fi
 
 python3 - <<'PY'
 import sys

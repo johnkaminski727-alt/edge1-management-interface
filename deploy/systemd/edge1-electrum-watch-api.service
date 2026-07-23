@@ -1,0 +1,27 @@
+[Unit]
+Description=Edge1 Electrum watch-only API
+After=network-online.target edge1-electrum-watch.service
+Wants=network-online.target
+Requires=edge1-electrum-watch.service
+ConditionPathExists=/etc/electrum-watch/api.env
+ConditionPathExists=/etc/electrum-watch/rpc.env
+
+[Service]
+Type=simple
+User=electrum-watch
+Group=electrum-watch
+Environment=HOME=/var/lib/electrum-watch
+Environment=ELECTRUM_API_ENV=/etc/electrum-watch/api.env
+Environment=ELECTRUM_RPC_ENV=/etc/electrum-watch/rpc.env
+ExecStart=/usr/bin/python3 /opt/electrum-watch/libexec/electrum_watch_api_server.py --host 127.0.0.1 --port 8094
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -19,30 +19,11 @@ WEB_ROOT = REPO_ROOT / "src" / "web" / "telephony"
 FIXTURE = WEB_ROOT / "telephony.fixture.json"
 LOOPBACK_HOST = "127.0.0.1"
 
-INTERCONNECT_REGISTRY = (
-    REPO_ROOT /
-    "data/registry/interconnect/interconnect-registry.json"
-)
-
-PEER_STATUS = (
-    REPO_ROOT /
-    "data/registry/interconnect/status/peer-status.json"
-)
-
-SIP_HISTORY = (
-    REPO_ROOT /
-    "data/registry/interconnect/status/sip-options-history.json"
-)
-
-SIP_READINESS = (
-    REPO_ROOT /
-    "reports/interconnect-readiness.json"
-)
-
-SIP_ACCEPTANCE = (
-    REPO_ROOT /
-    "reports/interconnect/carrier-acceptance-report.md"
-)
+INTERCONNECT_REGISTRY = REPO_ROOT / "data/registry/interconnect/interconnect-registry.json"
+PEER_STATUS = REPO_ROOT / "data/registry/interconnect/status/peer-status.json"
+SIP_HISTORY = REPO_ROOT / "data/registry/interconnect/status/sip-options-history.json"
+SIP_READINESS = REPO_ROOT / "reports/interconnect-readiness.json"
+SIP_ACCEPTANCE = REPO_ROOT / "reports/interconnect/carrier-acceptance-report.md"
 
 
 def load_json_file(path: Path) -> dict[str, Any]:
@@ -58,42 +39,19 @@ def load_json_file(path: Path) -> dict[str, Any]:
 def sip_interconnect_snapshot() -> list[dict[str, Any]]:
     registry = load_json_file(INTERCONNECT_REGISTRY)
     health = load_json_file(PEER_STATUS)
-
     peers = health.get("peers", {})
     result = []
-
     for peer in registry.get("sip_peers", []):
-
-        state = peers.get(
-            peer.get("id"),
-            {}
-        )
-
-        options = state.get(
-            "sip_options",
-            {}
-        )
-
-        result.append(
-            {
-                "name": peer.get("id"),
-                "status": state.get(
-                    "status",
-                    "unknown"
-                ),
-                "latency_ms": options.get(
-                    "latency_ms"
-                ),
-                "success_rate": (
-                    100
-                    if options.get("response_code") == 200
-                    else 0
-                ),
-                "active_calls": 0,
-                "endpoint": peer.get("endpoint"),
-            }
-        )
-
+        state = peers.get(peer.get("id"), {})
+        options = state.get("sip_options", {})
+        result.append({
+            "name": peer.get("id"),
+            "status": state.get("status", "unknown"),
+            "latency_ms": options.get("latency_ms"),
+            "success_rate": 100 if options.get("response_code") == 200 else 0,
+            "active_calls": 0,
+            "endpoint": peer.get("endpoint"),
+        })
     return result
 
 
@@ -126,13 +84,7 @@ def http_json(url: str, timeout: float = 1.2) -> dict[str, Any] | None:
 
 def process_running(name: str) -> bool:
     try:
-        result = subprocess.run(
-            ["pgrep", "-x", name],
-            check=False,
-            timeout=1.5,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        result = subprocess.run(["pgrep", "-x", name], check=False, timeout=1.5, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return result.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
@@ -142,13 +94,7 @@ def service_active(name: str) -> bool:
     if not name or not all(ch.isalnum() or ch in "@_.-" for ch in name):
         return False
     try:
-        result = subprocess.run(
-            ["systemctl", "is-active", "--quiet", name],
-            check=False,
-            timeout=1.5,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        result = subprocess.run(["systemctl", "is-active", "--quiet", name], check=False, timeout=1.5, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return result.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
@@ -156,13 +102,7 @@ def service_active(name: str) -> bool:
 
 def udp_listener_present(port: int) -> bool:
     try:
-        result = subprocess.run(
-            ["ss", "-lun"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=1.5,
-        )
+        result = subprocess.run(["ss", "-lun"], capture_output=True, text=True, check=False, timeout=1.5)
         suffix = f":{port}"
         return any(suffix in line for line in result.stdout.splitlines())
     except (OSError, subprocess.TimeoutExpired):
@@ -203,20 +143,8 @@ def asterisk_record() -> dict[str, Any]:
 def asterisk_snapshot() -> tuple[int, int]:
     """Return active call and endpoint counts when the local CLI is permitted."""
     try:
-        channels = subprocess.run(
-            ["asterisk", "-rx", "core show channels concise"],
-            capture_output=True,
-            text=True,
-            timeout=2,
-            check=False,
-        )
-        endpoints = subprocess.run(
-            ["asterisk", "-rx", "pjsip show endpoints"],
-            capture_output=True,
-            text=True,
-            timeout=2,
-            check=False,
-        )
+        channels = subprocess.run(["asterisk", "-rx", "core show channels concise"], capture_output=True, text=True, timeout=2, check=False)
+        endpoints = subprocess.run(["asterisk", "-rx", "pjsip show endpoints"], capture_output=True, text=True, timeout=2, check=False)
         channel_lines = [line for line in channels.stdout.splitlines() if line.strip()]
         active_calls = len(channel_lines) // 2
         registrations = sum(1 for line in endpoints.stdout.splitlines() if line.lstrip().startswith("Endpoint:"))
@@ -229,32 +157,21 @@ def status_payload() -> dict[str, Any]:
     fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
     services = [
         asterisk_record(),
-        service_record(
-            "wwcx-numbering-node.service",
-            "Numbering intelligence",
-            8093,
-            "http://127.0.0.1:8093/healthz",
-        ),
+        service_record("wwcx-numbering-node.service", "Numbering intelligence", 8093, "http://127.0.0.1:8093/healthz"),
         service_record("bigbird-ai-gateway.service", "Big Bird API gateway"),
     ]
     messaging_url = os.environ.get("WWCX_MESSAGING_HEALTH_URL", "http://127.0.0.1:8095/healthz")
     services.append(service_record("wwcx-messaging-gateway.service", "SMS and MMS gateway", 8095, messaging_url))
-
     active_calls, registrations = asterisk_snapshot()
     healthy_count = sum(1 for item in services if item["status"] == "healthy")
     critical_count = sum(1 for item in services if item["status"] == "critical")
-
+    interconnects = sip_interconnect_snapshot()
     metrics = {
         "active_calls": active_calls,
         "registrations": registrations,
         "messages_queued": None,
-        "trunks_healthy": sum(
-            1 for item in sip_interconnect_snapshot()
-            if item["status"] == "healthy"
-        ),
-        "trunks_total": len(
-            sip_interconnect_snapshot()
-        ),
+        "trunks_healthy": sum(1 for item in interconnects if item["status"] == "healthy"),
+        "trunks_total": len(interconnects),
         "critical_alerts": critical_count,
     }
     payload = {
@@ -265,127 +182,67 @@ def status_payload() -> dict[str, Any]:
         "overall_status": "critical" if critical_count else ("degraded" if healthy_count < len(services) else "healthy"),
         "metrics": metrics,
         "services": services,
-        "interconnects": sip_interconnect_snapshot(),
+        "interconnects": interconnects,
         "registrations": [],
-        "alerts": [
-            {
-                "severity": item["status"],
-                "title": f"{item['name']} is {item['status']}",
-                "summary": item["role"],
-                "source": item["id"],
-                "opened_at": utc_now(),
-            }
-            for item in services
-            if item["status"] != "healthy"
-        ],
+        "alerts": [{
+            "severity": item["status"],
+            "title": f"{item['name']} is {item['status']}",
+            "summary": item["role"],
+            "source": item["id"],
+            "opened_at": utc_now(),
+        } for item in services if item["status"] != "healthy"],
     }
     payload["fixture_available"] = bool(fixture)
     return payload
 
-def acceptance_payload() -> dict[str, Any]:
 
+def acceptance_payload() -> dict[str, Any]:
     registry = load_json_file(INTERCONNECT_REGISTRY)
     health = load_json_file(PEER_STATUS)
-
     peers = []
-
     for peer, state in health.get("peers", {}).items():
-
-        peers.append(
-            {
-                "peer": peer,
-                "status": state.get("status"),
-                "options": state.get(
-                    "sip_options",
-                    {}
-                ).get("response_code"),
-                "latency_ms": state.get(
-                    "sip_options",
-                    {}
-                ).get("latency_ms")
-            }
-        )
-
+        peers.append({
+            "peer": peer,
+            "status": state.get("status"),
+            "options": state.get("sip_options", {}).get("response_code"),
+            "latency_ms": state.get("sip_options", {}).get("latency_ms"),
+        })
     return {
         "platform": "Edge1 SIP Interconnect",
-        "carrier_count": len(
-            registry.get("carriers", [])
-        ),
+        "carrier_count": len(registry.get("carriers", [])),
         "sip_peer_tests": peers,
-        "routing_rules": len(
-            registry.get("routing_rules", [])
-        ),
+        "routing_rules": len(registry.get("routing_rules", [])),
         "production_requirements": {
             "carrier_agreement": False,
             "sip_credentials": False,
             "public_signaling_endpoint": False,
             "emergency_calling": False,
-            "stir_shaken": False
-        }
+            "stir_shaken": False,
+        },
     }
 
 
 def carrier_lifecycle_payload() -> dict[str, object]:
-
-    registry = load_json_file(
-        INTERCONNECT_REGISTRY
-    )
-
-    health = load_json_file(
-        PEER_STATUS
-    )
-
+    registry = load_json_file(INTERCONNECT_REGISTRY)
+    health = load_json_file(PEER_STATUS)
     carriers = []
-
-    for carrier in registry.get(
-        "carriers",
-        []
-    ):
-
+    for carrier in registry.get("carriers", []):
         carrier_id = carrier.get("id")
-
         peer_states = []
-
-        for peer, state in health.get(
-            "peers",
-            {}
-        ).items():
-
+        for peer, state in health.get("peers", {}).items():
             if peer.startswith(carrier_id):
-
-                peer_states.append(
-                    {
-                        "peer": peer,
-                        "status": state.get("status")
-                    }
-                )
-
-
-        carriers.append(
-            {
-                "id": carrier_id,
-                "name": carrier.get("name"),
-                "status": carrier.get("status"),
-                "sip_peers": peer_states
-            }
-        )
+                peer_states.append({"peer": peer, "status": state.get("status")})
+        carriers.append({
+            "id": carrier_id,
+            "name": carrier.get("name"),
+            "status": carrier.get("status"),
+            "sip_peers": peer_states,
+        })
+    return {"carriers": carriers}
 
 
-    return {
-        "carriers": carriers
-    }
-
-
-PORTAL_CARRIER_STATUS = (
-    REPO_ROOT /
-    "data/registry/interconnect/portal/carrier-status.json"
-)
-
-PORTAL_SUMMARY = (
-    REPO_ROOT /
-    "data/registry/interconnect/portal/public-summary.json"
-)
-
+PORTAL_CARRIER_STATUS = REPO_ROOT / "data/registry/interconnect/portal/carrier-status.json"
+PORTAL_SUMMARY = REPO_ROOT / "data/registry/interconnect/portal/public-summary.json"
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -406,47 +263,23 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/telephony/status":
             self.send_json(HTTPStatus.OK, status_payload())
             return
-
         if path == "/api/telephony/health/history":
-            self.send_json(
-                HTTPStatus.OK,
-                load_json_file(SIP_HISTORY)
-            )
+            self.send_json(HTTPStatus.OK, load_json_file(SIP_HISTORY))
             return
-
         if path == "/api/telephony/readiness":
-            self.send_json(
-                HTTPStatus.OK,
-                load_json_file(SIP_READINESS)
-            )
+            self.send_json(HTTPStatus.OK, load_json_file(SIP_READINESS))
             return
-
         if path == "/api/telephony/acceptance":
-            self.send_json(
-                HTTPStatus.OK,
-                acceptance_payload()
-            )
+            self.send_json(HTTPStatus.OK, acceptance_payload())
             return
-
         if path == "/api/telephony/carriers":
-            self.send_json(
-                HTTPStatus.OK,
-                carrier_lifecycle_payload()
-            )
+            self.send_json(HTTPStatus.OK, carrier_lifecycle_payload())
             return
-
         if path == "/api/portal/carriers":
-            self.send_json(
-                HTTPStatus.OK,
-                load_json_file(PORTAL_CARRIER_STATUS)
-            )
+            self.send_json(HTTPStatus.OK, load_json_file(PORTAL_CARRIER_STATUS))
             return
-
         if path == "/api/portal/status":
-            self.send_json(
-                HTTPStatus.OK,
-                load_json_file(PORTAL_SUMMARY)
-            )
+            self.send_json(HTTPStatus.OK, load_json_file(PORTAL_SUMMARY))
             return
         if path == "/healthz":
             self.send_json(HTTPStatus.OK, {"status": "ok", "time": utc_now()})

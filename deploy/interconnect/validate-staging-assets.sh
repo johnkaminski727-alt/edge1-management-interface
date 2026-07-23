@@ -46,7 +46,7 @@ if grep -R -E -- 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|password[[:space:]]*=|se
 fi
 
 python3 -m json.tool "$PROFILE" >/dev/null || fail 'service.json is invalid JSON'
-python3 -m py_compile "$NUMBERING" || fail 'numbering node Python syntax check failed'
+python3 -c 'import pathlib, sys; path = pathlib.Path(sys.argv[1]); compile(path.read_bytes(), str(path), "exec")' "$NUMBERING" || fail 'numbering node Python syntax check failed'
 sh -n "$PREFLIGHT" || fail 'preflight shell syntax check failed'
 sh -n "$PUBLISH" || fail 'publish shell syntax check failed'
 sh -n "$INSTALLER" || fail 'installer shell syntax check failed'
