@@ -39,8 +39,8 @@ class BigBirdEdge1ConnectorTests(unittest.TestCase):
 
     def test_policy_is_read_only(self):
         self.assertEqual(self.config["mode"], "read_only")
-        self.assertIn("edge1.numbering.health", self.config["enabled_tools"])
-        self.assertIn("edge1.repository.fetch", self.config["disabled_tools"])
+        self.assertIn("numbering.health", self.config["enabled_tools"])
+        self.assertIn("repository.fetch", self.config["disabled_tools"])
 
     def test_restart_policy(self):
         policy = self.config["restart_policy"]
