@@ -13,6 +13,22 @@ def load(name):
         return json.load(f)
 
 
+def existing_generated_at():
+    path = REG / "country_registry.json"
+
+    if path.exists():
+        try:
+            value = json.loads(path.read_text(encoding="utf-8")).get(
+                "generated_at"
+            )
+            if isinstance(value, str) and value:
+                return value
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    return datetime.now(timezone.utc).isoformat()
+
+
 def main():
 
     countries = load("countries.json")["countries"]
@@ -64,7 +80,7 @@ def main():
 
     output = {
         "schema_version": "1.0",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": existing_generated_at(),
         "source_standards": [
             "ISO 3166",
             "ITU E.164",

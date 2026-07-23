@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telegraph-receipt.schema.json",
+  "title": "WW.CX Telegraph Federation Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "receipt_id", "message_id", "office_id", "event", "recorded_at", "message_digest", "signature"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "receipt_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{16,128}$"},
+    "message_id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{16,128}$"},
+    "office_id": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"},
+    "event": {"enum": ["accepted", "queued", "forwarded", "delivered_to_endpoint", "read_by_endpoint", "expired", "rejected", "quarantined", "duplicate_rejected"]},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "message_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "previous_receipt_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "peer_office": {"type": "string", "pattern": "^[a-z0-9.-]{3,253}$"},
+    "endpoint_id_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "security_state": {"enum": ["end_to_end_encrypted", "gateway_decrypted", "relay_accessible", "transport_encrypted_only", "plaintext_test"]},
+    "code_word_evidence": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["purpose", "evidence_type", "evidence"],
+        "properties": {
+          "purpose": {"enum": ["message_verification", "sender_authentication", "recipient_challenge", "duress_indicator", "routing_instruction", "operator_instruction", "custom"]},
+          "evidence_type": {"enum": ["sha256_commitment", "verified_match", "verified_mismatch", "not_evaluated"]},
+          "evidence": {"type": "string", "minLength": 1, "maxLength": 512}
+        }
+      }
+    },
+    "reason": {"type": "string", "minLength": 1, "maxLength": 512},
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonce", "first_seen_at"],
+      "properties": {
+        "nonce": {"type": "string", "minLength": 16, "maxLength": 256},
+        "first_seen_at": {"type": "string", "format": "date-time"},
+        "duplicate_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 8, "maxLength": 255},
+        "value": {"type": "string", "minLength": 32, "maxLength": 1024}
+      }
+    }
+  }
+}
