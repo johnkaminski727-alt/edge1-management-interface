@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 REPO_ROOT="${REPO_ROOT:-/opt/edge1-management-interface}"
 BIGBIRD_ROOT="${BIGBIRD_ROOT:-/opt/bigbird-ai-gateway}"
-BIGBIRD_URL="${BIGBIRD_URL:-http://127.0.0.1:58080}"
+BIGBIRD_URL="${BIGBIRD_URL:-http://127.0.0.1:8787}"
 BIGBIRD_SERVICE="${BIGBIRD_SERVICE:-bigbird-ai-gateway.service}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE="${EVIDENCE_DIR:-/tmp/wwcx-messaging-live-inspection-$STAMP}"
@@ -42,7 +42,15 @@ systemctl status "$BIGBIRD_SERVICE" --no-pager > "$EVIDENCE/bigbird-status.txt" 
 journalctl -u "$BIGBIRD_SERVICE" -n 200 --no-pager > "$EVIDENCE/bigbird-journal.txt" 2>&1 || true
 ss -lntup > "$EVIDENCE/listeners.txt"
 
-find "$BIGBIRD_ROOT/app" -maxdepth 2 -type f -printf '%M %u:%g %p\n' 2>/dev/null | sort > "$EVIDENCE/bigbird-app-files.txt"
+if [ -d "$BIGBIRD_ROOT/app" ]; then
+  find "$BIGBIRD_ROOT/app" \
+    -path '*/__pycache__' -prune -o \
+    -maxdepth 2 -type f -printf '%M %u:%g %p\n' 2>/dev/null \
+    | sort > "$EVIDENCE/bigbird-app-files.txt" || true
+else
+  printf 'BigBird app directory not found: %s/app\n' "$BIGBIRD_ROOT" \
+    > "$EVIDENCE/bigbird-app-files.txt"
+fi
 
 for endpoint in health tools openapi.json; do
   case "$endpoint" in
@@ -79,7 +87,7 @@ systemctl list-units --type=service --all --no-pager \
 
 find /etc/systemd/system /lib/systemd/system -maxdepth 1 -type f \
   \( -iname '*wwcx*' -o -iname '*messag*' -o -iname '*bigbird*' \) \
-  -printf '%p\n' 2>/dev/null | sort > "$EVIDENCE/related-units.txt"
+  -printf '%p\n' 2>/dev/null | sort > "$EVIDENCE/related-units.txt" || true
 
 date -u --iso-8601=seconds > "$EVIDENCE/completed-at.txt"
 
