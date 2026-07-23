@@ -49,3 +49,36 @@ for marker in (
         raise SystemExit(f"Missing service hardening marker: {marker}")
 
 print("Bitcoin mining readiness validation passed")
+
+import importlib.util
+
+spec = importlib.util.spec_from_file_location(
+    "bitcoin_mining_readiness_exporter",
+    EXPORTER,
+)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+benchmark_document = module.build_document(
+    {"enabled": False},
+    {
+        "benchmark": True,
+        "benchmark_seconds": 120.0,
+        "benchmark_hashes": 3935043,
+        "hashrate_hs": 32792.025,
+        "hashrate_ths": 3.2792e-08,
+        "online": False,
+        "pool_connected": False,
+    },
+)
+
+miner = benchmark_document["miner"]
+
+assert miner["benchmark"] is True, miner
+assert miner["benchmark_seconds"] == 120.0, miner
+assert miner["benchmark_hashes"] == 3935043, miner
+assert miner["hashrate_hs"] == 32792.025, miner
+assert miner["hashrate_display"] == "32.79 kH/s", miner
+assert miner["hashrate_ths"] > 0, miner
+
+print("Bitcoin mining benchmark telemetry validation passed")
