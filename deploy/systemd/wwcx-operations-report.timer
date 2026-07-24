@@ -1,0 +1,10 @@
+[Unit]
+Description=Generate WW.CX Operations reports
+
+[Timer]
+OnBootSec=300s
+OnUnitActiveSec=24h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

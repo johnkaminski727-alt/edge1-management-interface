@@ -113,6 +113,17 @@ Loading...
 
 <section class="panel">
 
+<h2>Operations Reports</h2>
+
+<div id="reports" class="grid">
+Loading...
+</div>
+
+</section>
+
+
+<section class="panel">
+
 <h2>Incident Context</h2>
 
 <div id="incident-context" class="grid">
@@ -316,6 +327,22 @@ card(
 card(
 "Incident Context",
 "No active conditions"
+);
+
+
+document.getElementById("reports").innerHTML =
+report.latest
+?
+card(
+"Latest Report",
+report.latest,
+"good"
+)
+:
+card(
+"Reports",
+"No reports available",
+"warning"
 );
 
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=WW.CX Operations Center report exporter
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/operations_report_exporter.py
+ReadWritePaths=/var/www/edge1-status
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
