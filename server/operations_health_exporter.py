@@ -44,6 +44,10 @@ def main():
         Path("/var/www/edge1-status/operations-network.json")
     )
 
+    carrier = load(
+        Path("/var/www/edge1-status/operations-carrier.json")
+    )
+
     checks=[]
 
     sec_ok = security.get("health",{}).get("status") == "healthy"
@@ -210,6 +214,37 @@ def main():
             "No action required."
             if network_ok
             else "Check network exporter."
+    })
+
+
+    carrier_status = (
+        carrier.get("telephony", {})
+        .get("overall_status")
+    )
+
+    carrier_ok = carrier_status in (
+        "healthy",
+        "ok"
+    )
+
+    checks.append({
+        "name":"Carrier",
+        "state":
+            "healthy"
+            if carrier_ok
+            else "warning",
+        "reason_code":
+            ""
+            if carrier_ok
+            else "carrier.posture.degraded",
+        "detail":
+            "Carrier posture healthy"
+            if carrier_ok
+            else f"Carrier posture: {carrier_status or 'unknown'}",
+        "recommendation":
+            "No action required."
+            if carrier_ok
+            else "Review carrier readiness and interconnect status."
     })
 
 

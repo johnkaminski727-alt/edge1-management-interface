@@ -28,6 +28,7 @@ def main():
     wallet = Path("/var/www/edge1-status/bitcoin-wallet.json")
     mining = Path("/var/www/edge1-status/bitcoin-mining.json")
     network = Path("/var/www/edge1-status/operations-network.json")
+    carrier = Path("/var/www/edge1-status/operations-carrier.json")
 
     if security.exists():
         data=json.loads(security.read_text())
@@ -91,6 +92,30 @@ def main():
             data.get("generated_at"),
             f"Interfaces: {len(data.get('interfaces', []))}",
             "No action required."
+        )
+
+
+    if carrier.exists():
+        data=json.loads(carrier.read_text())
+
+        readiness = data.get(
+            "carrier_readiness",
+            {}
+        )
+
+        add_event(
+            "carrier",
+            "warning"
+            if data.get("telephony",{}).get("overall_status") == "degraded"
+            else "info",
+            "current",
+            "Carrier posture refreshed",
+            data.get("generated_at"),
+            f"Readiness: {readiness.get('status','unknown')}",
+            readiness.get(
+                "note",
+                "No action required."
+            )
         )
 
 
