@@ -76,6 +76,16 @@ def main():
     checks.append({
         "name":"Security",
         "state": security_state,
+        "service_state":
+            "warning" if not sec_ok else "healthy",
+        "resource_state":
+            (
+                "critical"
+                if memory_gb >= 2.0
+                else "warning"
+                if memory_gb >= 1.5
+                else "healthy"
+            ),
         "reason_code": security_reason,
         "metrics": {
             "memory_gb": memory_gb,
