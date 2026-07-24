@@ -85,6 +85,17 @@ def main():
                 {}
             )
 
+            history = previous.get(
+                "history",
+                []
+            )
+
+            if not history or history[-1].get("state") != "monitoring":
+                history.append({
+                    "state": "monitoring",
+                    "time": now
+                })
+
             state[incident_id] = {
                 "component": check.get("name"),
                 "status": "monitoring",
@@ -94,11 +105,7 @@ def main():
                         now
                     ),
                 "last_seen": now,
-                "history":
-                    previous.get(
-                        "history",
-                        []
-                    ) + ["monitoring"]
+                "history": history
             }
 
             incidents.append({
