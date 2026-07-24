@@ -30,7 +30,8 @@ operations-messaging.json \
 operations-network.json \
 operations-carrier.json \
 operations-trends.json \
-operations-incidents.json
+operations-incidents.json \
+operations-incident-history.json
 do
     test -f "/var/www/edge1-status/$f"
     echo "OK $f"
@@ -55,7 +56,8 @@ wwcx-operations-network.timer \
 wwcx-operations-carrier.timer \
 wwcx-operations-pdf-report.timer \
 wwcx-operations-trends.timer \
-wwcx-operations-incidents.timer
+wwcx-operations-incidents.timer \
+wwcx-operations-incident-history.timer
 do
     systemctl is-active --quiet "$t"
     echo "OK $t"
@@ -109,7 +111,8 @@ echo "OK trends"
 echo
 echo "[Incident Artifacts]"
 
-test -f /var/www/edge1-status/operations-incidents.json
+test -f /var/www/edge1-status/operations-incidents.json \
+operations-incident-history.json
 echo "OK incidents"
 
 echo
@@ -117,6 +120,12 @@ echo "[Incident State]"
 
 test -f /var/lib/wwcx-operations/incidents.json
 echo "OK incident state store"
+
+echo
+echo "[Incident History]"
+
+test -f /var/www/edge1-status/operations-incident-history.json
+echo "OK incident history"
 
 echo
 echo "=== COMPLETE ==="
