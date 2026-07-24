@@ -32,15 +32,32 @@ def main():
 
     sec_ok = security.get("health",{}).get("status") == "healthy"
 
+    memory_bytes = int(
+        security.get("engine",{}).get("MemoryCurrent",0) or 0
+    )
+
+    memory_gb = round(memory_bytes / (1024**3), 2)
+
+    security_warning = (
+        memory_bytes > 1250000000
+        or not sec_ok
+    )
+
     checks.append({
         "name":"Security",
-        "state":"healthy" if sec_ok else "warning",
+        "state":"warning" if security_warning else "healthy",
+        "reason_code":
+            "security.memory.elevated"
+            if memory_bytes > 1250000000
+            else "",
         "detail":
-            "Suricata operational"
-            if sec_ok
-            else "; ".join(
-                security.get("health",{}).get("warnings",[])
-            )
+            f"Suricata memory {memory_gb} GB"
+            if security_warning
+            else "Suricata operational",
+        "recommendation":
+            "Monitor Suricata resource usage and event load."
+            if memory_bytes > 1250000000
+            else "No action required."
     })
 
 
@@ -64,10 +81,18 @@ def main():
     checks.append({
         "name":"Mining",
         "state":"warning" if mining_warning else "healthy",
+        "reason_code":
+            "mining.hardware.not_configured"
+            if mining_warning
+            else "",
         "detail":
             "; ".join(mining_warning)
             if mining_warning
-            else "Mining telemetry healthy"
+            else "Mining telemetry healthy",
+        "recommendation":
+            "Configure mining hardware if production mining is intended."
+            if mining_warning
+            else "No action required."
     })
 
 

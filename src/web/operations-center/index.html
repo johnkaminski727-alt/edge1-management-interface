@@ -211,13 +211,20 @@ health.overall === "healthy"
 ),
 
 ...checks.map(c =>
-card(
-c.name,
-c.detail,
-c.state === "healthy"
-? "good"
-: "warning"
-))
+`
+<div class="card ${c.state === "healthy" ? "good" : "warning"}">
+<div class="label">${esc(c.name)}</div>
+<div class="value">${esc(c.detail)}</div>
+<small>
+${esc(c.reason_code || "")}
+</small>
+<br>
+<small>
+${esc(c.recommendation || "")}
+</small>
+</div>
+`
+)
 
 ].join("");
 
