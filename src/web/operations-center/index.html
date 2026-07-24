@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WW.CX Edge1 Operations Center</title>
+
+<style>
+:root{
+color-scheme:dark;
+font-family:system-ui,sans-serif
+}
+
+body{
+max-width:1200px;
+margin:auto;
+padding:30px;
+background:#0b1015;
+color:#eee
+}
+
+.panel{
+background:#151c22;
+border:1px solid #34404a;
+border-radius:16px;
+padding:20px;
+margin-bottom:18px
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+gap:14px
+}
+
+.card{
+background:#202830;
+border:1px solid #394854;
+border-radius:12px;
+padding:18px
+}
+
+.good{
+border-color:#32905b
+}
+
+.warning{
+border-color:#c28a22
+}
+
+.label{
+color:#9aa8b3;
+font-size:.85rem
+}
+
+.value{
+font-size:1.35rem;
+font-weight:700
+}
+
+small{
+color:#9aa8b3
+}
+
+a{
+color:#fff;
+text-decoration:none
+}
+
+</style>
+</head>
+
+<body>
+
+<section class="panel">
+<h1>WW.CX Edge1 Operations Center</h1>
+<p>Read-only infrastructure operations visibility.</p>
+</section>
+
+
+<section class="panel">
+
+<h2>Overall Operations Health</h2>
+
+<div id="health" class="grid">
+Loading...
+</div>
+
+</section>
+
+
+<section class="panel">
+
+<h2>Live Overview</h2>
+
+<div id="overview" class="grid">
+Loading...
+</div>
+
+</section>
+
+
+<section class="panel">
+
+<h2>Operations Modules</h2>
+
+<div class="grid">
+
+<a class="card" href="./security/">
+<h3>Security Operations</h3>
+<small>IDS health, alerts and validation.</small>
+</a>
+
+<a class="card" href="./bitcoin/">
+<h3>Bitcoin Operations</h3>
+<small>Wallet and Bitcoin telemetry.</small>
+</a>
+
+<a class="card" href="./mining/">
+<h3>Mining Operations</h3>
+<small>Mining telemetry and health.</small>
+</a>
+
+</div>
+
+</section>
+
+
+<script>
+
+const esc=v=>String(v??"")
+.replaceAll("&","&amp;")
+.replaceAll("<","&lt;")
+.replaceAll(">","&gt;");
+
+
+function card(title,value,state="good"){
+return `
+<div class="card ${state}">
+<div class="label">${esc(title)}</div>
+<div class="value">${esc(value)}</div>
+</div>`
+}
+
+function age(ts){
+if(!ts)return "unknown";
+const d=new Date(ts);
+return d.toLocaleString();
+}
+
+
+async function load(){
+
+try{
+
+const security =
+await fetch("./security-operations.json",{cache:"no-store"})
+.then(r=>r.json());
+
+const wallet =
+await fetch("./bitcoin-wallet.json",{cache:"no-store"})
+.then(r=>r.json());
+
+const mining =
+await fetch("./bitcoin-mining.json",{cache:"no-store"})
+.then(r=>r.json());
+
+
+const warnings=[];
+
+if(mining.warnings?.length){
+warnings.push(...mining.warnings);
+}
+
+const healthy =
+security.health?.status==="healthy" &&
+wallet.wallet?.synchronized &&
+warnings.length===0;
+
+
+document.getElementById("health").innerHTML=[
+
+card(
+"Overall Status",
+healthy ? "Operational" : "Attention Required",
+healthy ? "good" : "warning"
+),
+
+card(
+"Security",
+security.health?.status || "unknown",
+security.health?.status==="healthy" ? "good":"warning"
+),
+
+card(
+"Bitcoin",
+wallet.wallet?.synchronized ? "Online":"Warning",
+wallet.wallet?.synchronized ? "good":"warning"
+),
+
+card(
+"Mining",
+mining.mode || "unknown",
+warnings.length ? "warning":"good"
+)
+
+].join("");
+
+
+document.getElementById("overview").innerHTML=[
+
+card(
+"Security",
+security.health?.status==="healthy"
+?"Healthy"
+:"Warning",
+security.health?.status==="healthy"
+?"good":"warning"
+),
+
+card(
+"Suricata",
+security.engine?.version || "unknown"
+),
+
+card(
+"Security Alerts",
+security.recent_alerts?.length || 0
+),
+
+card(
+"Bitcoin Wallet",
+wallet.wallet?.synchronized
+?"Synchronized"
+:"Offline",
+wallet.wallet?.synchronized
+?"good":"warning"
+),
+
+card(
+"Bitcoin Backend",
+wallet.service?.state || "unknown"
+),
+
+card(
+"Mining",
+mining.miner?.hashrate_display || "unknown",
+mining.warnings?.length
+?"warning":"good"
+)
+
+].join("");
+
+}
+catch(e){
+
+document.getElementById("overview").innerHTML =
+card("Status","Unavailable","warning");
+
+}
+
+}
+
+load();
+
+setInterval(load,60000);
+
+</script>
+
+</body>
+</html>
