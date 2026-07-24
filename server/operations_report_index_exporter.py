@@ -9,8 +9,13 @@ OUTPUT = REPORTS / "index.json"
 
 
 def latest(pattern):
+    files = [
+        x for x in REPORTS.glob(pattern)
+        if x.name != "index.json"
+    ]
+
     files = sorted(
-        REPORTS.glob(pattern),
+        files,
         key=lambda x: x.stat().st_mtime,
         reverse=True
     )
