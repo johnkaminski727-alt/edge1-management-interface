@@ -113,4 +113,10 @@ test -f /var/www/edge1-status/operations-incidents.json
 echo "OK incidents"
 
 echo
+echo "[Incident State]"
+
+test -f /var/lib/wwcx-operations/incidents.json
+echo "OK incident state store"
+
+echo
 echo "=== COMPLETE ==="
