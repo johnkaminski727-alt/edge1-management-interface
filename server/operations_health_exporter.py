@@ -66,6 +66,12 @@ def main():
     if not sec_ok:
         security_state = "warning"
         security_reason = "security.health.warning"
+        security_recommendation = "Check Suricata service health."
+
+    elif memory_gb < 1.5:
+        security_state = "healthy"
+        security_reason = ""
+        security_recommendation = "No action required."
 
     checks.append({
         "name":"Security",
