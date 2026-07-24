@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh WW.CX Operations correlation
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=300s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

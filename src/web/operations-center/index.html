@@ -113,6 +113,17 @@ Loading...
 
 <section class="panel">
 
+<h2>Incident Context</h2>
+
+<div id="incident-context" class="grid">
+Loading...
+</div>
+
+</section>
+
+
+<section class="panel">
+
 <h2>Automation Health</h2>
 
 <div id="automation" class="grid">
@@ -282,6 +293,30 @@ ${esc(c.recommendation || "")}
 )
 
 ].join("");
+
+
+document.getElementById("incident-context").innerHTML =
+
+(correlation.conditions || []).map(c =>
+card(
+c.component,
+`${c.reason_code}: ${c.detail}`,
+"warning"
+)
+).join("")
++
+(correlation.recent_changes || []).slice(0,3).map(c =>
+card(
+"Change",
+`${c.hash}: ${c.message}`,
+"good"
+)
+).join("")
+||
+card(
+"Incident Context",
+"No active conditions"
+);
 
 
 document.getElementById("automation").innerHTML =
