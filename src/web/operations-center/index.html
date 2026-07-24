@@ -113,6 +113,17 @@ Loading...
 
 <section class="panel">
 
+<h2>Automation Health</h2>
+
+<div id="automation" class="grid">
+Loading...
+</div>
+
+</section>
+
+
+<section class="panel">
+
 <h2>Daily Operations Summary</h2>
 
 <div id="daily-summary" class="grid">
@@ -271,6 +282,19 @@ ${esc(c.recommendation || "")}
 )
 
 ].join("");
+
+
+document.getElementById("automation").innerHTML =
+(automation.timers || []).map(t =>
+card(
+t.name,
+t.state,
+t.state === "active"
+? "good"
+: "warning"
+)
+).join("")
+|| card("Automation","Unavailable","warning");
 
 
 document.getElementById("daily-summary").innerHTML=[
