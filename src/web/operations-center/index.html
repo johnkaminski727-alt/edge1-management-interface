@@ -113,6 +113,23 @@ Loading...
 
 <section class="panel">
 
+<h2>Daily Operations Summary</h2>
+
+<div id="daily-summary" class="grid">
+Loading...
+</div>
+
+<p>
+<a href="./daily-summary.html">
+Open full daily report
+</a>
+</p>
+
+</section>
+
+
+<section class="panel">
+
 <h2>Recent Operations</h2>
 
 <div id="timeline" class="grid">
@@ -253,6 +270,34 @@ ${esc(c.recommendation || "")}
 `
 )
 
+].join("");
+
+
+document.getElementById("daily-summary").innerHTML=[
+card(
+"Overall",
+summary.overall || "unknown",
+summary.overall==="healthy"
+?"good"
+:"warning"
+),
+card(
+"Security Alerts",
+summary.security?.alerts || 0
+),
+card(
+"Bitcoin",
+summary.bitcoin?.synchronized
+?"Synchronized"
+:"Warning"
+),
+card(
+"Mining",
+summary.mining?.mode || "unknown",
+summary.mining?.warnings?.length
+?"warning"
+:"good"
+)
 ].join("");
 
 

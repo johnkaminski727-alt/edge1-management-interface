@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh WW.CX Operations Center daily summary
+
+[Timer]
+OnBootSec=120s
+OnUnitActiveSec=24h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
