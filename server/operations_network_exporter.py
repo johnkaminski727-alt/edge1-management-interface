@@ -9,12 +9,15 @@ OUTPUT = Path("/var/www/edge1-status/operations-network.json")
 
 
 def run(args):
-    return subprocess.run(
-        args,
-        text=True,
-        capture_output=True,
-        check=False
-    ).stdout.strip()
+    try:
+        return subprocess.run(
+            args,
+            text=True,
+            capture_output=True,
+            check=False
+        ).stdout.strip()
+    except FileNotFoundError:
+        return ""
 
 
 def main():
