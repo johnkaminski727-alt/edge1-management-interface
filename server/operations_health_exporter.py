@@ -40,6 +40,10 @@ def main():
         Path("/var/www/edge1-status/operations-inventory.json")
     )
 
+    network = load(
+        Path("/var/www/edge1-status/operations-network.json")
+    )
+
     checks=[]
 
     sec_ok = security.get("health",{}).get("status") == "healthy"
@@ -188,6 +192,24 @@ def main():
             "No action required."
             if inventory_ok
             else "Check inventory exporter."
+    })
+
+
+    network_ok = bool(network.get("interfaces"))
+
+    checks.append({
+        "name":"Network",
+        "state":"healthy" if network_ok else "warning",
+        "reason_code":
+            "" if network_ok else "network.posture.unavailable",
+        "detail":
+            "Network posture available"
+            if network_ok
+            else "Network posture unavailable",
+        "recommendation":
+            "No action required."
+            if network_ok
+            else "Check network exporter."
     })
 
 
