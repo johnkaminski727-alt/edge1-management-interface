@@ -59,6 +59,10 @@ def main():
         "operations-changes.json"
     )
 
+    incidents = load(
+        "operations-incidents.json"
+    )
+
     doc = SimpleDocTemplate(
         str(output)
     )
@@ -90,7 +94,8 @@ def main():
         ("Overall Health", health),
         ("Daily Summary", summary),
         ("Incident Context", correlation),
-        ("Recent Changes", changes)
+        ("Recent Changes", changes),
+        ("Active Incidents", incidents)
     ]
 
     for title, data in sections:
