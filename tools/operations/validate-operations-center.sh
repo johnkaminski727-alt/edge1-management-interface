@@ -91,7 +91,6 @@ test -f /var/www/edge1-status/operations-network.json
 echo "OK network"
 
 echo
-echo "OK carrier"
 
 echo
 echo "=== COMPLETE ==="
