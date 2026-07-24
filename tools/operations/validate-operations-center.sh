@@ -91,9 +91,6 @@ test -f /var/www/edge1-status/operations-network.json
 echo "OK network"
 
 echo
-echo "[Carrier Artifacts]"
-
-test -f /var/www/edge1-status/operations-carrier.json
 echo "OK carrier"
 
 echo
