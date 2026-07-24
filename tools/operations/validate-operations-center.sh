@@ -81,11 +81,9 @@ test -f /var/www/edge1-status/operations-messaging.json
 echo "OK messaging"
 
 echo
-
 echo "[Carrier Artifacts]"
 
-test -f /var/www/edge1-status/operations-carrier.json \
-operations-trends.json
+test -f /var/www/edge1-status/operations-carrier.json
 echo "OK carrier"
 
 echo
@@ -95,12 +93,16 @@ test -f /var/www/edge1-status/operations-network.json
 echo "OK network"
 
 echo
-
-echo
 echo "[PDF Artifacts]"
 
 test -n "$(ls /var/www/edge1-status/reports/*.pdf 2>/dev/null | head -1)"
 echo "OK PDF report generated"
+
+echo
+echo "[Trend Artifacts]"
+
+test -f /var/www/edge1-status/operations-trends.json
+echo "OK trends"
 
 echo
 echo "=== COMPLETE ==="
