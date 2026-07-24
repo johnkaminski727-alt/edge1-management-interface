@@ -485,6 +485,7 @@ card(
 ].join("");
 
 
+
 document.getElementById("communications").innerHTML = [
 
 card(
@@ -505,26 +506,69 @@ messaging.available
 messaging.available
 ? "good"
 : "warning"
+),
+
+card(
+"Carrier",
+carrier.telephony?.overall_status || "Unknown",
+carrier.telephony?.overall_status === "healthy"
+? "good"
+: "warning"
 )
 
 ].join("");
 
 
-document.getElementById("inventory").innerHTML = [
+document.getElementById("release").innerHTML = [
 
 card(
-"Host",
-inventory.host || "Unknown"
+"Branch",
+version.branch || "Unknown"
 ),
 
 card(
-"Kernel",
-inventory.kernel || "Unknown"
+"Commit",
+version.commit || "Unknown"
 ),
 
 card(
-"Modules",
-(inventory.modules || []).join(", ")
+"Repository",
+version.dirty
+? "Changes detected"
+: "Clean",
+version.dirty
+? "warning"
+: "good"
+)
+
+].join("");
+
+
+document.getElementById("network").innerHTML = [
+
+card(
+"Interfaces",
+(network.interfaces || []).join(", ")
+),
+
+card(
+"WireGuard",
+network.wireguard_available
+? "Available"
+: "Unavailable",
+network.wireguard_available
+? "good"
+: "warning"
+),
+
+card(
+"DNS Visibility",
+network.resolver
+? "Available"
+: "Limited",
+network.resolver
+? "good"
+: "warning"
 )
 
 ].join("");
