@@ -212,16 +212,43 @@ health.overall === "healthy"
 
 ...checks.map(c =>
 `
-<div class="card ${c.state === "healthy" ? "good" : "warning"}">
+<div class="card ${c.state === "healthy" ? "good" : c.state === "critical" ? "warning" : "warning"}">
+
 <div class="label">${esc(c.name)}</div>
+
 <div class="value">${esc(c.detail)}</div>
+
 <small>
-${esc(c.reason_code || "")}
+State: ${esc(c.state)}
 </small>
+
 <br>
+
+<small>
+Reason:
+${esc(c.reason_code || "none")}
+</small>
+
+${c.metrics ? `
+<br>
+<small>
+Memory:
+${esc(c.metrics.memory_gb)} GB
+<br>
+Warning:
+${esc(c.metrics.warning_threshold_gb)} GB
+<br>
+Critical:
+${esc(c.metrics.critical_threshold_gb)} GB
+</small>
+` : ""}
+
+<br>
+
 <small>
 ${esc(c.recommendation || "")}
 </small>
+
 </div>
 `
 )
