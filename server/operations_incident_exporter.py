@@ -8,6 +8,10 @@ ROOT = Path("/var/www/edge1-status")
 
 OUTPUT = ROOT / "operations-incidents.json"
 
+STATE_FILE = Path(
+    "/var/lib/wwcx-operations/incidents.json"
+)
+
 
 def load(name):
     try:
@@ -16,6 +20,29 @@ def load(name):
         )
     except Exception:
         return {}
+
+
+def load_state():
+    try:
+        return json.loads(
+            STATE_FILE.read_text()
+        )
+    except Exception:
+        return {}
+
+
+def save_state(data):
+    STATE_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    STATE_FILE.write_text(
+        json.dumps(
+            data,
+            indent=2
+        ) + "\n"
+    )
 
 
 def main():
