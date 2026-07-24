@@ -28,6 +28,18 @@ def main():
         Path("/var/www/edge1-status/bitcoin-mining.json")
     )
 
+    telephony = load(
+        Path("/var/www/edge1-status/operations-telephony.json")
+    )
+
+    messaging = load(
+        Path("/var/www/edge1-status/operations-messaging.json")
+    )
+
+    inventory = load(
+        Path("/var/www/edge1-status/operations-inventory.json")
+    )
+
     checks=[]
 
     sec_ok = security.get("health",{}).get("status") == "healthy"
@@ -103,6 +115,63 @@ def main():
             "Configure mining hardware if production mining is intended."
             if mining_warning
             else "No action required."
+    })
+
+
+    telephony_ok = telephony.get("available", False)
+
+    checks.append({
+        "name": "Telephony",
+        "state": "healthy" if telephony_ok else "warning",
+        "reason_code":
+            "" if telephony_ok else "telephony.unavailable",
+        "detail":
+            "Telephony API available"
+            if telephony_ok
+            else "Telephony API unavailable",
+        "recommendation":
+            "No action required."
+            if telephony_ok
+            else "Check telephony service health."
+    })
+
+
+    messaging_ok = (
+        messaging.get("available", False)
+        and messaging.get("status",{}).get("status") == "ok"
+    )
+
+    checks.append({
+        "name": "Messaging",
+        "state": "healthy" if messaging_ok else "warning",
+        "reason_code":
+            "" if messaging_ok else "messaging.unavailable",
+        "detail":
+            "Messaging gateway online"
+            if messaging_ok
+            else "Messaging gateway unavailable",
+        "recommendation":
+            "No action required."
+            if messaging_ok
+            else "Check messaging gateway health."
+    })
+
+
+    inventory_ok = bool(inventory.get("host"))
+
+    checks.append({
+        "name": "Inventory",
+        "state": "healthy" if inventory_ok else "warning",
+        "reason_code":
+            "" if inventory_ok else "inventory.unavailable",
+        "detail":
+            f"Inventory current: {inventory.get('host','unknown')}"
+            if inventory_ok
+            else "Inventory unavailable",
+        "recommendation":
+            "No action required."
+            if inventory_ok
+            else "Check inventory exporter."
     })
 
 

@@ -8,6 +8,9 @@ import datetime
 OUTPUT = Path("/var/www/edge1-status/operations-automation.json")
 
 TIMERS = [
+    "wwcx-operations-messaging.timer",
+    "wwcx-operations-telephony.timer",
+    "wwcx-operations-inventory.timer",
     "wwcx-security-operations.timer",
     "wwcx-operations-health.timer",
     "wwcx-operations-timeline.timer",

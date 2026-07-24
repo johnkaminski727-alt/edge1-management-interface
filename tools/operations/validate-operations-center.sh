@@ -39,7 +39,7 @@ wwcx-operations-automation-health.timer \
 wwcx-operations-changes.timer \
 wwcx-operations-correlation.timer \
 wwcx-operations-report.timer \
-wwcx-operations-version.timer
+wwcx-operations-version.timer wwcx-operations-inventory.timer wwcx-operations-telephony.timer wwcx-operations-messaging.timer
 do
     systemctl is-active --quiet "$t"
     echo "OK $t"
