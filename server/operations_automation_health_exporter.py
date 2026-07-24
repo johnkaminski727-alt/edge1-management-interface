@@ -32,12 +32,25 @@ def timer_state(name):
         check=False,
     )
 
-    values = result.stdout.splitlines()
+    values = [
+        x.strip()
+        for x in result.stdout.splitlines()
+        if x.strip()
+    ]
+
+    state = "unknown"
+    next_run = ""
+
+    for value in values:
+        if value in ("active", "inactive", "failed"):
+            state = value
+        else:
+            next_run = value
 
     return {
         "name": name,
-        "state": values[0] if values else "unknown",
-        "next_run": values[1] if len(values) > 1 else ""
+        "state": state,
+        "next_run": next_run
     }
 
 
