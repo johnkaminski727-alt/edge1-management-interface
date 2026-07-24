@@ -7,6 +7,7 @@ import datetime
 
 ROOT = Path("/var/www/edge1-status")
 REPORT_DIR = ROOT / "reports"
+RETENTION_COUNT = 30
 
 
 def load(name):
@@ -113,9 +114,18 @@ margin-bottom:18px;
         reverse=True
     )
 
+    for old in reports[RETENTION_COUNT:]:
+        try:
+            old.unlink()
+        except Exception:
+            pass
+
+    reports = reports[:RETENTION_COUNT]
+
     index = {
         "generated_at": now.isoformat(),
         "count": len(reports),
+        "retention_count": RETENTION_COUNT,
         "latest": reports[0].name if reports else ""
     }
 
