@@ -28,7 +28,8 @@ operations-inventory.json \
 operations-telephony.json \
 operations-messaging.json \
 operations-network.json \
-operations-carrier.json
+operations-carrier.json \
+operations-trends.json
 do
     test -f "/var/www/edge1-status/$f"
     echo "OK $f"
@@ -51,7 +52,8 @@ wwcx-operations-telephony.timer \
 wwcx-operations-messaging.timer \
 wwcx-operations-network.timer \
 wwcx-operations-carrier.timer \
-wwcx-operations-pdf-report.timer
+wwcx-operations-pdf-report.timer \
+wwcx-operations-trends.timer
 do
     systemctl is-active --quiet "$t"
     echo "OK $t"
@@ -82,7 +84,8 @@ echo
 
 echo "[Carrier Artifacts]"
 
-test -f /var/www/edge1-status/operations-carrier.json
+test -f /var/www/edge1-status/operations-carrier.json \
+operations-trends.json
 echo "OK carrier"
 
 echo
