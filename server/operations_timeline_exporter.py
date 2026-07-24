@@ -27,6 +27,7 @@ def main():
     security = Path("/var/www/edge1-status/security-operations.json")
     wallet = Path("/var/www/edge1-status/bitcoin-wallet.json")
     mining = Path("/var/www/edge1-status/bitcoin-mining.json")
+    network = Path("/var/www/edge1-status/operations-network.json")
 
     if security.exists():
         data=json.loads(security.read_text())
@@ -76,6 +77,20 @@ def main():
             data.get("generated_at"),
             f"Mode: {data.get('mode','unknown')}",
             "Review mining warnings if present."
+        )
+
+
+    if network.exists():
+        data=json.loads(network.read_text())
+
+        add_event(
+            "network",
+            "info",
+            "current",
+            "Network posture refreshed",
+            data.get("generated_at"),
+            f"Interfaces: {len(data.get('interfaces', []))}",
+            "No action required."
         )
 
 
