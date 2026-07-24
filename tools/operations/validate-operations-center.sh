@@ -9,6 +9,7 @@ cd "$ROOT"
 
 echo
 echo "[Portal]"
+
 test -f /var/www/edge1-status/index.html
 echo "OK"
 
@@ -22,7 +23,11 @@ operations-changes.json \
 daily-summary.json \
 operations-automation.json \
 operations-correlation.json \
-operations-version.json
+operations-version.json \
+operations-inventory.json \
+operations-telephony.json \
+operations-messaging.json \
+operations-network.json
 do
     test -f "/var/www/edge1-status/$f"
     echo "OK $f"
@@ -39,8 +44,11 @@ wwcx-operations-automation-health.timer \
 wwcx-operations-changes.timer \
 wwcx-operations-correlation.timer \
 wwcx-operations-report.timer \
-wwcx-operations-version.timer wwcx-operations-inventory.timer wwcx-operations-telephony.timer wwcx-operations-messaging.timer
-OK wwcx-operations-network.timer
+wwcx-operations-version.timer \
+wwcx-operations-inventory.timer \
+wwcx-operations-telephony.timer \
+wwcx-operations-messaging.timer \
+wwcx-operations-network.timer
 do
     systemctl is-active --quiet "$t"
     echo "OK $t"
@@ -59,9 +67,8 @@ curl -fsS http://127.0.0.1/edge1-status/ >/dev/null
 echo "OK portal reachable"
 
 echo
-
-echo
 echo "[Communication Artifacts]"
+
 test -f /var/www/edge1-status/operations-telephony.json
 echo "OK telephony"
 
@@ -69,5 +76,10 @@ test -f /var/www/edge1-status/operations-messaging.json
 echo "OK messaging"
 
 echo
-echo "=== COMPLETE ==="
+echo "[Network Artifacts]"
 
+test -f /var/www/edge1-status/operations-network.json
+echo "OK network"
+
+echo
+echo "=== COMPLETE ==="
