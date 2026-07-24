@@ -9,13 +9,16 @@ OUTPUT = Path("/var/www/edge1-status/operations-timeline.json")
 EVENTS = []
 
 
-def add_event(source, title, timestamp, detail):
+def add_event(category, severity, state, title, timestamp, detail, recommendation):
     if timestamp:
         EVENTS.append({
-            "source": source,
+            "category": category,
+            "severity": severity,
+            "state": state,
             "title": title,
             "timestamp": timestamp,
-            "detail": detail
+            "detail": detail,
+            "recommendation": recommendation
         })
 
 
@@ -30,17 +33,23 @@ def main():
 
         add_event(
             "security",
+            "warning" if data.get("health",{}).get("status") != "healthy" else "info",
+            "current",
             "Security telemetry refreshed",
             data.get("generated_at"),
-            f"Health: {data.get('health',{}).get('status','unknown')}"
+            f"Health: {data.get('health',{}).get('status','unknown')}",
+            "Review warnings if present."
         )
 
         for item in data.get("evidence",[])[:3]:
             add_event(
                 "security",
+                "info",
+                "historical",
                 "Security validation evidence",
                 item.get("modified"),
-                item.get("file","")
+                item.get("file",""),
+                "No action required."
             )
 
     if wallet.exists():
@@ -48,9 +57,12 @@ def main():
 
         add_event(
             "bitcoin",
+            "info",
+            "current",
             "Bitcoin wallet telemetry refreshed",
             data.get("generated_at"),
-            f"Wallet state: {data.get('service',{}).get('state','unknown')}"
+            f"Wallet state: {data.get('service',{}).get('state','unknown')}",
+            "Continue monitoring."
         )
 
     if mining.exists():
@@ -58,9 +70,12 @@ def main():
 
         add_event(
             "mining",
+            "warning" if data.get("warnings") else "info",
+            "current",
             "Mining telemetry refreshed",
             data.get("generated_at"),
-            f"Mode: {data.get('mode','unknown')}"
+            f"Mode: {data.get('mode','unknown')}",
+            "Review mining warnings if present."
         )
 
 

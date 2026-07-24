@@ -244,12 +244,35 @@ card("Mining Data",age(mining.generated_at))
 ].join("");
 
 document.getElementById("timeline").innerHTML =
-(timeline.events||[]).slice(0,5).map(e =>
-card(
-e.title,
-`${e.source}: ${e.detail}`
-)
-).join("")
+(timeline.events||[]).slice(0,5).map(e => {
+
+const state =
+e.severity === "warning"
+? "warning"
+: "good";
+
+return `
+<div class="card ${state}">
+<div class="label">
+${esc(e.category || "operation")} · ${esc(e.state || "unknown")}
+</div>
+
+<div class="value">
+${esc(e.title)}
+</div>
+
+<p>
+${esc(e.detail)}
+</p>
+
+<small>
+${esc(e.recommendation || "")}
+</small>
+
+</div>
+`;
+
+}).join("")
 || card("Timeline","No events");
 
 document.getElementById("overview").innerHTML=[
