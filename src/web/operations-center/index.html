@@ -196,43 +196,28 @@ await fetch("./bitcoin-mining.json",{cache:"no-store"})
 .then(r=>r.json());
 
 
-const warnings=[];
-
-if(mining.warnings?.length){
-warnings.push(...mining.warnings);
-}
-
-const healthy =
-security.health?.status==="healthy" &&
-wallet.wallet?.synchronized &&
-warnings.length===0;
-
+const checks = health.checks || [];
 
 document.getElementById("health").innerHTML=[
 
 card(
 "Overall Status",
-healthy ? "Operational" : "Attention Required",
-healthy ? "good" : "warning"
+health.overall === "healthy"
+? "Operational"
+: "Attention Required",
+health.overall === "healthy"
+? "good"
+: "warning"
 ),
 
+...checks.map(c =>
 card(
-"Security",
-security.health?.status || "unknown",
-security.health?.status==="healthy" ? "good":"warning"
-),
-
-card(
-"Bitcoin",
-wallet.wallet?.synchronized ? "Online":"Warning",
-wallet.wallet?.synchronized ? "good":"warning"
-),
-
-card(
-"Mining",
-mining.mode || "unknown",
-warnings.length ? "warning":"good"
-)
+c.name,
+c.detail,
+c.state === "healthy"
+? "good"
+: "warning"
+))
 
 ].join("");
 
