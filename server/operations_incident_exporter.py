@@ -58,9 +58,48 @@ def main():
 
     incidents = []
 
+    state = load_state()
+
+    now = datetime.datetime.now(
+        datetime.timezone.utc
+    ).isoformat()
+
     for check in health.get("checks", []):
 
         if check.get("state") != "healthy":
+
+            incident_id = (
+                "INC-"
+                + datetime.datetime.now(
+                    datetime.timezone.utc
+                ).strftime("%Y%m%d")
+                + "-"
+                + check.get(
+                    "name",
+                    "unknown"
+                ).lower()
+            )
+
+            previous = state.get(
+                incident_id,
+                {}
+            )
+
+            state[incident_id] = {
+                "component": check.get("name"),
+                "status": "monitoring",
+                "first_seen":
+                    previous.get(
+                        "first_seen",
+                        now
+                    ),
+                "last_seen": now,
+                "history":
+                    previous.get(
+                        "history",
+                        []
+                    ) + ["monitoring"]
+            }
 
             incidents.append({
 
@@ -126,6 +165,8 @@ def main():
             )[:10]
     }
 
+
+    save_state(state)
 
     OUTPUT.write_text(
         json.dumps(
