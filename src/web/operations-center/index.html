@@ -134,6 +134,13 @@ Loading...
 
 <section class="panel">
 
+<h2>Incident Records</h2>
+
+<div id="incidents" class="grid">
+Loading...
+</div>
+
+
 <h2>Incident Context & Changes</h2>
 
 <div id="incident-context" class="grid">
@@ -336,7 +343,8 @@ safeJson("operations-inventory.json"),
 safeJson("operations-network.json"),
 safeJson("operations-telephony.json"),
 safeJson("operations-messaging.json"),
-safeJson("operations-carrier.json")
+safeJson("operations-carrier.json"),
+ safeJson("operations-incidents.json")
 ]);
 
 
@@ -572,6 +580,27 @@ network.resolver
 )
 
 ].join("");
+
+
+
+document.getElementById("incidents").innerHTML =
+(
+    incidents.active_incidents || []
+).map(i =>
+card(
+    i.component,
+    `${i.severity}: ${i.detail}`,
+    i.severity === "critical"
+    ? "warning"
+    : "warning"
+)
+).join("")
+||
+card(
+    "Incidents",
+    "No active incidents",
+    "good"
+);
 
 
 document.getElementById("automation").innerHTML =
