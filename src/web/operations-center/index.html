@@ -74,6 +74,14 @@ text-decoration:none
 
 <section class="panel">
 <h1>WW.CX Edge1 Operations Center</h1>
+
+<nav class="ops-nav">
+<a href="#health">Health</a>
+<a href="#communications">Communications</a>
+<a href="#network">Network</a>
+<a href="#operations">Operations</a>
+<a href="#reports">Reports</a>
+</nav>
 <p>Read-only infrastructure operations visibility.</p>
 </section>
 
@@ -81,6 +89,8 @@ text-decoration:none
 <section class="panel">
 
 <h2>Overall Operations Health</h2>
+
+<h3>Infrastructure</h3>
 
 <div id="health" class="grid">
 Loading...
@@ -91,7 +101,7 @@ Loading...
 
 <section class="panel">
 
-<h2>Live Overview</h2>
+<h2>Current Conditions</h2>
 
 <div id="overview" class="grid">
 Loading...
@@ -113,7 +123,7 @@ Loading...
 
 <section class="panel">
 
-<h2>Operations Reports</h2>
+<h2>Reports & Evidence</h2>
 
 <div id="reports" class="grid">
 Loading...
@@ -124,7 +134,7 @@ Loading...
 
 <section class="panel">
 
-<h2>Incident Context</h2>
+<h2>Incident Context & Changes</h2>
 
 <div id="incident-context" class="grid">
 Loading...
@@ -175,6 +185,8 @@ Loading...
 <section class="panel">
 
 <h2>Communications</h2>
+
+<h3>Communications</h3>
 
 <div id="communications" class="grid">
 Loading...
@@ -277,17 +289,55 @@ async function load(){
 
 try{
 
-const security =
-await fetch("./security-operations.json",{cache:"no-store"})
-.then(r=>r.json());
+async function safeJson(file){
+    try {
+        const r = await fetch("./" + file,{cache:"no-store"});
+        if(!r.ok){
+            console.warn("Unavailable:",file);
+            return {};
+        }
+        return await r.json();
+    }
+    catch(e){
+        console.warn("Failed:",file);
+        return {};
+    }
+}
 
-const wallet =
-await fetch("./bitcoin-wallet.json",{cache:"no-store"})
-.then(r=>r.json());
 
-const mining =
-await fetch("./bitcoin-mining.json",{cache:"no-store"})
-.then(r=>r.json());
+const [
+security,
+wallet,
+mining,
+health,
+timeline,
+summary,
+automation,
+correlation,
+report,
+version,
+inventory,
+network,
+telephony,
+messaging,
+carrier
+] = await Promise.all([
+safeJson("security-operations.json"),
+safeJson("bitcoin-wallet.json"),
+safeJson("bitcoin-mining.json"),
+safeJson("operations-health.json"),
+safeJson("operations-timeline.json"),
+safeJson("daily-summary.json"),
+safeJson("operations-automation.json"),
+safeJson("operations-correlation.json"),
+safeJson("reports/index.json"),
+safeJson("operations-version.json"),
+safeJson("operations-inventory.json"),
+safeJson("operations-network.json"),
+safeJson("operations-telephony.json"),
+safeJson("operations-messaging.json"),
+safeJson("operations-carrier.json")
+]);
 
 
 const checks = health.checks || [];
