@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh WW.CX Security Operations status
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=120s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

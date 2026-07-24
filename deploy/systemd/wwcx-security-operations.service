@@ -1,0 +1,14 @@
+[Unit]
+Description=WW.CX Security Operations status exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/security_operations_exporter.py
+ReadWritePaths=/var/www/edge1-status
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

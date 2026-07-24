@@ -107,6 +107,30 @@
       ],
       "mutating": false,
       "timeout_seconds": 30
+    },
+    "security.validate_config": {
+      "argv": [
+        "bash",
+        "tools/security/validate-suricata.sh"
+      ],
+      "mutating": false,
+      "timeout_seconds": 300
+    },
+    "security.logs.rotate": {
+      "argv": [
+        "bash",
+        "tools/security/rotate-suricata-logs.sh"
+      ],
+      "mutating": true,
+      "timeout_seconds": 120
+    },
+    "security.rules.reload": {
+      "argv": [
+        "bash",
+        "tools/security/reload-suricata-rules.sh"
+      ],
+      "mutating": true,
+      "timeout_seconds": 120
     }
   }
 }
