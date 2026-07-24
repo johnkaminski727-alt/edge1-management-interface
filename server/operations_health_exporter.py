@@ -38,26 +38,36 @@ def main():
 
     memory_gb = round(memory_bytes / (1024**3), 2)
 
-    security_warning = (
-        memory_bytes > 1250000000
-        or not sec_ok
-    )
+    if memory_gb >= 2.0:
+        security_state = "critical"
+        security_reason = "security.memory.critical"
+        security_recommendation = "Investigate Suricata memory growth."
+    elif memory_gb >= 1.5:
+        security_state = "warning"
+        security_reason = "security.memory.elevated"
+        security_recommendation = "Monitor Suricata resource usage and event load."
+    else:
+        security_state = "healthy"
+        security_reason = ""
+        security_recommendation = "No action required."
+
+    if not sec_ok:
+        security_state = "warning"
+        security_reason = "security.health.warning"
 
     checks.append({
         "name":"Security",
-        "state":"warning" if security_warning else "healthy",
-        "reason_code":
-            "security.memory.elevated"
-            if memory_bytes > 1250000000
-            else "",
+        "state": security_state,
+        "reason_code": security_reason,
+        "metrics": {
+            "memory_gb": memory_gb,
+            "warning_threshold_gb": 1.5,
+            "critical_threshold_gb": 2.0
+        },
         "detail":
-            f"Suricata memory {memory_gb} GB"
-            if security_warning
-            else "Suricata operational",
+            f"Suricata memory {memory_gb} GB",
         "recommendation":
-            "Monitor Suricata resource usage and event load."
-            if memory_bytes > 1250000000
-            else "No action required."
+            security_recommendation
     })
 
 
