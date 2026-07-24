@@ -87,10 +87,14 @@ echo "OK carrier"
 echo
 echo "[Network Artifacts]"
 
-
-test -f /var/www/edge1-status/operations-network.json \
-operations-carrier.json
+test -f /var/www/edge1-status/operations-network.json
 echo "OK network"
+
+echo
+echo "[Carrier Artifacts]"
+
+test -f /var/www/edge1-status/operations-carrier.json
+echo "OK carrier"
 
 echo
 echo "=== COMPLETE ==="
