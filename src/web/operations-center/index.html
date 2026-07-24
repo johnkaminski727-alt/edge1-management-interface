@@ -102,6 +102,17 @@ Loading...
 
 <section class="panel">
 
+<h2>Data Freshness</h2>
+
+<div id="freshness" class="grid">
+Loading...
+</div>
+
+</section>
+
+
+<section class="panel">
+
 <h2>Recent Operations</h2>
 
 <div id="timeline" class="grid">
@@ -151,6 +162,14 @@ return `
 <div class="label">${esc(title)}</div>
 <div class="value">${esc(value)}</div>
 </div>`
+}
+
+function age(ts){
+if(!ts)return "unknown";
+const seconds=Math.floor((Date.now()-new Date(ts))/1000);
+if(seconds<60)return seconds+" seconds ago";
+if(seconds<3600)return Math.floor(seconds/60)+" minutes ago";
+return Math.floor(seconds/3600)+" hours ago";
 }
 
 function age(ts){
@@ -217,6 +236,12 @@ warnings.length ? "warning":"good"
 
 ].join("");
 
+
+document.getElementById("freshness").innerHTML=[
+card("Security Data",age(security.generated_at)),
+card("Bitcoin Data",age(wallet.generated_at)),
+card("Mining Data",age(mining.generated_at))
+].join("");
 
 document.getElementById("timeline").innerHTML =
 (timeline.events||[]).slice(0,5).map(e =>
