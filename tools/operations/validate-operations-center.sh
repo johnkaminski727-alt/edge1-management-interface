@@ -50,7 +50,8 @@ wwcx-operations-inventory.timer \
 wwcx-operations-telephony.timer \
 wwcx-operations-messaging.timer \
 wwcx-operations-network.timer \
-wwcx-operations-carrier.timer
+wwcx-operations-carrier.timer \
+wwcx-operations-pdf-report.timer
 do
     systemctl is-active --quiet "$t"
     echo "OK $t"
@@ -91,6 +92,12 @@ test -f /var/www/edge1-status/operations-network.json
 echo "OK network"
 
 echo
+
+echo
+echo "[PDF Artifacts]"
+
+test -n "$(ls /var/www/edge1-status/reports/*.pdf 2>/dev/null | head -1)"
+echo "OK PDF report generated"
 
 echo
 echo "=== COMPLETE ==="
