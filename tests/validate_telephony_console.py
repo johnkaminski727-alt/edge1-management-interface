@@ -61,6 +61,10 @@ for marker in (
 ):
     if marker not in server:
         raise SystemExit("server missing safety or integration marker: " + marker)
+if "http://127.0.0.1:58080/healthz" not in server:
+    raise SystemExit("telephony console must probe the production messaging listener")
+if "http://127.0.0.1:8095/healthz" in server:
+    raise SystemExit("telephony console must not use the obsolete messaging packaging port")
 
 unit = (ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service").read_text(encoding="utf-8")
 for marker in ("--host 127.0.0.1", "NoNewPrivileges=true", "ProtectSystem=strict", "WantedBy=multi-user.target"):
