@@ -7,10 +7,13 @@
     "messaging.health",
     "repository.fast_forward_main",
     "repository.fetch",
+    "security.logs.rotate",
+    "security.rules.reload",
     "time_authority.summary"
   ],
   "enabled_tools": [
     "repository.status",
+    "security.validate_config",
     "validation.interconnect",
     "validation.numbering_node",
     "numbering.health",

@@ -42,6 +42,16 @@ class BigBirdEdge1ConnectorTests(unittest.TestCase):
         self.assertIn("numbering.health", self.config["enabled_tools"])
         self.assertIn("repository.fetch", self.config["disabled_tools"])
 
+    def test_security_actions_follow_operations_api_mutation_policy(self):
+        actions = json.loads(Path("config/edge1-operations-allowlist.json").read_text())["actions"]
+        self.assertFalse(actions["security.validate_config"]["mutating"])
+        self.assertIn("security.validate_config", self.config["enabled_tools"])
+
+        for action in ("security.logs.rotate", "security.rules.reload"):
+            self.assertTrue(actions[action]["mutating"])
+            self.assertIn(action, self.config["disabled_tools"])
+            self.assertNotIn(action, self.config["enabled_tools"])
+
     def test_restart_policy(self):
         policy = self.config["restart_policy"]
         self.assertEqual(policy["initial_interval_minutes"], 360)
