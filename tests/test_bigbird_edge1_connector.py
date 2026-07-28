@@ -58,6 +58,10 @@ class BigBirdEdge1ConnectorTests(unittest.TestCase):
         self.assertEqual(policy["increment_minutes"], 10)
         self.assertEqual(policy["maximum_interval_minutes"], 720)
 
+    def test_systemd_service_runs_refresh(self):
+        service = Path("deploy/bigbird-edge1-connector.service").read_text(encoding="utf-8")
+        self.assertIn("server/bigbird_edge1_connector.py refresh", service)
+
     def test_validate_accepts_safe_configuration(self):
         result = CONNECTOR.validate()
         self.assertEqual(result["status"], "valid")
