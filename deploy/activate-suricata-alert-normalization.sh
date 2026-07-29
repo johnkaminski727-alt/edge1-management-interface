@@ -231,7 +231,7 @@ summary = {
     "known_risk_count": sum(1 for item in alerts if item.get("risk") != "unknown"),
     "source_port_count": sum(1 for item in alerts if item.get("source_port") is not None),
     "destination_port_count": sum(1 for item in alerts if item.get("destination_port") is not None),
-    "application_protocol_count": sum(1 for item in alerts if item.get("application_protocol")),
+    "application_protocol_count": sum(1 for item in alerts if item.get("app_protocol") or item.get("application_protocol")),
     "signature_id_count": sum(1 for item in alerts if item.get("signature_id") is not None),
     "cache_mode": security["cache"]["mode"],
     "cache_stale": security["cache"]["stale"],

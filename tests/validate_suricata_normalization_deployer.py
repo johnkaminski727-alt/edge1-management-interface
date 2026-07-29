@@ -17,6 +17,7 @@ required = (
     "wwcx-security-correlation.service",
     "wwcx-network-defense.service",
     "wwcx.suricata-alert.v1",
+    'item.get("app_protocol") or item.get("application_protocol")',
     "verify-security-observability-live.sh",
     "traffic_controls_changed",
     "No IDS rules, DNS, firewall, routing, Fail2ban, proxy, or traffic controls were changed.",
