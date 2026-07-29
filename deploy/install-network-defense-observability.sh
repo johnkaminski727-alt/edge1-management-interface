@@ -21,7 +21,7 @@ fail() {
 
 [ "$(id -u)" -eq 0 ] || fail "run as root, for example: sudo $0"
 [ -d "$REPO_ROOT/.git" ] || fail "repository not found: $REPO_ROOT"
-for command in git install systemctl python3 cmp sha256sum curl; do
+for command in bash git install systemctl python3 cmp sha256sum curl; do
     command -v "$command" >/dev/null 2>&1 || fail "required command is unavailable: $command"
 done
 
@@ -110,7 +110,7 @@ rollback() {
 }
 trap rollback ERR INT TERM
 
-"$REPO_ROOT/tools/networking/validate-network-defense.sh" | tee "$EVIDENCE_DIR/repository-validation.txt"
+bash "$REPO_ROOT/tools/networking/validate-network-defense.sh" | tee "$EVIDENCE_DIR/repository-validation.txt"
 
 MUTATION_STARTED=1
 install -d -m 0755 "$STATUS_ROOT/network-defense" "$STATUS_ROOT/security"
