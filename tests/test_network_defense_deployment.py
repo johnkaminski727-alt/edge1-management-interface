@@ -83,6 +83,7 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
             'enforcement_enabled", "enforcement_verified", "traffic_controls_changed"',
             'requires_explicit_activation") is not True',
             "DNS enforcement remains disabled",
+            'bash "$REPO_ROOT/tools/networking/validate-network-defense.sh"',
         ):
             self.assertIn(token, self.installer)
 
