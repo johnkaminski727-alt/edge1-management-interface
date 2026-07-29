@@ -56,6 +56,25 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
         ):
             self.assertIn(token, self.installer)
 
+    def test_scoped_data_directory_preserves_empty_capability_set(self):
+        for token in (
+            'DATA_ROOT=${EDGE1_NETWORK_DEFENSE_DATA_ROOT:-$STATUS_ROOT/network-defense/data}',
+            'install -d -o root -g root -m 0755 "$DATA_ROOT"',
+            'curl -fsS --max-time 10 "$STATUS_URL/network-defense/data/network-defense.json"',
+        ):
+            self.assertIn(token, self.installer)
+        self.assertIn(
+            "--output /var/www/edge1-status/network-defense/data/network-defense.json",
+            self.service,
+        )
+        self.assertIn(
+            "ReadWritePaths=/var/www/edge1-status/network-defense/data",
+            self.service,
+        )
+        self.assertNotIn("ReadWritePaths=/var/www/edge1-status\n", self.service)
+        self.assertIn("CapabilityBoundingSet=\n", self.service)
+        self.assertIn("AmbientCapabilities=\n", self.service)
+
     def test_installer_has_no_resolver_or_traffic_control_mutation(self):
         forbidden = (
             r"unbound-control",
