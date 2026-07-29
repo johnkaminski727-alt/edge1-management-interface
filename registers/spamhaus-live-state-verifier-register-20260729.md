@@ -15,7 +15,7 @@ Network Defense previously reported Spamhaus only as `feed_ready`. Feed counters
 | `server/spamhaus_live_state_verifier.py` | Read-only nftables and systemd verifier | Merged and deployed |
 | `deploy/systemd/wwcx-spamhaus-live-state.service` | Hardened oneshot with bounded `CAP_NET_ADMIN` | Deployed |
 | `deploy/systemd/wwcx-spamhaus-live-state.timer` | One-minute refresh schedule | Deployed |
-| `/var/lib/bigbird-networking/spamhaus/live-state.json` | Sanitized runtime snapshot | Installer acceptance passed |
+| `/var/lib/bigbird-networking/spamhaus/live-state.json` | Sanitized runtime snapshot | Active and accepted |
 | `server/network_defense_exporter.py` | Consumes live-state contract | Deployed |
 | `server/network_defense_dns_exporter.py` | Passes verifier path through DNS-aware runtime | Deployed |
 | `deploy/install-spamhaus-live-state-observability.sh` | Rollback-safe activation and acceptance | Passed live |
@@ -67,6 +67,8 @@ Excluded:
 | Runtime wording repair PR #119 CI | Passed |
 | First live attempt | Failed assertion; rollback passed |
 | Corrected live Edge1 deployment | Passed |
+| Exact acceptance-summary readback | Passed |
+| Final Spamhaus state | `active_verified` |
 
 ## Evidence
 
@@ -82,17 +84,29 @@ Successful deployment:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 ```
 
-## Live acceptance state
-
-The installer and Network Defense consistency checks passed, and `traffic_controls_changed` remained false.
-
-The final terminal excerpt did not include the exact value from `acceptance-summary.json`. The exact accepted state remains to be copied from:
+Exact acceptance summary:
 
 ```text
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-Allowed truthful values are `active_verified`, `partial`, `not_present`, and `unavailable`. Do not record `active_verified` without that direct evidence.
+## Live acceptance state
+
+```json
+{
+  "spamhaus_state": "active_verified",
+  "spamhaus_enforcement_verified": true,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 6,
+  "source_count": 7,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
+
+The dedicated Spamhaus enforcement path is directly verified. This does not imply verification of DNS, general firewall, Fail2ban, proxy, or other enforcement layers. Network Defense remains `limited`, DNS policy remains `not_staged`, and DNS enforcement remains disabled.
 
 ## Safety boundary
 
