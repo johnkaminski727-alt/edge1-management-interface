@@ -171,8 +171,8 @@ def sanitize_alert(raw: Any) -> dict[str, Any] | None:
     ), 1, 65535)
 
     signature_id = safe_int(first_value(raw.get("signature_id"), raw.get("sid"), embedded.get("signature_id")))
-    generator_id = safe_int(first_value(raw.get("gid"), embedded.get("gid")))
-    revision = safe_int(first_value(raw.get("rev"), embedded.get("rev")))
+    generator_id = safe_int(first_value(raw.get("generator_id"), raw.get("gid"), embedded.get("gid")))
+    revision = safe_int(first_value(raw.get("revision"), raw.get("rev"), embedded.get("rev")))
     flow_id = safe_identifier(first_value(raw.get("flow_id"), raw.get("event_id")))
     timestamp = safe_text(first_value(
         raw.get("timestamp"), raw.get("event_time"), raw.get("time"), raw.get("created_at")

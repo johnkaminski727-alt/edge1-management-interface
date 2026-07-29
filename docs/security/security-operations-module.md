@@ -27,13 +27,31 @@ Observed data:
 
 ### Collector
 
-Path:
+Authoritative source:
+
+- `server/bigbird_ops_collect.py`
+
+Runtime installation:
 
 - `/usr/local/libexec/bigbird-ops-collect.py`
+
+Publisher service and timer:
+
+- `bigbird-ops-push.service`
+- `bigbird-ops-push.timer`
 
 Publishes security telemetry into:
 
 - `/var/lib/bigbird/operations-center/latest.json`
+
+The source collector publishes the bounded alert schema
+`wwcx.suricata-source-alert.v1`. It retains only allowlisted alert metadata
+required for investigation and excludes packet payloads, raw EVE events,
+credentials, private keys, original nested alert objects, and arbitrary
+metadata.
+
+The older copy under the archived WW.CX Project Big Bird V4.0.7 release
+package is historical release evidence and is not the editable Edge1 source.
 
 ### Exporter
 
@@ -44,6 +62,10 @@ Path:
 Publishes:
 
 - `/var/www/edge1-status/security-operations.json`
+
+The exporter converts the source collector contract into Security Operations
+schema `2.0` and alert schema `wwcx.suricata-alert.v1`, applies the public
+50-alert bound, and provides last-known-good fallback metadata.
 
 ### Dashboard
 
@@ -56,8 +78,10 @@ Provides:
 - engine status
 - health state
 - alert explanations
+- accessible alert drill-down
 - validation evidence
 - configuration advisories
+- live versus stale-cache status
 
 ## Controlled Actions
 
@@ -82,6 +106,10 @@ Security evidence location:
 
 `/var/lib/edge1-operations-api/evidence/security`
 
+Collector enrichment deployment evidence:
+
+`/var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/<timestamp>`
+
 ## Current Validation
 
 Validated:
@@ -91,6 +119,13 @@ Validated:
 - configuration validation successful
 - exporter functioning
 - dashboard data available
+- alert expand/collapse functioning
+- last-known-good cache functioning
+- nested alert classification and risk normalization functioning
+
+Collector field enrichment is implemented in the repository. Live acceptance
+must verify that the current EVE stream supplies ports, identifiers, and flow
+metadata after the enriched collector is installed.
 
 ## Advisory Handling
 

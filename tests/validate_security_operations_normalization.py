@@ -65,6 +65,34 @@ class SecurityOperationsNormalizationTests(unittest.TestCase):
         self.assertFalse(alert["normalization"]["packet_payload_included"])
         self.assertFalse(alert["normalization"]["raw_event_included"])
 
+    def test_source_collector_semantic_fields_are_preserved(self):
+        raw = {
+            "timestamp": "2026-07-29T08:25:00+00:00",
+            "signature": "Collector contract test",
+            "severity": 2,
+            "source": "10.77.0.10",
+            "source_port": 53001,
+            "destination": "192.0.2.10",
+            "destination_port": 443,
+            "protocol": "TCP",
+            "application_protocol": "tls",
+            "category": "Test category",
+            "action": "allowed",
+            "signature_id": 2030001,
+            "generator_id": 1,
+            "revision": 4,
+            "flow_id": 987654321,
+        }
+        alert = MODULE.sanitize_alert(raw)
+        self.assertIsNotNone(alert)
+        assert alert is not None
+        self.assertEqual(alert["gid"], 1)
+        self.assertEqual(alert["rev"], 4)
+        self.assertEqual(alert["signature_id"], 2030001)
+        self.assertEqual(alert["app_protocol"], "tls")
+        self.assertEqual(alert["flow_id"], 987654321)
+        self.assertEqual(alert["risk"], "medium")
+
     def test_explicit_risk_overrides_numeric_suricata_severity(self):
         alert = MODULE.sanitize_alert({
             "risk": "critical",
