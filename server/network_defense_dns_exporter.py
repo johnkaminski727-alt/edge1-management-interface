@@ -67,6 +67,23 @@ def safe_policy_summary(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def downgrade_stale_spamhaus_verification(
+    sources: dict[str, Any],
+    components: dict[str, Any],
+    warnings: list[str],
+) -> None:
+    source = sources.get('spamhaus_live_state') if isinstance(sources.get('spamhaus_live_state'), dict) else {}
+    spamhaus = components.get('spamhaus') if isinstance(components.get('spamhaus'), dict) else {}
+    if not source.get('stale') or spamhaus.get('enforcement_verified') is not True:
+        return
+    metrics = spamhaus.get('metrics') if isinstance(spamhaus.get('metrics'), dict) else {}
+    feed_ready = BASE.safe_int(metrics.get('combined_ipv4_networks')) > 0 or BASE.safe_int(metrics.get('ipv6_networks')) > 0
+    spamhaus['enforcement_verified'] = False
+    spamhaus['state'] = 'feed_ready' if feed_ready else 'partial'
+    spamhaus['detail'] = 'The last Spamhaus live-state snapshot is stale; current enforcement is not verified.'
+    warnings.append('spamhaus live-state snapshot is stale; verified enforcement was withdrawn')
+
+
 def augment_snapshot(
     snapshot: dict[str, Any],
     policy_document: dict[str, Any],
@@ -79,6 +96,8 @@ def augment_snapshot(
     recommendations = snapshot.setdefault('recommendations', [])
     warnings = snapshot.setdefault('warnings', [])
     limitations = snapshot.setdefault('limitations', [])
+
+    downgrade_stale_spamhaus_verification(sources, components, warnings)
 
     sources['dns_policy'] = dns_source_record(policy_path, policy_error, now)
     policy = safe_policy_summary(policy_document)
