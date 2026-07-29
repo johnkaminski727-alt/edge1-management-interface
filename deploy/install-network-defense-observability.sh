@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 REPO_ROOT=${EDGE1_MANAGEMENT_ROOT:-/opt/edge1-management-interface}
 STATUS_ROOT=${EDGE1_STATUS_ROOT:-/var/www/edge1-status}
+DATA_ROOT=${EDGE1_NETWORK_DEFENSE_DATA_ROOT:-$STATUS_ROOT/network-defense/data}
+DATA_FILE="$DATA_ROOT/network-defense.json"
 UNIT_ROOT=${EDGE1_SYSTEMD_ROOT:-/etc/systemd/system}
 EVIDENCE_ROOT=${EDGE1_DEPLOYMENT_EVIDENCE_ROOT:-/var/lib/wwcx-deployment-evidence/network-defense}
 STATUS_URL=${EDGE1_STATUS_URL:-http://127.0.0.1/edge1-status}
@@ -45,6 +47,7 @@ mkdir -p "$BACKUP_DIR"
 printf '%s\n' "$STAMP" > "$EVIDENCE_DIR/started-at.txt"
 git -C "$REPO_ROOT" rev-parse HEAD > "$EVIDENCE_DIR/revision.txt"
 git -C "$REPO_ROOT" status --short --branch > "$EVIDENCE_DIR/git-status-before.txt"
+printf '%s\n' "$DATA_FILE" > "$EVIDENCE_DIR/data-path.txt"
 
 backup_path() {
     local path=$1
@@ -81,7 +84,8 @@ backup_path "$UNIT_ROOT/$TIMER" timer.unit
 backup_path "$STATUS_ROOT/index.html" operations-center.html
 backup_path "$STATUS_ROOT/network-defense/index.html" network-defense.html
 backup_path "$STATUS_ROOT/security/correlation.html" security-correlation.html
-backup_path "$STATUS_ROOT/network-defense.json" network-defense.json
+backup_path "$DATA_ROOT" network-defense-data
+backup_path "$STATUS_ROOT/network-defense.json" legacy-network-defense.json
 
 rollback() {
     local code=$?
@@ -97,7 +101,8 @@ rollback() {
         restore_path "$STATUS_ROOT/index.html" operations-center.html
         restore_path "$STATUS_ROOT/network-defense/index.html" network-defense.html
         restore_path "$STATUS_ROOT/security/correlation.html" security-correlation.html
-        restore_path "$STATUS_ROOT/network-defense.json" network-defense.json
+        restore_path "$DATA_ROOT" network-defense-data
+        restore_path "$STATUS_ROOT/network-defense.json" legacy-network-defense.json
         systemctl daemon-reload >/dev/null 2>&1 || true
         case "$TIMER_ENABLED_BEFORE" in
             enabled|enabled-runtime) systemctl enable "$TIMER" >/dev/null 2>&1 || true ;;
@@ -117,6 +122,8 @@ bash "$REPO_ROOT/tools/networking/validate-network-defense.sh" | tee "$EVIDENCE_
 
 MUTATION_STARTED=1
 install -d -m 0755 "$STATUS_ROOT/network-defense" "$STATUS_ROOT/security"
+install -d -o root -g root -m 0755 "$DATA_ROOT"
+rm -f "$STATUS_ROOT/network-defense.json"
 install -m 0644 "$REPO_ROOT/src/web/operations-center/index.html" "$STATUS_ROOT/index.html"
 install -m 0644 "$REPO_ROOT/src/web/network-defense/index.html" "$STATUS_ROOT/network-defense/index.html"
 install -m 0644 "$REPO_ROOT/src/web/security/correlation.html" "$STATUS_ROOT/security/correlation.html"
@@ -131,12 +138,13 @@ systemctl start "$SERVICE"
 [ "$(systemctl is-active "$TIMER")" = active ]
 [ "$(systemctl show "$SERVICE" --property=Result --value)" = success ]
 [ "$(systemctl show "$SERVICE" --property=ExecMainStatus --value)" = 0 ]
+[ -f "$DATA_FILE" ]
 
 cmp -s "$REPO_ROOT/src/web/operations-center/index.html" "$STATUS_ROOT/index.html"
 cmp -s "$REPO_ROOT/src/web/network-defense/index.html" "$STATUS_ROOT/network-defense/index.html"
 cmp -s "$REPO_ROOT/src/web/security/correlation.html" "$STATUS_ROOT/security/correlation.html"
 
-python3 - "$STATUS_ROOT/network-defense.json" <<'PY'
+python3 - "$DATA_FILE" <<'PY'
 import json
 import pathlib
 import sys
@@ -168,7 +176,7 @@ PY
 curl -fsS --max-time 10 "$STATUS_URL/" > "$EVIDENCE_DIR/operations-center.html"
 curl -fsS --max-time 10 "$STATUS_URL/network-defense/" > "$EVIDENCE_DIR/network-defense.html"
 curl -fsS --max-time 10 "$STATUS_URL/security/correlation.html" > "$EVIDENCE_DIR/security-correlation.html"
-curl -fsS --max-time 10 "$STATUS_URL/network-defense.json" > "$EVIDENCE_DIR/network-defense.json"
+curl -fsS --max-time 10 "$STATUS_URL/network-defense/data/network-defense.json" > "$EVIDENCE_DIR/network-defense.json"
 
 systemctl status "$SERVICE" "$TIMER" --no-pager > "$EVIDENCE_DIR/systemd-status.txt" || true
 journalctl -u "$SERVICE" -n 50 --no-pager > "$EVIDENCE_DIR/service-journal.txt" || true
@@ -178,7 +186,7 @@ sha256sum \
     "$STATUS_ROOT/index.html" \
     "$STATUS_ROOT/network-defense/index.html" \
     "$STATUS_ROOT/security/correlation.html" \
-    "$STATUS_ROOT/network-defense.json" > "$EVIDENCE_DIR/sha256.txt"
+    "$DATA_FILE" > "$EVIDENCE_DIR/sha256.txt"
 printf 'completed_at=%s\nrolled_back=false\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$EVIDENCE_DIR/result.txt"
 
 trap - ERR INT TERM
