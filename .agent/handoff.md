@@ -5,6 +5,7 @@ Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
 Spamhaus verifier implementation merge: `e4002df7f7b6c523a76214804a3f5eb5b033561c`
 Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
+Deployment closeout merge: `bd29397c6373101837cf0bd749038b0d3ad31133`
 
 ## Completed live work
 
@@ -17,6 +18,7 @@ Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
 - Initial verifier deployment attempt rolled back safely after a case-sensitive wording assertion.
 - PR #119 repaired the assertion and both required workflows passed.
 - The corrected installer completed successfully without rollback.
+- The exact live result was read from `acceptance-summary.json` and confirmed `active_verified`.
 
 ## Live URLs
 
@@ -47,39 +49,39 @@ Failed Spamhaus verifier attempt, rolled back:
 
 Successful Spamhaus verifier deployment:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-```
 
-## Spamhaus verifier live status
-
-The final terminal excerpt confirmed:
-
-```text
-Spamhaus live-state observability deployment passed.
-The verifier made no nftables, firewall, DNS, routing, Fail2ban, proxy, or traffic-control changes.
-```
-
-The installer verifies that Network Defense and the verifier snapshot agree and writes the exact result to:
-
-```text
+Exact acceptance summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-The exact state was not included in the pasted final lines. Read and record one of:
+## Final Spamhaus verifier state
 
-- `active_verified`;
-- `partial`;
-- `not_present`;
-- `unavailable`.
-
-Do not infer `active_verified` without the summary.
-
-## Exact continuation command
-
-```bash
-cat /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
+```json
+{
+  "ok": true,
+  "spamhaus_state": "active_verified",
+  "spamhaus_enforcement_verified": true,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 6,
+  "source_count": 7,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
 ```
 
-After that value is recorded, the verifier phase is fully closed.
+`active_verified` is limited to the dedicated Spamhaus table, sets, hooked drop rules, updater result, timer state, freshness, and read-only contract. Other enforcement layers are not implied to be verified. Network Defense remains `limited`, DNS policy remains `not_staged`, and DNS enforcement remains disabled.
+
+## Optional future work
+
+- bounded general nftables aggregate visibility through a separate least-privilege verifier;
+- bounded Fail2ban jail health and aggregate counts;
+- review of Network Defense freshness thresholds;
+- protected historical Suricata retention with explicit privacy, size, time, authentication, rollback, and acceptance boundaries;
+- review of the public `edge1.ww.cx` access boundary.
+
+Each remains a separate design and authorization phase.
 
 ## Safety boundary
 
