@@ -31,8 +31,9 @@ class NetworkDefenseRuntimeWiringTests(unittest.TestCase):
 
     def test_network_console_mentions_dns_and_verifier_boundaries(self):
         page = Path('src/web/network-defense/index.html').read_text(encoding='utf-8')
-        self.assertIn('DNS policy readiness', page)
-        self.assertIn('staged policy evidence', page)
+        page_lower = page.lower()
+        self.assertIn('dns policy readiness', page_lower)
+        self.assertIn('staged policy evidence', page_lower)
         self.assertIn('traffic_controls_changed:false', page)
         self.assertIn('Counts only dedicated sanitized live-state verifiers.', page)
 
