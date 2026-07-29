@@ -3,7 +3,7 @@
 Last verified: 2026-07-29
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
-Authoritative commit before this evidence reconciliation: `922e5035d5af22a99e5035b60dfc779c4ae95275`
+Authoritative commit before this live-evidence reconciliation: `c7bdfd1629182a5afc9b0daa966022c35aaa1dcc`
 
 ## Verified live state
 
@@ -14,8 +14,15 @@ Authoritative commit before this evidence reconciliation: `922e5035d5af22a99e503
   - `dns_policy_state: not_staged`;
   - `enforcement_enabled: false`;
   - `traffic_controls_changed: false`.
-- The Network Defense timer and one-shot exporter passed installation checks.
-- No resolver, DNS answer, firewall, proxy, routing, Fail2ban, or IDS controls were changed.
+- Security Correlation observability deployed successfully.
+- Security Correlation evidence: `/var/lib/wwcx-deployment-evidence/security-correlation/20260729T061441Z`.
+- Correlation snapshot reported `read_only: true`, 41 events, 0 correlations, and 4 available sources.
+- Sanitized Security Controls inspection completed successfully.
+- Security Controls evidence: `/var/lib/wwcx-deployment-evidence/security-controls-inspection/20260729T061447Z`.
+- Both firewall and Fail2ban posture were readable; `traffic_controls_changed: false`.
+- The first acceptance attempt ran before Network Defense consumed the new correlation snapshot and failed safely.
+- Acceptance timing evidence: `/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061449Z`.
+- No resolver, DNS answer, firewall, proxy, routing, Fail2ban, IDS, reputation-filter, or other traffic controls were changed.
 
 ## Verified repository state
 
@@ -45,17 +52,14 @@ Required CI passed on each exact merged head:
 
 ## Remaining live sequence
 
-The repository work is complete. The remaining steps require the existing authenticated Edge1 SSH session:
+Only the read-only acceptance verifier remains. Rerun it after the scheduled Network Defense timer refresh:
 
 ```bash
 cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-security-correlation-observability.sh
-sudo bash ./tools/security/inspect-security-controls.sh
 sudo bash ./tools/security/verify-security-observability-live.sh
 ```
 
-The acceptance verifier may report that Network Defense has not consumed correlation yet if its next scheduled refresh has not occurred. That result is read-only and preserves evidence; rerun the same verifier after the next timer refresh rather than restarting or changing controls.
+Do not restart or alter DNS, firewall, Fail2ban, routing, proxy, IDS, or reputation-filter controls to force acceptance.
 
 ## Safety boundary
 
