@@ -12,6 +12,14 @@ required = (
     'const openAlerts=new Set()',
     'cache:"no-store"',
     'last_known_good',
+    'Suricata severity',
+    'Source port',
+    'Destination port',
+    'Application protocol',
+    'signature_id',
+    'app_protocol',
+    'suricata_severity',
+    'normalization:latestSnapshot.normalization',
     'Only approved fields from the sanitized snapshot are displayed.',
     'Packet payloads and raw logs are not shown.',
 )
@@ -25,6 +33,7 @@ forbidden = (
     "sessionStorage.setItem",
     "JSON.stringify(alert)",
     "packet.payload",
+    "raw_event",
 )
 
 present = [marker for marker in forbidden if marker in text]
