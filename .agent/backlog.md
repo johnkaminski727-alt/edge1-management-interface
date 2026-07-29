@@ -16,9 +16,11 @@
 - [x] Add rollback-safe installer and full parser, privacy, runtime, systemd, and deployment validation.
 - [x] Merge PR #118 after both required CI workflows passed.
 - [x] Repair the case-sensitive runtime wording assertion through PR #119.
-- [x] Verify both required CI workflows passed on the repair.
 - [x] Run the corrected installer successfully on Edge1.
 - [x] Record successful evidence directory and unchanged traffic-control boundary.
+- [x] Read and record the exact acceptance summary.
+- [x] Confirm Spamhaus state `active_verified`, enforcement verification true, and verified-enforcement count 1.
+- [x] Confirm Network Defense remains `limited`, 6 of 7 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
 
 ## Authoritative evidence
 
@@ -40,17 +42,10 @@ Spamhaus failed attempt, safely rolled back:
 
 Spamhaus successful deployment:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-```
 
-## Remaining evidence task
-
-- [ ] Copy the exact `spamhaus_state`, `spamhaus_enforcement_verified`, `verified_enforcement_count`, and `overall_state` from:
-
-```text
+Spamhaus exact acceptance summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
-
-This is an evidence-recording task only. Implementation and live deployment have passed.
 
 ## Evidence-driven follow-up
 
@@ -70,5 +65,4 @@ Requires exact production authorization and separate rollback/validation plans:
 - RPZ inclusion, activation, reload, or DNS answer changes;
 - firewall, nftables, Fail2ban, proxy, routing, IDS, or reputation-filter control changes;
 - any additional public or production traffic cutover;
-- authentication-boundary changes;
-- any claim of active enforcement without direct evidence.
+- authentication-boundary changes.

@@ -2,7 +2,7 @@
 
 Date: 2026-07-29
 System: Edge1 / WW.CX Network Defense
-Status: implementation merged and live installer acceptance passed
+Status: deployed and accepted as `active_verified`
 
 ## Objective
 
@@ -70,7 +70,7 @@ Reading nftables state requires `CAP_NET_ADMIN`. That capability is granted only
 
 ## Live deployment
 
-Implementation merged through PR #118. The first live attempt failed before mutation because a runtime UI wording assertion was case-sensitive; the installer restored saved verifier state and recorded rollback evidence.
+Implementation merged through PR #118. The first live attempt failed before deployment because a runtime UI wording assertion was case-sensitive; rollback completed and evidence was preserved.
 
 The assertion repair merged through PR #119 and both required CI workflows passed. The corrected installer then completed successfully.
 
@@ -80,23 +80,35 @@ Successful evidence:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 ```
 
+Exact acceptance summary:
+
+```text
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
+```
+
 Failed and rolled-back evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180002Z
 ```
 
-The successful terminal result confirmed that the verifier made no nftables, firewall, DNS, routing, Fail2ban, proxy, or traffic-control changes.
+## Accepted live result
 
-## Exact-state readback
-
-The final terminal excerpt did not include the earlier JSON summaries. The exact accepted state must be read from:
-
-```text
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
+```json
+{
+  "spamhaus_state": "active_verified",
+  "spamhaus_enforcement_verified": true,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 6,
+  "source_count": 7,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
 ```
 
-Do not infer `active_verified` from the generic deployment-passed line. The installer intentionally accepts truthful `active_verified`, `partial`, `not_present`, or `unavailable` results.
+The accepted result directly verifies the dedicated Spamhaus enforcement path. The overall Network Defense state remains `limited`; DNS policy remains unstaged and DNS enforcement remains disabled. The successful terminal result also confirmed that the verifier made no nftables, firewall, DNS, routing, Fail2ban, proxy, or traffic-control changes.
 
 ## Safety boundary
 

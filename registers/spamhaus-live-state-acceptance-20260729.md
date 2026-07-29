@@ -23,30 +23,41 @@ Authoritative evidence directory:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 ```
 
-## Verified facts
-
-- deployment completed without rollback;
-- the read-only verifier service and timer passed installer acceptance;
-- Network Defense consumed the verifier snapshot consistently;
-- `traffic_controls_changed` remained false;
-- DNS enforcement remained disabled;
-- no Spamhaus list refresh, filter reload, nftables mutation, firewall mutation, DNS, routing, Fail2ban, proxy, IDS, or authentication change was performed.
-
-## Exact-state evidence gap
-
-The final terminal excerpt did not include the JSON summaries printed earlier in the installer run. Therefore the exact accepted Spamhaus state is not copied into this repository record yet.
-
-It must be read from:
+Authoritative acceptance summary:
 
 ```text
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-Allowed truthful states are:
+## Exact accepted result
 
-- `active_verified`;
-- `partial`;
-- `not_present`;
-- `unavailable`.
+```json
+{
+  "ok": true,
+  "spamhaus_state": "active_verified",
+  "spamhaus_enforcement_verified": true,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 6,
+  "source_count": 7,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
 
-Do not infer `active_verified` solely from the generic deployment-passed line. The installer intentionally accepts truthful degraded states while preventing false enforcement claims.
+## Verified facts
+
+- deployment completed without rollback;
+- the read-only verifier service and timer passed installer acceptance;
+- Network Defense consumed the verifier snapshot consistently;
+- Spamhaus live enforcement is directly verified as `active_verified`;
+- the Spamhaus component contributes one verified enforcement source;
+- the broader Network Defense state remains `limited` with 6 of 7 sources available;
+- DNS policy remains `not_staged` and DNS enforcement remains disabled;
+- `traffic_controls_changed` remained false;
+- no Spamhaus list refresh, filter reload, nftables mutation, firewall mutation, DNS, routing, Fail2ban, proxy, IDS, authentication, or traffic-control change was performed.
+
+## Interpretation boundary
+
+`active_verified` applies specifically to the dedicated Spamhaus nftables table, expected sets and hooked drop rules, updater result, timer state, freshness, and read-only safety contract. It does not claim that DNS, general firewall, Fail2ban, proxy, or other enforcement layers are verified.
