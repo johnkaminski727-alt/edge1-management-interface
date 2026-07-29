@@ -6,16 +6,18 @@ System: Edge1 / WW.CX Security Operations
 
 ## Purpose
 
-Record the authoritative repository and live deployment state for Security Operations, Security Correlation, Network Defense, and staged DNS Defense work.
+Record the authoritative repository and live deployment state for Security Operations, Security Correlation, Network Defense, Security Controls inspection, acceptance verification, and staged DNS Defense work.
 
 ## Current state
 
 | Component | Repository state | Live state | Evidence |
 | --- | --- | --- | --- |
 | Security Operations console/exporter | Merged | Existing telemetry observed by Network Defense | `/var/www/edge1-status/security-operations.json` observed during deployment diagnostics |
-| Security Correlation deployment package | Merged in PR #102, main commit `9425d3fc4f3846948ec43590b1f4d15cfc313266` | Awaiting bounded Edge1 installation | CI runs `30425842455` and `30425842388` passed |
-| Network Defense observability | Merged through PR #101, main commit `6255b3f632e51d3662220bbbe426b76cc1d37f52` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/network-defense/20260729T053355Z` |
-| DNS Defense policy architecture | Merged in PR #96 | Not staged or activated | Runtime reported `dns_policy_state: not_staged` |
+| Security Correlation deployment package | PR #102, commit `9425d3fc4f3846948ec43590b1f4d15cfc313266` | Awaiting bounded Edge1 installation | CI `30425842455`, `30425842388` |
+| Network Defense observability | PR #101, commit `6255b3f632e51d3662220bbbe426b76cc1d37f52` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/network-defense/20260729T053355Z` |
+| Security Controls inspection | PR #104, commit `7b75ac6ae3047e39b3b5395b904eb19071920d3c` | Awaiting read-only Edge1 inspection | CI `30426203898`, `30426203900` |
+| Security observability acceptance | PR #105, commit `ac35bc4667222017d946408144a56a60e6c43e60` | Awaiting correlation deployment and timer refresh | CI `30426363318`, `30426363513` |
+| DNS Defense policy architecture | PR #96 | Not staged or activated | Runtime reported `dns_policy_state: not_staged` |
 
 ## Network Defense live acceptance
 
@@ -52,7 +54,7 @@ A prior Network Defense deployment attempt failed because the hardened service c
 
 The corrected deployment writes only to a scoped root-owned directory while retaining an empty capability set.
 
-## Security Correlation deployment readiness
+## Security Correlation deployment package
 
 PR #102 merged the bounded deployment path into `main` at commit `9425d3fc4f3846948ec43590b1f4d15cfc313266`.
 
@@ -65,18 +67,52 @@ The package:
 - captures service/journal evidence before automatic rollback;
 - does not modify Suricata, DNS, firewall, Fail2ban, proxy, routing, or reputation-filter controls.
 
-Required CI passed on the exact merged head:
+## Security Controls inspection package
 
-- Edge1 Operator Validation run `30425842455`;
-- Validate repository run `30425842388`.
+PR #104 added an operator-run evidence package rather than a permanent service.
 
-Live deployment remains an explicit operator run:
+It retains only:
+
+- nftables command and service availability;
+- aggregate table, chain, rule, set, map, flowtable, and named-counter counts;
+- Fail2ban command and service availability;
+- jail names and numeric failed/banned counters.
+
+It explicitly excludes raw firewall rules, addresses, ports, protocols, packet payloads, banned-IP lists, credentials, and raw command output. The contract always reports `read_only: true` and `traffic_controls_changed: false`.
+
+## Security observability acceptance package
+
+PR #105 added a read-only verifier that requires:
+
+- correlation and Network Defense timers enabled and active;
+- both one-shot services to have completed successfully;
+- fresh correlation and Network Defense snapshots;
+- the correlation privacy contract intact;
+- Network Defense source `correlation` available and not stale;
+- DNS enforcement disabled and explicit activation still required;
+- `traffic_controls_changed: false`.
+
+It records protected success or failure evidence without restarting services or modifying controls.
+
+## Ordered live completion sequence
 
 ```bash
 cd /opt/edge1-management-interface
 git pull --ff-only origin main
 sudo bash ./deploy/install-security-correlation-observability.sh
+sudo bash ./tools/security/inspect-security-controls.sh
+sudo bash ./tools/security/verify-security-observability-live.sh
 ```
+
+Expected evidence roots:
+
+```text
+/var/lib/wwcx-deployment-evidence/security-correlation/<UTC timestamp>/
+/var/lib/wwcx-deployment-evidence/security-controls-inspection/<UTC timestamp>/
+/var/lib/wwcx-deployment-evidence/security-observability-acceptance/<UTC timestamp>/
+```
+
+If acceptance reports that Network Defense has not consumed correlation yet, preserve the failure evidence and rerun the verifier after the next scheduled timer refresh. Do not restart or alter traffic controls.
 
 ## Deferred privileged work
 
@@ -88,9 +124,6 @@ The following remain outside this observability phase and require separate exact
 - firewall, nftables, Fail2ban, proxy, routing, or IDS control changes;
 - any claim that enforcement is active without a dedicated verifier.
 
-## Next verification sequence
+## Next record update
 
-1. Run the bounded Security Correlation installer on Edge1.
-2. Verify the correlation timer, service result, JSON privacy contract, console, compatibility symlink, and evidence path.
-3. Allow the Network Defense timer to refresh and confirm the correlation source becomes available.
-4. Update this register with the successful Security Correlation evidence path.
+After the ordered live sequence succeeds, append the three evidence paths and sanitized acceptance summary to this register and mark the corresponding `.agent/backlog.md` items complete.
