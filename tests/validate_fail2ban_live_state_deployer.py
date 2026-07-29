@@ -53,6 +53,7 @@ class Fail2banLiveStateDeployerTests(unittest.TestCase):
     def test_verifier_service_is_root_but_capability_free(self):
         unit = SERVICE.read_text(encoding='utf-8')
         self.assertIn('User=root', unit)
+        self.assertIn('Environment=LC_ALL=C', unit)
         self.assertIn('ProtectSystem=strict', unit)
         self.assertIn('RestrictAddressFamilies=AF_UNIX', unit)
         self.assertIn('ReadWritePaths=/var/lib/bigbird-security/fail2ban', unit)
