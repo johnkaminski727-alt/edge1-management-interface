@@ -36,7 +36,10 @@ class NetworkDefenseConsoleTests(unittest.TestCase):
 
     def test_only_approved_status_endpoint_is_used(self):
         endpoints = set(re.findall(r'/(?:edge1-status|api)/[^"\']+\.json', self.source))
-        self.assertEqual(endpoints, {'/edge1-status/network-defense.json'})
+        self.assertEqual(
+            endpoints,
+            {'/edge1-status/network-defense/data/network-defense.json'},
+        )
 
     def test_no_write_capable_fetch(self):
         self.assertIsNone(re.search(r'''fetch\s*\([^)]*,\s*\{[^}]*method\s*:\s*["'](?:POST|PUT|PATCH|DELETE)["']''', self.source, re.I | re.S))
