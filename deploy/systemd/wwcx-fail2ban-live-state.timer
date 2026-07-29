@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh WW.CX Fail2ban live-state evidence
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=60s
+AccuracySec=10s
+Persistent=true
+Unit=wwcx-fail2ban-live-state.service
+
+[Install]
+WantedBy=timers.target
