@@ -63,9 +63,21 @@ for path in files:
 PY
 
 printf '%s\n' '== Read-only boundary =='
-! grep -Eiq 'fetch\([^)]*,[[:space:]]*\{[^}]*method[[:space:]]*:[[:space:]]*["'"'](POST|PUT|PATCH|DELETE)' \
-  src/web/security/index.html \
-  src/web/security/correlation.html
+"$PYTHON_BIN" - <<'PY'
+from pathlib import Path
+import re
+
+pattern = re.compile(
+    r'''fetch\s*\([^)]*,\s*\{[^}]*method\s*:\s*["'](?:POST|PUT|PATCH|DELETE)["']''',
+    re.IGNORECASE | re.DOTALL,
+)
+for path in (
+    Path('src/web/security/index.html'),
+    Path('src/web/security/correlation.html'),
+):
+    if pattern.search(path.read_text(encoding='utf-8')):
+        raise SystemExit(f'write-capable fetch detected: {path}')
+PY
 
 grep -Fq 'read_only' server/security_correlation_exporter.py
 grep -Fq 'NoNewPrivileges=true' deploy/systemd/wwcx-security-correlation.service
