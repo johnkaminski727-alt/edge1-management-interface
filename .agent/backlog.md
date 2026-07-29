@@ -12,6 +12,11 @@
 - [x] Verify all three live JSON feeds through the domain and preserve the sanitized domain acceptance result.
 - [x] Deploy accessible Suricata alert expand/collapse and Edge1 last-known-good caching.
 - [x] Verify the live cache contract with `mode: live`, `stale: false`, and a bounded 30-alert snapshot.
+- [x] Merge nested Suricata alert normalization and its bounded activator.
+- [x] Fast-forward Edge1, publish the enriched page, and refresh Security Operations, Security Correlation, and Network Defense.
+- [x] Verify 30 of 30 alerts are classified and assigned a known risk.
+- [x] Verify schema `2.0`, alert schema `wwcx.suricata-alert.v1`, live cache, read-only correlation, disabled enforcement, and unchanged traffic controls.
+- [x] Capture live normalization evidence and nested observability acceptance.
 
 Authoritative successful acceptance evidence:
 
@@ -25,19 +30,18 @@ Authoritative domain acceptance evidence:
 /var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
 ```
 
-## Current bounded implementation
+Authoritative Suricata normalization evidence:
 
-- [x] Normalize nested Suricata signature, severity, ports, application protocol, rule identifiers, category, action, and flow/event ID in the repository.
-- [x] Add sanitized schema metadata and payload/raw-event exclusion tests.
-- [x] Enrich the alert drill-down panel with normalized metadata.
-- [ ] Merge the normalization PR after both required CI workflows pass.
-- [ ] Fast-forward Edge1, publish the enriched page, run the Security Operations exporter, and capture live acceptance evidence.
-- [ ] Verify Security Correlation and Network Defense consume the refreshed Security Operations snapshot without any traffic-control change.
+```text
+/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
+```
 
 ## Evidence-driven follow-up
 
 The live Security Controls inspection confirmed both nftables and Fail2ban posture are readable through the bounded inspector. Optional follow-up design work may:
 
+- update the upstream Security Operations collector to retain allowlisted source port, destination port, application protocol, SID, GID, revision, and flow/event fields when present in EVE input;
+- preserve the existing normalized schema, 50-alert bound, payload/raw-event exclusion, and regression coverage during any collector enhancement;
 - decide whether nftables aggregate counts can be published periodically with a least-privilege service;
 - decide whether Fail2ban socket access and jail counters support a safe periodic exporter;
 - add a dedicated Spamhaus live-state verifier that distinguishes feed readiness from active nftables enforcement;
