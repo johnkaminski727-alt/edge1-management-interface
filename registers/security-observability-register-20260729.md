@@ -13,7 +13,7 @@ Record the authoritative repository and live deployment state for Security Opera
 | Component | Repository state | Live state | Evidence |
 | --- | --- | --- | --- |
 | Security Operations console/exporter | Merged | Existing telemetry observed by Network Defense | `/var/www/edge1-status/security-operations.json` observed during deployment diagnostics |
-| Security Correlation foundation | Merged in PR #94, merge commit `5b12904ab8b1e6182df167715d7022092a6d27d8` | Not yet deployed as of this register update | Bounded installer prepared on `agent/security-correlation-deployment-20260729` |
+| Security Correlation deployment package | Merged in PR #102, main commit `9425d3fc4f3846948ec43590b1f4d15cfc313266` | Awaiting bounded Edge1 installation | CI runs `30425842455` and `30425842388` passed |
 | Network Defense observability | Merged through PR #101, main commit `6255b3f632e51d3662220bbbe426b76cc1d37f52` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/network-defense/20260729T053355Z` |
 | DNS Defense policy architecture | Merged in PR #96 | Not staged or activated | Runtime reported `dns_policy_state: not_staged` |
 
@@ -54,7 +54,9 @@ The corrected deployment writes only to a scoped root-owned directory while reta
 
 ## Security Correlation deployment readiness
 
-The prepared bounded deployment path:
+PR #102 merged the bounded deployment path into `main` at commit `9425d3fc4f3846948ec43590b1f4d15cfc313266`.
+
+The package:
 
 - validates repository, Python, JavaScript, shell, systemd, privacy, and read-only contracts;
 - writes only to `/var/www/edge1-status/security/correlation/data`;
@@ -63,7 +65,18 @@ The prepared bounded deployment path:
 - captures service/journal evidence before automatic rollback;
 - does not modify Suricata, DNS, firewall, Fail2ban, proxy, routing, or reputation-filter controls.
 
-Live deployment remains an explicit operator run after merge.
+Required CI passed on the exact merged head:
+
+- Edge1 Operator Validation run `30425842455`;
+- Validate repository run `30425842388`.
+
+Live deployment remains an explicit operator run:
+
+```bash
+cd /opt/edge1-management-interface
+git pull --ff-only origin main
+sudo bash ./deploy/install-security-correlation-observability.sh
+```
 
 ## Deferred privileged work
 
@@ -77,8 +90,7 @@ The following remain outside this observability phase and require separate exact
 
 ## Next verification sequence
 
-1. Merge the Security Correlation deployment package after CI passes.
-2. Run the bounded installer on Edge1.
-3. Verify the correlation timer, service result, JSON privacy contract, console, and evidence path.
-4. Allow the Network Defense timer to refresh and confirm the correlation source becomes available.
-5. Update this register with the successful Security Correlation evidence path.
+1. Run the bounded Security Correlation installer on Edge1.
+2. Verify the correlation timer, service result, JSON privacy contract, console, compatibility symlink, and evidence path.
+3. Allow the Network Defense timer to refresh and confirm the correlation source becomes available.
+4. Update this register with the successful Security Correlation evidence path.
