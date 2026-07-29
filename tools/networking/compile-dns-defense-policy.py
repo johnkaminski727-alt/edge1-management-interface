@@ -153,9 +153,9 @@ def compile_zone(policy: dict[str, Any]) -> str:
     ]
     for item in policy["entries"]:
         target = SUPPORTED_ACTIONS[item["action"]]
-        lines.append(f"{item['domain']} CNAME {target}")
+        lines.append(f"{item['domain']}. CNAME {target}")
         if item["include_subdomains"]:
-            lines.append(f"*.{item['domain']} CNAME {target}")
+            lines.append(f"*.{item['domain']}. CNAME {target}")
     return "\n".join(lines).rstrip() + "\n"
 
 
