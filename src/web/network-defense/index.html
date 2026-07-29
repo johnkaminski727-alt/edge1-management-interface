@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WW.CX Network Defense</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#45b879;--warn:#d6a13c;--bad:#df6b6b;--info:#6aa9df}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3f6}.shell{width:min(1320px,100%);margin:auto;padding:24px}a{color:#9bcaf0}nav{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}nav a{text-decoration:none}nav a[aria-current=page]{color:#fff;font-weight:700}header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}h1{margin:0 0 8px;font-size:clamp(1.8rem,4vw,2.5rem)}h2{margin-top:0;font-size:1.2rem}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px}.card.good{border-color:var(--good)}.card.warning{border-color:var(--warn)}.card.bad{border-color:var(--bad)}.card.info{border-color:var(--info)}.label{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}.value{font-size:1.25rem;font-weight:750;margin-top:5px;overflow-wrap:anywhere}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 11px}.status:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--muted)}.status.good:before{background:var(--good)}.status.warning:before{background:var(--warn)}.status.bad:before{background:var(--bad)}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar .spacer{flex:1}button{font:inherit;background:var(--card);color:#eef3f6;border:1px solid var(--line);border-radius:8px;padding:9px 14px;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.muted,small{color:var(--muted)}.notice{border-left:4px solid var(--info);background:#101a22;padding:10px 14px}.error{display:none}.error.visible{display:block;border-color:var(--bad)}ul{margin-bottom:0}@media(max-width:760px){.shell{padding:16px}header{display:block}}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav aria-label="Security modules"><a href="../security/">Security Operations</a><a href="../security/correlation.html">Correlation Center</a><a href="./" aria-current="page">Network Defense</a><a href="../operations-center/">Operations Center</a></nav>
+<header><div><h1>Network Defense</h1><p>Read-only visibility across IDS, DNS, reputation, firewall, Fail2ban, and proxy readiness.</p></div><div class="toolbar"><span id="connection-status" class="status">Connecting</span><span id="freshness" class="status">Freshness unknown</span></div></header>
+<div id="error-banner" class="panel error" role="alert"></div>
+<section class="panel"><div class="toolbar"><button id="refresh-button" type="button">Refresh</button><span class="spacer"></span><small id="last-checked">Not checked yet</small></div></section>
+<section class="panel"><h2>Defense posture</h2><div id="summary" class="grid"><div class="muted">Loading...</div></div></section>
+<section class="panel"><h2>Defense layers</h2><div id="components" class="grid"><div class="muted">Loading...</div></div></section>
+<section class="panel"><h2>Source freshness</h2><div id="sources" class="grid"><div class="muted">Loading...</div></div></section>
+<section class="panel"><h2>Recommended next steps</h2><ul id="recommendations"></ul></section>
+<section class="panel"><h2>Safety boundary</h2><p class="notice">This read-only module does not install, enable, reload, or modify DNS, firewall, Fail2ban, proxy, routing, or IDS controls. Contract flag: <code>traffic_controls_changed:false</code>.</p><ul id="limitations"></ul></section>
+</div>
+<script>
+"use strict";
+const ENDPOINT="/edge1-status/network-defense.json";
+const REQUEST_TIMEOUT_MS=10000;
+const REFRESH_INTERVAL_MS=60000;
+const STALE_AFTER_MS=5*60*1000;
+let snapshot=null;
+let lastSuccess=null;
+let loading=false;
+const el=id=>document.getElementById(id);
+const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+const parseDate=v=>{const d=v?new Date(v):null;return d&&!Number.isNaN(d.getTime())?d:null};
+const formatAge=seconds=>seconds==null?"unknown":seconds<60?`${seconds}s`:seconds<3600?`${Math.round(seconds/60)}m`:`${Math.round(seconds/3600)}h`;
+function setConnection(text,state){const n=el("connection-status");n.textContent=text;n.className=`status ${state||""}`.trim()}
+function showError(message){const n=el("error-banner");n.textContent=message;n.className="panel error visible"}
+function clearError(){const n=el("error-banner");n.textContent="";n.className="panel error"}
+function card(label,value,state="info",detail=""){return `<article class="card ${esc(state)}"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div>${detail?`<small>${esc(detail)}</small>`:""}</article>`}
+function updateFreshness(){const generated=parseDate(snapshot?.generated_at);const n=el("freshness");if(!generated){n.textContent="Freshness unknown";n.className="status warning";return}const age=Math.max(0,Date.now()-generated.getTime());const stale=age>STALE_AFTER_MS;n.textContent=stale?`Stale: ${Math.round(age/60000)}m`:`Fresh: ${Math.round(age/60000)}m`;n.className=`status ${stale?"warning":"good"}`}
+function render(){const s=snapshot?.summary||{};el("summary").innerHTML=[card("Overall",snapshot?.overall_state||"unknown",snapshot?.overall_state==="observed"?"good":"warning"),card("Observed layers",`${s.observed_component_count??0}/${s.component_count??0}`),card("Verified enforcement",s.verified_enforcement_count??0,(s.verified_enforcement_count??0)>0?"good":"warning","Zero is expected until dedicated verifiers exist."),card("Available sources",`${s.available_source_count??0}/${s.source_count??0}`)].join("");el("components").innerHTML=Object.values(snapshot?.components||{}).map(x=>card(x.name,x.state,x.enforcement_verified?"good":x.observed?"info":"warning",`${x.detail} Enforcement verified: ${x.enforcement_verified?"yes":"no"}.`)).join("")||'<div class="muted">No component data.</div>';el("sources").innerHTML=Object.entries(snapshot?.sources||{}).map(([name,x])=>card(name,x.available?(x.stale?"Stale":"Available"):"Unavailable",x.available?(x.stale?"warning":"good"):"bad",`${x.detail}; age ${formatAge(x.age_seconds)}.`)).join("")||'<div class="muted">No source data.</div>';el("recommendations").innerHTML=(snapshot?.recommendations||[]).map(x=>`<li>${esc(x)}</li>`).join("")||'<li>No recommendations reported.</li>';el("limitations").innerHTML=(snapshot?.limitations||[]).map(x=>`<li>${esc(x)}</li>`).join("")||'<li>No limitations reported.</li>';updateFreshness()}
+async function load(){if(loading)return;loading=true;el("refresh-button").disabled=true;setConnection("Refreshing","warning");const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);try{const response=await fetch(ENDPOINT,{cache:"no-store",signal:controller.signal});if(!response.ok)throw new Error(`HTTP ${response.status}`);const data=await response.json();if(!data||typeof data!=="object"||Array.isArray(data))throw new Error("Invalid network-defense document");snapshot=data;lastSuccess=new Date();clearError();setConnection("Connected","good");el("last-checked").textContent=`Last checked: ${lastSuccess.toLocaleString()}`;render()}catch(error){const detail=error?.name==="AbortError"?"request timed out":String(error?.message||error);if(snapshot){setConnection("Refresh failed","warning");showError(`Refresh failed; showing last successful snapshot: ${detail}`);updateFreshness()}else{setConnection("Disconnected","bad");showError(`Unable to load Network Defense telemetry: ${detail}`)}}finally{clearTimeout(timer);loading=false;el("refresh-button").disabled=false}}
+el("refresh-button").addEventListener("click",load);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(!lastSuccess||Date.now()-lastSuccess.getTime()>REFRESH_INTERVAL_MS))load()});load();setInterval(load,REFRESH_INTERVAL_MS);setInterval(updateFreshness,10000);
+</script>
+</body>
+</html>
