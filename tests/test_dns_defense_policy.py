@@ -32,9 +32,9 @@ class DnsDefensePolicyTests(unittest.TestCase):
     def test_supported_actions_compile(self):
         normalized = MODULE.validate_policy(self.policy())
         zone = MODULE.compile_zone(normalized)
-        self.assertIn("bad.example CNAME .", zone)
-        self.assertIn("empty.example CNAME *.", zone)
-        self.assertIn("good.example CNAME rpz-passthru.", zone)
+        self.assertIn("bad.example. CNAME .", zone)
+        self.assertIn("empty.example. CNAME *.", zone)
+        self.assertIn("good.example. CNAME rpz-passthru.", zone)
 
     def test_staged_include_is_disabled(self):
         normalized = MODULE.validate_policy(self.policy())
