@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WW.CX Network Defense</title></head>
+<body>
+<nav><a href="../security/">Security Operations</a> <a href="../security/correlation.html">Correlation Center</a> <a href="./">Network Defense</a></nav>
+<h1>Network Defense</h1>
+<p>Read-only visibility across IDS, DNS, reputation, firewall, Fail2ban, and proxy readiness.</p>
+<section><h2>Defense posture</h2><div id="summary">Loading...</div></section>
+<section><h2>Defense layers</h2><div id="components">Loading...</div></section>
+<section><h2>Source freshness</h2><div id="sources">Loading...</div></section>
+<section><h2>Recommended next steps</h2><div id="recommendations"></div></section>
+<section><h2>Safety boundary</h2><p>This read-only module does not install, enable, reload, or modify DNS, firewall, Fail2ban, proxy, routing, or IDS controls.</p><div id="limitations"></div></section>
+<script>
+"use strict";
+const ENDPOINT="/edge1-status/network-defense.json";
+const REQUEST_TIMEOUT_MS=10000;
+const REFRESH_INTERVAL_MS=60000;
+let snapshot=null;
+const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+function card(k,v){return `<article><strong>${esc(k)}</strong><br>${esc(v)}</article>`}
+function render(){const s=snapshot.summary||{};document.getElementById('summary').innerHTML=[card('Overall',snapshot.overall_state),card('Observed layers',`${s.observed_component_count}/${s.component_count}`),card('Verified enforcement',s.verified_enforcement_count)].join('');document.getElementById('components').innerHTML=Object.values(snapshot.components||{}).map(x=>card(x.name,x.state+' - '+x.detail)).join('');document.getElementById('sources').innerHTML=Object.entries(snapshot.sources||{}).map(([k,v])=>card(k,v.detail)).join('');document.getElementById('recommendations').innerHTML=(snapshot.recommendations||[]).map(x=>`<li>${esc(x)}</li>`).join('');document.getElementById('limitations').innerHTML=(snapshot.limitations||[]).map(x=>`<li>${esc(x)}</li>`).join('')}
+async function load(){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);try{const r=await fetch(ENDPOINT,{cache:'no-store',signal:controller.signal});if(!r.ok)throw Error(r.status);snapshot=await r.json();render()}finally{clearTimeout(timer)}}
+load();setInterval(load,REFRESH_INTERVAL_MS);
+</script>
+</body></html>
