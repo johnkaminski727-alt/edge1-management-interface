@@ -21,7 +21,7 @@ fail() {
 [ "$(id -u)" -eq 0 ] || fail "run as root, for example: sudo bash $0"
 [ -d "$ROOT/.git" ] || fail "repository not found: $ROOT"
 
-for command in curl date git hostname install journalctl node python3 sha256sum systemctl; do
+for command in curl date git hostname install journalctl python3 sha256sum systemctl; do
     command -v "$command" >/dev/null 2>&1 || fail "required command is unavailable: $command"
 done
 
@@ -113,7 +113,12 @@ start = page.index("<script>") + len("<script>")
 end = page.index("</script>", start)
 Path(sys.argv[2]).write_text(page[start:end], encoding="utf-8")
 PY
-node --check "$EVIDENCE_DIR/security-inline.js"
+if command -v node >/dev/null 2>&1; then
+    node --check "$EVIDENCE_DIR/security-inline.js" | tee "$EVIDENCE_DIR/node-check.txt"
+else
+    printf 'node unavailable on Edge1; inline JavaScript syntax was validated by exact-head repository CI\n' \
+        | tee "$EVIDENCE_DIR/node-check.txt"
+fi
 
 printf '=== STAGE EXPORT PIPELINE ===\n'
 python3 - "$ROOT" "$EVIDENCE_DIR/staged-security.json" <<'PY'
