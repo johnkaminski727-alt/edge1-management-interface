@@ -143,7 +143,7 @@ bash -n "$REPO_ROOT/deploy/install-fail2ban-live-state-observability.sh"
 
 printf '=== INSTALL READ-ONLY VERIFIER ===\n'
 MUTATION_STARTED=1
-install -d -o root -g root -m 0755 "$STATE_ROOT"
+install -d -o root -g root -m 0750 "$STATE_ROOT"
 install -d -o root -g root -m 0755 "$STATUS_ROOT/network-defense/data"
 install -m 0644 "$REPO_ROOT/deploy/systemd/$SERVICE" "$UNIT_ROOT/$SERVICE"
 install -m 0644 "$REPO_ROOT/deploy/systemd/$TIMER" "$UNIT_ROOT/$TIMER"
@@ -165,10 +165,12 @@ import json
 import pathlib
 import re
 import shutil
+import stat
 import sys
 
 source = pathlib.Path(sys.argv[1])
 evidence = pathlib.Path(sys.argv[2])
+assert stat.S_IMODE(source.stat().st_mode) == 0o640
 data = json.loads(source.read_text(encoding='utf-8'))
 assert data['contract'] == 'wwcx.fail2ban-live-state.v1'
 assert data['read_only'] is True
