@@ -1,10 +1,11 @@
 # Current State
 
-Last verified: 2026-07-29 18:08 UTC
+Last verified: 2026-07-29 18:34 UTC
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
 Spamhaus verifier implementation merge: `e4002df7f7b6c523a76214804a3f5eb5b033561c`
 Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
+Deployment closeout merge: `bd29397c6373101837cf0bd749038b0d3ad31133`
 
 ## Verified live security observability
 
@@ -15,15 +16,10 @@ Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
 - DNS enforcement remains disabled.
 - Traffic controls remain unchanged.
 
-Base evidence:
+Base and domain evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
-```
-
-Domain evidence:
-
-```text
 /var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
 ```
 
@@ -33,8 +29,7 @@ Domain evidence:
 - Expanded details are limited to sanitized allowlisted fields.
 - Browser requests remain `cache: "no-store"`.
 - Edge1 last-known-good caching distinguishes live data from stale fallback data.
-- Security Operations schema is `2.0`.
-- Public alert schema is `wwcx.suricata-alert.v1`.
+- Security Operations schema is `2.0` and public alert schema is `wwcx.suricata-alert.v1`.
 - The source-controlled collector retains allowlisted ports, application protocol, SID/GID/revision, and flow identifiers.
 - The final accepted collector run published 22 enriched alerts and refreshed Correlation and Network Defense without changing traffic controls.
 
@@ -45,40 +40,45 @@ Evidence:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
 ```
 
-## Spamhaus live-state verifier
+## Verified Spamhaus live-state enforcement
 
-The read-only verifier implementation merged through PR #118 and the case-sensitive runtime-validation repair merged through PR #119.
+The read-only verifier implementation merged through PR #118, the runtime wording repair merged through PR #119, and the corrected installer completed successfully on Edge1.
 
-Live installation completed successfully on Edge1:
-
-```text
-Spamhaus live-state observability deployment passed.
-Evidence: /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-```
-
-Verified deployment facts:
-
-- the checked-in installer completed without rollback;
-- verifier and Network Defense acceptance completed consistently;
-- contract `wwcx.spamhaus-live-state.v1` is deployed;
-- the verifier publishes bounded counts and booleans only;
-- Network Defense consumes the sanitized verifier snapshot;
-- `traffic_controls_changed` remained false;
-- DNS enforcement remained disabled;
-- no Spamhaus refresh, filter reload, nftables mutation, firewall mutation, DNS, routing, Fail2ban, proxy, IDS, authentication, or traffic-control change occurred.
-
-The exact accepted state was not included in the final terminal excerpt. It remains to be copied from:
+Evidence:
 
 ```text
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-Allowed truthful values are `active_verified`, `partial`, `not_present`, or `unavailable`. Do not infer a specific value from the generic deployment-passed line.
+Exact accepted result:
+
+```json
+{
+  "spamhaus_state": "active_verified",
+  "spamhaus_enforcement_verified": true,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 6,
+  "source_count": 7,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
+
+Verified interpretation:
+
+- the dedicated Spamhaus table, expected sets and hooked rules, updater result, timer state, freshness, and safety contract passed direct verification;
+- Spamhaus contributes one verified enforcement source in Network Defense;
+- the broader Network Defense posture remains `limited` with 6 of 7 sources available;
+- DNS policy remains unstaged and DNS enforcement remains disabled;
+- no Spamhaus refresh, filter reload, nftables mutation, firewall mutation, DNS, routing, Fail2ban, proxy, IDS, authentication, or traffic-control change occurred.
 
 ## Completion status
 
-The implementation, CI, rollback repair, and live deployment are complete. The only remaining evidence task is to record the exact accepted Spamhaus state from `acceptance-summary.json`.
+The bounded Security observability, Suricata enrichment, Spamhaus verifier implementation, CI, rollback repair, live deployment, and exact-state acceptance are complete.
 
 ## Safety boundary
 
-No DNS, resolver, RPZ, firewall, nftables, Fail2ban, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control change was made by these observability phases. Payloads, packet bodies, raw EVE events, set elements, full firewall rulesets, credentials, and private keys remain excluded. Historical alert retention remains separate future work.
+No DNS, resolver, RPZ, firewall, nftables, Fail2ban, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control mutation was made by these observability phases. Payloads, packet bodies, raw EVE events, set elements, full firewall rulesets, credentials, and private keys remain excluded. Historical alert retention remains separate future work.
