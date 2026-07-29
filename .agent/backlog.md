@@ -1,16 +1,22 @@
 # Backlog
 
-## Ready
+## Completed
 
 - [x] Pull current `main` on Edge1.
 - [x] Deploy Security Correlation with `sudo bash ./deploy/install-security-correlation-observability.sh`.
 - [x] Capture sanitized firewall and Fail2ban posture with `sudo bash ./tools/security/inspect-security-controls.sh`.
-- [ ] Rerun `sudo bash ./tools/security/verify-security-observability-live.sh` after the scheduled Network Defense refresh proves Security Correlation is consumed.
-- [ ] Record the successful acceptance evidence path and final sanitized summary.
+- [x] Rerun `sudo bash ./tools/security/verify-security-observability-live.sh` after the scheduled Network Defense refresh.
+- [x] Record the successful acceptance evidence path and final sanitized summary.
+
+Authoritative successful acceptance evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
+```
 
 ## Evidence-driven follow-up
 
-The live Security Controls inspection confirmed both nftables and Fail2ban posture are readable through the bounded inspector. Follow-up design work may now:
+The live Security Controls inspection confirmed both nftables and Fail2ban posture are readable through the bounded inspector. Optional follow-up design work may:
 
 - decide whether nftables aggregate counts can be published periodically with a least-privilege service;
 - decide whether Fail2ban socket access and jail counters support a safe periodic exporter;
@@ -24,6 +30,6 @@ Requires exact production authorization and separate rollback/validation plans:
 
 - Unbound or resolver configuration changes;
 - RPZ inclusion, activation, reload, or DNS answer changes;
-- firewall, nftables, Fail2ban, proxy, routing, or IDS control changes;
+- firewall, nftables, Fail2ban, proxy, routing, IDS, or reputation-filter control changes;
 - any public or production traffic cutover;
 - any claim of active enforcement without direct evidence.

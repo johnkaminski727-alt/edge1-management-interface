@@ -1,16 +1,16 @@
-# Security Observability Live Completion Handoff
+# Security Observability Completion Handoff
 
 Date: 2026-07-29
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
-Authoritative commit before this live-evidence reconciliation: `c7bdfd1629182a5afc9b0daa966022c35aaa1dcc`
+Authoritative commit before this final acceptance reconciliation: `cac023f2e757d94419c4c0464d828c89a0806494`
 
-## Completed repository work
+## Completed work
 
 - Network Defense bounded deployment package merged and deployed successfully.
 - Security Correlation bounded deployment package merged in PR #102 and deployed successfully.
 - Sanitized Security Controls inspection merged in PR #104 and completed successfully.
-- Read-only Security observability acceptance verifier merged in PR #105.
+- Read-only Security observability acceptance verifier merged in PR #105 and passed live acceptance.
 - All required GitHub workflows passed on the exact merged heads.
 
 ## Verified live evidence
@@ -27,59 +27,59 @@ Security Controls inspection:
 
 Initial acceptance timing failure:
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061449Z
+
+Successful Security observability acceptance:
+/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
 ```
 
-Verified sanitized results:
+## Final sanitized acceptance summary
 
 ```json
 {
+  "ok": true,
+  "verified_at": "2026-07-29T06:19:36.959113+00:00",
+  "read_only": true,
+  "traffic_controls_changed": false,
+  "correlation": {
+    "age_seconds": 51,
+    "events": 42,
+    "correlations": 0,
+    "available_sources": 4,
+    "source_count": 4
+  },
   "network_defense": {
+    "age_seconds": 15,
+    "overall_state": "limited",
+    "available_sources": 5,
+    "source_count": 6,
+    "correlation_age_seconds": 35,
     "dns_policy_state": "not_staged",
     "enforcement_enabled": false,
-    "traffic_controls_changed": false
-  },
-  "security_correlation": {
-    "read_only": true,
-    "events": 41,
-    "correlations": 0,
-    "available_sources": 4
-  },
-  "security_controls": {
-    "firewall_readable": true,
-    "fail2ban_readable": true,
     "traffic_controls_changed": false
   }
 }
 ```
 
-## Remaining authenticated Edge1 action
+Security Correlation is live and consumed by Network Defense. The `limited` overall state reflects an unavailable optional source, including the intentionally unstaged DNS policy; it is not an acceptance failure.
 
-The initial acceptance attempt occurred before the scheduled Network Defense refresh consumed the new correlation snapshot. Rerun only the read-only verifier:
+## Completion status
 
-```bash
-cd /opt/edge1-management-interface
-sudo bash ./tools/security/verify-security-observability-live.sh
-```
+The bounded live sequence is complete. No further authenticated Edge1 action is required for this phase.
 
-Expected successful ending:
-
-```text
-Security observability acceptance passed.
-Evidence: /var/lib/wwcx-deployment-evidence/security-observability-acceptance/<UTC timestamp>
-Security Correlation is live and consumed by Network Defense. No traffic controls were changed.
-```
-
-Do not restart or alter DNS, firewall, Fail2ban, routing, proxy, IDS, or reputation-filter controls to force acceptance.
-
-## Evidence to capture after acceptance
-
-Record:
-
-- the successful Security observability acceptance evidence path;
-- sanitized acceptance summary: event count, correlation count, source availability, freshness, and `traffic_controls_changed: false`;
-- any unavailable control-inspection source as an evidence gap rather than an enforcement failure.
+The initial acceptance timing failure remains preserved as valid evidence that the verifier failed safely before the scheduled Network Defense refresh. The successful `061936Z` evidence is the authoritative acceptance result.
 
 Do not commit raw live JSON or journal evidence to the public repository.
+
+## Evidence-driven follow-up
+
+Optional future work may:
+
+- evaluate periodic sanitized nftables aggregate publication through a dedicated least-privilege service;
+- evaluate periodic Fail2ban jail-name and numeric-counter publication;
+- add a dedicated Spamhaus live-state verifier that distinguishes feed readiness from active enforcement;
+- review freshness thresholds using the observed live timing.
+
+Each follow-up requires its own ownership, sandbox, privacy schema, rollback, and acceptance design.
 
 ## Safety boundary
 
