@@ -1,23 +1,22 @@
-# Security Observability, Suricata Enrichment, and Spamhaus Verifier Handoff
+# Security Observability and Spamhaus Live-State Handoff
 
 Date: 2026-07-29
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
-Latest live collector-enrichment merge: `21b87664355e5f83173a630f24276389a6dcbbf6`
-Latest synchronized reporting fix: `bb293f15da214d600abae823e4db17680eac036c`
+Spamhaus verifier implementation merge: `e4002df7f7b6c523a76214804a3f5eb5b033561c`
+Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
 
 ## Completed live work
 
-- Network Defense bounded deployment completed.
-- Security Correlation bounded deployment completed.
-- Read-only Security observability acceptance passed.
-- `edge1.ww.cx` HTTPS domain acceptance passed.
+- Network Defense and Security Correlation deployed and accepted.
+- `edge1.ww.cx` HTTPS status pages and JSON feeds accepted.
 - Accessible Suricata alert drill-down deployed.
-- Edge1 last-known-good Security Operations cache deployed and verified.
-- Nested Suricata alert normalization deployed.
-- Source-controlled Big Bird collector enrichment merged through PR #115 and activated on Edge1.
-- Security Operations, Correlation, and Network Defense were refreshed and accepted after collector activation.
-- The exposed `wwadmin` credential was rotated and shell history was cleared.
+- Last-known-good cache, normalized schema, and source collector enrichment deployed.
+- All 22 alerts in the accepted enrichment run retained ports, application protocol, SID/GID/revision, and flow ID.
+- Read-only Spamhaus live-state verifier implemented, validated, merged, and installed on Edge1.
+- Initial verifier deployment attempt rolled back safely after a case-sensitive wording assertion.
+- PR #119 repaired the assertion and both required workflows passed.
+- The corrected installer completed successfully without rollback.
 
 ## Live URLs
 
@@ -31,103 +30,57 @@ https://edge1.ww.cx/edge1-status/network-defense/
 ## Authoritative evidence
 
 ```text
-Base Security observability acceptance:
+Security observability:
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
 
-edge1.ww.cx domain acceptance:
+edge1.ww.cx domain:
 /var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
 
-Suricata normalization activation:
+Suricata normalization:
 /var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
 
 Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
+
+Failed Spamhaus verifier attempt, rolled back:
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180002Z
+
+Successful Spamhaus verifier deployment:
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 ```
 
-## Final live collector result
+## Spamhaus verifier live status
 
-```json
-{
-  "ok": true,
-  "alert_count": 22,
-  "source_port_count": 22,
-  "destination_port_count": 22,
-  "application_protocol_count": 22,
-  "signature_id_count": 22,
-  "generator_id_count": 22,
-  "revision_count": 22,
-  "flow_id_count": 22,
-  "correlation_events": 22,
-  "correlations": 0,
-  "network_defense_state": "limited",
-  "traffic_controls_changed": false
-}
-```
-
-The normalized public feed also verified 22 classified alerts, 22 known risks, live non-stale cache, schema `2.0`, alert schema `wwcx.suricata-alert.v1`, read-only correlation, DNS policy `not_staged`, and disabled DNS enforcement.
-
-## Current implementation awaiting merge and activation
-
-Branch:
+The final terminal excerpt confirmed:
 
 ```text
-feature/spamhaus-live-state-verifier-20260729
+Spamhaus live-state observability deployment passed.
+The verifier made no nftables, firewall, DNS, routing, Fail2ban, proxy, or traffic-control changes.
 ```
 
-Objective:
+The installer verifies that Network Defense and the verifier snapshot agree and writes the exact result to:
 
-Distinguish Spamhaus feed readiness from observed live enforcement without changing the filter.
+```text
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
+```
 
-Implemented:
+The exact state was not included in the pasted final lines. Read and record one of:
 
-- `server/spamhaus_live_state_verifier.py`;
-- contract `wwcx.spamhaus-live-state.v1`;
-- read-only `nft -j list table inet bigbird_spamhaus` inspection;
-- updater service result and timer-state inspection;
-- bounded counts and booleans only;
-- exclusion of addresses, set elements, full ruleset, and raw command output;
-- hardened verifier service and one-minute timer;
-- `CAP_NET_ADMIN` confined to the verifier service;
-- capability-free Network Defense consumer;
-- Network Defense state transition to `active_verified` only on complete fresh evidence;
-- rollback-safe installer and evidence capture;
-- parser, privacy, command-safety, integration, runtime-wiring, and deployment validation;
-- implementation document and register.
+- `active_verified`;
+- `partial`;
+- `not_present`;
+- `unavailable`.
 
-Planned activation after merge:
+Do not infer `active_verified` without the summary.
+
+## Exact continuation command
 
 ```bash
-cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-spamhaus-live-state-observability.sh
+cat /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-Expected evidence:
-
-```text
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/<timestamp>
-```
-
-The installer accepts a truthful `active_verified`, `partial`, `not_present`, or `unavailable` state. It must not convert incomplete evidence into an enforcement claim.
-
-## Remaining gate
-
-1. Open the verifier PR.
-2. Require Edge1 Operator Validation and full repository validation on the exact head.
-3. Merge only if the scope and checks pass.
-4. Run the checked-in installer on Edge1.
-5. Record the live verifier state and Network Defense acceptance.
+After that value is recorded, the verifier phase is fully closed.
 
 ## Safety boundary
 
-Not included:
-
-- Spamhaus list refresh or filter reload;
-- nftables add, delete, flush, insert, replace, or file-load operations;
-- Unbound or resolver configuration changes;
-- RPZ staging or activation;
-- DNS answer changes;
-- general firewall or Fail2ban mutations;
-- proxy, routing, IDS rule, reputation-list, authentication, or traffic-cutover changes;
-- address, set-element, full-ruleset, payload, packet-body, or raw-log publication;
-- claims of active enforcement without direct live-state evidence.
+No Spamhaus list refresh, filter reload, nftables mutation, firewall mutation, Unbound or RPZ change, DNS-answer change, Fail2ban, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change was performed. The verifier exposes no addresses, set elements, full ruleset, raw command output, credentials, or private keys.

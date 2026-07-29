@@ -1,10 +1,10 @@
 # Current State
 
-Last verified: 2026-07-29 17:21 UTC
+Last verified: 2026-07-29 18:08 UTC
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
-Authoritative live collector-enrichment merge: `21b87664355e5f83173a630f24276389a6dcbbf6`
-Latest synchronized reporting fix: `bb293f15da214d600abae823e4db17680eac036c`
+Spamhaus verifier implementation merge: `e4002df7f7b6c523a76214804a3f5eb5b033561c`
+Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
 
 ## Verified live security observability
 
@@ -29,99 +29,56 @@ Domain evidence:
 
 ## Verified Suricata drill-down, caching, normalization, and enrichment
 
-- Alert cards are accessible mouse- and keyboard-operated expand/collapse controls.
+- Alert cards provide accessible expand/collapse details.
 - Expanded details are limited to sanitized allowlisted fields.
 - Browser requests remain `cache: "no-store"`.
 - Edge1 last-known-good caching distinguishes live data from stale fallback data.
 - Security Operations schema is `2.0`.
 - Public alert schema is `wwcx.suricata-alert.v1`.
-- Alert classification and severity-to-risk normalization are active.
-- The source-controlled Big Bird collector retains allowlisted ports, application protocol, SID/GID/revision, and flow identifiers.
+- The source-controlled collector retains allowlisted ports, application protocol, SID/GID/revision, and flow identifiers.
+- The final accepted collector run published 22 enriched alerts and refreshed Correlation and Network Defense without changing traffic controls.
 
-Normalization evidence:
+Evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
-```
-
-Collector-enrichment evidence:
-
-```text
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
 ```
 
-Final live collector result:
+## Spamhaus live-state verifier
 
-- 22 alerts published;
-- 22 alerts classified;
-- 22 alerts assigned a known risk;
-- 22 alerts with source and destination ports;
-- 22 alerts with application protocol;
-- 22 alerts with SID, GID, revision, and flow ID;
-- cache mode `live`;
-- cache stale `false`;
-- Security Correlation refreshed with 22 events and 0 correlations;
-- Network Defense state `limited`;
-- DNS policy `not_staged`;
-- DNS enforcement disabled;
-- `traffic_controls_changed: false`.
+The read-only verifier implementation merged through PR #118 and the case-sensitive runtime-validation repair merged through PR #119.
 
-## Spamhaus live-state verifier implementation
-
-The next bounded observability phase is implemented on branch:
+Live installation completed successfully on Edge1:
 
 ```text
-feature/spamhaus-live-state-verifier-20260729
+Spamhaus live-state observability deployment passed.
+Evidence: /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 ```
 
-Implemented assets:
+Verified deployment facts:
 
-- `server/spamhaus_live_state_verifier.py`;
-- `deploy/systemd/wwcx-spamhaus-live-state.service`;
-- `deploy/systemd/wwcx-spamhaus-live-state.timer`;
-- `deploy/install-spamhaus-live-state-observability.sh`;
-- Network Defense exporter and DNS-aware wrapper integration;
-- updated Network Defense runtime ordering and UI wording;
-- parser, privacy, read-command, runtime-wiring, and deployment-safety validation;
-- architecture record and register.
+- the checked-in installer completed without rollback;
+- verifier and Network Defense acceptance completed consistently;
+- contract `wwcx.spamhaus-live-state.v1` is deployed;
+- the verifier publishes bounded counts and booleans only;
+- Network Defense consumes the sanitized verifier snapshot;
+- `traffic_controls_changed` remained false;
+- DNS enforcement remained disabled;
+- no Spamhaus refresh, filter reload, nftables mutation, firewall mutation, DNS, routing, Fail2ban, proxy, IDS, authentication, or traffic-control change occurred.
 
-The verifier reads only:
+The exact accepted state was not included in the final terminal excerpt. It remains to be copied from:
 
 ```text
-nft -j list table inet bigbird_spamhaus
-systemctl show bigbird-spamhaus-filter.service ...
-systemctl is-active bigbird-spamhaus-filter.timer
-systemctl is-enabled bigbird-spamhaus-filter.timer
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-It publishes only sanitized counts and booleans under contract:
-
-```text
-wwcx.spamhaus-live-state.v1
-```
-
-Network Defense changes the Spamhaus component from `feed_ready` to `active_verified` only when the complete table, set, hooked-rule, service-result, timer, freshness, and safety contract passes.
-
-`CAP_NET_ADMIN` is confined to the dedicated verifier service because nftables read access requires it. `wwcx-network-defense.service` remains capability-free.
-
-Live activation is pending PR merge. The planned command is:
-
-```bash
-sudo bash ./deploy/install-spamhaus-live-state-observability.sh
-```
-
-Expected evidence root:
-
-```text
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/<timestamp>
-```
+Allowed truthful values are `active_verified`, `partial`, `not_present`, or `unavailable`. Do not infer a specific value from the generic deployment-passed line.
 
 ## Completion status
 
-The base Security observability, domain exposure, Suricata drill-down, last-known-good cache, normalized alert schema, source collector enrichment, downstream refresh, and live acceptance are complete.
-
-The Spamhaus live-state verifier is implemented and awaiting exact-head CI, merge, and live Edge1 activation.
+The implementation, CI, rollback repair, and live deployment are complete. The only remaining evidence task is to record the exact accepted Spamhaus state from `acceptance-summary.json`.
 
 ## Safety boundary
 
-No DNS, resolver, RPZ, firewall, nftables, Fail2ban, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control change was made by the completed phases or is included in the verifier implementation. Payloads, packet bodies, raw EVE events, set elements, full firewall rulesets, credentials, and private keys remain excluded. Historical alert retention remains separate future work.
+No DNS, resolver, RPZ, firewall, nftables, Fail2ban, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control change was made by these observability phases. Payloads, packet bodies, raw EVE events, set elements, full firewall rulesets, credentials, and private keys remain excluded. Historical alert retention remains separate future work.

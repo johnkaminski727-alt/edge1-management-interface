@@ -2,24 +2,23 @@
 
 ## Completed
 
-- [x] Pull current `main` on Edge1.
 - [x] Deploy Security Correlation and Network Defense observability.
-- [x] Capture sanitized firewall and Fail2ban posture.
-- [x] Pass read-only Security observability acceptance.
-- [x] Verify `edge1.ww.cx` DNS, Apache, TLS, pages, and live JSON feeds.
-- [x] Deploy accessible Suricata alert expand/collapse and last-known-good caching.
-- [x] Deploy nested Suricata alert normalization.
-- [x] Verify classified alerts, known risk, schema `2.0`, live cache, read-only correlation, disabled enforcement, and unchanged traffic controls.
-- [x] Trace missing metadata to the deployment-only Big Bird collector.
-- [x] Establish `server/bigbird_ops_collect.py` as the authoritative Edge1 collector source.
-- [x] Retain allowlisted ports, application protocol, SID/GID/revision, and flow/event identifiers.
-- [x] Preserve the 100-alert source bound, 50-alert public bound, and payload/raw-event exclusion.
-- [x] Add source-collector, source-to-exporter, and rollback-safe deployment validation.
-- [x] Merge collector enrichment through PR #115 after both required CI workflows passed.
-- [x] Fast-forward Edge1 and run `sudo bash ./deploy/activate-suricata-collector-enrichment.sh`.
-- [x] Verify 22 of 22 live alerts with source and destination ports, application protocol, SID/GID/revision, and flow ID.
-- [x] Refresh Security Operations, Correlation, and Network Defense and pass nested observability acceptance.
-- [x] Record live collector enrichment evidence and close the phase.
+- [x] Pass read-only Security observability and `edge1.ww.cx` domain acceptance.
+- [x] Deploy accessible Suricata drill-down and last-known-good caching.
+- [x] Deploy nested Suricata normalization and source collector enrichment.
+- [x] Verify 22 enriched alerts with ports, application protocol, SID/GID/revision, and flow ID.
+- [x] Preserve bounded alert counts and payload/raw-event exclusion.
+- [x] Implement read-only Spamhaus live-state verification.
+- [x] Publish contract `wwcx.spamhaus-live-state.v1` with bounded counts and booleans only.
+- [x] Confine `CAP_NET_ADMIN` to the dedicated verifier service; keep Network Defense capability-free.
+- [x] Integrate fresh complete verifier evidence into Network Defense as `active_verified` when warranted.
+- [x] Withdraw verified enforcement when verifier evidence becomes stale.
+- [x] Add rollback-safe installer and full parser, privacy, runtime, systemd, and deployment validation.
+- [x] Merge PR #118 after both required CI workflows passed.
+- [x] Repair the case-sensitive runtime wording assertion through PR #119.
+- [x] Verify both required CI workflows passed on the repair.
+- [x] Run the corrected installer successfully on Edge1.
+- [x] Record successful evidence directory and unchanged traffic-control boundary.
 
 ## Authoritative evidence
 
@@ -35,25 +34,23 @@ Suricata normalization:
 
 Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
+
+Spamhaus failed attempt, safely rolled back:
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180002Z
+
+Spamhaus successful deployment:
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 ```
 
-## Current bounded implementation — Spamhaus live-state verifier
+## Remaining evidence task
 
-- [x] Trace Network Defense `feed_ready` state to the absence of a dedicated live nftables verifier.
-- [x] Add `server/spamhaus_live_state_verifier.py` with read-only nftables and systemd inspection.
-- [x] Publish only table/set/chain presence, element counts, rule counts, service result, timer state, and verification booleans.
-- [x] Exclude addresses, set elements, full ruleset, raw command output, credentials, and private keys.
-- [x] Add hardened `wwcx-spamhaus-live-state.service` and one-minute timer.
-- [x] Keep `CAP_NET_ADMIN` confined to the dedicated verifier; Network Defense remains capability-free.
-- [x] Integrate the sanitized contract into Network Defense and update verified-enforcement UI wording.
-- [x] Add parser, privacy, command-safety, integration, runtime-wiring, and rollback-safe deployment validation.
-- [x] Add `deploy/install-spamhaus-live-state-observability.sh`.
-- [x] Record the verifier architecture, contract, capability boundary, and activation procedure.
-- [ ] Open and merge the verifier PR after both required CI workflows pass.
-- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/install-spamhaus-live-state-observability.sh`.
-- [ ] Record whether live state is `active_verified`, `partial`, `not_present`, or `unavailable`.
-- [ ] Verify Network Defense consumes the same state with `traffic_controls_changed: false`.
-- [ ] Record live evidence and close the verifier phase.
+- [ ] Copy the exact `spamhaus_state`, `spamhaus_enforcement_verified`, `verified_enforcement_count`, and `overall_state` from:
+
+```text
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
+```
+
+This is an evidence-recording task only. Implementation and live deployment have passed.
 
 ## Evidence-driven follow-up
 
