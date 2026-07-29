@@ -2,11 +2,10 @@
 
 ## Ready
 
-1. Merge the bounded Security Correlation deployment package after required CI succeeds.
-2. Deploy Security Correlation on Edge1 with `sudo bash ./deploy/install-security-correlation-observability.sh`.
-3. Verify live service/timer state, privacy contract, browser endpoint, compatibility symlink, and evidence directory.
-4. Confirm the next Network Defense refresh reports the correlation source as available.
-5. Update `registers/security-observability-register-20260729.md` and `.agent/current-state.md` with the live correlation evidence path.
+1. Deploy Security Correlation on Edge1 with `sudo bash ./deploy/install-security-correlation-observability.sh` after pulling `main`.
+2. Verify live service/timer state, privacy contract, browser endpoint, compatibility symlink, and evidence directory.
+3. Confirm the next Network Defense refresh reports the correlation source as available.
+4. Update `registers/security-observability-register-20260729.md` and `.agent/current-state.md` with the live correlation evidence path.
 
 ## Safe follow-up design work
 
