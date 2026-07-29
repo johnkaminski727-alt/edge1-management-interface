@@ -59,7 +59,11 @@ def service_status(unit: str, runner: Runner = run_command) -> dict[str, Any]:
         "systemctl",
         "show",
         unit,
-        "--property=LoadState,ActiveState,SubState,UnitFileState,Result",
+        "--property=LoadState",
+        "--property=ActiveState",
+        "--property=SubState",
+        "--property=UnitFileState",
+        "--property=Result",
         "--no-pager",
     )
     code, stdout, error = runner(argv, COMMAND_TIMEOUT_SECONDS)
