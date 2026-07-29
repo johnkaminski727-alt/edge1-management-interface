@@ -16,10 +16,11 @@ Record the authoritative repository and live deployment state for Security Opera
 | Security Correlation deployment package | PR #102, commit `9425d3fc4f3846948ec43590b1f4d15cfc313266` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/security-correlation/20260729T061441Z` |
 | Network Defense observability | PR #101, commit `6255b3f632e51d3662220bbbe426b76cc1d37f52` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/network-defense/20260729T060015Z` |
 | Security Controls inspection | PR #104, commit `7b75ac6ae3047e39b3b5395b904eb19071920d3c` | Read-only inspection completed successfully | `/var/lib/wwcx-deployment-evidence/security-controls-inspection/20260729T061447Z` |
-| Security observability acceptance | PR #105, commit `ac35bc4667222017d946408144a56a60e6c43e60` | Initial timing attempt failed safely; read-only rerun pending after Network Defense refresh | `/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061449Z` |
+| Security observability acceptance | PR #105, commit `ac35bc4667222017d946408144a56a60e6c43e60` | Live acceptance passed | `/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z` |
+| Initial acceptance timing attempt | Same read-only verifier | Failed safely before scheduled refresh | `/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061449Z` |
 | DNS Defense policy architecture | PR #96 | Not staged or activated | Runtime reported `dns_policy_state: not_staged` |
 
-## Network Defense live acceptance
+## Network Defense live deployment
 
 The operator-run deployment completed successfully on Edge1 after repository validation and runtime verification.
 
@@ -42,7 +43,7 @@ Verified runtime contract:
 }
 ```
 
-The `limited` state originally reflected unavailable optional sources, especially Security Correlation and staged DNS policy evidence. It was not a deployment failure.
+The `limited` state is not a deployment failure. It represents unavailable optional sources, including the intentionally unstaged DNS policy.
 
 ## Failure and rollback evidence
 
@@ -120,49 +121,89 @@ The verifier reported:
 AcceptanceError: Network Defense has not consumed Security Correlation yet
 ```
 
-This is the documented timing condition, not a service deployment or traffic-control failure. The failure was preserved without restarting services or changing DNS, firewall, Fail2ban, proxy, routing, IDS, or reputation-filter controls.
+This was the documented timing condition, not a service deployment or traffic-control failure. The failure was preserved without restarting services or changing DNS, firewall, Fail2ban, proxy, routing, IDS, or reputation-filter controls.
 
-## Security observability acceptance package
+## Final Security observability acceptance
 
-PR #105 added a read-only verifier that requires:
+After the scheduled Network Defense timer refresh, the same read-only verifier passed.
 
-- correlation and Network Defense timers enabled and active;
-- both one-shot services to have completed successfully;
-- fresh correlation and Network Defense snapshots;
-- the correlation privacy contract intact;
-- Network Defense source `correlation` available and not stale;
-- DNS enforcement disabled and explicit activation still required;
-- `traffic_controls_changed: false`.
-
-It records protected success or failure evidence without restarting services or modifying controls.
-
-## Remaining live completion action
-
-Rerun only the verifier after the scheduled Network Defense refresh:
-
-```bash
-cd /opt/edge1-management-interface
-sudo bash ./tools/security/verify-security-observability-live.sh
-```
-
-Expected successful evidence root:
+Verified terminal result:
 
 ```text
-/var/lib/wwcx-deployment-evidence/security-observability-acceptance/<UTC timestamp>/
+Security observability acceptance passed.
+Evidence: /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
+Security Correlation is live and consumed by Network Defense. No traffic controls were changed.
 ```
 
-Do not restart or alter traffic controls to force acceptance.
+Sanitized acceptance summary:
+
+```json
+{
+  "ok": true,
+  "verified_at": "2026-07-29T06:19:36.959113+00:00",
+  "read_only": true,
+  "traffic_controls_changed": false,
+  "correlation": {
+    "age_seconds": 51,
+    "events": 42,
+    "correlations": 0,
+    "available_sources": 4,
+    "source_count": 4
+  },
+  "network_defense": {
+    "age_seconds": 15,
+    "overall_state": "limited",
+    "available_sources": 5,
+    "source_count": 6,
+    "correlation_age_seconds": 35,
+    "dns_policy_state": "not_staged",
+    "enforcement_enabled": false,
+    "traffic_controls_changed": false
+  }
+}
+```
+
+Acceptance proves:
+
+- Security Correlation and Network Defense snapshots were fresh;
+- all 4 Correlation sources were available;
+- Network Defense consumed the Correlation source and reported it within freshness limits;
+- the Correlation privacy and read-only contract remained intact;
+- DNS policy remained `not_staged`;
+- resolver enforcement remained disabled;
+- `traffic_controls_changed` remained false.
+
+The successful `061936Z` evidence is the authoritative acceptance result. The earlier `061449Z` evidence remains retained as a valid safe-failure timing record.
+
+## Repository and validation record
+
+The bounded Security observability sequence was implemented and validated through:
+
+- PR #101 — scoped Network Defense publication repair;
+- PR #102 — bounded Security Correlation deployment;
+- PR #104 — sanitized Security Controls inspection;
+- PR #105 — live Security observability acceptance verifier;
+- PR #107 — corrected Network Defense live evidence anchor;
+- PR #108 — recorded live Correlation, controls, and initial acceptance timing evidence.
+
+Required CI passed on the exact implementation and evidence heads before merge.
+
+## Completion status
+
+The bounded Security observability deployment, inspection, and live acceptance sequence is complete. No further authenticated Edge1 action is required for this phase.
+
+Raw live JSON, journal output, firewall rules, banned-IP lists, addresses, ports, credentials, and packet data were not committed to the repository.
 
 ## Evidence-driven follow-up
 
-The live inspection confirms nftables and Fail2ban posture are readable through the bounded inspector. Any periodic exporter remains a separate design decision requiring least-privilege ownership, sandbox, sanitized schema, rollback, and acceptance validation.
-
-Potential follow-up:
+The live inspection confirms nftables and Fail2ban posture are readable through the bounded inspector. Optional future work may:
 
 - evaluate periodic sanitized nftables aggregate counts;
 - evaluate periodic Fail2ban jail-name and numeric-counter export;
 - add a dedicated Spamhaus live-state verifier that distinguishes feed readiness from active nftables enforcement;
-- review Network Defense freshness thresholds using live correlation timing.
+- review Network Defense freshness thresholds using observed live correlation timing.
+
+Any periodic exporter remains a separate design decision requiring least-privilege ownership, a constrained systemd sandbox, sanitized schema, backup and rollback, and dedicated acceptance validation.
 
 ## Deferred privileged work
 
@@ -171,9 +212,6 @@ The following remain outside this observability phase and require separate exact
 - Unbound installation or configuration changes;
 - RPZ staging into resolver configuration;
 - DNS policy activation or resolver reload;
-- firewall, nftables, Fail2ban, proxy, routing, or IDS control changes;
+- firewall, nftables, Fail2ban, proxy, routing, IDS, or reputation-filter control changes;
+- any public or production traffic cutover;
 - any claim that enforcement is active without a dedicated verifier.
-
-## Next record update
-
-After the verifier succeeds, append its successful evidence path and sanitized acceptance summary, then mark the remaining `.agent/backlog.md` items complete.
