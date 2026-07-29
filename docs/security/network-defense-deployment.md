@@ -34,14 +34,17 @@ sudo ./deploy/install-network-defense-observability.sh
 The installer validates repository code before changing the host. It then:
 
 1. records the repository revision and prior timer state;
-2. backs up affected unit, HTML, and status files;
+2. backs up affected unit, HTML, legacy status, and scoped data paths;
 3. publishes the Operations Center, Security Correlation, and Network Defense pages;
-4. installs `wwcx-network-defense.service` and `wwcx-network-defense.timer`;
-5. enables the timer and runs the exporter once;
-6. verifies the generated JSON safety contract and local HTTP pages;
-7. records hashes, unit state, and recent service logs.
+4. creates the root-owned `/var/www/edge1-status/network-defense/data` publication directory;
+5. installs `wwcx-network-defense.service` and `wwcx-network-defense.timer`;
+6. enables the timer and runs the exporter once;
+7. verifies the generated JSON safety contract and local HTTP pages;
+8. records hashes, unit state, and recent service logs.
 
-If a deployment or verification command fails after mutation begins, the installer restores the saved files and prior timer enablement/active state.
+The service can write only inside the scoped `network-defense/data` directory. It retains an empty capability set and cannot write to the shared `/var/www/edge1-status` root.
+
+If a deployment or verification command fails after mutation begins, the installer captures service diagnostics and restores the saved files and prior timer enablement/active state.
 
 ## Evidence
 
@@ -77,6 +80,6 @@ A missing staged DNS policy is represented as `not_staged`; it is not a deployme
 systemctl is-enabled wwcx-network-defense.timer
 systemctl is-active wwcx-network-defense.timer
 systemctl show wwcx-network-defense.service -p Result -p ExecMainStatus
-curl -fsS http://127.0.0.1/edge1-status/network-defense.json | python3 -m json.tool
+curl -fsS http://127.0.0.1/edge1-status/network-defense/data/network-defense.json | python3 -m json.tool
 curl -fsS http://127.0.0.1/edge1-status/network-defense/ >/dev/null
 ```

@@ -16,6 +16,14 @@ class NetworkDefenseRuntimeWiringTests(unittest.TestCase):
         self.assertIn('ReadOnlyPaths=-/var/lib/bigbird/operations-center -/var/lib/bigbird-networking', service)
         self.assertNotIn('ReadOnlyPaths=/var/lib/bigbird/operations-center', service)
 
+    def test_runtime_writes_only_to_scoped_publication_directory(self):
+        service = Path('deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
+        scoped = '/var/www/edge1-status/network-defense/data'
+        self.assertIn(f'--output {scoped}/network-defense.json', service)
+        self.assertIn(f'ReadWritePaths={scoped}', service)
+        self.assertNotIn('ReadWritePaths=/var/www/edge1-status\n', service)
+        self.assertIn('CapabilityBoundingSet=\n', service)
+
     def test_network_console_mentions_dns_readiness(self):
         page = Path('src/web/network-defense/index.html').read_text(encoding='utf-8')
         self.assertIn('DNS policy readiness', page)

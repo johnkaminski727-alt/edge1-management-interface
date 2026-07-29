@@ -14,7 +14,9 @@ The Network Defense module combines sanitized status from existing Edge1 securit
 
 ## Output
 
-`/var/www/edge1-status/network-defense.json`
+`/var/www/edge1-status/network-defense/data/network-defense.json`
+
+The dedicated `network-defense/data` directory is owned by `root:root` and is the service's only writable publication path. The shared `/var/www/edge1-status` root remains outside the service write boundary, and the systemd capability set remains empty.
 
 The output distinguishes:
 
