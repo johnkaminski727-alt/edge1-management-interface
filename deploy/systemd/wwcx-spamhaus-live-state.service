@@ -1,0 +1,26 @@
+[Unit]
+Description=WW.CX read-only Spamhaus live-state verifier
+After=network-online.target bigbird-spamhaus-filter.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/spamhaus_live_state_verifier.py --output /var/lib/bigbird-networking/spamhaus/live-state.json
+UMask=0022
+ReadWritePaths=/var/lib/bigbird-networking/spamhaus
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+SystemCallArchitectures=native
