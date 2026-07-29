@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh WW.CX Spamhaus live-state verification
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+RandomizedDelaySec=5s
+Persistent=true
+Unit=wwcx-spamhaus-live-state.service
+
+[Install]
+WantedBy=timers.target
