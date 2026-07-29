@@ -37,13 +37,30 @@ Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
 ```
 
+## Current bounded implementation — Spamhaus live-state verifier
+
+- [x] Trace Network Defense `feed_ready` state to the absence of a dedicated live nftables verifier.
+- [x] Add `server/spamhaus_live_state_verifier.py` with read-only nftables and systemd inspection.
+- [x] Publish only table/set/chain presence, element counts, rule counts, service result, timer state, and verification booleans.
+- [x] Exclude addresses, set elements, full ruleset, raw command output, credentials, and private keys.
+- [x] Add hardened `wwcx-spamhaus-live-state.service` and one-minute timer.
+- [x] Keep `CAP_NET_ADMIN` confined to the dedicated verifier; Network Defense remains capability-free.
+- [x] Integrate the sanitized contract into Network Defense and update verified-enforcement UI wording.
+- [x] Add parser, privacy, command-safety, integration, runtime-wiring, and rollback-safe deployment validation.
+- [x] Add `deploy/install-spamhaus-live-state-observability.sh`.
+- [x] Record the verifier architecture, contract, capability boundary, and activation procedure.
+- [ ] Open and merge the verifier PR after both required CI workflows pass.
+- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/install-spamhaus-live-state-observability.sh`.
+- [ ] Record whether live state is `active_verified`, `partial`, `not_present`, or `unavailable`.
+- [ ] Verify Network Defense consumes the same state with `traffic_controls_changed: false`.
+- [ ] Record live evidence and close the verifier phase.
+
 ## Evidence-driven follow-up
 
 Optional future design work may:
 
-- publish bounded nftables aggregate counts through a least-privilege service;
+- publish bounded general nftables aggregate counts through a separate least-privilege service;
 - publish bounded Fail2ban jail counters where socket permissions permit;
-- add a Spamhaus live-state verifier distinguishing feed readiness from active enforcement;
 - review Network Defense freshness thresholds using observed timing;
 - design protected historical Suricata retention with size, time, privacy, authentication, rollback, and acceptance boundaries;
 - review whether the public `edge1.ww.cx` access boundary should remain unchanged.
