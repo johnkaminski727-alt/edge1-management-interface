@@ -14,7 +14,7 @@ Record the authoritative repository and live deployment state for Security Opera
 | --- | --- | --- | --- |
 | Security Operations console/exporter | Merged | Existing telemetry observed by Network Defense | `/var/www/edge1-status/security-operations.json` observed during deployment diagnostics |
 | Security Correlation deployment package | PR #102, commit `9425d3fc4f3846948ec43590b1f4d15cfc313266` | Awaiting bounded Edge1 installation | CI `30425842455`, `30425842388` |
-| Network Defense observability | PR #101, commit `6255b3f632e51d3662220bbbe426b76cc1d37f52` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/network-defense/20260729T053355Z` |
+| Network Defense observability | PR #101, commit `6255b3f632e51d3662220bbbe426b76cc1d37f52` | Deployed successfully | `/var/lib/wwcx-deployment-evidence/network-defense/20260729T060015Z` |
 | Security Controls inspection | PR #104, commit `7b75ac6ae3047e39b3b5395b904eb19071920d3c` | Awaiting read-only Edge1 inspection | CI `30426203898`, `30426203900` |
 | Security observability acceptance | PR #105, commit `ac35bc4667222017d946408144a56a60e6c43e60` | Awaiting correlation deployment and timer refresh | CI `30426363318`, `30426363513` |
 | DNS Defense policy architecture | PR #96 | Not staged or activated | Runtime reported `dns_policy_state: not_staged` |
@@ -27,7 +27,7 @@ Verified terminal result:
 
 ```text
 Network Defense observability deployment passed.
-Evidence: /var/lib/wwcx-deployment-evidence/network-defense/20260729T053355Z
+Evidence: /var/lib/wwcx-deployment-evidence/network-defense/20260729T060015Z
 DNS enforcement remains disabled; no resolver configuration was installed or reloaded.
 ```
 
