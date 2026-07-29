@@ -256,7 +256,7 @@ def write_snapshot(snapshot: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(output.suffix + '.tmp')
     temporary.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    os.chmod(temporary, 0o644)
+    os.chmod(temporary, 0o640)
     temporary.replace(output)
 
 
