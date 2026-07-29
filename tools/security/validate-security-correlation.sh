@@ -8,17 +8,21 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 NODE_BIN="${NODE_BIN:-node}"
 
 printf '%s\n' '== Python syntax =='
-"$PYTHON_BIN" -m py_compile server/security_correlation_exporter.py
+"$PYTHON_BIN" -m py_compile \
+  server/security_correlation_exporter.py \
+  tools/security/verify_security_observability.py
 
 printf '%s\n' '== Targeted tests =='
 "$PYTHON_BIN" -m unittest \
   tests.test_security_console \
   tests.test_security_correlation \
   tests.test_security_correlation_deployment \
+  tests.test_security_observability_acceptance \
   -v
 
 printf '%s\n' '== Shell syntax =='
 bash -n deploy/install-security-correlation-observability.sh
+bash -n tools/security/verify-security-observability-live.sh
 
 printf '%s\n' '== Inline JavaScript syntax =='
 "$PYTHON_BIN" - "$NODE_BIN" <<'PY'
@@ -89,6 +93,7 @@ grep -Fq 'ProtectSystem=strict' deploy/systemd/wwcx-security-correlation.service
 grep -Fq 'ReadWritePaths=/var/www/edge1-status/security/correlation/data' deploy/systemd/wwcx-security-correlation.service
 grep -Fq 'CapabilityBoundingSet=' deploy/systemd/wwcx-security-correlation.service
 grep -Fq 'OnUnitActiveSec=1min' deploy/systemd/wwcx-security-correlation.timer
+grep -Fq 'traffic_controls_changed' tools/security/verify_security_observability.py
 
 if command -v systemd-analyze >/dev/null 2>&1; then
   printf '%s\n' '== systemd unit verification =='
