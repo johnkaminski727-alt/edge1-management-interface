@@ -11,6 +11,7 @@ python3 -m py_compile \
 python3 tests/validate_network_defense_observability.py
 python3 tests/validate_network_defense_dns.py
 python3 tests/validate_dns_defense_policy.py
+python3 tests/validate_network_defense_deployment.py
 
 python3 - <<'PY'
 from html.parser import HTMLParser
@@ -21,6 +22,7 @@ import tempfile
 for page in (
     Path('src/web/network-defense/index.html'),
     Path('src/web/operations-center/index.html'),
+    Path('src/web/security/correlation.html'),
 ):
     class Scripts(HTMLParser):
         def __init__(self):
@@ -49,8 +51,9 @@ for page in (
 
 PY
 
+sh -n deploy/install-network-defense-observability.sh
 sh -n tools/networking/build-dns-defense-staging.sh
 sh -n tools/networking/validate-dns-defense-policy.sh
 sh -n tools/networking/validate-dns-network-defense-integration.sh
 
-printf '%s\n' 'Network Defense DNS validation passed.'
+printf '%s\n' 'Network Defense deployment validation passed.'
