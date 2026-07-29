@@ -3,64 +3,50 @@
 ## Completed
 
 - [x] Pull current `main` on Edge1.
-- [x] Deploy Security Correlation with `sudo bash ./deploy/install-security-correlation-observability.sh`.
-- [x] Capture sanitized firewall and Fail2ban posture with `sudo bash ./tools/security/inspect-security-controls.sh`.
-- [x] Rerun `sudo bash ./tools/security/verify-security-observability-live.sh` after the scheduled Network Defense refresh.
-- [x] Record the successful acceptance evidence path and final sanitized summary.
-- [x] Verify DNS, Apache virtual hosts, HTTP-to-HTTPS redirect, listeners, and the installed `edge1.ww.cx` certificate.
-- [x] Verify the Operations Center, Security Operations, Security Correlation, and Network Defense pages through `https://edge1.ww.cx`.
-- [x] Verify all three live JSON feeds through the domain and preserve the sanitized domain acceptance result.
-- [x] Deploy accessible Suricata alert expand/collapse and Edge1 last-known-good caching.
-- [x] Verify the live cache contract with `mode: live`, `stale: false`, and a bounded 30-alert snapshot.
-- [x] Merge nested Suricata alert normalization and its bounded activator.
-- [x] Fast-forward Edge1, publish the enriched page, and refresh Security Operations, Security Correlation, and Network Defense.
-- [x] Verify 30 of 30 alerts are classified and assigned a known risk.
-- [x] Verify schema `2.0`, alert schema `wwcx.suricata-alert.v1`, live cache, read-only correlation, disabled enforcement, and unchanged traffic controls.
-- [x] Capture live normalization evidence and nested observability acceptance.
-
-Authoritative successful acceptance evidence:
-
-```text
-/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
-```
-
-Authoritative domain acceptance evidence:
-
-```text
-/var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
-```
-
-Authoritative Suricata normalization evidence:
-
-```text
-/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
-```
-
-## Current bounded implementation
-
-- [x] Trace the missing metadata to the deployment-only Big Bird collector.
+- [x] Deploy Security Correlation and Network Defense observability.
+- [x] Capture sanitized firewall and Fail2ban posture.
+- [x] Pass read-only Security observability acceptance.
+- [x] Verify `edge1.ww.cx` DNS, Apache, TLS, pages, and live JSON feeds.
+- [x] Deploy accessible Suricata alert expand/collapse and last-known-good caching.
+- [x] Deploy nested Suricata alert normalization.
+- [x] Verify classified alerts, known risk, schema `2.0`, live cache, read-only correlation, disabled enforcement, and unchanged traffic controls.
+- [x] Trace missing metadata to the deployment-only Big Bird collector.
 - [x] Establish `server/bigbird_ops_collect.py` as the authoritative Edge1 collector source.
 - [x] Retain allowlisted ports, application protocol, SID/GID/revision, and flow/event identifiers.
 - [x] Preserve the 100-alert source bound, 50-alert public bound, and payload/raw-event exclusion.
-- [x] Add source-collector and source-to-exporter regression validation.
-- [x] Add a rollback-safe collector activation script.
-- [x] Record collector ownership, schema, deployment, and safety boundaries.
-- [ ] Merge the collector enrichment PR after both required CI workflows pass.
-- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/activate-suricata-collector-enrichment.sh`.
-- [ ] Verify live ports, SID/GID/revision, application protocol when present, and flow IDs in the public Security Operations feed.
-- [ ] Record live collector enrichment evidence and close the phase.
+- [x] Add source-collector, source-to-exporter, and rollback-safe deployment validation.
+- [x] Merge collector enrichment through PR #115 after both required CI workflows passed.
+- [x] Fast-forward Edge1 and run `sudo bash ./deploy/activate-suricata-collector-enrichment.sh`.
+- [x] Verify 22 of 22 live alerts with source and destination ports, application protocol, SID/GID/revision, and flow ID.
+- [x] Refresh Security Operations, Correlation, and Network Defense and pass nested observability acceptance.
+- [x] Record live collector enrichment evidence and close the phase.
+
+## Authoritative evidence
+
+```text
+Security observability:
+/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
+
+edge1.ww.cx domain:
+/var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
+
+Suricata normalization:
+/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
+
+Suricata collector enrichment:
+/var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
+```
 
 ## Evidence-driven follow-up
 
-The live Security Controls inspection confirmed both nftables and Fail2ban posture are readable through the bounded inspector. Optional follow-up design work may:
+Optional future design work may:
 
-- decide whether nftables aggregate counts can be published periodically with a least-privilege service;
-- decide whether Fail2ban socket access and jail counters support a safe periodic exporter;
-- add a dedicated Spamhaus live-state verifier that distinguishes feed readiness from active nftables enforcement;
-- review Network Defense freshness thresholds using actual correlation and control-inspection timing;
-- design protected historical Suricata alert retention with a retention period, size cap, stable identifiers, authenticated query boundary, rollback, and acceptance checks;
-- review whether the current `edge1.ww.cx` public access boundary should remain unchanged or receive a separately designed authentication or network restriction layer;
-- avoid creating a permanent controls exporter or changing the access boundary until minimum permissions, ownership, sandbox, sanitized schema, rollback, and acceptance checks are defined.
+- publish bounded nftables aggregate counts through a least-privilege service;
+- publish bounded Fail2ban jail counters where socket permissions permit;
+- add a Spamhaus live-state verifier distinguishing feed readiness from active enforcement;
+- review Network Defense freshness thresholds using observed timing;
+- design protected historical Suricata retention with size, time, privacy, authentication, rollback, and acceptance boundaries;
+- review whether the public `edge1.ww.cx` access boundary should remain unchanged.
 
 ## Explicitly deferred
 
