@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "policy_name": "wwcx-dns-defense.rpz",
+  "serial": 2026072901,
+  "ttl": 60,
+  "entries": [
+    {
+      "domain": "malware.invalid",
+      "action": "nxdomain",
+      "include_subdomains": true,
+      "reason": "Reserved example used to validate NXDOMAIN compilation."
+    },
+    {
+      "domain": "telemetry.example",
+      "action": "nodata",
+      "include_subdomains": false,
+      "reason": "Reserved example used to validate NODATA compilation."
+    },
+    {
+      "domain": "trusted.example",
+      "action": "passthru",
+      "include_subdomains": true,
+      "reason": "Reserved example used to validate allowlist compilation."
+    }
+  ]
+}
