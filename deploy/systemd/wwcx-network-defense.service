@@ -1,15 +1,15 @@
 [Unit]
 Description=WW.CX read-only network-defense observability exporter
-After=network-online.target wwcx-security-operations.service wwcx-security-correlation.service wwcx-spamhaus-live-state.service
-Wants=network-online.target wwcx-spamhaus-live-state.service
+After=network-online.target wwcx-security-operations.service wwcx-security-correlation.service wwcx-spamhaus-live-state.service wwcx-fail2ban-live-state.service
+Wants=network-online.target wwcx-spamhaus-live-state.service wwcx-fail2ban-live-state.service
 
 [Service]
 Type=oneshot
 User=root
 Group=root
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/network_defense_dns_exporter.py --output /var/www/edge1-status/network-defense/data/network-defense.json
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/network_defense_fail2ban_exporter.py --output /var/www/edge1-status/network-defense/data/network-defense.json
 UMask=0022
-ReadOnlyPaths=-/var/lib/bigbird/operations-center -/var/lib/bigbird-networking
+ReadOnlyPaths=-/var/lib/bigbird/operations-center -/var/lib/bigbird-networking -/var/lib/bigbird-security
 ReadWritePaths=/var/www/edge1-status/network-defense/data
 NoNewPrivileges=true
 PrivateTmp=true

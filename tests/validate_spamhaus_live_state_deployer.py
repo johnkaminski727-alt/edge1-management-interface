@@ -79,8 +79,12 @@ for marker in ('OnUnitActiveSec=1min', 'Persistent=true', 'Unit=wwcx-spamhaus-li
     if marker not in timer:
         raise SystemExit(f'Spamhaus live-state timer marker missing: {marker}')
 
-for marker in ('After=network-online.target wwcx-security-operations.service wwcx-security-correlation.service wwcx-spamhaus-live-state.service',
-               'Wants=network-online.target wwcx-spamhaus-live-state.service'):
+for marker in (
+    'After=network-online.target',
+    'Wants=network-online.target',
+    'wwcx-spamhaus-live-state.service',
+    'wwcx-fail2ban-live-state.service',
+):
     if marker not in network_service:
         raise SystemExit(f'Network Defense verifier ordering marker missing: {marker}')
 

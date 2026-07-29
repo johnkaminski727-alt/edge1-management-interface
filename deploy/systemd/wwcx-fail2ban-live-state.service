@@ -1,0 +1,27 @@
+[Unit]
+Description=WW.CX read-only Fail2ban live-state verifier
+After=network-online.target fail2ban.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Environment=LC_ALL=C
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/fail2ban_live_state_verifier.py --output /var/lib/bigbird-security/fail2ban/live-state.json
+UMask=0027
+ReadWritePaths=/var/lib/bigbird-security/fail2ban
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
