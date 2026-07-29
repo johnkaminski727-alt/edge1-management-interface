@@ -2,7 +2,7 @@
 
 Date: 2026-07-29
 System: Edge1 / WW.CX Security Operations
-Status: implemented and merged; bounded live activation script available
+Status: implemented, merged, deployed, and live-accepted
 
 ## Objective
 
@@ -16,7 +16,7 @@ The result was an expandable alert that showed a category and action but still r
 
 ## Normalized contract
 
-The exporter now publishes `schema_version: 2.0` and alert schema `wwcx.suricata-alert.v1`.
+The exporter publishes `schema_version: 2.0` and alert schema `wwcx.suricata-alert.v1`.
 
 Allowlisted alert fields are:
 
@@ -53,9 +53,9 @@ This mapping is classification only. It does not change Suricata rules, alert ac
 
 ## Dashboard behavior
 
-The expanded alert panel now displays:
+The expanded alert panel displays:
 
-- source and destination with ports in the summary;
+- source and destination with ports in the summary when available;
 - Suricata severity;
 - separate source and destination ports;
 - transport and application protocols;
@@ -76,11 +76,12 @@ Automated validation covers:
 - rejection of invalid ports and negative identifiers;
 - the 50-alert publication bound;
 - omission of payload, packet, original nested alert, and raw event data;
-- required UI fields and continued browser no-store behavior.
+- required UI fields and continued browser no-store behavior;
+- bounded deployment sequencing and safety controls.
 
-## Bounded live activation
+## Live activation
 
-Use the checked-in activator instead of pasting a large here-document:
+The checked-in activator was executed successfully on Edge1:
 
 ```bash
 cd /opt/edge1-management-interface
@@ -88,19 +89,45 @@ git pull --ff-only origin main
 sudo bash ./deploy/activate-suricata-alert-normalization.sh
 ```
 
-The activator:
+Authoritative evidence:
 
-1. verifies the Edge1 host, root principal, `main` branch, required merge commit, and absence of local changes in the affected files;
-2. runs the cache, normalization, UI, Python compile, and inline JavaScript syntax validations;
-3. stages Security Operations, Security Correlation, and Network Defense output in the evidence directory before publication;
-4. validates schema version 2.0, the sanitized alert contract, read-only correlation, disabled DNS enforcement, and unchanged traffic controls;
-5. publishes the dashboard page and refreshes the three existing one-shot exporters in dependency order;
-6. verifies all HTTPS pages and JSON feeds through `edge1.ww.cx`;
-7. runs the established Security observability acceptance verifier;
-8. captures systemd status, journals on failure, hashes, acceptance summaries, and a timestamped evidence path.
+```text
+/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
+```
 
-The previous live dashboard page is restored automatically if activation fails after publication. Runtime JSON snapshots are preserved in the evidence directory for diagnosis.
+Nested observability acceptance evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z/observability-acceptance
+```
+
+Live acceptance summary:
+
+- 30 alerts published;
+- 30 of 30 alerts classified;
+- 30 of 30 alerts assigned a known risk;
+- cache mode `live` with `stale: false`;
+- Security Operations schema `2.0`;
+- alert schema `wwcx.suricata-alert.v1`;
+- Security Correlation refreshed with 30 events and 0 correlations;
+- Network Defense refreshed with overall state `limited`;
+- DNS policy state remained `not_staged`;
+- enforcement remained disabled;
+- `traffic_controls_changed: false`.
+
+## Remaining collector-field gap
+
+The live source snapshot did not include source ports, destination ports, application protocol, or signature IDs for the 30 observed alerts. The normalization layer correctly published these fields as absent rather than inventing values.
+
+Current live counts:
+
+- source port present: 0 of 30;
+- destination port present: 0 of 30;
+- application protocol present: 0 of 30;
+- signature ID present: 0 of 30.
+
+This is an upstream collector/data-contract gap, not a dashboard or cache failure. A future bounded enhancement may update the collector to retain those allowlisted EVE fields, with payload/raw-event exclusion and regression validation preserved.
 
 ## Deployment boundary
 
-No Suricata rule reload, Suricata service change, DNS change, firewall change, routing change, Fail2ban change, proxy change, authentication change, or enforcement activation is performed.
+No Suricata rule reload, Suricata service change, DNS change, firewall change, routing change, Fail2ban change, proxy change, authentication change, or enforcement activation was performed.
