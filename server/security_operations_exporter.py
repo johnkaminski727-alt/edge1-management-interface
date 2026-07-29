@@ -12,6 +12,7 @@ from typing import Any
 SOURCE = Path("/var/lib/bigbird/operations-center/latest.json")
 OUTPUT = Path("/var/www/edge1-status/security-operations.json")
 MAX_ALERTS = 50
+CACHE_WARNING = "Live collector refresh failed; displaying the last known good sanitized snapshot."
 
 
 def utc_now() -> str:
@@ -129,9 +130,8 @@ def fallback_snapshot(error: Exception) -> dict[str, Any]:
     warnings = cached["health"].get("warnings", [])
     if not isinstance(warnings, list):
         warnings = []
-    cached["health"]["warnings"] = warnings + [
-        "Live collector refresh failed; displaying the last known good sanitized snapshot."
-    ]
+    warnings = [item for item in warnings if item != CACHE_WARNING]
+    cached["health"]["warnings"] = warnings + [CACHE_WARNING]
     cached["error"] = str(error)
     return cached
 
