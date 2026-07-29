@@ -57,6 +57,15 @@ class SecurityOperationsExporterCacheTests(unittest.TestCase):
         self.assertIn("collector unavailable", fallback["cache"]["source_error"])
         self.assertEqual(len(fallback["recent_alerts"]), 50)
 
+    def test_repeated_fallback_does_not_duplicate_warning(self):
+        self.write_live_source()
+        MODULE.write_snapshot(MODULE.live_snapshot())
+        first = MODULE.fallback_snapshot(FileNotFoundError("collector unavailable"))
+        MODULE.write_snapshot(first)
+        second = MODULE.fallback_snapshot(FileNotFoundError("collector still unavailable"))
+        warnings = second["health"]["warnings"]
+        self.assertEqual(warnings.count(MODULE.CACHE_WARNING), 1)
+
     def test_missing_cache_reports_unavailable(self):
         fallback = MODULE.fallback_snapshot(FileNotFoundError("collector unavailable"))
         self.assertFalse(fallback["available"])
