@@ -1,24 +1,18 @@
-# Security Observability and Spamhaus Live-State Handoff
+# Security Observability, Spamhaus, and Fail2ban Handoff
 
-Date: 2026-07-29
-Repository: `johnkaminski727-alt/edge1-management-interface`
-Authoritative branch: `main`
-Spamhaus verifier implementation merge: `e4002df7f7b6c523a76214804a3f5eb5b033561c`
-Runtime wording-validation fix: `bfcbea8f971af864e5061824171da931225e1c26`
-Deployment closeout merge: `bd29397c6373101837cf0bd749038b0d3ad31133`
+Date: 2026-07-29  
+Repository: `johnkaminski727-alt/edge1-management-interface`  
+Authoritative branch: `main`  
+Latest completed closeout merge: `8f1319150e180fcf4b06bc30a122e4541f65fd02`
 
 ## Completed live work
 
 - Network Defense and Security Correlation deployed and accepted.
 - `edge1.ww.cx` HTTPS status pages and JSON feeds accepted.
-- Accessible Suricata alert drill-down deployed.
-- Last-known-good cache, normalized schema, and source collector enrichment deployed.
-- All 22 alerts in the accepted enrichment run retained ports, application protocol, SID/GID/revision, and flow ID.
-- Read-only Spamhaus live-state verifier implemented, validated, merged, and installed on Edge1.
-- Initial verifier deployment attempt rolled back safely after a case-sensitive wording assertion.
-- PR #119 repaired the assertion and both required workflows passed.
-- The corrected installer completed successfully without rollback.
-- The exact live result was read from `acceptance-summary.json` and confirmed `active_verified`.
+- Accessible Suricata drill-down, last-known-good cache, normalized schema, and source collector enrichment deployed.
+- The accepted collector run retained ports, application protocol, SID/GID/revision, and flow ID for all 22 observed alerts.
+- Read-only Spamhaus live-state verifier deployed and directly accepted as `active_verified`.
+- Spamhaus contributes one verified enforcement source; Network Defense remains `limited`, DNS remains unstaged, and traffic controls remain unchanged.
 
 ## Live URLs
 
@@ -44,45 +38,62 @@ Suricata normalization:
 Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
 
-Failed Spamhaus verifier attempt, rolled back:
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180002Z
-
-Successful Spamhaus verifier deployment:
+Spamhaus live-state and exact summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-
-Exact acceptance summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
 
-## Final Spamhaus verifier state
+## Current bounded implementation
 
-```json
-{
-  "ok": true,
-  "spamhaus_state": "active_verified",
-  "spamhaus_enforcement_verified": true,
-  "verified_enforcement_count": 1,
-  "overall_state": "limited",
-  "available_sources": 6,
-  "source_count": 7,
-  "dns_policy_state": "not_staged",
-  "dns_enforcement_enabled": false,
-  "traffic_controls_changed": false
-}
+Branch:
+
+```text
+feature/fail2ban-live-state-observability-20260729
 ```
 
-`active_verified` is limited to the dedicated Spamhaus table, sets, hooked drop rules, updater result, timer state, freshness, and read-only contract. Other enforcement layers are not implied to be verified. Network Defense remains `limited`, DNS policy remains `not_staged`, and DNS enforcement remains disabled.
+Objective:
 
-## Optional future work
+Publish Fail2ban service, local socket, and aggregate jail-health evidence without changing Fail2ban or claiming packet enforcement.
 
-- bounded general nftables aggregate visibility through a separate least-privilege verifier;
-- bounded Fail2ban jail health and aggregate counts;
-- review of Network Defense freshness thresholds;
-- protected historical Suricata retention with explicit privacy, size, time, authentication, rollback, and acceptance boundaries;
-- review of the public `edge1.ww.cx` access boundary.
+Implemented:
 
-Each remains a separate design and authorization phase.
+- contract `wwcx.fail2ban-live-state.v1`;
+- read-only `systemctl show fail2ban.service` inspection;
+- read-only `fail2ban-client status` and per-jail status inspection;
+- jail-name sanitization and 64-jail bound;
+- aggregate/per-jail currently and total failed/banned counters;
+- banned-address, log-path, raw-output, command, credential, and private-key exclusion;
+- private verifier snapshot at `/var/lib/bigbird-security/fail2ban/live-state.json`;
+- public Network Defense aggregate-only wrapper;
+- truthful `active_observed`, `partial`, `inactive`, `not_installed`, and `unavailable` states;
+- `enforcement_verified: false` in every state;
+- hardened root oneshot with no capabilities and AF_UNIX only;
+- one-minute timer and capability-free Network Defense ordering;
+- rollback-safe installer and acceptance evidence;
+- parser, privacy, stale-state, integration, runtime-wiring, and deployment-safety tests;
+- architecture document and register.
+
+## Remaining gate
+
+1. Open the Fail2ban observability PR.
+2. Require Edge1 Operator Validation and full repository validation on the exact head.
+3. Merge only if scope, review state, and both checks pass.
+4. On Edge1 run:
+
+```bash
+cd /opt/edge1-management-interface
+git pull --ff-only origin main
+sudo bash ./deploy/install-fail2ban-live-state-observability.sh
+```
+
+5. Record the truthful live state and evidence root:
+
+```text
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/<timestamp>
+```
+
+A degraded state is acceptable evidence. Do not start or alter Fail2ban to improve the result.
 
 ## Safety boundary
 
-No Spamhaus list refresh, filter reload, nftables mutation, firewall mutation, Unbound or RPZ change, DNS-answer change, Fail2ban, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change was performed. The verifier exposes no addresses, set elements, full ruleset, raw command output, credentials, or private keys.
+No Fail2ban jail/action mutation, service start/stop/reload/restart, nftables or firewall mutation, Unbound or RPZ change, DNS-answer change, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change is included. Public status exposes no jail records, banned addresses, log paths, raw client output, credentials, or private keys.
