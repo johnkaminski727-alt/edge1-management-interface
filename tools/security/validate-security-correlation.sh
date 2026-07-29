@@ -14,7 +14,11 @@ printf '%s\n' '== Targeted tests =='
 "$PYTHON_BIN" -m unittest \
   tests.test_security_console \
   tests.test_security_correlation \
+  tests.test_security_correlation_deployment \
   -v
+
+printf '%s\n' '== Shell syntax =='
+bash -n deploy/install-security-correlation-observability.sh
 
 printf '%s\n' '== Inline JavaScript syntax =='
 "$PYTHON_BIN" - "$NODE_BIN" <<'PY'
@@ -82,6 +86,8 @@ PY
 grep -Fq 'read_only' server/security_correlation_exporter.py
 grep -Fq 'NoNewPrivileges=true' deploy/systemd/wwcx-security-correlation.service
 grep -Fq 'ProtectSystem=strict' deploy/systemd/wwcx-security-correlation.service
+grep -Fq 'ReadWritePaths=/var/www/edge1-status/security/correlation/data' deploy/systemd/wwcx-security-correlation.service
+grep -Fq 'CapabilityBoundingSet=' deploy/systemd/wwcx-security-correlation.service
 grep -Fq 'OnUnitActiveSec=1min' deploy/systemd/wwcx-security-correlation.timer
 
 if command -v systemd-analyze >/dev/null 2>&1; then

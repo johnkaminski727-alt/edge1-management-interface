@@ -15,7 +15,15 @@ Missing or malformed optional inputs are reported as warnings while the remainin
 
 ## Output
 
+Authoritative service output:
+
+- `/var/www/edge1-status/security/correlation/data/security-correlation.json`
+
+Compatibility read path:
+
 - `/var/www/edge1-status/security-correlation.json`
+
+The compatibility path is an installer-managed symbolic link to the scoped data file. The service can write only inside the root-owned `security/correlation/data` directory and retains an empty capability set.
 
 The output includes source availability, privacy declarations, normalized events, correlation chains, limitations, and aggregate counts. Packet payloads, credentials, private keys, and unrestricted raw logs are not included.
 
@@ -32,17 +40,27 @@ One matching category produces medium confidence. Two or more distinct related c
 
 The service is a hardened one-shot exporter. The timer refreshes the snapshot every minute. The browser console is at `src/web/security/correlation.html`.
 
+## Deployment
+
+Use the bounded installer from `main`:
+
+```bash
+sudo bash ./deploy/install-security-correlation-observability.sh
+```
+
+The installer validates the repository, backs up affected paths, creates the scoped data directory, installs the service and timer, verifies the privacy contract and local HTTP endpoint, and restores the prior state automatically if a live check fails.
+
 ## Validation
 
 ```bash
-python3 -m unittest tests.test_security_correlation -v
-python3 -m py_compile server/security_correlation_exporter.py
+bash tools/security/validate-security-correlation.sh
 ```
 
 ## Safety boundary
 
-- no shell command execution;
+- no shell command execution by the exporter;
 - no packet capture or packet payload storage;
 - no firewall, DNS, IDS, proxy, reputation-filter, or Fail2ban mutation;
 - no server-side action endpoint;
-- browser evidence export is local-only.
+- browser evidence export is local-only;
+- runtime write access is limited to the scoped correlation data directory.
