@@ -1,11 +1,12 @@
-# Security Observability and Suricata Collector Enrichment Handoff
+# Security Observability, Suricata Enrichment, and Spamhaus Verifier Handoff
 
 Date: 2026-07-29
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`
-Authoritative implementation merge: `21b87664355e5f83173a630f24276389a6dcbbf6`
+Latest live collector-enrichment merge: `21b87664355e5f83173a630f24276389a6dcbbf6`
+Latest synchronized reporting fix: `bb293f15da214d600abae823e4db17680eac036c`
 
-## Completed work
+## Completed live work
 
 - Network Defense bounded deployment completed.
 - Security Correlation bounded deployment completed.
@@ -16,6 +17,7 @@ Authoritative implementation merge: `21b87664355e5f83173a630f24276389a6dcbbf6`
 - Nested Suricata alert normalization deployed.
 - Source-controlled Big Bird collector enrichment merged through PR #115 and activated on Edge1.
 - Security Operations, Correlation, and Network Defense were refreshed and accepted after collector activation.
+- The exposed `wwadmin` credential was rotated and shell history was cleared.
 
 ## Live URLs
 
@@ -40,12 +42,6 @@ Suricata normalization activation:
 
 Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
-
-Nested normalization activation:
-/var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z/normalization-activation
-
-Nested observability acceptance:
-/var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z/normalization-activation/observability-acceptance
 ```
 
 ## Final live collector result
@@ -68,50 +64,70 @@ Nested observability acceptance:
 }
 ```
 
-The normalized public feed also verified:
+The normalized public feed also verified 22 classified alerts, 22 known risks, live non-stale cache, schema `2.0`, alert schema `wwcx.suricata-alert.v1`, read-only correlation, DNS policy `not_staged`, and disabled DNS enforcement.
 
-- 22 classified alerts;
-- 22 alerts with a known risk;
-- cache mode `live` and stale `false`;
-- schema `2.0` and alert schema `wwcx.suricata-alert.v1`;
-- read-only correlation;
-- DNS policy `not_staged`;
-- enforcement disabled.
+## Current implementation awaiting merge and activation
 
-Live addresses and raw event content were intentionally not copied into repository records.
+Branch:
 
-## Collector ownership
+```text
+feature/spamhaus-live-state-verifier-20260729
+```
 
-- Authoritative source: `server/bigbird_ops_collect.py`.
-- Runtime target: `/usr/local/libexec/bigbird-ops-collect.py`.
-- Collector release: `edge1-suricata-enrichment-r1`.
-- Source schema: `wwcx.suricata-source-alert.v1`.
-- The archived WW.CX V4.0.7 collector remains a historical release artifact.
-- Existing `bigbird-ops-push.service` and timer remain unchanged.
+Objective:
 
-## Completion status
+Distinguish Spamhaus feed readiness from observed live enforcement without changing the filter.
 
-The bounded Security observability sequence, public HTTPS exposure, alert drill-down, caching, normalization, collector enrichment, downstream refresh, and live acceptance are complete.
+Implemented:
 
-## Optional future work
+- `server/spamhaus_live_state_verifier.py`;
+- contract `wwcx.spamhaus-live-state.v1`;
+- read-only `nft -j list table inet bigbird_spamhaus` inspection;
+- updater service result and timer-state inspection;
+- bounded counts and booleans only;
+- exclusion of addresses, set elements, full ruleset, and raw command output;
+- hardened verifier service and one-minute timer;
+- `CAP_NET_ADMIN` confined to the verifier service;
+- capability-free Network Defense consumer;
+- Network Defense state transition to `active_verified` only on complete fresh evidence;
+- rollback-safe installer and evidence capture;
+- parser, privacy, command-safety, integration, runtime-wiring, and deployment validation;
+- implementation document and register.
 
-- protected historical alert retention with explicit retention and authenticated query boundaries;
-- least-privilege periodic nftables and Fail2ban visibility;
-- dedicated Spamhaus live-state verification;
-- review of the public `edge1.ww.cx` access boundary.
+Planned activation after merge:
 
-Each remains a separate design and authorization phase.
+```bash
+cd /opt/edge1-management-interface
+git pull --ff-only origin main
+sudo bash ./deploy/install-spamhaus-live-state-observability.sh
+```
+
+Expected evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/spamhaus-live-state/<timestamp>
+```
+
+The installer accepts a truthful `active_verified`, `partial`, `not_present`, or `unavailable` state. It must not convert incomplete evidence into an enforcement claim.
+
+## Remaining gate
+
+1. Open the verifier PR.
+2. Require Edge1 Operator Validation and full repository validation on the exact head.
+3. Merge only if the scope and checks pass.
+4. Run the checked-in installer on Edge1.
+5. Record the live verifier state and Network Defense acceptance.
 
 ## Safety boundary
 
-Not performed:
+Not included:
 
+- Spamhaus list refresh or filter reload;
+- nftables add, delete, flush, insert, replace, or file-load operations;
 - Unbound or resolver configuration changes;
 - RPZ staging or activation;
 - DNS answer changes;
-- nftables or firewall mutations;
-- Fail2ban jail changes;
-- proxy, routing, IDS rule, reputation-filter, or traffic-cutover changes;
-- authentication-boundary changes;
-- payload, packet-body, or raw-EVE publication;
-- claims of active enforcement without direct evidence.
+- general firewall or Fail2ban mutations;
+- proxy, routing, IDS rule, reputation-list, authentication, or traffic-cutover changes;
+- address, set-element, full-ruleset, payload, packet-body, or raw-log publication;
+- claims of active enforcement without direct live-state evidence.
