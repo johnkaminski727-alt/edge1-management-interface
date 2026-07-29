@@ -16,7 +16,6 @@ BACKUP="$EVIDENCE_DIR/backups"
 COLLECTOR_BACKUP="$BACKUP/bigbird-ops-collect.py"
 TIMER_WAS_ACTIVE=false
 COLLECTOR_WAS_PRESENT=false
-PUBLISHED=false
 
 fail() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -166,6 +165,8 @@ print(json.dumps({
     "destination_ports": sum(1 for item in alerts if item.get("destination_port") is not None),
     "application_protocols": sum(1 for item in alerts if item.get("application_protocol")),
     "signature_ids": sum(1 for item in alerts if item.get("signature_id") is not None),
+    "generator_ids": sum(1 for item in alerts if item.get("generator_id") is not None),
+    "revisions": sum(1 for item in alerts if item.get("revision") is not None),
     "flow_ids": sum(1 for item in alerts if item.get("flow_id") is not None),
 }, indent=2))
 PY
@@ -181,7 +182,6 @@ systemctl start "$PUSH_SERVICE"
 [ "$(systemctl show "$PUSH_SERVICE" --property=Result --value)" = success ]
 [ "$(systemctl show "$PUSH_SERVICE" --property=ExecMainStatus --value)" = 0 ]
 [ -f "$SOURCE_SNAPSHOT" ]
-PUBLISHED=true
 
 python3 - "$SOURCE_SNAPSHOT" "$EVIDENCE_DIR/source-acceptance.json" <<'PY'
 import json
@@ -223,6 +223,8 @@ if alerts:
     assert summary["source_port_count"] > 0
     assert summary["destination_port_count"] > 0
     assert summary["signature_id_count"] > 0
+    assert summary["generator_id_count"] > 0
+    assert summary["revision_count"] > 0
     assert summary["flow_id_count"] > 0
 print(json.dumps(summary, indent=2))
 output.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -260,10 +262,10 @@ summary = {
     "alert_count": len(alerts),
     "source_port_count": sum(1 for item in alerts if item.get("source_port") is not None),
     "destination_port_count": sum(1 for item in alerts if item.get("destination_port") is not None),
-    "application_protocol_count": sum(1 for item in alerts if item.get("application_protocol")),
+    "application_protocol_count": sum(1 for item in alerts if item.get("app_protocol")),
     "signature_id_count": sum(1 for item in alerts if item.get("signature_id") is not None),
-    "generator_id_count": sum(1 for item in alerts if item.get("generator_id") is not None),
-    "revision_count": sum(1 for item in alerts if item.get("revision") is not None),
+    "generator_id_count": sum(1 for item in alerts if item.get("gid") is not None),
+    "revision_count": sum(1 for item in alerts if item.get("rev") is not None),
     "flow_id_count": sum(1 for item in alerts if item.get("flow_id") is not None),
     "correlation_events": (correlation.get("summary") or {}).get("event_count"),
     "correlations": (correlation.get("summary") or {}).get("correlation_count"),
@@ -274,6 +276,8 @@ if alerts:
     assert summary["source_port_count"] > 0
     assert summary["destination_port_count"] > 0
     assert summary["signature_id_count"] > 0
+    assert summary["generator_id_count"] > 0
+    assert summary["revision_count"] > 0
     assert summary["flow_id_count"] > 0
 assert correlation["read_only"] is True
 assert defense["read_only"] is True
