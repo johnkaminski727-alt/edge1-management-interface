@@ -4,22 +4,10 @@
 
 - [x] Deploy Security Correlation and Network Defense observability.
 - [x] Pass read-only Security observability and `edge1.ww.cx` domain acceptance.
-- [x] Deploy accessible Suricata drill-down and last-known-good caching.
-- [x] Deploy nested Suricata normalization and source collector enrichment.
+- [x] Deploy accessible Suricata drill-down, last-known-good caching, normalization, and source collector enrichment.
 - [x] Verify 22 enriched alerts with ports, application protocol, SID/GID/revision, and flow ID.
-- [x] Preserve bounded alert counts and payload/raw-event exclusion.
-- [x] Implement read-only Spamhaus live-state verification.
-- [x] Publish contract `wwcx.spamhaus-live-state.v1` with bounded counts and booleans only.
-- [x] Confine `CAP_NET_ADMIN` to the dedicated verifier service; keep Network Defense capability-free.
-- [x] Integrate fresh complete verifier evidence into Network Defense as `active_verified` when warranted.
-- [x] Withdraw verified enforcement when verifier evidence becomes stale.
-- [x] Add rollback-safe installer and full parser, privacy, runtime, systemd, and deployment validation.
-- [x] Merge PR #118 after both required CI workflows passed.
-- [x] Repair the case-sensitive runtime wording assertion through PR #119.
-- [x] Run the corrected installer successfully on Edge1.
-- [x] Record successful evidence directory and unchanged traffic-control boundary.
-- [x] Read and record the exact acceptance summary.
-- [x] Confirm Spamhaus state `active_verified`, enforcement verification true, and verified-enforcement count 1.
+- [x] Implement and deploy read-only Spamhaus live-state verification.
+- [x] Confirm Spamhaus `active_verified`, enforcement verification true, and verified-enforcement count 1.
 - [x] Confirm Network Defense remains `limited`, 6 of 7 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
 
 ## Authoritative evidence
@@ -37,22 +25,36 @@ Suricata normalization:
 Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
 
-Spamhaus failed attempt, safely rolled back:
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180002Z
-
-Spamhaus successful deployment:
+Spamhaus successful deployment and exact summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-
-Spamhaus exact acceptance summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 ```
+
+## Current bounded implementation — Fail2ban live-state observability
+
+- [x] Trace Fail2ban’s existing state to event-count visibility without service/socket/jail-health verification.
+- [x] Add `server/fail2ban_live_state_verifier.py` with read-only `systemctl show` and `fail2ban-client status` inspection.
+- [x] Restrict jail names to a bounded safe character set and a maximum of 64 records.
+- [x] Publish service state, socket reachability, and aggregate/per-jail failed and banned counters.
+- [x] Exclude banned addresses, log paths, raw client output, commands, credentials, and private keys.
+- [x] Add `server/network_defense_fail2ban_exporter.py` so public status receives aggregate metrics only.
+- [x] Keep Fail2ban `enforcement_verified: false`; jail counters do not increment verified enforcement.
+- [x] Add a hardened root oneshot and one-minute timer with no Linux capabilities and AF_UNIX only.
+- [x] Keep Network Defense capability-free and order it after both dedicated verifiers.
+- [x] Add parser, privacy, stale-state, integration, runtime-wiring, and rollback-safe deployment validation.
+- [x] Add `deploy/install-fail2ban-live-state-observability.sh` without any Fail2ban service or action mutation.
+- [x] Record architecture, contract, state model, and activation boundary.
+- [ ] Open and merge the Fail2ban observability PR after both required CI workflows pass.
+- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/install-fail2ban-live-state-observability.sh`.
+- [ ] Record the truthful live state: `active_observed`, `partial`, `inactive`, `not_installed`, or `unavailable`.
+- [ ] Verify Network Defense consumes the same aggregate state with `traffic_controls_changed: false` and no new enforcement claim.
+- [ ] Record live evidence and close the phase.
 
 ## Evidence-driven follow-up
 
 Optional future design work may:
 
 - publish bounded general nftables aggregate counts through a separate least-privilege service;
-- publish bounded Fail2ban jail counters where socket permissions permit;
 - review Network Defense freshness thresholds using observed timing;
 - design protected historical Suricata retention with size, time, privacy, authentication, rollback, and acceptance boundaries;
 - review whether the public `edge1.ww.cx` access boundary should remain unchanged.
@@ -63,6 +65,6 @@ Requires exact production authorization and separate rollback/validation plans:
 
 - Unbound or resolver configuration changes;
 - RPZ inclusion, activation, reload, or DNS answer changes;
-- firewall, nftables, Fail2ban, proxy, routing, IDS, or reputation-filter control changes;
+- firewall, nftables, Fail2ban jail/action, proxy, routing, IDS, or reputation-filter control changes;
 - any additional public or production traffic cutover;
 - authentication-boundary changes.
