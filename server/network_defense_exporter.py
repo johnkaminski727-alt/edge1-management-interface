@@ -15,6 +15,7 @@ DEFAULT_SECURITY = Path('/var/www/edge1-status/security-operations.json')
 DEFAULT_CORRELATION = Path('/var/www/edge1-status/security-correlation.json')
 DEFAULT_OPERATIONS = Path('/var/lib/bigbird/operations-center/latest.json')
 DEFAULT_SPAMHAUS = Path('/var/lib/bigbird-networking/spamhaus/summary.txt')
+DEFAULT_SPAMHAUS_LIVE_STATE = Path('/var/lib/bigbird-networking/spamhaus/live-state.json')
 DEFAULT_OUTPUT = Path('/var/www/edge1-status/network-defense.json')
 
 SOURCE_STALE_SECONDS = {
@@ -23,6 +24,7 @@ SOURCE_STALE_SECONDS = {
     'correlation': 5 * 60,
     'operations': 5 * 60,
     'spamhaus': 8 * 60 * 60,
+    'spamhaus_live_state': 5 * 60,
 }
 
 
@@ -67,6 +69,22 @@ def parse_spamhaus(path: Path) -> tuple[dict[str, int], str | None]:
     if not values:
         return {}, 'spamhaus source has no recognized counters'
     return values, None
+
+
+def validate_spamhaus_live_state(document: dict[str, Any], error: str | None) -> str | None:
+    if error:
+        return error
+    if document.get('contract') != 'wwcx.spamhaus-live-state.v1':
+        return 'spamhaus live-state contract is unsupported'
+    if document.get('read_only') is not True or document.get('traffic_controls_changed') is not False:
+        return 'spamhaus live-state safety contract is invalid'
+    privacy = document.get('privacy') if isinstance(document.get('privacy'), dict) else {}
+    for key in ('addresses_included', 'set_elements_included', 'full_ruleset_included', 'raw_command_output_included'):
+        if privacy.get(key) is not False:
+            return 'spamhaus live-state privacy contract is invalid'
+    if not isinstance(document.get('enforcement'), dict):
+        return 'spamhaus live-state enforcement record is missing'
+    return None
 
 
 def source_record(path: Path, source_name: str, error: str | None, now: dt.datetime) -> dict[str, Any]:
@@ -149,6 +167,7 @@ def build_snapshot(
     correlation_path: Path = DEFAULT_CORRELATION,
     operations_path: Path = DEFAULT_OPERATIONS,
     spamhaus_path: Path = DEFAULT_SPAMHAUS,
+    spamhaus_live_state_path: Path = DEFAULT_SPAMHAUS_LIVE_STATE,
     now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     current = now or utc_now()
@@ -159,6 +178,8 @@ def build_snapshot(
     correlation, correlation_error = load_json(correlation_path, 'correlation')
     operations, operations_error = load_json(operations_path, 'operations')
     spamhaus, spamhaus_error = parse_spamhaus(spamhaus_path)
+    spamhaus_live_state, spamhaus_live_error = load_json(spamhaus_live_state_path, 'spamhaus live-state')
+    spamhaus_live_error = validate_spamhaus_live_state(spamhaus_live_state, spamhaus_live_error)
 
     errors = {
         'network': network_error,
@@ -166,6 +187,7 @@ def build_snapshot(
         'correlation': correlation_error,
         'operations': operations_error,
         'spamhaus': spamhaus_error,
+        'spamhaus_live_state': spamhaus_live_error,
     }
     warnings.extend(error for error in errors.values() if error)
 
@@ -177,6 +199,7 @@ def build_snapshot(
             ('correlation', correlation_path),
             ('operations', operations_path),
             ('spamhaus', spamhaus_path),
+            ('spamhaus_live_state', spamhaus_live_state_path),
         )
     }
 
@@ -194,9 +217,35 @@ def build_snapshot(
     fail2ban_events = count_category(correlation, operations, 'fail2ban')
     proxy_events = count_category(correlation, operations, 'proxy')
 
-    combined4 = int(spamhaus.get('combined4', 0))
-    drop6 = int(spamhaus.get('drop6', 0))
-    spamhaus_observed = spamhaus_error is None and (combined4 > 0 or drop6 > 0)
+    combined4 = safe_int(spamhaus.get('combined4'))
+    drop6 = safe_int(spamhaus.get('drop6'))
+    spamhaus_feed_observed = spamhaus_error is None and (combined4 > 0 or drop6 > 0)
+
+    enforcement = spamhaus_live_state.get('enforcement') if isinstance(spamhaus_live_state.get('enforcement'), dict) else {}
+    table = spamhaus_live_state.get('table') if isinstance(spamhaus_live_state.get('table'), dict) else {}
+    sets = spamhaus_live_state.get('sets') if isinstance(spamhaus_live_state.get('sets'), dict) else {}
+    rules = spamhaus_live_state.get('rules') if isinstance(spamhaus_live_state.get('rules'), dict) else {}
+    service = spamhaus_live_state.get('service') if isinstance(spamhaus_live_state.get('service'), dict) else {}
+    timer = spamhaus_live_state.get('timer') if isinstance(spamhaus_live_state.get('timer'), dict) else {}
+    spamhaus_verified = spamhaus_live_error is None and enforcement.get('verified') is True
+    spamhaus_table_observed = spamhaus_live_error is None and table.get('present') is True
+    spamhaus_observed = spamhaus_feed_observed or spamhaus_table_observed
+
+    if spamhaus_verified:
+        spamhaus_state = 'active_verified'
+        spamhaus_detail = 'Spamhaus feed counters and the dedicated nftables table, drop sets, hooked rules, updater result, and timer are verified.'
+    elif spamhaus_feed_observed:
+        spamhaus_state = 'feed_ready'
+        spamhaus_detail = 'Spamhaus feed counters are present, but the complete live nftables enforcement contract is not verified.'
+    elif spamhaus_table_observed:
+        spamhaus_state = str(enforcement.get('state') or 'partial')
+        spamhaus_detail = str(enforcement.get('detail') or 'The live Spamhaus table is partially observed.')
+    else:
+        spamhaus_state = 'unavailable'
+        spamhaus_detail = 'Spamhaus feed and live-state evidence are unavailable.'
+
+    drop4_set = sets.get('drop4') if isinstance(sets.get('drop4'), dict) else {}
+    drop6_set = sets.get('drop6') if isinstance(sets.get('drop6'), dict) else {}
 
     components = {
         'ids': component(
@@ -210,9 +259,22 @@ def build_snapshot(
             {'recent_events': dns_events, 'resolver_reported': bool(resolver_text)},
         ),
         'spamhaus': component(
-            'Network reputation', 'feed_ready' if spamhaus_observed else 'unavailable', spamhaus_observed, False,
-            'Spamhaus feed counters are present; live nftables state requires a separate service/table check.' if spamhaus_observed else 'Spamhaus feed counters are unavailable.',
-            {'combined_ipv4_networks': combined4, 'ipv6_networks': drop6},
+            'Network reputation', spamhaus_state, spamhaus_observed, spamhaus_verified,
+            spamhaus_detail,
+            {
+                'combined_ipv4_networks': combined4,
+                'ipv6_networks': drop6,
+                'table_present': table.get('present') is True,
+                'drop4_elements': safe_int(drop4_set.get('element_count')),
+                'drop6_elements': safe_int(drop6_set.get('element_count')),
+                'input_ipv4_drop_rules': safe_int(rules.get('input_ipv4_drop')),
+                'forward_ipv4_drop_rules': safe_int(rules.get('forward_ipv4_drop')),
+                'input_ipv6_drop_rules': safe_int(rules.get('input_ipv6_drop')),
+                'forward_ipv6_drop_rules': safe_int(rules.get('forward_ipv6_drop')),
+                'service_result': service.get('result'),
+                'timer_active': timer.get('active_state'),
+                'timer_enabled': timer.get('enabled_state'),
+            },
         ),
         'firewall': component(
             'Firewall visibility', 'observed' if firewall_events else 'not_observed', firewall_events > 0, False,
@@ -252,11 +314,20 @@ def build_snapshot(
         recommendations.append('Publish Fail2ban jail health and aggregate ban counts without client-identifying log content.')
     if not components['proxy']['observed']:
         recommendations.append('Complete the Squid/proxy architecture decision before installing or routing traffic through a proxy.')
-    if spamhaus_observed:
-        recommendations.append('Add a read-only nftables/service verifier so Spamhaus enforcement can be distinguished from feed readiness.')
+    if spamhaus_feed_observed and not spamhaus_verified:
+        recommendations.append('Restore the Spamhaus live-state verifier contract so feed readiness can be distinguished from active enforcement.')
+
+    limitations = [
+        'This snapshot reports bounded current-state evidence and does not expose the full firewall ruleset or set elements.',
+        'DNS, general firewall, Fail2ban, and proxy enforcement remain unverified until dedicated sanitized status exporters exist.',
+    ]
+    if spamhaus_verified:
+        limitations.append('Spamhaus verification proves the expected table, sets, hooked rules, service result, and timer at snapshot time; it does not prove every possible traffic path traverses those hooks.')
+    else:
+        limitations.append('Spamhaus feed counters do not independently verify the live nftables table or service result.')
 
     return {
-        'schema_version': '1.0',
+        'schema_version': '1.1',
         'generated_at': iso(current),
         'read_only': True,
         'traffic_controls_changed': False,
@@ -266,6 +337,7 @@ def build_snapshot(
             'private_keys_included': False,
             'raw_logs_included': False,
             'full_firewall_ruleset_included': False,
+            'firewall_set_elements_included': False,
         },
         'overall_state': overall,
         'summary': {
@@ -285,11 +357,7 @@ def build_snapshot(
         },
         'warnings': warnings,
         'recommendations': recommendations,
-        'limitations': [
-            'This snapshot reports telemetry and readiness, not proof that a traffic-control policy is active.',
-            'Spamhaus feed counters do not independently verify the live nftables table or service result.',
-            'DNS, firewall, Fail2ban, and proxy enforcement remain unverified until dedicated sanitized status exporters exist.',
-        ],
+        'limitations': limitations,
     }
 
 
@@ -308,6 +376,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--correlation', type=Path, default=DEFAULT_CORRELATION)
     parser.add_argument('--operations', type=Path, default=DEFAULT_OPERATIONS)
     parser.add_argument('--spamhaus', type=Path, default=DEFAULT_SPAMHAUS)
+    parser.add_argument('--spamhaus-live-state', type=Path, default=DEFAULT_SPAMHAUS_LIVE_STATE)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT)
     return parser.parse_args()
 
@@ -320,6 +389,7 @@ def main() -> None:
         correlation_path=args.correlation,
         operations_path=args.operations,
         spamhaus_path=args.spamhaus,
+        spamhaus_live_state_path=args.spamhaus_live_state,
     )
     write_snapshot(snapshot, args.output)
     print(json.dumps({
@@ -327,6 +397,7 @@ def main() -> None:
         'output': str(args.output),
         'overall_state': snapshot['overall_state'],
         'observed_components': snapshot['summary']['observed_component_count'],
+        'verified_enforcement_count': snapshot['summary']['verified_enforcement_count'],
     }))
 
 
