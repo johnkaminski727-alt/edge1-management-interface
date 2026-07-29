@@ -36,12 +36,24 @@ Authoritative Suricata normalization evidence:
 /var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
 ```
 
+## Current bounded implementation
+
+- [x] Trace the missing metadata to the deployment-only Big Bird collector.
+- [x] Establish `server/bigbird_ops_collect.py` as the authoritative Edge1 collector source.
+- [x] Retain allowlisted ports, application protocol, SID/GID/revision, and flow/event identifiers.
+- [x] Preserve the 100-alert source bound, 50-alert public bound, and payload/raw-event exclusion.
+- [x] Add source-collector and source-to-exporter regression validation.
+- [x] Add a rollback-safe collector activation script.
+- [x] Record collector ownership, schema, deployment, and safety boundaries.
+- [ ] Merge the collector enrichment PR after both required CI workflows pass.
+- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/activate-suricata-collector-enrichment.sh`.
+- [ ] Verify live ports, SID/GID/revision, application protocol when present, and flow IDs in the public Security Operations feed.
+- [ ] Record live collector enrichment evidence and close the phase.
+
 ## Evidence-driven follow-up
 
 The live Security Controls inspection confirmed both nftables and Fail2ban posture are readable through the bounded inspector. Optional follow-up design work may:
 
-- update the upstream Security Operations collector to retain allowlisted source port, destination port, application protocol, SID, GID, revision, and flow/event fields when present in EVE input;
-- preserve the existing normalized schema, 50-alert bound, payload/raw-event exclusion, and regression coverage during any collector enhancement;
 - decide whether nftables aggregate counts can be published periodically with a least-privilege service;
 - decide whether Fail2ban socket access and jail counters support a safe periodic exporter;
 - add a dedicated Spamhaus live-state verifier that distinguishes feed readiness from active nftables enforcement;
