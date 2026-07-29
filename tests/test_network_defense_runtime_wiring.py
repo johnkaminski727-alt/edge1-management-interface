@@ -11,6 +11,11 @@ class NetworkDefenseRuntimeWiringTests(unittest.TestCase):
         self.assertIn('server/network_defense_dns_exporter.py', service)
         self.assertNotIn('server/network_defense_exporter.py', service)
 
+    def test_optional_telemetry_paths_do_not_block_startup(self):
+        service = Path('deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
+        self.assertIn('ReadOnlyPaths=-/var/lib/bigbird/operations-center -/var/lib/bigbird-networking', service)
+        self.assertNotIn('ReadOnlyPaths=/var/lib/bigbird/operations-center', service)
+
     def test_network_console_mentions_dns_readiness(self):
         page = Path('src/web/network-defense/index.html').read_text(encoding='utf-8')
         self.assertIn('DNS policy readiness', page)

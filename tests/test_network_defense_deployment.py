@@ -35,6 +35,15 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
         ):
             self.assertIn(token, self.installer)
 
+    def test_rollback_captures_service_failure_evidence(self):
+        for token in (
+            "failure-systemd-status.txt",
+            "failure-service-journal.txt",
+            'journalctl -u "$SERVICE" -n 100',
+            "Failure evidence:",
+        ):
+            self.assertIn(token, self.installer)
+
     def test_installer_publishes_only_observability_assets(self):
         for token in (
             "/var/www/edge1-status",

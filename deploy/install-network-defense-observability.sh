@@ -88,7 +88,9 @@ rollback() {
     trap - ERR INT TERM
     set +e
     if [ "$MUTATION_STARTED" -eq 1 ]; then
-        printf 'Deployment failed; restoring saved files.\n' >&2
+        printf 'Deployment failed; capturing diagnostics and restoring saved files.\n' >&2
+        systemctl status "$SERVICE" "$TIMER" --no-pager > "$EVIDENCE_DIR/failure-systemd-status.txt" 2>&1 || true
+        journalctl -u "$SERVICE" -n 100 --no-pager > "$EVIDENCE_DIR/failure-service-journal.txt" 2>&1 || true
         systemctl stop "$TIMER" >/dev/null 2>&1 || true
         restore_path "$UNIT_ROOT/$SERVICE" service.unit
         restore_path "$UNIT_ROOT/$TIMER" timer.unit
@@ -105,6 +107,7 @@ rollback() {
             systemctl start "$TIMER" >/dev/null 2>&1 || true
         fi
         printf 'rolled_back=true\nexit_code=%s\n' "$code" > "$EVIDENCE_DIR/rollback.txt"
+        printf 'Failure evidence: %s\n' "$EVIDENCE_DIR" >&2
     fi
     exit "$code"
 }
