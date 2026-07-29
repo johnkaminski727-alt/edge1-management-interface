@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Network Defense uses the DNS-aware runtime path."""
+"""Verify Network Defense uses the DNS-aware and Spamhaus-aware runtime path."""
 
 import unittest
 from pathlib import Path
@@ -10,6 +10,11 @@ class NetworkDefenseRuntimeWiringTests(unittest.TestCase):
         service = Path('deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
         self.assertIn('server/network_defense_dns_exporter.py', service)
         self.assertNotIn('server/network_defense_exporter.py', service)
+
+    def test_network_defense_orders_after_spamhaus_verifier(self):
+        service = Path('deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
+        self.assertIn('wwcx-spamhaus-live-state.service', service)
+        self.assertIn('Wants=network-online.target wwcx-spamhaus-live-state.service', service)
 
     def test_optional_telemetry_paths_do_not_block_startup(self):
         service = Path('deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
@@ -24,11 +29,12 @@ class NetworkDefenseRuntimeWiringTests(unittest.TestCase):
         self.assertNotIn('ReadWritePaths=/var/www/edge1-status\n', service)
         self.assertIn('CapabilityBoundingSet=\n', service)
 
-    def test_network_console_mentions_dns_readiness(self):
+    def test_network_console_mentions_dns_and_verifier_boundaries(self):
         page = Path('src/web/network-defense/index.html').read_text(encoding='utf-8')
         self.assertIn('DNS policy readiness', page)
         self.assertIn('staged policy evidence', page)
         self.assertIn('traffic_controls_changed:false', page)
+        self.assertIn('Counts only dedicated sanitized live-state verifiers.', page)
 
 
 if __name__ == '__main__':

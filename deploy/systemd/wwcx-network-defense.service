@@ -1,7 +1,7 @@
 [Unit]
 Description=WW.CX read-only network-defense observability exporter
-After=network-online.target wwcx-security-operations.service wwcx-security-correlation.service
-Wants=network-online.target
+After=network-online.target wwcx-security-operations.service wwcx-security-correlation.service wwcx-spamhaus-live-state.service
+Wants=network-online.target wwcx-spamhaus-live-state.service
 
 [Service]
 Type=oneshot

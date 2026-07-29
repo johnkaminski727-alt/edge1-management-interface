@@ -67,6 +67,35 @@ class NetworkDefenseDnsExporterTests(unittest.TestCase):
             self.assertEqual(component['metrics']['entry_count'], 3)
             self.assertEqual(result['summary']['verified_enforcement_count'], 0)
 
+    def test_stale_spamhaus_snapshot_withdraws_verified_enforcement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'missing.json'
+            snapshot = self.base_snapshot()
+            snapshot['sources']['spamhaus_live_state'] = {
+                'available': True,
+                'stale': True,
+            }
+            snapshot['components']['spamhaus'] = {
+                'name': 'Network reputation',
+                'state': 'active_verified',
+                'observed': True,
+                'enforcement_verified': True,
+                'detail': 'previously verified',
+                'metrics': {'combined_ipv4_networks': 10},
+            }
+            result = MODULE.augment_snapshot(
+                snapshot, {}, 'dns policy status is not staged', path,
+                dt.datetime(2026, 7, 29, 12, 0, tzinfo=dt.timezone.utc),
+            )
+            spamhaus = result['components']['spamhaus']
+            self.assertFalse(spamhaus['enforcement_verified'])
+            self.assertEqual(spamhaus['state'], 'feed_ready')
+            self.assertEqual(result['summary']['verified_enforcement_count'], 0)
+            self.assertIn(
+                'spamhaus live-state snapshot is stale; verified enforcement was withdrawn',
+                result['warnings'],
+            )
+
     def test_unsafe_status_is_unverified(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'dns-defense-policy-status.json'
