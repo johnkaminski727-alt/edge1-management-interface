@@ -1,0 +1,11 @@
+[Unit]
+Description=WW.CX security correlation refresh timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=wwcx-security-correlation.service
+
+[Install]
+WantedBy=timers.target

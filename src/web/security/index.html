@@ -5,139 +5,500 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WW.CX Security Operations</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,sans-serif}
-body{margin:auto;max-width:1200px;padding:28px;background:#0b1015;color:#eee}
-.panel{background:#151c22;border:1px solid #34404a;border-radius:16px;padding:20px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-.card{background:#202830;border:1px solid #394854;border-radius:12px;padding:15px}
-.label{color:#9aa8b3;font-size:.85rem}
-.value{font-size:1.4rem;font-weight:700}
-.warning{border-color:#c28a22}
-.good{border-color:#32905b}
-.alert{padding:14px;border-left:4px solid #c28a22;margin-bottom:10px}
-small{color:#9aa8b3}
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --background: #0b1015;
+  --panel: #151c22;
+  --card: #202830;
+  --line: #394854;
+  --muted: #9aa8b3;
+  --good: #45b879;
+  --warning: #d6a13c;
+  --bad: #df6b6b;
+  --info: #6aa9df;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--background); color: #eef3f6; }
+a { color: #9bcaf0; }
+.shell { width: min(1380px, 100%); margin: 0 auto; padding: 24px; }
+nav { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
+nav a { text-decoration: none; }
+nav a[aria-current="page"] { color: #fff; font-weight: 700; }
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 18px; }
+h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 4vw, 2.6rem); }
+h2 { margin-top: 0; font-size: 1.25rem; }
+h3 { margin: 0 0 10px; font-size: 1rem; }
+p { line-height: 1.55; }
+.panel { background: var(--panel); border: 1px solid #34404a; border-radius: 16px; padding: 20px; margin-bottom: 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 15px; min-width: 0; }
+.card.good { border-color: var(--good); }
+.card.warning { border-color: var(--warning); }
+.card.bad { border-color: var(--bad); }
+.card.info { border-color: var(--info); }
+.label { color: var(--muted); font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+.value { margin-top: 5px; font-size: 1.35rem; font-weight: 750; overflow-wrap: anywhere; }
+.muted, small { color: var(--muted); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.toolbar .spacer { flex: 1 1 auto; }
+button, input, select { font: inherit; }
+button { background: var(--card); color: #eef3f6; border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+button:hover, button:focus-visible { border-color: #8bbce2; }
+button:disabled { cursor: wait; opacity: .6; }
+input, select { width: 100%; background: #0f161c; color: #eef3f6; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+.filter-grid { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) minmax(190px, 1fr); gap: 12px; }
+.filter-grid label { color: var(--muted); font-size: .85rem; }
+.filter-grid label span { display: block; margin-bottom: 5px; }
+.status { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; font-size: .88rem; }
+.status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.status.good::before { background: var(--good); }
+.status.warning::before { background: var(--warning); }
+.status.bad::before { background: var(--bad); }
+.alert { border-left: 4px solid var(--warning); padding: 14px 16px; margin-bottom: 10px; background: #11181e; border-radius: 0 10px 10px 0; }
+.alert.risk-critical, .alert.risk-high { border-left-color: var(--bad); }
+.alert.risk-medium { border-left-color: var(--warning); }
+.alert.risk-low, .alert.risk-info { border-left-color: var(--info); }
+.alert-head { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; }
+.alert-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 9px 0; color: var(--muted); font-size: .87rem; }
+.badge { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; font-size: .78rem; text-transform: uppercase; }
+.rank-list { list-style: none; margin: 0; padding: 0; }
+.rank-list li { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid #303b44; }
+.rank-list li:last-child { border-bottom: 0; }
+.empty { color: var(--muted); padding: 12px 0; }
+.notice { border-left: 4px solid var(--info); padding: 10px 14px; background: #101a22; }
+.notice.warning { border-left-color: var(--warning); }
+.notice.bad { border-left-color: var(--bad); }
+.error-banner { display: none; margin-bottom: 18px; }
+.error-banner.visible { display: block; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 800px) {
+  .shell { padding: 16px; }
+  header, .split { grid-template-columns: 1fr; display: grid; }
+  .filter-grid { grid-template-columns: 1fr; }
+  .alert-head { display: block; }
+}
 </style>
 </head>
-
 <body>
-
-<nav>
-<a href="../">Private Library Search</a>
-<a href="../time-authority/">Time Authority</a>
-<a href="./" aria-current="page">Security Operations</a>
+<div class="shell">
+<nav aria-label="Operations modules">
+  <a href="../">Private Library Search</a>
+  <a href="../time-authority/">Time Authority</a>
+  <a href="./" aria-current="page">Security Operations</a>
 </nav>
 
-<h1>WW.CX Security Operations</h1>
-<p>Suricata IDS visibility, telemetry health, alert interpretation and security posture.</p>
+<header>
+  <div>
+    <h1>WW.CX Security Operations</h1>
+    <p>Read-only Suricata IDS visibility, alert investigation, telemetry health, evidence and operational posture.</p>
+  </div>
+  <div class="toolbar" aria-label="Telemetry status">
+    <span id="connection-status" class="status" role="status">Connecting</span>
+    <span id="freshness" class="status">Freshness unknown</span>
+  </div>
+</header>
 
-<section class="panel">
-<h2>Overview</h2>
-<div id="overview" class="grid">Loading...</div>
+<div id="error-banner" class="panel error-banner" role="alert"></div>
+
+<section class="panel" aria-labelledby="controls-heading">
+  <h2 id="controls-heading" class="sr-only">Console controls</h2>
+  <div class="toolbar">
+    <button id="refresh-button" type="button">Refresh telemetry</button>
+    <button id="download-button" type="button" disabled>Download filtered evidence</button>
+    <span class="spacer"></span>
+    <small id="last-checked">Not checked yet</small>
+  </div>
 </section>
 
-<section class="panel">
-<h2>Health</h2>
-<div id="health"></div>
+<section class="panel" aria-labelledby="overview-heading">
+  <h2 id="overview-heading">Overview</h2>
+  <div id="overview" class="grid" aria-live="polite"><div class="empty">Loading telemetry...</div></div>
 </section>
 
-<section class="panel">
-<h2>Recent Alerts</h2>
-<div id="alerts"></div>
+<section class="panel" aria-labelledby="threat-heading">
+  <h2 id="threat-heading">Threat summary</h2>
+  <div id="threat-summary" class="grid"><div class="empty">Awaiting alert data...</div></div>
+  <div class="split" style="margin-top:14px">
+    <article class="card">
+      <h3>Top signatures</h3>
+      <div id="top-signatures" class="empty">No alert data</div>
+    </article>
+    <article class="card">
+      <h3>Top sources</h3>
+      <div id="top-sources" class="empty">No alert data</div>
+    </article>
+  </div>
 </section>
 
-<section class="panel">
-<h2>Validation & Advisories</h2>
-<div id="validation"></div>
-<div id="advisories"></div>
+<section class="panel" aria-labelledby="health-heading">
+  <h2 id="health-heading">Health</h2>
+  <div id="health"><div class="empty">Awaiting health data...</div></div>
 </section>
 
+<section class="panel" aria-labelledby="alerts-heading">
+  <h2 id="alerts-heading">Alert investigation</h2>
+  <div class="filter-grid">
+    <label><span>Search alert details</span><input id="alert-search" type="search" placeholder="Signature, source, destination, meaning..." autocomplete="off"></label>
+    <label><span>Risk</span><select id="risk-filter">
+      <option value="all">All risk levels</option>
+      <option value="critical">Critical</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+      <option value="info">Informational</option>
+      <option value="unknown">Unknown</option>
+    </select></label>
+    <label><span>Sort</span><select id="alert-sort">
+      <option value="risk-desc">Highest risk first</option>
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="signature">Signature A-Z</option>
+    </select></label>
+  </div>
+  <p id="alert-count" class="muted" aria-live="polite"></p>
+  <div id="alerts"><div class="empty">Awaiting alerts...</div></div>
+</section>
 
-<section class="panel">
-<h2>Maintenance</h2>
-<div class="grid">
-<div class="card good">
-<div class="label">Configuration Validation</div>
-<div class="value">Available</div>
+<section class="panel" aria-labelledby="validation-heading">
+  <h2 id="validation-heading">Validation evidence and advisories</h2>
+  <div class="split">
+    <div><h3>Validation evidence</h3><div id="validation"><div class="empty">No evidence loaded</div></div></div>
+    <div><h3>Advisories</h3><div id="advisories"><div class="empty">No advisories loaded</div></div></div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="boundary-heading">
+  <h2 id="boundary-heading">Maintenance boundary</h2>
+  <p class="notice">This console does not issue live IDS, firewall, DNS, or proxy changes.</p>
+  <div class="grid" style="margin-top:14px">
+    <div class="card good"><div class="label">Configuration validation</div><div class="value">Available</div><small>Read-only evidence may be displayed.</small></div>
+    <div class="card warning"><div class="label">Log rotation</div><div class="value">Locked</div><small>Separate authenticated authorization required.</small></div>
+    <div class="card warning"><div class="label">Rule reload</div><div class="value">Locked</div><small>Separate authenticated authorization required.</small></div>
+    <div class="card info"><div class="label">Browser actions</div><div class="value">Local only</div><small>No write path in this console; download creates a local evidence file.</small></div>
+  </div>
+</section>
 </div>
-
-<div class="card warning">
-<div class="label">Log Rotation</div>
-<div class="value">Locked</div>
-<small>Authorization required</small>
-</div>
-
-<div class="card warning">
-<div class="label">Rule Reload</div>
-<div class="value">Locked</div>
-<small>Authorization required</small>
-</div>
-</div>
-</section>
 
 <script>
-const esc=v=>String(v??"")
-.replaceAll("&","&amp;")
-.replaceAll("<","&lt;")
-.replaceAll(">","&gt;");
+"use strict";
 
-const bytes=v=>{
- const n=Number(v||0);
- if(n>1024**3)return (n/1024**3).toFixed(2)+" GB";
- if(n>1024**2)return (n/1024**2).toFixed(2)+" MB";
- return n+" bytes";
-};
+const ENDPOINT = "/edge1-status/security-operations.json";
+const REQUEST_TIMEOUT_MS = 10000;
+const STALE_AFTER_MS = 5 * 60 * 1000;
+const REFRESH_INTERVAL_MS = 60 * 1000;
 
-async function load(){
- const r=await fetch("/edge1-status/security-operations.json",{cache:"no-store"});
- const d=await r.json();
+const riskWeights = { critical: 5, high: 4, medium: 3, low: 2, info: 1, unknown: 0 };
+let latestSnapshot = null;
+let lastSuccessfulLoadAt = null;
+let requestInFlight = false;
 
- document.getElementById("overview").innerHTML=[
-  ["Available",d.available],
-  ["Version",d.engine?.version||"unknown"],
-  ["State",d.engine?.ActiveState||"unknown"],
-  ["Memory",bytes(d.engine?.MemoryCurrent)],
-  ["Log Size",bytes(d.logs?.size_bytes)],
-  ["Updated",new Date(d.generated_at).toLocaleString()]
- ].map(x=>`<div class="card">
- <div class="label">${esc(x[0])}</div>
- <div class="value">${esc(x[1])}</div>
- </div>`).join("");
+const byId = id => document.getElementById(id);
+const esc = value => String(value ?? "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
 
- document.getElementById("validation").innerHTML=
-(d.evidence||[]).map(e=>
-`<div class="card good">
-<strong>Validation Evidence</strong><br>
-${esc(e.file)}<br>
-<small>${esc(e.modified)}</small>
-</div>`).join("") || "No evidence available";
-
- document.getElementById("advisories").innerHTML=
-(d.advisories||[]).map(a=>
-`<div class="card warning">${esc(a)}</div>`).join("") || "No advisories";
-
- const h=d.health||{};
- document.getElementById("health").innerHTML=
- `<div class="card ${h.status==="warning"?"warning":"good"}">
- ${esc(h.status)}
- <br>${(h.warnings||[]).map(esc).join("<br>")}
- </div>`;
-
- document.getElementById("alerts").innerHTML=
- (d.recent_alerts||[]).map(a=>
- `<div class="alert">
- <strong>${esc(a.explanation?.title||a.signature)}</strong><br>
- <small>Risk: ${esc(a.explanation?.risk||"unknown")}</small><br>
- ${esc(a.explanation?.meaning||"")}<br>
- <small>${esc(a.source)} → ${esc(a.destination)}</small><br>
- <small>${esc(a.explanation?.recommendation||"")}</small>
- </div>`
- ).join("") || "No alerts";
-
+function formatBytes(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number < 0) return "unknown";
+  if (number >= 1024 ** 3) return `${(number / 1024 ** 3).toFixed(2)} GB`;
+  if (number >= 1024 ** 2) return `${(number / 1024 ** 2).toFixed(2)} MB`;
+  if (number >= 1024) return `${(number / 1024).toFixed(2)} KB`;
+  return `${number} bytes`;
 }
 
-load();
-setInterval(load,60000);
-</script>
+function parseDate(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
 
+function formatDate(value) {
+  const date = parseDate(value);
+  return date ? date.toLocaleString() : "unknown";
+}
+
+function normalizeRisk(alert) {
+  const raw = alert?.explanation?.risk ?? alert?.risk ?? alert?.severity ?? "unknown";
+  if (typeof raw === "number") {
+    if (raw >= 4) return "critical";
+    if (raw === 3) return "high";
+    if (raw === 2) return "medium";
+    if (raw === 1) return "low";
+  }
+  const text = String(raw).trim().toLowerCase();
+  if (["critical", "severe"].includes(text)) return "critical";
+  if (["high", "major"].includes(text)) return "high";
+  if (["medium", "moderate", "warning"].includes(text)) return "medium";
+  if (["low", "minor"].includes(text)) return "low";
+  if (["info", "informational", "notice"].includes(text)) return "info";
+  return "unknown";
+}
+
+function alertSignature(alert) {
+  return String(alert?.explanation?.title || alert?.signature || alert?.alert?.signature || "Unknown signature");
+}
+
+function alertSource(alert) {
+  return String(alert?.source || alert?.src_ip || alert?.source_ip || "unknown");
+}
+
+function alertDestination(alert) {
+  return String(alert?.destination || alert?.dest_ip || alert?.destination_ip || "unknown");
+}
+
+function alertTimestamp(alert) {
+  return alert?.timestamp || alert?.event_time || alert?.time || alert?.created_at || null;
+}
+
+function alertSearchText(alert) {
+  return [
+    alertSignature(alert), alertSource(alert), alertDestination(alert),
+    alert?.explanation?.meaning, alert?.explanation?.recommendation,
+    alert?.category, alert?.protocol
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function allAlerts() {
+  return Array.isArray(latestSnapshot?.recent_alerts) ? latestSnapshot.recent_alerts : [];
+}
+
+function filteredAlerts() {
+  const query = byId("alert-search").value.trim().toLowerCase();
+  const risk = byId("risk-filter").value;
+  const sort = byId("alert-sort").value;
+  const rows = allAlerts().filter(alert => {
+    const riskMatches = risk === "all" || normalizeRisk(alert) === risk;
+    const queryMatches = !query || alertSearchText(alert).includes(query);
+    return riskMatches && queryMatches;
+  });
+
+  rows.sort((left, right) => {
+    if (sort === "signature") return alertSignature(left).localeCompare(alertSignature(right));
+    const leftTime = parseDate(alertTimestamp(left))?.getTime() || 0;
+    const rightTime = parseDate(alertTimestamp(right))?.getTime() || 0;
+    if (sort === "newest") return rightTime - leftTime;
+    if (sort === "oldest") return leftTime - rightTime;
+    const riskDifference = riskWeights[normalizeRisk(right)] - riskWeights[normalizeRisk(left)];
+    return riskDifference || rightTime - leftTime;
+  });
+  return rows;
+}
+
+function countBy(rows, keyFunction) {
+  const counts = new Map();
+  rows.forEach(row => {
+    const key = keyFunction(row);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function renderRankList(targetId, rows, emptyText) {
+  byId(targetId).innerHTML = rows.length
+    ? `<ol class="rank-list">${rows.slice(0, 8).map(([name, count]) => `<li><span>${esc(name)}</span><strong>${count}</strong></li>`).join("")}</ol>`
+    : `<div class="empty">${esc(emptyText)}</div>`;
+}
+
+function renderOverview() {
+  const data = latestSnapshot || {};
+  const engine = data.engine || {};
+  const logs = data.logs || {};
+  const cards = [
+    ["Telemetry available", data.available === true ? "Yes" : "No", data.available === true ? "good" : "bad"],
+    ["Suricata version", engine.version || "unknown", "info"],
+    ["Service state", engine.ActiveState || engine.active_state || "unknown", String(engine.ActiveState || "").toLowerCase() === "active" ? "good" : "warning"],
+    ["Memory", formatBytes(engine.MemoryCurrent || engine.memory_current), "info"],
+    ["EVE log size", formatBytes(logs.size_bytes), "info"],
+    ["Recent alerts", allAlerts().length, allAlerts().length ? "warning" : "good"],
+    ["Snapshot generated", formatDate(data.generated_at), "info"],
+  ];
+  byId("overview").innerHTML = cards.map(([label, value, state]) =>
+    `<div class="card ${state}"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`
+  ).join("");
+}
+
+function renderThreatSummary() {
+  const rows = allAlerts();
+  const risks = Object.fromEntries(Object.keys(riskWeights).map(key => [key, 0]));
+  rows.forEach(alert => { risks[normalizeRisk(alert)] += 1; });
+  const uniqueSignatures = new Set(rows.map(alertSignature)).size;
+  const uniqueSources = new Set(rows.map(alertSource).filter(value => value !== "unknown")).size;
+  const summary = [
+    ["Critical / high", risks.critical + risks.high, (risks.critical + risks.high) ? "bad" : "good"],
+    ["Medium", risks.medium, risks.medium ? "warning" : "good"],
+    ["Low / informational", risks.low + risks.info, "info"],
+    ["Unique signatures", uniqueSignatures, "info"],
+    ["Unique sources", uniqueSources, "info"],
+    ["Unknown risk", risks.unknown, risks.unknown ? "warning" : "good"],
+  ];
+  byId("threat-summary").innerHTML = summary.map(([label, value, state]) =>
+    `<div class="card ${state}"><div class="label">${esc(label)}</div><div class="value">${value}</div></div>`
+  ).join("");
+  renderRankList("top-signatures", countBy(rows, alertSignature), "No signatures reported");
+  renderRankList("top-sources", countBy(rows, alertSource), "No sources reported");
+}
+
+function renderHealth() {
+  const health = latestSnapshot?.health || {};
+  const status = String(health.status || "unknown").toLowerCase();
+  const stateClass = ["healthy", "ok", "good"].includes(status) ? "good" : status === "critical" || status === "error" ? "bad" : "warning";
+  const warnings = Array.isArray(health.warnings) ? health.warnings : [];
+  byId("health").innerHTML = `<div class="card ${stateClass}"><div class="label">Current health</div><div class="value">${esc(status)}</div>${warnings.length ? `<ul>${warnings.map(item => `<li>${esc(item)}</li>`).join("")}</ul>` : `<p class="muted">No health warnings reported.</p>`}</div>`;
+}
+
+function renderAlerts() {
+  const rows = filteredAlerts();
+  byId("alert-count").textContent = `Showing ${rows.length} of ${allAlerts().length} alerts.`;
+  byId("alerts").innerHTML = rows.length ? rows.map(alert => {
+    const risk = normalizeRisk(alert);
+    const meaning = alert?.explanation?.meaning || "No interpretation supplied.";
+    const recommendation = alert?.explanation?.recommendation || "Review related telemetry and validation evidence.";
+    return `<article class="alert risk-${esc(risk)}">
+      <div class="alert-head"><strong>${esc(alertSignature(alert))}</strong><span class="badge">${esc(risk)}</span></div>
+      <div class="alert-meta">
+        <span>${esc(alertSource(alert))} &rarr; ${esc(alertDestination(alert))}</span>
+        <span>${esc(formatDate(alertTimestamp(alert)))}</span>
+      </div>
+      <div>${esc(meaning)}</div>
+      <small>Recommendation: ${esc(recommendation)}</small>
+    </article>`;
+  }).join("") : `<div class="empty">No alerts match the current filters.</div>`;
+  byId("download-button").disabled = !latestSnapshot;
+}
+
+function renderEvidence() {
+  const evidence = Array.isArray(latestSnapshot?.evidence) ? latestSnapshot.evidence : [];
+  const advisories = Array.isArray(latestSnapshot?.advisories) ? latestSnapshot.advisories : [];
+  byId("validation").innerHTML = evidence.length ? evidence.map(item =>
+    `<div class="card good"><strong>${esc(item.file || "Validation evidence")}</strong><br><small>Modified: ${esc(formatDate(item.modified))}</small></div>`
+  ).join("") : `<div class="empty">No validation evidence available.</div>`;
+  byId("advisories").innerHTML = advisories.length ? advisories.map(item =>
+    `<div class="notice warning">${esc(item)}</div>`
+  ).join("") : `<div class="empty">No advisories reported.</div>`;
+}
+
+function renderAll() {
+  renderOverview();
+  renderThreatSummary();
+  renderHealth();
+  renderAlerts();
+  renderEvidence();
+  updateFreshness();
+}
+
+function setConnectionStatus(text, state) {
+  const element = byId("connection-status");
+  element.textContent = text;
+  element.className = `status ${state || ""}`.trim();
+}
+
+function updateFreshness() {
+  const generatedAt = parseDate(latestSnapshot?.generated_at);
+  const element = byId("freshness");
+  if (!generatedAt) {
+    element.textContent = "Snapshot time unknown";
+    element.className = "status warning";
+    return;
+  }
+  const ageMs = Date.now() - generatedAt.getTime();
+  const stale = ageMs > STALE_AFTER_MS;
+  const ageMinutes = Math.max(0, Math.round(ageMs / 60000));
+  element.textContent = stale ? `Stale: ${ageMinutes} min old` : `Fresh: ${ageMinutes} min old`;
+  element.className = `status ${stale ? "warning" : "good"}`;
+}
+
+function showError(message, severity = "bad") {
+  const banner = byId("error-banner");
+  banner.className = `panel error-banner visible ${severity}`;
+  banner.textContent = message;
+}
+
+function clearError() {
+  const banner = byId("error-banner");
+  banner.className = "panel error-banner";
+  banner.textContent = "";
+}
+
+async function loadTelemetry() {
+  if (requestInFlight) return;
+  requestInFlight = true;
+  byId("refresh-button").disabled = true;
+  setConnectionStatus("Refreshing", "warning");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(ENDPOINT, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid telemetry document");
+    latestSnapshot = data;
+    lastSuccessfulLoadAt = new Date();
+    clearError();
+    setConnectionStatus("Connected", "good");
+    byId("last-checked").textContent = `Last checked: ${lastSuccessfulLoadAt.toLocaleString()}`;
+    renderAll();
+  } catch (error) {
+    const detail = error?.name === "AbortError" ? "request timed out" : String(error?.message || error);
+    if (latestSnapshot) {
+      setConnectionStatus("Refresh failed", "warning");
+      showError(`Telemetry refresh failed; showing last successful snapshot: ${detail}`, "warning");
+      updateFreshness();
+    } else {
+      setConnectionStatus("Disconnected", "bad");
+      showError(`Unable to load security telemetry: ${detail}`, "bad");
+      byId("overview").innerHTML = `<div class="card bad">No telemetry snapshot is available.</div>`;
+    }
+  } finally {
+    clearTimeout(timeout);
+    requestInFlight = false;
+    byId("refresh-button").disabled = false;
+  }
+}
+
+function downloadEvidence() {
+  if (!latestSnapshot) return;
+  const payload = {
+    exported_at: new Date().toISOString(),
+    snapshot_generated_at: latestSnapshot.generated_at || null,
+    read_only: true,
+    filters: {
+      search: byId("alert-search").value,
+      risk: byId("risk-filter").value,
+      sort: byId("alert-sort").value,
+    },
+    alert_count: filteredAlerts().length,
+    alerts: filteredAlerts(),
+    health: latestSnapshot.health || {},
+    evidence: latestSnapshot.evidence || [],
+    advisories: latestSnapshot.advisories || [],
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `wwcx-security-evidence-${new Date().toISOString().replaceAll(":", "-")}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+byId("refresh-button").addEventListener("click", loadTelemetry);
+byId("download-button").addEventListener("click", downloadEvidence);
+["alert-search", "risk-filter", "alert-sort"].forEach(id => byId(id).addEventListener("input", renderAlerts));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && (!lastSuccessfulLoadAt || Date.now() - lastSuccessfulLoadAt.getTime() > REFRESH_INTERVAL_MS)) {
+    loadTelemetry();
+  }
+});
+
+loadTelemetry();
+setInterval(loadTelemetry, REFRESH_INTERVAL_MS);
+setInterval(updateFreshness, 10000);
+</script>
 </body>
 </html>
