@@ -1,0 +1,240 @@
+{
+  "contract": "wwcx.edge1-restricted-artifact-migration-manifest.v1",
+  "status": "design_only",
+  "enabled": false,
+  "staging_authorized": false,
+  "cutover_authorized": false,
+  "deletion_authorized": false,
+  "source_public_root": "/var/www/edge1-status",
+  "source_route_root": "/edge1-status/",
+  "target_release_root": "/var/lib/wwcx-edge1-ops/releases",
+  "target_route_root": "/edge1-ops/",
+  "hash_algorithm": "sha256",
+  "unknown_artifact_action": "preserve_review",
+  "duplicate_target_action": "block",
+  "missing_known_action": "report",
+  "source_mutation_allowed": false,
+  "repository_evidence": {
+    "operations_center_source": "src/web/operations-center/index.html",
+    "operations_center_publish_script": "deploy/operations-center/publish.sh",
+    "operations_center_documentation": "docs/operations-center/README.md",
+    "inventory_scope": "repository_declared_only",
+    "fresh_live_inventory_required": true
+  },
+  "known_exact_artifacts": [
+    {
+      "source_relative": "index.html",
+      "target_relative": "index.html",
+      "classification": "restricted_operations_landing",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "src/web/operations-center/index.html"
+    },
+    {
+      "source_relative": "daily-summary.html",
+      "target_relative": "reports/daily-summary.html",
+      "classification": "restricted_evidence_and_reports",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": null
+    },
+    {
+      "source_relative": "security/index.html",
+      "target_relative": "security/index.html",
+      "classification": "restricted_security_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "src/web/security/index.html"
+    },
+    {
+      "source_relative": "security/correlation.html",
+      "target_relative": "security/correlation.html",
+      "classification": "restricted_security_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "src/web/security/correlation.html"
+    },
+    {
+      "source_relative": "network-defense/index.html",
+      "target_relative": "network-defense/index.html",
+      "classification": "restricted_network_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "src/web/network-defense/index.html"
+    },
+    {
+      "source_relative": "mining/index.html",
+      "target_relative": "mining/index.html",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "src/web/mining/index.html"
+    },
+    {
+      "source_relative": "security-operations.json",
+      "target_relative": "data/security/security-operations.json",
+      "classification": "restricted_security_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/security_operations_exporter.py"
+    },
+    {
+      "source_relative": "bitcoin-wallet.json",
+      "target_relative": "data/bitcoin/bitcoin-wallet.json",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/electrum_wallet_status_exporter.py"
+    },
+    {
+      "source_relative": "bitcoin-mining.json",
+      "target_relative": "data/mining/bitcoin-mining.json",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/bitcoin_mining_readiness_exporter.py"
+    },
+    {
+      "source_relative": "operations-health.json",
+      "target_relative": "data/operations/operations-health.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_health_exporter.py"
+    },
+    {
+      "source_relative": "operations-timeline.json",
+      "target_relative": "data/operations/operations-timeline.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_timeline_exporter.py"
+    },
+    {
+      "source_relative": "daily-summary.json",
+      "target_relative": "data/operations/daily-summary.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_daily_summary_exporter.py"
+    },
+    {
+      "source_relative": "operations-automation.json",
+      "target_relative": "data/operations/operations-automation.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_automation_health_exporter.py"
+    },
+    {
+      "source_relative": "operations-correlation.json",
+      "target_relative": "data/operations/operations-correlation.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_correlation_exporter.py"
+    },
+    {
+      "source_relative": "reports/index.json",
+      "target_relative": "reports/index.json",
+      "classification": "restricted_evidence_and_reports",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_report_index_exporter.py"
+    },
+    {
+      "source_relative": "operations-version.json",
+      "target_relative": "data/operations/operations-version.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_version_exporter.py"
+    },
+    {
+      "source_relative": "operations-inventory.json",
+      "target_relative": "data/operations/operations-inventory.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_inventory_exporter.py"
+    },
+    {
+      "source_relative": "operations-network.json",
+      "target_relative": "data/operations/operations-network.json",
+      "classification": "restricted_network_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_network_exporter.py"
+    },
+    {
+      "source_relative": "operations-telephony.json",
+      "target_relative": "data/operations/operations-telephony.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_telephony_exporter.py"
+    },
+    {
+      "source_relative": "operations-messaging.json",
+      "target_relative": "data/operations/operations-messaging.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_messaging_exporter.py"
+    },
+    {
+      "source_relative": "operations-carrier.json",
+      "target_relative": "data/operations/operations-carrier.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_carrier_exporter.py"
+    },
+    {
+      "source_relative": "operations-incidents.json",
+      "target_relative": "data/operations/operations-incidents.json",
+      "classification": "restricted_evidence_and_reports",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_incident_exporter.py"
+    },
+    {
+      "source_relative": "operations-incident-history.json",
+      "target_relative": "data/operations/operations-incident-history.json",
+      "classification": "restricted_evidence_and_reports",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_incident_history_exporter.py"
+    }
+  ],
+  "known_prefix_groups": [
+    {
+      "source_prefix": "security/",
+      "target_prefix": "security/",
+      "classification": "restricted_security_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "live_enumeration_required": true
+    },
+    {
+      "source_prefix": "network-defense/",
+      "target_prefix": "network-defense/",
+      "classification": "restricted_network_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "live_enumeration_required": true
+    },
+    {
+      "source_prefix": "bitcoin/",
+      "target_prefix": "bitcoin/",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "live_enumeration_required": true
+    },
+    {
+      "source_prefix": "mining/",
+      "target_prefix": "mining/",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "live_enumeration_required": true
+    },
+    {
+      "source_prefix": "reports/",
+      "target_prefix": "reports/",
+      "classification": "restricted_evidence_and_reports",
+      "required_scopes": ["edge1.status.detail.read"],
+      "live_enumeration_required": true
+    }
+  ],
+  "acceptance": {
+    "fresh_live_route_inventory_required": true,
+    "fresh_live_filesystem_inventory_required": true,
+    "sha256_inventory_required": true,
+    "source_backup_required": true,
+    "target_release_validation_required": true,
+    "authorized_route_matrix_required": true,
+    "unauthorized_route_matrix_required": true,
+    "unknown_artifacts_preserved": true,
+    "duplicate_targets_blocked": true,
+    "source_tree_unchanged": true,
+    "public_cutover_performed": false,
+    "detailed_artifacts_removed": false,
+    "traffic_controls_changed": false,
+    "live_change_authorized": false
+  }
+}
