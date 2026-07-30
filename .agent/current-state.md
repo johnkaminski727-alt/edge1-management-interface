@@ -4,7 +4,8 @@ Last verified: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Public-summary staging repository merge: `86a906a536bbb785d47e249615d9c22e411d2ac3`
+Latest completed repository merge: `0a09c8894ed6669e3a7fdf15b3f173bdbfa2caa7`  
+Active repository branch: `design/edge1-authenticated-ops-browser-session-20260730`
 
 ## Verified live baseline
 
@@ -25,45 +26,42 @@ Protected live evidence:
 
 ## Completed repository programs
 
-- Protected Suricata retention runtime merged through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`; closeout merged through PR #139 as `4b14a3c513dd7878c0d8c2ee4fa751f292e7bb6a`.
-- Minimized public-summary route correction merged through PR #140 as `4fc5d765805b86be8ddee58f08c2676116517cbb`.
-- Strict CSP correction merged through PR #141 as `feb771b6ab53ed9547fec81dbaea964a0246f27d`.
-- Disabled public-summary staging runtime merged through PR #144 as `86a906a536bbb785d47e249615d9c22e411d2ac3`.
+- Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
+- Minimized public-summary route and strict CSP corrections merged through PRs #140 and #141.
+- Disabled public-summary staging runtime and closeout merged through PRs #144 and #145; authoritative repository closeout is `0a09c8894ed6669e3a7fdf15b3f173bdbfa2caa7`.
 
-## Public summary staging runtime
+## Authenticated detailed-operations boundary phase
 
-The repository-only implementation is complete.
+A repository-only design is in progress on `design/edge1-authenticated-ops-browser-session-20260730`.
 
 Implemented:
 
-- disabled staging policy and JSON schema;
-- fail-closed release builder using only the three sanitized source snapshots;
-- exact four-file public release allowlist;
-- immutable release directories and atomic `current` symlink selection;
-- SHA-256 metadata outside the public release with `0700`/`0600` protection;
-- hardened proposed oneshot and 60-second timer;
-- explicitly non-active Apache alias/header proposal;
-- temporary-directory functional, privacy, permissions, systemd, and Apache contract tests;
+- disabled `/edge1-ops/` browser/session policy and critical JSON schema;
+- OpenID Connect authorization-code plus PKCE design with external provider and secret paths;
+- server-side opaque-session, secure cookie, idle/absolute timeout, rotation, and logout requirements;
+- exact registered route and scope matrix;
+- pure fail-closed path, identity, authorization, rate-limit, and redacted-audit evaluator;
+- explicit 404, 401, 403, 405, and 429 contracts;
+- strict restricted-response headers and no-CORS policy;
+- credential-free Apache `.design` file with unconditional deny gates;
+- policy drift, path ambiguity, session, scope, audit privacy, and static boundary tests;
 - architecture and audit register.
 
-PR #144 exact head `422f01c122dd7b982cefd1943f507f71e9f59de9` passed:
+The committed policy remains `design_only`, disabled, deployment unauthorized, authentication-change unauthorized, live-route unauthorized, provider unselected, and Apache adapter unverified.
 
-- `Validate repository` run 649;
-- `Edge1 Operator Validation` run 481.
+No provider, client identifier, client secret, token, cookie, session store, audit file, listener, Apache include, route, authentication rule, user/group, or `/var/www` file has been created or changed.
 
-The branch was zero commits behind `main`, mergeable, and had no review threads before merge.
-
-The committed policy remains `design_only`, `enabled:false`, `deployment_authorized:false`, and `live_publication_authorized:false`.
-
-No installer or activation script is included. No Edge1 staging root, unit, timer, Apache include, route, listener, public artifact, or `/var/www` file has been created or changed.
+Exact-head CI and final PR review are pending.
 
 ## Remaining separately authorized programs
 
-- fresh authenticated Edge1 boundary inventory and separately authorized staging installation;
-- authenticated detailed-operations browser/session boundary;
+- complete exact-head validation and merge for the repository-only authenticated boundary design;
+- fresh authenticated Edge1 Apache, route, module, filesystem, listener, provider, session-store, audit, and rate-limit inventory;
+- separately authorized provider/session implementation and restricted-route staging;
+- separately authorized public-summary staging installation;
 - separately authorized public cutover and detailed-artifact removal;
 - separately authorized protected-retention installation and live acceptance.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables rules, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public routes, production traffic, timer scheduling, `/var/www` publication, release pruning, or data deletion changed.
+No DNS, Unbound, RPZ, nftables rules, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public or restricted routes, production traffic, timer scheduling, `/var/www` publication, release pruning, or data deletion changed.
