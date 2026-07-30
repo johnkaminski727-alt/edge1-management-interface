@@ -1,0 +1,26 @@
+[Unit]
+Description=WW.CX read-only nftables aggregate live-state verifier
+After=network-online.target nftables.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/nftables_live_state_verifier.py --output /var/lib/bigbird-networking/nftables/live-state.json
+UMask=0027
+ReadWritePaths=/var/lib/bigbird-networking/nftables
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+SystemCallArchitectures=native
