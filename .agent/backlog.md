@@ -4,88 +4,55 @@
 
 - [x] Security Correlation and Network Defense deployed and accepted.
 - [x] Suricata drill-down, caching, normalization, and enrichment deployed.
-- [x] Spamhaus, Fail2ban, and nftables truthful live states accepted.
-- [x] DNS remains `not_staged`; DNS enforcement remains false.
 - [x] Network Defense freshness threshold activated and accepted at `600` seconds.
 - [x] Verified enforcement count remained `1` before and after activation.
+- [x] DNS remains `not_staged`; DNS enforcement remains false.
 - [x] Timer state and traffic controls remained unchanged.
 
 ## Completed repository phases
 
-- [x] Network Defense freshness implementation and closeout through PR #127.
-- [x] Protected Suricata retention design and closeout through PR #129.
-- [x] Public access-boundary design and closeout through PR #131.
-- [x] Minimized public summary implementation and closeout through PR #133.
-- [x] Edge1 project completion operator bundle merged through PR #134.
-- [x] Runtime-wiring validation corrected through PR #136 and merged as `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
-- [x] Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
-- [x] Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
-- [x] Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
-- [x] Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147 as `a8af7fa77d9eb81ecd69d22e9d314de478975d66`.
-- [x] Restricted-artifact migration manifest merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
+- [x] Protected Suricata retention runtime and closeout through PRs #138-139.
+- [x] Minimized public-summary route, CSP, staging runtime, and closeout through PRs #140-145.
+- [x] Authenticated detailed-operations browser/session boundary and closeout through PRs #146-147.
+- [x] Restricted-artifact migration manifest and closeout through PRs #148-149.
+- [x] Latest repository closeout `d236219067c78c584b06c11a5612c5ed28ef72fb`.
 
-## Completed authenticated host sequence
+## Security-boundary live inventory bundle
 
-- [x] Establish authenticated SSH access to `edge1.ww.cx` as `wwadmin` without sharing credentials.
-- [x] Fast-forward clean `/opt/edge1-management-interface` checkout to authoritative `main`.
-- [x] Run the read-only project completion preflight.
-- [x] Capture protected preflight evidence at `/var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/20260730T193415Z`.
-- [x] Safely stop the first freshness activation during pre-mutation validation.
-- [x] Pull the PR #136 correction and run bounded freshness activation successfully.
-- [x] Capture protected activation evidence at `/var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z`.
+- [x] Record the exact four-program authorization and immutable guardrails without secrets.
+- [x] Add clean-`main`, root, command, and authorization preflight gates.
+- [x] Capture host, principal, capacity, repository revision, listeners, and relevant service state.
+- [x] Capture redacted unit definitions and Apache syntax/vhost/module readiness.
+- [x] Hash Apache configuration without copying configuration contents.
+- [x] Generate exact JSON path/SHA-256/mode/byte inventory for the detailed public tree.
+- [x] Report symlink and non-regular-file anomalies.
+- [x] Reconcile live inventory against the merged migration manifest and access policy.
+- [x] Preserve unknown artifacts for review and report missing known artifacts.
+- [x] Capture anonymous local/public route and security-header matrices without credentials or cookie values.
+- [x] Capture metadata-only candidate-root, audit-log, and retention-tree inventories.
+- [x] Add evidence redactor and synthetic functional/static safety tests.
+- [x] Add operator runbook, audit register, and continuity records.
+- [ ] Pass exact-head `Validate repository`.
+- [ ] Pass exact-head `Edge1 Operator Validation`.
+- [ ] Confirm changed-file scope, zero-behind state, mergeability, and no unresolved review threads.
+- [ ] Merge the repository bundle and close records.
+- [ ] Run the merged script through an approved authenticated Edge1 path.
+- [ ] Record the exact protected evidence directory and reconciliation counts.
 
-## Protected Suricata retention runtime
+## Post-inventory implementation sequence
 
-- [x] Add fail-closed runtime, hardened proposed units, tests, and register.
-- [x] Pass exact-head workflows and merge through PR #138; close through PR #139.
-- [ ] Design a separate bounded installer and live acceptance only after exact authorization.
+- [ ] Reconcile every unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifact.
+- [ ] Verify an actually available approved identity provider and Apache adapter without placing secrets in Git or chat.
+- [ ] Build a restricted release without changing the source tree.
+- [ ] Stage and accept authenticated `/edge1-ops/` before anonymous withdrawal.
+- [ ] Install and accept minimized public-summary staging.
+- [ ] Install and accept protected Suricata retention.
+- [ ] Archive the detailed public tree and perform the minimized public cutover only after authenticated equivalence succeeds.
+- [ ] Confirm anonymous detailed routes are withdrawn, authenticated routes remain functional, listeners remain unchanged, and rollback is not required.
 
-## Minimized public summary staging runtime
+## Hard boundaries
 
-- [x] Reconcile the canonical route and strict CSP.
-- [x] Add disabled policy, immutable release builder, SHA-256 metadata, proposed units, strict Apache proposal, tests, and records.
-- [x] Pass exact-head workflows and merge through PR #144; close through PR #145.
-- [ ] Re-run fresh authenticated Edge1 boundary inventory before any staging installation.
-- [ ] Design a bounded installer and staging acceptance only after exact authorization.
-
-## Authenticated detailed-operations browser/session boundary
-
-- [x] Add disabled policy, OIDC/session requirements, exact routes/scopes, pure evaluator, denied Apache design, tests, and records.
-- [x] Pass exact-head workflows and merge through PR #146; close through PR #147.
-- [ ] Run a fresh authenticated Edge1 module, route, provider, session-store, audit, and rate-limit inventory.
-- [ ] Select and verify an identity provider and Apache adapter under separate authorization.
-- [ ] Implement and stage the restricted session boundary only after exact authorization.
-
-## Restricted artifact migration manifest
-
-- [x] Inventory repository-declared detailed Operations Center pages and feeds.
-- [x] Add a disabled exact source-to-target manifest.
-- [x] Record 23 exact artifacts and five live-enumerated prefix groups.
-- [x] Validate every target against the registered restricted routes and general detail scope.
-- [x] Add a read-only SHA-256 inventory reconciler.
-- [x] Preserve unknown artifacts for review, report missing known files, and block target collisions.
-- [x] Keep staging, cutover, deletion, and source mutation disabled.
-- [x] Add synthetic coverage, mapping, metadata, privacy, and non-mutation tests.
-- [x] Add architecture and audit records.
-- [x] Pass exact-head `Validate repository` run 657.
-- [x] Pass exact-head `Edge1 Operator Validation` run 489.
-- [x] Confirm eight changed files, zero-behind state, mergeability, and zero unresolved review threads.
-- [x] Merge repository-only migration design through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
-- [ ] Run a fresh authenticated live filesystem, route, publisher, service, and SHA-256 inventory.
-- [ ] Reconcile all unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts.
-
-## Separate future program
-
-- [ ] staged public-boundary cutover and detailed-artifact removal.
-
-## Exact authorization still required
-
-- production Suricata-history database creation, unit installation, timer enablement, or ingestion;
-- public-summary staging-root creation, unit installation, timer enablement, or service invocation on Edge1;
-- identity-provider registration, credentials, client secrets, user/group/scope mapping, session-store creation, or authentication changes;
-- restricted release creation or source-tree copying on Edge1;
-- `/var/www` publication or removal;
-- Apache/proxy/auth/header reload or route changes;
-- certificate, listener, DNS, firewall, or traffic changes;
-- public or production cutover;
-- deletion or pruning of retained status, releases, reports, incidents, history, audit, or evidence.
+- Never place credentials, client secrets, password hashes, tokens, cookies, private keys, or raw alert contents in Git or evidence.
+- Never modify DNS, Unbound, RPZ, nftables, firewall rules, routing, IDS rules, reputation lists, certificates, or production traffic under this program.
+- Never delete retained status, releases, reports, incidents, history, audit, or deployment evidence.
+- Roll back immediately if authentication, route isolation, public minimization, service health, data integrity, or listener equivalence fails.

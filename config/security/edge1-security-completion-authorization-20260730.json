@@ -1,0 +1,35 @@
+{
+  "contract": "wwcx.edge1-security-completion-authorization.v1",
+  "authorized_at": "2026-07-30T20:00:00Z",
+  "authorization_source": "Edge1 Security Completion Programs authorized handoff",
+  "repository": "johnkaminski727-alt/edge1-management-interface",
+  "authoritative_branch": "main",
+  "accepted_live_revision": "a06f035e7fcf933a03ec752c66ce0261c5a65ba7",
+  "programs": {
+    "protected_suricata_retention_runtime": true,
+    "minimized_public_status_publication": true,
+    "authenticated_detailed_operations_boundary": true,
+    "staged_public_boundary_cutover": true
+  },
+  "authorized_actions": {
+    "read_only_live_inventory": true,
+    "bounded_reversible_installation": true,
+    "bounded_reversible_production_deployment": true,
+    "protected_evidence_capture": true,
+    "rollback_on_acceptance_failure": true
+  },
+  "guardrails": {
+    "dns_enforcement_change": false,
+    "unbound_or_rpz_change": false,
+    "firewall_or_nftables_change": false,
+    "routing_change": false,
+    "ids_rule_change": false,
+    "reputation_list_change": false,
+    "new_public_listener": false,
+    "credential_material_in_repository": false,
+    "raw_alert_publication": false,
+    "retained_evidence_deletion": false,
+    "archive_before_withdrawal": true,
+    "authenticated_equivalence_before_cutover": true
+  }
+}
