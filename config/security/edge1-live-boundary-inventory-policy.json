@@ -1,0 +1,132 @@
+{
+  "contract": "wwcx.edge1-live-boundary-inventory-policy.v1",
+  "status": "design_only",
+  "enabled": false,
+  "execution_authorized": false,
+  "expected_hostnames": ["edge1", "edge1.ww.cx"],
+  "repository_root": "/opt/edge1-management-interface",
+  "filesystem_roots": [
+    "/var/www/edge1-status",
+    "/var/lib/wwcx-public-summary",
+    "/var/lib/wwcx-edge1-ops"
+  ],
+  "metadata_only_paths": [
+    "/etc/wwcx-edge1-ops",
+    "/etc/wwcx-edge1-ops/oidc.json",
+    "/etc/wwcx-edge1-ops/client-secret"
+  ],
+  "apache_config_root": "/etc/apache2",
+  "route_host": "edge1.ww.cx",
+  "route_paths": [
+    "/edge1-status/",
+    "/edge1-status/public/status.json",
+    "/edge1-status/security-operations.json",
+    "/edge1-status/network-defense/",
+    "/edge1-status/bitcoin/",
+    "/edge1-status/mining/",
+    "/edge1-status/reports/index.json",
+    "/edge1-ops/",
+    "/edge1-ops/security/",
+    "/edge1-ops/security/history/",
+    "/edge1-ops/api/v1/security/suricata/history",
+    "/edge1-ops/network-defense/",
+    "/edge1-ops/data/"
+  ],
+  "units": [
+    "apache2.service",
+    "suricata.service",
+    "wwcx-security-operations.service",
+    "wwcx-security-operations.timer",
+    "wwcx-network-defense.service",
+    "wwcx-network-defense.timer",
+    "wwcx-operations-health.service",
+    "wwcx-operations-health.timer",
+    "wwcx-suricata-protected-retention.service",
+    "wwcx-suricata-protected-retention.timer",
+    "wwcx-edge1-public-summary-stager.service",
+    "wwcx-edge1-public-summary-stager.timer",
+    "edge1-operations-api.service"
+  ],
+  "command_candidates": {
+    "git": ["/usr/bin/git"],
+    "apachectl": ["/usr/sbin/apache2ctl", "/usr/sbin/apachectl"],
+    "systemctl": ["/usr/bin/systemctl", "/bin/systemctl"],
+    "ss": ["/usr/bin/ss", "/usr/sbin/ss"],
+    "dpkg_query": ["/usr/bin/dpkg-query"],
+    "curl": ["/usr/bin/curl"]
+  },
+  "limits": {
+    "command_timeout_seconds": 20,
+    "maximum_command_output_bytes": 1048576,
+    "maximum_files": 10000,
+    "maximum_total_file_bytes": 5368709120,
+    "maximum_single_file_bytes": 536870912,
+    "maximum_apache_config_files": 2000,
+    "maximum_apache_config_bytes": 16777216
+  },
+  "route_probe": {
+    "local_loopback": true,
+    "public_network": true,
+    "method": "HEAD",
+    "maximum_redirects": 0,
+    "timeout_seconds": 10,
+    "capture_body": false,
+    "capture_set_cookie_values": false,
+    "capture_location_query": false
+  },
+  "apache_directives": {
+    "allowed_names": [
+      "Alias",
+      "AliasMatch",
+      "ProxyPass",
+      "ProxyPassMatch",
+      "ProxyPassReverse",
+      "AuthType",
+      "AuthName",
+      "Require",
+      "Header",
+      "Options",
+      "AllowOverride",
+      "DirectoryIndex",
+      "Redirect",
+      "RedirectMatch",
+      "OIDCRedirectURI",
+      "OIDCProviderMetadataURL",
+      "OIDCClientID",
+      "OIDCSessionType",
+      "OIDCSessionInactivityTimeout",
+      "OIDCSessionMaxDuration"
+    ],
+    "sensitive_name_fragments": [
+      "secret",
+      "password",
+      "passphrase",
+      "privatekey",
+      "token"
+    ]
+  },
+  "output": {
+    "stdout_only": true,
+    "format": "json",
+    "secret_contents": false,
+    "raw_cookie_values": false,
+    "raw_token_values": false,
+    "raw_location_queries": false
+  },
+  "acceptance": {
+    "read_only_commands_only": true,
+    "filesystem_follow_symlinks": false,
+    "sha256_regular_files": true,
+    "metadata_only_secret_paths": true,
+    "no_output_file": true,
+    "no_configuration_change": true,
+    "no_service_change": true,
+    "no_listener_change": true,
+    "no_route_change": true,
+    "no_authentication_change": true,
+    "no_traffic_change": true,
+    "mutation_performed": false,
+    "traffic_controls_changed": false,
+    "live_execution_authorized": false
+  }
+}
