@@ -4,8 +4,7 @@ Date: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Latest repository closeout: `d236219067c78c584b06c11a5612c5ed28ef72fb`  
-Active branch: `ops/edge1-security-boundary-live-inventory-20260730`
+Latest repository implementation merge: `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`
 
 ## Accepted live baseline
 
@@ -23,13 +22,28 @@ Protected evidence:
 - protected Suricata retention runtime and closeout: PRs #138-139;
 - minimized public-summary route, CSP, staging runtime, and closeout: PRs #140-145;
 - authenticated detailed-operations boundary and closeout: PRs #146-147;
-- restricted-artifact migration manifest and closeout: PRs #148-149.
+- restricted-artifact migration manifest and closeout: PRs #148-149;
+- security-boundary live inventory bundle: PR #151, merged as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 
 No public-summary staging, authenticated restricted route, restricted release, migration, public cutover, detailed-artifact removal, or protected-retention installation has occurred on Edge1.
 
-## Current repository phase
+## Inventory bundle repository acceptance
 
-The branch implements the missing authenticated read-only host inventory required by all remaining live programs.
+Exact head:
+
+```text
+4a18c05f2a6f31369a3abfa695330ac5bf39d40a
+```
+
+Acceptance:
+
+- `Validate repository` run 662: success;
+- `Edge1 Operator Validation` run 494: success;
+- 11 changed files;
+- zero commits behind `main`;
+- mergeable state;
+- zero unresolved review threads;
+- merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 
 Assets:
 
@@ -43,23 +57,13 @@ docs/security/edge1-security-boundary-live-inventory-runbook-20260730.md
 registers/edge1-security-boundary-live-inventory-register-20260730.md
 ```
 
-The inventory script requires root, clean `main`, and the machine-readable authorization record. It writes only under a root-only timestamped evidence directory. It captures exact public-tree hashes and modes, anomalies, manifest reconciliation, Apache/module readiness, redacted service definitions, routes, headers, listeners, capacity, candidate roots, audit metadata, and retention metadata.
+The script requires root and clean `main`, writes only under a root-only evidence directory, and records exact public-tree hashes/modes, anomalies, manifest reconciliation, Apache/module readiness, redacted service definitions, routes, headers, listeners, capacity, candidate roots, audit metadata, and retention metadata.
 
 It does not collect credentials, secret values, cookie values, environment dumps, SSH material, private keys, shadow data, password-file contents, or audit-log contents. It performs no service, Apache, authentication, route, listener, firewall, DNS, source-tree, public-file, or traffic mutation.
 
-## Repository gates
-
-Pending:
-
-- exact-head `Validate repository`;
-- exact-head `Edge1 Operator Validation`;
-- changed-file and zero-behind review;
-- mergeability and unresolved-thread review;
-- merge and records closeout.
-
 ## Exact live continuation
 
-After merge and through an approved authenticated Edge1 path:
+Through an approved authenticated Edge1 path:
 
 ```bash
 cd /opt/edge1-management-interface
