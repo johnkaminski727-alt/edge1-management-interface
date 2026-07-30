@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/wwcx-edge1-public-status-v1.schema.json",
+  "title": "WW.CX minimized Edge1 public status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "overall_state",
+    "component_category",
+    "maintenance_notice",
+    "read_only",
+    "traffic_controls_changed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wwcx.edge1-public-status.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "overall_state": {
+      "enum": ["healthy", "limited", "attention", "unavailable"]
+    },
+    "component_category": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"$ref": "#/$defs/securityComponent"},
+        {"$ref": "#/$defs/networkComponent"},
+        {"$ref": "#/$defs/operationsComponent"}
+      ],
+      "items": false
+    },
+    "maintenance_notice": {
+      "type": "string",
+      "maxLength": 160
+    },
+    "read_only": {
+      "const": true
+    },
+    "traffic_controls_changed": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "componentBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_category",
+        "component_state",
+        "bounded_count",
+        "freshness_bucket"
+      ],
+      "properties": {
+        "component_category": {
+          "type": "string"
+        },
+        "component_state": {
+          "enum": ["healthy", "limited", "attention", "unavailable"]
+        },
+        "bounded_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999
+        },
+        "freshness_bucket": {
+          "enum": ["fresh", "aging", "stale", "unknown"]
+        }
+      }
+    },
+    "securityComponent": {
+      "allOf": [
+        {"$ref": "#/$defs/componentBase"},
+        {
+          "properties": {
+            "component_category": {"const": "security"}
+          }
+        }
+      ]
+    },
+    "networkComponent": {
+      "allOf": [
+        {"$ref": "#/$defs/componentBase"},
+        {
+          "properties": {
+            "component_category": {"const": "network_defense"},
+            "bounded_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 99
+            }
+          }
+        }
+      ]
+    },
+    "operationsComponent": {
+      "allOf": [
+        {"$ref": "#/$defs/componentBase"},
+        {
+          "properties": {
+            "component_category": {"const": "operations"},
+            "bounded_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 99
+            }
+          }
+        }
+      ]
+    }
+  }
+}
