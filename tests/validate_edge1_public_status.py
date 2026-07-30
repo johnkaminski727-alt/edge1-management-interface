@@ -18,6 +18,7 @@ SCHEMA_PATH = ROOT / "schemas" / "wwcx-edge1-public-status-v1.schema.json"
 POLICY_PATH = ROOT / "config" / "security" / "edge1-public-access-boundary-policy.json"
 PAGE_PATH = ROOT / "src" / "web" / "public-status" / "index.html"
 APP_PATH = ROOT / "src" / "web" / "public-status" / "app.js"
+STYLE_PATH = ROOT / "src" / "web" / "public-status" / "style.css"
 FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "edge1_public_status"
 
 SPEC = importlib.util.spec_from_file_location("edge1_public_status_exporter", MODULE_PATH)
@@ -33,6 +34,7 @@ class Edge1PublicStatusTests(unittest.TestCase):
         cls.policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
         cls.page = PAGE_PATH.read_text(encoding="utf-8")
         cls.app = APP_PATH.read_text(encoding="utf-8")
+        cls.style = STYLE_PATH.read_text(encoding="utf-8")
         cls.source = MODULE_PATH.read_text(encoding="utf-8")
         cls.security = json.loads(
             (FIXTURE_ROOT / "security-operations-hostile.json").read_text(encoding="utf-8")
@@ -204,11 +206,15 @@ class Edge1PublicStatusTests(unittest.TestCase):
 
     def test_page_consumes_only_the_minimized_document(self) -> None:
         self.assertIn('<script src="./app.js" defer></script>', self.page)
-        self.assertIn("script-src 'self'", self.page)
-        self.assertNotIn("script-src 'self' 'unsafe-inline'", self.page)
+        self.assertIn('<link rel="stylesheet" href="./style.css">', self.page)
+        self.assertNotIn("<style", self.page.lower())
+        policy_csp = self.policy["public_contract"]["content_security_policy"]
+        self.assertIn(f'content="{policy_csp}"', self.page)
+        self.assertNotIn("unsafe-inline", self.page)
         self.assertIn('const STATUS_URL = "./public/status.json";', self.app)
         self.assertIn('cache: "no-store"', self.app)
         self.assertIn('credentials: "omit"', self.app)
+        self.assertTrue(self.style.strip())
         policy_outputs = {
             item["path"]: item["content"]
             for item in self.policy["future_public_outputs"]
@@ -231,6 +237,7 @@ class Edge1PublicStatusTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden_feed, self.page)
             self.assertNotIn(forbidden_feed, self.app)
+            self.assertNotIn(forbidden_feed, self.style)
         self.assertNotIn("/edge1-ops/", self.page)
         self.assertNotIn("/edge1-status/security/", self.page)
 
@@ -240,6 +247,7 @@ class Edge1PublicStatusTests(unittest.TestCase):
             ROOT / "schemas" / "wwcx-edge1-public-status-v1.schema.json",
             ROOT / "src" / "web" / "public-status" / "index.html",
             ROOT / "src" / "web" / "public-status" / "app.js",
+            ROOT / "src" / "web" / "public-status" / "style.css",
         )
         for path in implementation_paths:
             self.assertTrue(path.exists(), path)
