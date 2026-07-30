@@ -1,62 +1,53 @@
 # Current State
 
-Last verified: 2026-07-30 09:05 UTC  
+Last verified: 2026-07-30 18:35 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
+Authoritative synchronized closeout: `d1a6a94568f235a2153e3f7946f9990b7a050547`  
+Current feature branch: `feature/network-defense-freshness-policy-20260730`  
 Latest implementation merge: `6b7991b1e37c327813199057c90cf2a9f834aa14`
 
 ## Verified live security observability
 
 - Network Defense and Security Correlation are deployed and accepted through `edge1.ww.cx`.
 - Security Operations includes accessible Suricata drill-down, last-known-good caching, normalized schema `2.0`, and enriched allowlisted alert fields.
-- The accepted collector run published 22 enriched alerts with ports, application protocol, SID/GID/revision, and flow ID.
-- Spamhaus is directly accepted as `active_verified` and remains the sole verified enforcement source.
+- Spamhaus is accepted as `active_verified` and remains the sole verified enforcement source.
 - Fail2ban is accepted as `active_observed`; the service and local socket were healthy and all 7 reported jails were observed.
 - General nftables aggregate visibility is accepted as `ruleset_observed`.
-- DNS policy remains `not_staged`; DNS enforcement remains disabled.
-- Traffic controls remain unchanged.
+- Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls are unchanged.
 
-## Accepted nftables aggregate live state
+## Current repository phase
 
-The read-only nftables observer implementation merged through PR #124 and was activated successfully on Edge1.
+The highest-value optional read-only item is a schedule-aware Network Defense freshness policy.
 
-Exact accepted public result:
+Verified repository timing:
 
-```json
-{
-  "nftables_state": "ruleset_observed",
-  "nftables_observed": true,
-  "nftables_enforcement_verified": false,
-  "tables": 4,
-  "chains": 14,
-  "base_chains": 7,
-  "rules": 46,
-  "sets": 6,
-  "maps": 0,
-  "counter_packets": 1866364147,
-  "counter_bytes": 4478865062835,
-  "verified_enforcement_count": 1,
-  "overall_state": "limited",
-  "available_sources": 8,
-  "source_count": 9,
-  "dns_policy_state": "not_staged",
-  "dns_enforcement_enabled": false,
-  "traffic_controls_changed": false
-}
-```
+- `wwcx-operations-network.timer`: 300-second producer interval;
+- `wwcx-security-operations.timer`: 120-second interval;
+- `wwcx-security-correlation.timer`: 60-second interval;
+- `wwcx-network-defense.timer`: 60-second interval with up to 10 seconds randomized delay;
+- Security observability live acceptance: 600-second default freshness ceiling.
 
-The verifier snapshot immediately before the Network Defense refresh reported the same topology with counters of 1,866,363,293 packets and 4,478,862,225,755 bytes. The slightly higher public counters were observed moments later and reflect normal live counter movement; they are not a configuration difference.
+The prior network-source stale limit was 300 seconds, equal to its producer interval. That can mark healthy source data stale between normal producer runs.
 
-General nftables remains `enforcement_verified: false` by design. Aggregate topology, verdict, and counter evidence does not independently prove policy correctness, intended enforcement, or that every packet path traverses a particular rule. The one verified enforcement source remains the dedicated Spamhaus contract.
+Implemented on the feature branch:
 
-Evidence:
+- `server/network_defense_freshness_exporter.py` sets only the network-source threshold to 600 seconds;
+- `deploy/systemd/wwcx-network-defense.service` invokes the final freshness wrapper while retaining its capability-free AF_UNIX-only boundary;
+- `tests/test_network_defense_freshness_policy.py` covers threshold boundaries, unchanged peer thresholds, service hardening, and no command/network execution;
+- architecture documentation and a sanitized register record the evidence, limits, rollback, validation, and deployment boundary.
 
-```text
-/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
-/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z/acceptance-summary.json
-```
+No timer interval, producer, DNS, resolver, RPZ, nftables, firewall, Fail2ban, routing, proxy, IDS rule, reputation list, authentication boundary, certificate, or production traffic was changed.
 
-## Complete evidence set
+## Validation status
+
+- Authoritative GitHub `main` was verified at `d1a6a94568f235a2153e3f7946f9990b7a050547` before branch creation.
+- The prior closeout commit had both required workflows successful.
+- Feature-branch targeted tests and full exact-head CI remain pending.
+- No authenticated Edge1 shell was available in this runtime.
+- No live deployment or live acceptance is claimed.
+
+## Authoritative live evidence
 
 ```text
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
@@ -68,14 +59,6 @@ Evidence:
 /var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
 ```
 
-## Repository audit note
-
-A one-byte placeholder was accidentally created on `main` by commit `f954e3395dbecf36cad9dc209cf378eb2dcc986d` before the feature branch existed. It was removed immediately by `7b79f564f11928a63d5b028ab1e2fe0a61f65e6a`. No runtime or production system was affected.
-
-## Completion status
-
-The bounded Security observability, Suricata enrichment, Spamhaus enforcement verification, Fail2ban health observability, and general nftables aggregate-observability phases are implemented, merged, deployed, and accepted.
-
 ## Safety boundary
 
-No DNS, resolver, RPZ, firewall, nftables, Fail2ban jail/action, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control mutation was made by these observability phases. Full rulesets, rule expressions, names, addresses, interfaces, elements, packet payloads, raw logs, credentials, and private keys remain excluded.
+Repository work remains read-only observability only. Live deployment requires separate terminal evidence and must not modify traffic controls or protected production boundaries.
