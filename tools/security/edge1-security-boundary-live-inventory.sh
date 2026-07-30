@@ -7,6 +7,7 @@ EVIDENCE_ROOT=${EDGE1_DEPLOYMENT_EVIDENCE_ROOT:-/var/lib/wwcx-deployment-evidenc
 PUBLIC_ORIGIN=${EDGE1_PUBLIC_ORIGIN:-https://edge1.ww.cx}
 LOCAL_ORIGIN=${EDGE1_LOCAL_ORIGIN:-http://127.0.0.1}
 AUTHORIZATION="$REPO_ROOT/config/security/edge1-security-completion-authorization-20260730.json"
+REDACTOR="$REPO_ROOT/tools/security/redact-edge1-boundary-text.py"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$STAMP"
 
@@ -20,6 +21,7 @@ fail() {
 for command in bash git python3 curl find stat sha256sum df hostname id systemctl ss; do
     command -v "$command" >/dev/null 2>&1 || fail "required command unavailable: $command"
 done
+[ -f "$REDACTOR" ] || fail "evidence redactor is unavailable"
 
 BRANCH=$(git -C "$REPO_ROOT" branch --show-current)
 [ "$BRANCH" = main ] || fail "inventory requires main; current branch is $BRANCH"
@@ -44,7 +46,6 @@ uname -a > "$EVIDENCE_DIR/uname.txt"
 df -Pk "$REPO_ROOT" "$STATUS_ROOT" /var/lib /var/log > "$EVIDENCE_DIR/filesystem-capacity.txt" 2>&1 || true
 git -C "$REPO_ROOT" rev-parse HEAD > "$EVIDENCE_DIR/repository-revision.txt"
 git -C "$REPO_ROOT" status --short --branch > "$EVIDENCE_DIR/repository-status.txt"
-git -C "$REPO_ROOT" remote -v > "$EVIDENCE_DIR/repository-remotes.txt"
 ss -H -lntup 2>/dev/null | sort > "$EVIDENCE_DIR/listeners.txt" || true
 
 for unit in \
@@ -59,9 +60,10 @@ for unit in \
     wwcx-edge1-public-summary-stager.timer; do
     systemctl show "$unit" \
         -p Id -p LoadState -p ActiveState -p SubState -p UnitFileState \
-        -p Result -p ExecMainStatus -p FragmentPath \
-        > "$EVIDENCE_DIR/systemd-${unit}.txt" 2>&1 || true
-    systemctl cat "$unit" > "$EVIDENCE_DIR/systemd-${unit}-definition.txt" 2>&1 || true
+        -p Result -p ExecMainStatus -p FragmentPath -p DropInPaths \
+        2>&1 | python3 "$REDACTOR" > "$EVIDENCE_DIR/systemd-${unit}.txt" || true
+    systemctl cat "$unit" 2>&1 \
+        | python3 "$REDACTOR" > "$EVIDENCE_DIR/systemd-${unit}-definition.txt" || true
 done
 
 APACHE_CTL=""
@@ -73,9 +75,9 @@ for candidate in apache2ctl apachectl httpd; do
 done
 [ -n "$APACHE_CTL" ] || fail "Apache control command is unavailable"
 printf '%s\n' "$APACHE_CTL" > "$EVIDENCE_DIR/apache-command.txt"
-"$APACHE_CTL" -t > "$EVIDENCE_DIR/apache-config-test.txt" 2>&1
-"$APACHE_CTL" -S > "$EVIDENCE_DIR/apache-vhosts.txt" 2>&1
-"$APACHE_CTL" -M > "$EVIDENCE_DIR/apache-modules.txt" 2>&1
+"$APACHE_CTL" -t 2>&1 | python3 "$REDACTOR" > "$EVIDENCE_DIR/apache-config-test.txt"
+"$APACHE_CTL" -S 2>&1 | python3 "$REDACTOR" > "$EVIDENCE_DIR/apache-vhosts.txt"
+"$APACHE_CTL" -M 2>&1 | python3 "$REDACTOR" > "$EVIDENCE_DIR/apache-modules.txt"
 
 python3 - "$EVIDENCE_DIR/apache-boundary-readiness.json" "$EVIDENCE_DIR/apache-config-files.sha256" <<'PY'
 import hashlib, json, pathlib, re, stat, sys
@@ -83,9 +85,9 @@ output=pathlib.Path(sys.argv[1])
 hashes=pathlib.Path(sys.argv[2])
 roots=[pathlib.Path('/etc/apache2'), pathlib.Path('/etc/httpd')]
 interesting={
- 'auth_type','require','alias','directory','location','locationmatch','header',
+ 'authtype','require','alias','directory','location','locationmatch','header',
  'session','sessioncookiename','sessioncryptopassphrasefile','cache','cacheenable',
- 'oidcprovidermetadataurl','oidcclientid','oidcredirecturi','oidccryptoPassphrase'.lower(),
+ 'oidcprovidermetadataurl','oidcclientid','oidcredirecturi','oidccryptopassphrase',
  'authformprovider','authformloginrequiredlocation','authformloginsuccesslocation',
  'customlog','setoutputfilter','setenv','proxypass','proxypassreverse'
 }
@@ -145,7 +147,7 @@ hashes.write_text('\n'.join(hash_rows)+('\n' if hash_rows else ''), encoding='ut
 PY
 
 python3 - "$STATUS_ROOT" "$EVIDENCE_DIR/public-filesystem-inventory.json" "$EVIDENCE_DIR/public-filesystem-anomalies.json" <<'PY'
-import hashlib, json, os, pathlib, stat, sys
+import hashlib, json, pathlib, stat, sys
 root=pathlib.Path(sys.argv[1])
 inventory_path=pathlib.Path(sys.argv[2])
 anomaly_path=pathlib.Path(sys.argv[3])
@@ -193,8 +195,8 @@ manifest=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 rows=[('public-root','/edge1-status/'),('public-summary','/edge1-status/public/status.json'),('restricted-root','/edge1-ops/')]
 for item in manifest['known_exact_artifacts']:
     rows.append(('public-'+item['source_relative'].replace('/','-'), '/edge1-status/'+item['source_relative']))
-    target='/' if item['target_relative']=='index.html' else item['target_relative']
-    rows.append(('restricted-'+item['target_relative'].replace('/','-'), '/edge1-ops/'+target))
+    restricted='/edge1-ops/' if item['target_relative']=='index.html' else '/edge1-ops/'+item['target_relative']
+    rows.append(('restricted-'+item['target_relative'].replace('/','-'), restricted))
 seen=set()
 with pathlib.Path(sys.argv[2]).open('w', encoding='utf-8') as handle:
     handle.write('label\tpath\n')
@@ -210,7 +212,10 @@ tail -n +2 "$EVIDENCE_DIR/route-plan.tsv" | while IFS=$'\t' read -r label path; 
     for origin_name in local public; do
         if [ "$origin_name" = local ]; then origin=$LOCAL_ORIGIN; else origin=$PUBLIC_ORIGIN; fi
         safe_label=$(printf '%s-%s' "$origin_name" "$label" | tr -c 'A-Za-z0-9._-' '_')
-        code=$(curl -sS --max-time 20 -D "$EVIDENCE_DIR/route-${safe_label}.headers" -o /dev/null -w '%{http_code}' "$origin$path" || true)
+        code=$(curl -sS --max-time 20 -D - -o /dev/null -w '%{http_code}' "$origin$path" 2>/dev/null \
+            | python3 "$REDACTOR" > "$EVIDENCE_DIR/route-${safe_label}.capture" || true)
+        code=$(tail -n 1 "$EVIDENCE_DIR/route-${safe_label}.capture" | tr -d '\r')
+        head -n -1 "$EVIDENCE_DIR/route-${safe_label}.capture" > "$EVIDENCE_DIR/route-${safe_label}.headers" || true
         printf '%s\t%s\t%s\t%s\n' "$origin_name" "$label" "$code" "$path" >> "$EVIDENCE_DIR/route-matrix.tsv"
     done
 done
@@ -242,7 +247,8 @@ PY
 for root in /var/lib/wwcx-public-summary /var/lib/wwcx-edge1-ops /var/lib/bigbird-security/suricata-history /var/log/apache2 /var/log/httpd; do
     label=$(printf '%s' "$root" | tr '/-' '__')
     if [ -e "$root" ]; then
-        find "$root" -xdev -maxdepth 4 -printf '%y\t%m\t%u\t%g\t%s\t%p\n' 2>/dev/null | sort > "$EVIDENCE_DIR/tree-${label}.txt" || true
+        find "$root" -xdev -maxdepth 4 -printf '%y\t%m\t%u\t%g\t%s\t%p\n' 2>/dev/null \
+            | sort | python3 "$REDACTOR" > "$EVIDENCE_DIR/tree-${label}.txt" || true
     else
         printf 'absent\t%s\n' "$root" > "$EVIDENCE_DIR/tree-${label}.txt"
     fi
