@@ -3,8 +3,8 @@
 Last verified: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative base: `4d2e717f8b0475fed574a4a6114c1a318d7e9655`  
-Current branch: `ops/edge1-project-completion-bundle-20260730`
+Latest operator-bundle merge: `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`  
+Operator-bundle PR: `#134`
 
 ## Verified live baseline
 
@@ -18,11 +18,12 @@ Current branch: `ops/edge1-project-completion-bundle-20260730`
 - Network Defense freshness implementation and repository closeout through PR #127; live activation remains unclaimed.
 - Protected Suricata retention design through PR #129; policy disabled and no runtime deployed.
 - Public access-boundary design through PR #131.
-- Minimized public summary implementation and closeout through PR #133 at `4d2e717f8b0475fed574a4a6114c1a318d7e9655`.
+- Minimized public summary implementation and closeout through PR #133.
+- Final Edge1 operator completion bundle merged through PR #134 as `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`.
 
-## Current repository phase — operator completion bundle
+## Repository-complete operator bundle
 
-The branch adds:
+Assets:
 
 - `deploy/activate-network-defense-freshness.sh`;
 - `tools/security/edge1-project-completion-preflight.sh`;
@@ -30,40 +31,33 @@ The branch adds:
 - `docs/security/edge1-project-completion-runbook-20260730.md`;
 - `registers/edge1-project-completion-bundle-register-20260730.md`.
 
-### Bounded freshness activation
+The activation is limited to one installed service unit and one one-shot export, with backup, rollback, threshold/DNS/enforcement/timer checks, local/public verification, and protected evidence.
 
-The activation script:
+The preflight is read-only outside its protected evidence directory and captures Apache, route, header, filesystem, SQLite, retention-sizing, and staged minimized-summary evidence without changing services, public files, authentication, routes, DNS, firewall, or traffic controls.
 
-- requires authenticated root execution, clean `main`, and the merged freshness commit;
-- backs up the installed service unit and current Network Defense snapshot;
-- installs only `wwcx-network-defense.service`;
-- does not modify the timer;
-- executes one one-shot export;
-- verifies threshold `600`, unchanged enforcement count, DNS `not_staged`, DNS enforcement false, and `traffic_controls_changed:false`;
-- verifies local and real-domain JSON;
-- automatically restores the saved unit and snapshot on failure;
-- records protected evidence and SHA-256 hashes.
+## Repository validation
 
-### Protected completion preflight
+Exact operator-bundle head: `6060348f4fcfcc955f93c4739a167321fe488013`
 
-The read-only preflight captures:
+- `Validate repository` run 626: success;
+- `Edge1 Operator Validation` run 458: success;
+- zero commits behind `main` before merge;
+- PR mergeable;
+- no unresolved review threads;
+- changed scope limited to two scripts, one validator, test package marker, runbook, register, and `.agent` records.
 
-- host, principal, Git, systemd, and capacity state;
-- Apache syntax, vhost, module, and redacted directive inventory;
-- public-root file metadata and hashes;
-- local/public route and security-header matrix;
-- SQLite capabilities and sanitized Suricata size/rate evidence;
-- a staged minimized public summary under the protected evidence directory.
+## Remaining authenticated host sequence
 
-It performs no service control, Apache reload, authentication change, route change, `/var/www` write, or traffic-control mutation.
+No authenticated Edge1 connector, SSH configuration, or key material is available in this runtime. The following commands remain unexecuted:
 
-## Execution status
+```bash
+cd /opt/edge1-management-interface
+sudo bash tools/security/edge1-project-completion-preflight.sh
+sudo bash deploy/activate-network-defense-freshness.sh
+```
 
-- No authenticated Edge1 connector, SSH configuration, or key material is available in this runtime.
-- The operator bundle has not been executed on Edge1.
-- Repository exact-head CI, PR scope review, and merge remain pending.
-- No public cutover, authentication staging, detailed-artifact removal, or protected-retention runtime is authorized or claimed.
+No public cutover, authentication staging, detailed-artifact removal, protected-retention runtime, or `/var/www` publication is claimed or authorized.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public route, `/var/www` publication, deletion, or production traffic is changed by this repository phase.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public route, `/var/www` publication, deletion, or production traffic was changed by this repository phase.
