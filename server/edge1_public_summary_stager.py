@@ -22,7 +22,7 @@ from edge1_public_status_exporter import build_public_status, load_object, write
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "config" / "security" / "edge1-public-summary-staging-policy.json"
-APPROVED_STATIC_ROOT = ROOT / "src" / "web" / "public-status"
+APPROVED_STATIC_ROOT = Path("/opt/edge1-management-interface/src/web/public-status")
 APPROVED_STAGING_ROOT = Path("/var/lib/wwcx-public-summary")
 APPROVED_SOURCES = {
     "security": Path("/var/www/edge1-status/security-operations.json"),
@@ -75,14 +75,11 @@ def validate_policy(policy: dict[str, Any], *, enforce_production_paths: bool = 
         raise ValueError("explicit authorization gate is required")
     if policy.get("live_publication_authorized") is not False:
         raise ValueError("live publication must remain unauthorized")
-
-    routes = policy.get("public_routes")
-    if routes != {"root": PUBLIC_ROOT_ROUTE, "feed": PUBLIC_FEED_ROUTE}:
+    if policy.get("public_routes") != {"root": PUBLIC_ROOT_ROUTE, "feed": PUBLIC_FEED_ROUTE}:
         raise ValueError("public route contract does not match the approved boundary")
     if tuple(policy.get("release_assets") or ()) != RELEASE_ASSETS:
         raise ValueError("release asset allowlist is not exact")
 
-    headers = policy.get("headers")
     expected_headers = {
         "cache_control": "no-store, max-age=0",
         "content_security_policy": CSP,
@@ -91,10 +88,9 @@ def validate_policy(policy: dict[str, Any], *, enforce_production_paths: bool = 
         "cors_allow_origin": None,
         "directory_listing": False,
     }
-    if headers != expected_headers:
+    if policy.get("headers") != expected_headers:
         raise ValueError("public response header contract is not exact")
 
-    filesystem = policy.get("filesystem")
     expected_filesystem = {
         "staging_directory_mode": "0755",
         "release_directory_mode": "0755",
@@ -105,24 +101,25 @@ def validate_policy(policy: dict[str, Any], *, enforce_production_paths: bool = 
         "release_directory": "releases",
         "metadata_directory": "metadata",
     }
-    if filesystem != expected_filesystem:
+    if policy.get("filesystem") != expected_filesystem:
         raise ValueError("staging filesystem contract is not exact")
 
     runtime = policy.get("runtime")
-    if not isinstance(runtime, dict) or any(runtime.get(key) is not False for key in (
+    runtime_false = (
         "network_access",
         "command_execution",
         "raw_suricata_access",
         "apache_mutation",
         "public_tree_write",
         "release_pruning",
-    )):
+    )
+    if not isinstance(runtime, dict) or any(runtime.get(key) is not False for key in runtime_false):
         raise ValueError("staging runtime safety flags must all remain false")
 
     acceptance = policy.get("acceptance")
     if not isinstance(acceptance, dict):
         raise ValueError("staging acceptance contract is missing")
-    for key in (
+    acceptance_true = (
         "exact_asset_allowlist",
         "atomic_current_pointer",
         "sha256_metadata_required",
@@ -130,7 +127,8 @@ def validate_policy(policy: dict[str, Any], *, enforce_production_paths: bool = 
         "strict_header_contract_required",
         "no_new_listener",
         "no_live_route_change",
-    ):
+    )
+    for key in acceptance_true:
         if acceptance.get(key) is not True:
             raise ValueError(f"acceptance.{key} must be true")
     if acceptance.get("traffic_controls_changed") is not False:
@@ -229,10 +227,7 @@ def write_file(
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
-        while True:
-            chunk = handle.read(65536)
-            if not chunk:
-                break
+        for chunk in iter(lambda: handle.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -258,10 +253,15 @@ def inventory_release(release_root: Path) -> dict[str, dict[str, Any]]:
     return files
 
 
-def atomic_current_pointer(staging_root: Path, release_root: Path) -> None:
+def validate_current_pointer(staging_root: Path) -> None:
     current = staging_root / "current"
     if os.path.lexists(current) and not current.is_symlink():
         raise ValueError("current pointer exists but is not a symlink")
+
+
+def atomic_current_pointer(staging_root: Path, release_root: Path) -> None:
+    validate_current_pointer(staging_root)
+    current = staging_root / "current"
     relative_target = os.path.relpath(release_root, staging_root)
     temporary = staging_root / f".current.{os.getpid()}.tmp"
     try:
@@ -309,6 +309,7 @@ def build_release(
     release_id = release_identifier(current_time, status_document, static_content)
 
     ensure_real_directory(staging_root, 0o755)
+    validate_current_pointer(staging_root)
     releases_root = staging_root / "releases"
     metadata_root = staging_root / "metadata"
     ensure_real_directory(releases_root, 0o755)
@@ -381,7 +382,6 @@ def run_from_policy(
             "live_publication_authorized": False,
             "traffic_controls_changed": False,
         }
-
     static_root = static_root_override or Path(str(policy["static_source_root"]))
     source_values = source_paths_override or {
         key: Path(str(value)) for key, value in policy["source_paths"].items()
