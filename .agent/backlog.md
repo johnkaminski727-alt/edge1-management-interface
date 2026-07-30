@@ -8,7 +8,12 @@
 - [x] Verify 22 enriched alerts with ports, application protocol, SID/GID/revision, and flow ID.
 - [x] Implement and deploy read-only Spamhaus live-state verification.
 - [x] Confirm Spamhaus `active_verified`, enforcement verification true, and verified-enforcement count 1.
-- [x] Confirm Network Defense remains `limited`, 6 of 7 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
+- [x] Implement and merge read-only Fail2ban live-state observability through PR #122.
+- [x] Deploy the Fail2ban verifier and timer on Edge1 without changing `fail2ban.service` or any jail/action.
+- [x] Confirm Fail2ban state `active_observed`, service active, socket reachable, and all 7 reported jails observed.
+- [x] Confirm currently banned 0, total banned 0, and `enforcement_verified: false` by design.
+- [x] Confirm Network Defense consumes the same aggregate state, remains `limited`, has 7 of 8 sources available, and retains verified-enforcement count 1 from Spamhaus only.
+- [x] Confirm DNS policy remains `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
 
 ## Authoritative evidence
 
@@ -28,27 +33,11 @@ Suricata collector enrichment:
 Spamhaus successful deployment and exact summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
+
+Fail2ban successful deployment and exact summary:
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
 ```
-
-## Current bounded implementation — Fail2ban live-state observability
-
-- [x] Trace Fail2ban’s existing state to event-count visibility without service/socket/jail-health verification.
-- [x] Add `server/fail2ban_live_state_verifier.py` with read-only `systemctl show` and `fail2ban-client status` inspection.
-- [x] Restrict jail names to a bounded safe character set and a maximum of 64 records.
-- [x] Publish service state, socket reachability, and aggregate/per-jail failed and banned counters.
-- [x] Exclude banned addresses, log paths, raw client output, commands, credentials, and private keys.
-- [x] Add `server/network_defense_fail2ban_exporter.py` so public status receives aggregate metrics only.
-- [x] Keep Fail2ban `enforcement_verified: false`; jail counters do not increment verified enforcement.
-- [x] Add a hardened root oneshot and one-minute timer with no Linux capabilities and AF_UNIX only.
-- [x] Keep Network Defense capability-free and order it after both dedicated verifiers.
-- [x] Add parser, privacy, stale-state, integration, runtime-wiring, and rollback-safe deployment validation.
-- [x] Add `deploy/install-fail2ban-live-state-observability.sh` without any Fail2ban service or action mutation.
-- [x] Record architecture, contract, state model, and activation boundary.
-- [ ] Open and merge the Fail2ban observability PR after both required CI workflows pass.
-- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/install-fail2ban-live-state-observability.sh`.
-- [ ] Record the truthful live state: `active_observed`, `partial`, `inactive`, `not_installed`, or `unavailable`.
-- [ ] Verify Network Defense consumes the same aggregate state with `traffic_controls_changed: false` and no new enforcement claim.
-- [ ] Record live evidence and close the phase.
 
 ## Evidence-driven follow-up
 

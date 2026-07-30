@@ -1,9 +1,9 @@
 # Current State
 
-Last verified: 2026-07-29 18:45 UTC  
+Last verified: 2026-07-30 00:42 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Latest completed closeout merge: `8f1319150e180fcf4b06bc30a122e4541f65fd02`
+Fail2ban implementation merge: `725a09c1c488c2a0cb99931183e535e9fe726894`
 
 ## Verified live security observability
 
@@ -49,55 +49,47 @@ Evidence:
 
 `active_verified` is limited to the dedicated Spamhaus table, expected sets and hooked rules, updater result, timer state, freshness, and safety contract.
 
-## Fail2ban live-state observability implementation
+## Verified Fail2ban live-state health
 
-Current feature branch:
+The read-only Fail2ban verifier implementation merged through PR #122 and was activated successfully on Edge1.
 
-```text
-feature/fail2ban-live-state-observability-20260729
+Exact accepted result:
+
+```json
+{
+  "fail2ban_state": "active_observed",
+  "fail2ban_health_observed": true,
+  "fail2ban_enforcement_verified": false,
+  "observed_jails": 7,
+  "currently_banned": 0,
+  "total_banned": 0,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 7,
+  "source_count": 8,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
 ```
 
-Implemented assets:
+The service was active, its local control socket was reachable, and all seven sanitized reported jails were observed. Zero current and total bans is the truthful counter result at acceptance time; it is not an error.
 
-- `server/fail2ban_live_state_verifier.py`;
-- `server/network_defense_fail2ban_exporter.py`;
-- `deploy/systemd/wwcx-fail2ban-live-state.service`;
-- `deploy/systemd/wwcx-fail2ban-live-state.timer`;
-- updated capability-free `wwcx-network-defense.service` wiring;
-- `deploy/install-fail2ban-live-state-observability.sh`;
-- verifier, integration, runtime-wiring, privacy, stale-state, and deployment-safety tests;
-- architecture document and implementation register.
+Fail2ban remains `enforcement_verified: false` by design. The one verified enforcement source is the separate Spamhaus verifier. Jail presence and counters do not independently prove action installation or packet-path enforcement.
 
-Verifier contract:
+Evidence:
 
 ```text
-wwcx.fail2ban-live-state.v1
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
 ```
 
-Private runtime snapshot:
-
-```text
-/var/lib/bigbird-security/fail2ban/live-state.json
-```
-
-The verifier uses only:
-
-```text
-systemctl show fail2ban.service ...
-fail2ban-client status
-fail2ban-client status <sanitized-jail-name>
-```
-
-Published evidence is bounded to service/socket status, sanitized jail names in the private snapshot, and aggregate/per-jail counters. Banned addresses, log paths, raw client output, commands, credentials, and private keys are excluded. Public Network Defense receives aggregate metrics only.
-
-Truthful states are `active_observed`, `partial`, `inactive`, `not_installed`, and `unavailable`. Every state keeps `enforcement_verified: false` and `traffic_controls_changed: false`; this phase does not claim packet enforcement.
-
-The root verifier has no Linux capabilities and is restricted to AF_UNIX. Network Defense remains capability-free. The installer does not start, stop, reload, restart, or reconfigure `fail2ban.service`.
+The verifier uses only `systemctl show fail2ban.service`, `fail2ban-client status`, and per-jail status queries. Public Network Defense receives aggregate metrics only. Banned addresses, log paths, raw client output, commands, credentials, and private keys remain excluded.
 
 ## Completion status
 
-The repository implementation is complete on the feature branch. Exact-head CI, merge, and bounded Edge1 activation remain pending.
+The bounded Security observability, Suricata enrichment, Spamhaus enforcement verification, and Fail2ban health-observability phases are implemented, merged, deployed, and accepted.
 
 ## Safety boundary
 
-No DNS, resolver, RPZ, firewall, nftables, Fail2ban jail/action, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control mutation is included. Payloads, packet bodies, raw EVE events, banned addresses, set elements, full firewall rulesets, credentials, and private keys remain excluded. Historical alert retention remains separate future work.
+No DNS, resolver, RPZ, firewall, nftables, Fail2ban jail/action, proxy, routing, Suricata rule, reputation-list, authentication-boundary, or traffic-control mutation was made by these observability phases. Payloads, packet bodies, raw EVE events, banned addresses, set elements, full firewall rulesets, credentials, and private keys remain excluded. Historical alert retention remains separate future work.
