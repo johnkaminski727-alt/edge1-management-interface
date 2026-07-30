@@ -3,25 +3,31 @@
 Date: 2026-07-30  
 Classification: internal, sanitized implementation record  
 System: `edge1.ww.cx` / WW.CX Operations Center  
-Repository state: merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`; route-contract correction in validation; not deployed
+Repository state: merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`; route correction merged through PR #140 as `4fc5d765805b86be8ddee58f08c2676116517cbb`; CSP correction in validation; not deployed
 
 ## Trigger
 
 The accepted public-boundary design concluded that the current mixed `/edge1-status/` tree should not remain unchanged. Phase 1 implemented a minimized summary in the repository without routing or publication.
 
-A follow-up review found that the accepted policy route `/edge1-status/public/status.json` did not match the landing-page relative fetch `./status.json`. The canonical contract is the accepted policy route; the repository build and page are aligned to it before any publication phase.
+Follow-up review found and corrected two pre-publication contract defects:
+
+1. the accepted policy route `/edge1-status/public/status.json` did not match the original landing-page relative fetch;
+2. the page used an inline stylesheet that would be blocked by the approved CSP.
+
+The canonical route now matches the policy, and the stylesheet is external so the exact strict CSP can be enforced without `unsafe-inline`.
 
 ## Accepted assets
 
 | Asset | Purpose | Repository state |
 | --- | --- | --- |
-| `server/edge1_public_status_exporter.py` | Allowlist-only summary builder with explicit input paths and build-scoped `public/status.json` output | Merged; route alignment in validation |
+| `server/edge1_public_status_exporter.py` | Allowlist-only summary builder with explicit input paths and build-scoped `public/status.json` output | Merged through PR #140 |
 | `schemas/wwcx-edge1-public-status-v1.schema.json` | Exact minimized document contract | Merged |
-| `src/web/public-status/index.html` | Non-routed static minimized landing page | Merged |
-| `src/web/public-status/app.js` | Renderer that fetches only `./public/status.json` | Merged; route alignment in validation |
+| `src/web/public-status/index.html` | Non-routed static minimized landing page with exact approved CSP | Merged; CSP correction in validation |
+| `src/web/public-status/app.js` | Renderer that fetches only `./public/status.json` | Merged through PR #140 |
+| `src/web/public-status/style.css` | Same-origin external presentation with no inline-style requirement | CSP correction in validation |
 | hostile JSON fixtures | Prove detailed source values do not propagate | Merged |
-| `tests/validate_edge1_public_status.py` | Privacy, bounds, failure, output, page, route, and no-deployment validation | Merged; route alignment in validation |
-| `docs/security/edge1-minimized-public-summary-20260730.md` | Architecture and deployment boundary | Merged; route alignment in validation |
+| `tests/validate_edge1_public_status.py` | Privacy, bounds, failure, output, page, route, CSP, and no-deployment validation | CSP correction in validation |
+| `docs/security/edge1-minimized-public-summary-20260730.md` | Architecture and deployment boundary | CSP correction in validation |
 
 ## Public contract
 
@@ -63,7 +69,7 @@ Fixed categories are `security`, `network_defense`, and `operations`. Each categ
 
 Source objects and arbitrary strings are never copied into output.
 
-## Build and page boundary
+## Build, route, and CSP boundary
 
 Default output:
 
@@ -77,9 +83,15 @@ Canonical future public route:
 /edge1-status/public/status.json
 ```
 
+Approved CSP:
+
+```text
+default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'
+```
+
 All three input paths are required. The exporter contains no `/var/www`, Apache, systemd, command-execution, or network-access path.
 
-The page consumes only `./public/status.json`, requests no-store, omits credentials, suppresses referrer data, references no detailed feeds, and links to no restricted surface. It is not connected to a deploy script or public route.
+The page consumes only `./public/status.json`, loads `app.js` and `style.css` from the same origin, has no inline script or style dependency, requests no-store, omits credentials, suppresses referrer data, references no detailed feeds, and links to no restricted surface. It is not connected to a deploy script or public route.
 
 ## Hostile fixture boundary
 
@@ -105,7 +117,8 @@ Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
 | Zero commits behind `main` before merge | Confirmed |
 | Unresolved review threads | None |
 | PR #132 | Merged as `25359040ba07a3b7bf513f95b32ce24f6be480f2` |
-| Canonical route agreement | Correction implemented; exact-head validation pending |
+| Canonical route correction PR #140 | Merged as `4fc5d765805b86be8ddee58f08c2676116517cbb` |
+| Strict CSP agreement | Correction implemented; exact-head validation pending |
 | Edge1 publication | Not authorized or performed |
 | Public cutover | Not authorized or performed |
 
