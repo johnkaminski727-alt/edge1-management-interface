@@ -90,23 +90,7 @@ class LiveInventoryTests(unittest.TestCase):
             self.assertNotIn(forbidden, result)
         self.assertIn("<redacted>", result)
 
-    def test_reconciler_maps_complete_exact_inventory_without_live_access(self):
-        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        inventory = [
-            {
-                "path": "/var/www/edge1-status/" + item["source_relative"],
-                "sha256": "a" * 64,
-                "mode": "0644",
-                "bytes": index + 1,
-            }
-            for index, item in enumerate(manifest["known_exact_artifacts"])
-        ]
-        inventory.append({
-            "path": "/var/www/edge1-status/operator-maintained-note.txt",
-            "sha256": "b" * 64,
-            "mode": "0640",
-            "bytes": 17,
-        })
+    def run_reconciler(self, inventory):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             source = root / "inventory.json"
@@ -126,8 +110,26 @@ class LiveInventoryTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-            value = json.loads(output.read_text(encoding="utf-8"))
-            stdout = json.loads(completed.stdout)
+            return json.loads(output.read_text(encoding="utf-8")), json.loads(completed.stdout)
+
+    def test_reconciler_maps_complete_exact_inventory_without_live_access(self):
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        inventory = [
+            {
+                "path": "/var/www/edge1-status/" + item["source_relative"],
+                "sha256": "a" * 64,
+                "mode": "0644",
+                "bytes": index + 1,
+            }
+            for index, item in enumerate(manifest["known_exact_artifacts"])
+        ]
+        inventory.append({
+            "path": "/var/www/edge1-status/operator-maintained-note.txt",
+            "sha256": "b" * 64,
+            "mode": "0640",
+            "bytes": 17,
+        })
+        value, stdout = self.run_reconciler(inventory)
         self.assertEqual(value, stdout)
         self.assertEqual(value["counts"]["mapped"], len(manifest["known_exact_artifacts"]))
         self.assertEqual(value["counts"]["missing_known"], 0)
@@ -138,6 +140,29 @@ class LiveInventoryTests(unittest.TestCase):
         self.assertFalse(value["live_files_opened_by_reconciler"])
         self.assertFalse(value["source_tree_mutated"])
         self.assertFalse(value["credentials_collected"])
+
+    def test_reconciler_accepts_slash_terminated_manifest_prefixes(self):
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        prefix = manifest["known_prefix_groups"][0]["source_prefix"]
+        self.assertTrue(prefix.endswith("/"))
+        inventory = [{
+            "path": "/var/www/edge1-status/" + prefix + "live.json",
+            "sha256": "c" * 64,
+            "mode": "0644",
+            "bytes": 9,
+        }]
+        value, stdout = self.run_reconciler(inventory)
+        self.assertEqual(value, stdout)
+        self.assertEqual(value["counts"]["mapped"], 1)
+        self.assertEqual(value["mapped"][0]["provenance"], "prefix_live_enumeration")
+        self.assertFalse(value["staging_ready"])
+        self.assertFalse(value["cutover_ready"])
+
+    def test_reconciler_rejects_unsafe_directory_prefixes(self):
+        script = RECONCILER.read_text(encoding="utf-8")
+        self.assertIn('segment_value = value[:-1]', script)
+        self.assertIn('part in {"", ".", ".."}', script)
+        self.assertIn('migration.safe_relative = safe_relative', script)
 
     def test_reconciler_and_redactor_have_no_network_or_command_execution(self):
         combined = RECONCILER.read_text(encoding="utf-8") + REDACTOR.read_text(encoding="utf-8")
