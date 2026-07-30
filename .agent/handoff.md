@@ -1,10 +1,10 @@
-# Network Defense Freshness Policy Handoff
+# Protected Suricata Retention Design Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Implementation merge: `711952afb053fa3bd50c390516fa7b58f3943985`  
-Implementation PR: `#126`
+Authoritative base: `bbefaca8fddc33270178daada5ca20ca3fce0c08`  
+Design branch: `design/suricata-protected-retention-20260730`
 
 ## Verified live baseline
 
@@ -15,64 +15,100 @@ Implementation PR: `#126`
 - General nftables aggregate visibility is `ruleset_observed`.
 - Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls remain unchanged.
 
-## Repository-complete implementation
+## Freshness phase
 
-The schedule-aware freshness improvement is merged.
+The Network Defense freshness repository phase is closed through PR #127 at `bbefaca8fddc33270178daada5ca20ca3fce0c08`.
 
-Evidence:
+The freshness change is not claimed live. No authenticated Edge1 shell is available in this runtime.
 
-- `wwcx-operations-network.timer` publishes every 300 seconds.
-- `wwcx-network-defense.timer` consumes every 60 seconds with up to 10 seconds randomized delay.
-- The prior 300-second network stale limit equaled the producer interval.
-- The existing live-acceptance freshness ceiling is 600 seconds.
+## Current design
 
-Change:
+The design branch defines a disabled protected history for already-sanitized Suricata alerts.
 
-```text
-network stale_after_seconds: 300 -> 600
-```
-
-The final wrapper preserves the nftables-, Fail2ban-, DNS-, Spamhaus-, Security Operations, Security Correlation, and operations-center layers. Every other source threshold remains unchanged.
-
-## Validation and merge
-
-Exact implementation head: `d2c6357cd913fa376f91b27e43081d1b1e37a6d6`
-
-- `Validate repository` run 610: success.
-- `Edge1 Operator Validation` run 442: success.
-- PR #126 was mergeable and zero commits behind `main`.
-- No unresolved review threads existed.
-- Merged as `711952afb053fa3bd50c390516fa7b58f3943985`.
-
-## Safety
-
-No producer timer, collection command, DNS, Unbound, RPZ, nftables, firewall, Fail2ban jail/action, routing, proxy, IDS rule, reputation list, certificate, authentication boundary, or production traffic was changed.
-
-The Network Defense unit remains capability-free and restricted to AF_UNIX. `verified_enforcement_count` semantics are unchanged and `traffic_controls_changed` remains false.
-
-## Remaining live activation work
-
-No authenticated Edge1 terminal was available in this runtime. Do not claim the freshness change is live until terminal evidence proves:
-
-1. a clean Edge1 checkout was fast-forwarded to the authoritative merge;
-2. the wrapper and unit were installed through a bounded rollback-safe procedure;
-3. daemon reload and the one-shot exporter succeeded;
-4. the generated snapshot reports `network.stale_after_seconds: 600`;
-5. public and local endpoint checks pass without changing enforcement state;
-6. protected evidence was captured.
-
-## Next optional repository phase
-
-Design protected historical Suricata retention with explicit size, time, privacy, authentication, rollback, and acceptance limits. Keep public `edge1.ww.cx` access-boundary review separate.
-
-## Authoritative existing live evidence
+Machine-readable contract:
 
 ```text
-/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
-/var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
-/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
-/var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
-/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
+wwcx.suricata-protected-retention-policy.v1
 ```
+
+Assets:
+
+```text
+config/security/suricata-protected-retention-policy.json
+schemas/wwcx-suricata-protected-retention-policy-v1.schema.json
+docs/security/suricata-protected-retention-design-20260730.md
+registers/suricata-protected-retention-design-register-20260730.md
+tests/validate_suricata_retention_design.py
+```
+
+The policy is `design_only`, `enabled: false`, and `deployment_authorized: false`.
+
+## Design decisions
+
+- Read only `/var/lib/bigbird/operations-center/latest.json` and require `wwcx.suricata-source-alert.v1`.
+- Never open raw Suricata EVE logs from the future history component.
+- Retain up to 30 days, 256 MiB, or 100,000 unique alerts, whichever limit is reached first.
+- Use SHA-256 canonical event keys and a database unique constraint for deduplication.
+- Store under `/var/lib/bigbird-security/suricata-history` as `root:root`, directory `0700`, files `0600`.
+- Create no listener, HTTP route, static history JSON, browser storage, or public page.
+- Initial queries are root-local CLI only, default 24 hours/100 rows, maximum seven days/500 rows.
+- Future API access requires a separate authorization and the existing authenticated operations API scope `security.suricata.history.read`.
+- Automatic off-host backup is disabled.
+- Incident promotion is manual and separately authorized, with sanitized rows, SHA-256 manifest, and authorization record.
+- Rollback preserves the database by default; deletion requires separate records authority.
+
+## Records boundary
+
+The rolling 30-day store is operational telemetry, not the authoritative incident archive. Selected alerts for an incident, audit, hold, or legal preservation need must be promoted into a separate evidence package under:
+
+```text
+/var/lib/wwcx-deployment-evidence/suricata-history-holds/<UTC timestamp>/
+```
+
+The promoted package receives the appropriate security/evidence retention class.
+
+## Validation state
+
+Completed:
+
+- collector/exporter schema inspection;
+- drill-down/cache boundary inspection;
+- records-schedule review;
+- machine-readable disabled policy and schema;
+- static design validator;
+- documentation, register, and project-state updates.
+
+Pending:
+
+- exact-head `Validate repository` workflow;
+- exact-head `Edge1 Operator Validation` workflow;
+- final diff, scope, thread, and mergeability review;
+- PR merge and authoritative-main closeout.
+
+The local container could not resolve `github.com`, so it could not clone the branch for pre-PR execution. GitHub exact-head CI remains the authoritative validation path.
+
+## Explicitly not implemented
+
+- SQLite ingester or database;
+- service or timer;
+- query CLI;
+- evidence-export command;
+- API route;
+- authentication change;
+- public endpoint;
+- off-host backup;
+- Edge1 deployment.
+
+## Required next sequence
+
+1. Open the design PR from `design/suricata-protected-retention-20260730` to `main`.
+2. Require both exact-head workflows.
+3. Inspect failures and repair only design/test defects.
+4. Confirm no runtime, systemd, public, authentication, or protected-control assets entered scope.
+5. Merge only when zero behind, mergeable, and no unresolved threads remain.
+6. Close `.agent` and register records on authoritative `main`.
+7. Keep runtime implementation and Edge1 activation as separate phases.
+
+## Safety boundary
+
+No Suricata configuration/service state, DNS, Unbound, RPZ, nftables, firewall, Fail2ban jail/action, routing, proxy, reputation list, certificate, authentication boundary, listener, public access, deletion, or production traffic is changed or authorized by this design.
