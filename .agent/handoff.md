@@ -5,7 +5,7 @@ Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
 Latest completed repository closeout: `a8af7fa77d9eb81ecd69d22e9d314de478975d66`  
-Active branch: `design/edge1-restricted-artifact-migration-manifest-20260730`
+Latest repository implementation merge: `975711be82cfb72b534d3eccd57744daf9893324`
 
 ## Accepted live baseline
 
@@ -25,20 +25,21 @@ Protected evidence:
 - Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
 - Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
 - Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147.
+- Restricted-artifact migration manifest merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
 
-No public-summary staging, authenticated restricted route, or detailed-artifact migration has occurred on Edge1.
+No public-summary staging, authenticated restricted route, restricted release, detailed-artifact migration, public cutover, or detailed-artifact removal has occurred on Edge1.
 
-## Current repository phase
+## Restricted artifact migration manifest completion
 
-A disabled, read-only restricted-artifact migration manifest is implemented on `design/edge1-restricted-artifact-migration-manifest-20260730`.
+The disabled, read-only restricted-artifact migration manifest is implemented and merged.
 
-Assets include:
+Assets:
 
 - `config/security/edge1-restricted-artifact-migration-manifest.json`;
 - `server/edge1_restricted_artifact_manifest.py`;
 - `tests/test_edge1_restricted_artifact_manifest.py`;
-- architecture and audit register records;
-- updated continuity records.
+- `docs/security/edge1-restricted-artifact-migration-manifest-20260730.md`;
+- `registers/edge1-restricted-artifact-migration-register-20260730.md`.
 
 The manifest records 23 exact repository-declared artifacts and five directory families requiring fresh live enumeration. It maps future targets beneath `/edge1-ops/`, validates scope and registered-route coverage, accepts only supplied path/SHA-256/mode/size inventory evidence, preserves unknown artifacts for review, reports missing known artifacts, and blocks duplicate targets.
 
@@ -57,15 +58,23 @@ unknown_artifact_action=preserve_review
 duplicate_target_action=block
 ```
 
-The repository evidence is explicitly incomplete until a fresh authenticated Edge1 filesystem, route, publisher, service, and SHA-256 inventory is captured.
+## Repository acceptance
 
-## Validation remaining
+Exact implementation head:
 
-- exact-head `Validate repository`;
-- exact-head `Edge1 Operator Validation`;
-- changed-file and zero-behind review;
-- mergeability and unresolved-thread review;
-- repository-only merge and closeout records.
+```text
+52a686a4aed7fc3eca3fbccfd2d665fd71b61170
+```
+
+Acceptance results:
+
+- `Validate repository` run 657: success;
+- `Edge1 Operator Validation` run 489: success;
+- eight changed files;
+- zero unresolved review threads;
+- merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
+
+The repository evidence remains explicitly incomplete until a fresh authenticated Edge1 filesystem, route, publisher, service, and SHA-256 inventory is captured.
 
 ## Live work remaining under separate authorization
 
@@ -74,7 +83,8 @@ The repository evidence is explicitly incomplete until a fresh authenticated Edg
 3. reconcile every known, prefix-contained, unknown, missing, duplicate, stale, historical, and operator-maintained artifact;
 4. separately authorize restricted release staging without changing the source tree;
 5. separately authorize authenticated route implementation and acceptance;
-6. separately authorize public-summary staging, public cutover, and detailed-artifact removal.
+6. separately authorize public-summary staging, public cutover, and detailed-artifact removal;
+7. separately authorize protected-retention installation and live acceptance.
 
 ## Safety boundary
 

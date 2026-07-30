@@ -22,6 +22,7 @@
 - [x] Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
 - [x] Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
 - [x] Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147 as `a8af7fa77d9eb81ecd69d22e9d314de478975d66`.
+- [x] Restricted-artifact migration manifest merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
 
 ## Completed authenticated host sequence
 
@@ -66,10 +67,10 @@
 - [x] Keep staging, cutover, deletion, and source mutation disabled.
 - [x] Add synthetic coverage, mapping, metadata, privacy, and non-mutation tests.
 - [x] Add architecture and audit records.
-- [ ] Pass exact-head `Validate repository` workflow.
-- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
-- [ ] Complete changed-file, zero-behind, mergeability, and review-thread checks.
-- [ ] Merge repository-only migration design and close records.
+- [x] Pass exact-head `Validate repository` run 657.
+- [x] Pass exact-head `Edge1 Operator Validation` run 489.
+- [x] Confirm eight changed files, zero-behind state, mergeability, and zero unresolved review threads.
+- [x] Merge repository-only migration design through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
 - [ ] Run a fresh authenticated live filesystem, route, publisher, service, and SHA-256 inventory.
 - [ ] Reconcile all unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts.
 
