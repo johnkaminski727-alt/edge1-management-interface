@@ -1,0 +1,31 @@
+[Unit]
+Description=WW.CX minimized public Edge1 status exporter
+After=local-fs.target wwcx-security-operations.service wwcx-network-defense.service wwcx-operations-health.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /usr/local/libexec/wwcx-security/edge1_public_status_exporter.py --security /var/www/edge1-status/security-operations.json --network-defense /var/www/edge1-status/network-defense/data/network-defense.json --operations-health /var/www/edge1-status/operations-health.json --output /var/lib/bigbird-public-status/www/status.json
+UMask=0022
+ReadOnlyPaths=/var/www/edge1-status /usr/local/libexec/wwcx-security/edge1_public_status_exporter.py
+ReadWritePaths=/var/lib/bigbird-public-status/www
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native

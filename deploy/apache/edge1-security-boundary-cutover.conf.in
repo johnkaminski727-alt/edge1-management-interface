@@ -1,0 +1,95 @@
+# Managed by edge1-management-interface. No credential or key material belongs here.
+SetEnvIf Request_URI "^/edge1-(ops|login)(?:/|$)" edge1_ops_audit
+CustomLog /var/log/apache2/edge1-ops-access.log combined env=edge1_ops_audit
+Alias "/edge1-status/public/status.json" "/var/lib/bigbird-public-status/www/status.json"
+Alias "/edge1-status/" "/var/lib/bigbird-public-status/www/"
+
+<Directory "/var/lib/bigbird-public-status/www">
+    Options -Indexes -MultiViews
+    AllowOverride None
+    Require all granted
+</Directory>
+
+<LocationMatch "^/edge1-status(?:/|$)">
+    Header always set Cache-Control "no-store, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always unset Access-Control-Allow-Origin
+</LocationMatch>
+
+# Managed by edge1-management-interface. No credential or key material belongs here.
+Alias "/edge1-login/" "/var/lib/bigbird-edge1-boundary/login/"
+Alias "/edge1-ops/" "/var/www/edge1-status/"
+
+<Directory "/var/lib/bigbird-edge1-boundary/login">
+    Options -Indexes -MultiViews
+    AllowOverride None
+    Require all granted
+</Directory>
+
+<Directory "/var/www/edge1-status">
+    Options -Indexes -MultiViews
+    AllowOverride None
+    Require all granted
+</Directory>
+
+<LocationMatch "^/edge1-ops(?:/|$)">
+    AuthType form
+    AuthName "Edge1 detailed operations"
+    AuthFormProvider file
+    AuthUserFile "@@AUTH_USER_FILE@@"
+    AuthFormLoginRequiredLocation "/edge1-login/"
+    Session On
+    SessionCookieName edge1_ops_session path=/edge1-ops/;httponly;secure;samesite=Strict
+    SessionCryptoPassphraseFile "/etc/wwcx/edge1-ops/session.keys"
+    SessionMaxAge 1800
+    Require valid-user
+    AuthFormSize 4096
+    LimitRequestBody 4096
+    SetOutputFilter RATE_LIMIT
+    SetEnv rate-limit 512
+    Header always set Cache-Control "no-store, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Content-Security-Policy "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always unset Access-Control-Allow-Origin
+</LocationMatch>
+
+<Location "/edge1-login/dologin.html">
+    SetHandler form-login-handler
+    AuthType form
+    AuthName "Edge1 detailed operations"
+    AuthFormProvider file
+    AuthUserFile "@@AUTH_USER_FILE@@"
+    AuthFormLoginRequiredLocation "/edge1-login/?failed=1"
+    AuthFormLoginSuccessLocation "/edge1-ops/"
+    Session On
+    SessionCookieName edge1_ops_session path=/edge1-ops/;httponly;secure;samesite=Strict
+    SessionCryptoPassphraseFile "/etc/wwcx/edge1-ops/session.keys"
+    SessionMaxAge 1800
+</Location>
+
+<Location "/edge1-login/logout">
+    SetHandler form-logout-handler
+    AuthName "Edge1 detailed operations"
+    AuthFormLogoutLocation "/edge1-login/?logged_out=1"
+    Session On
+    SessionCookieName edge1_ops_session path=/edge1-ops/;httponly;secure;samesite=Strict
+    SessionCryptoPassphraseFile "/etc/wwcx/edge1-ops/session.keys"
+    SessionMaxAge 1
+</Location>
+
+<LocationMatch "^/edge1-login(?:/|$)">
+    Header always set Cache-Control "no-store, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Content-Security-Policy "default-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always unset Access-Control-Allow-Origin
+</LocationMatch>

@@ -3,63 +3,82 @@
 Last verified: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Protected-retention repository merge: `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`
+Accepted Edge1 revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
+Network Defense live-acceptance record: `83fdb08670f3b65dcdee705e440f1441efd5531e`
 
 ## Verified live baseline
 
 - Security Correlation and Network Defense are live and accepted.
 - Suricata drill-down, caching, normalization, and enrichment are live.
-- Spamhaus, Fail2ban, and nftables report accepted truthful states.
 - Network Defense applies the accepted network-source freshness threshold of `600` seconds.
-- DNS remains `not_staged`; DNS enforcement is false.
-- Verified enforcement count remained `1` before and after freshness activation.
-- Traffic controls and Network Defense timer state remained unchanged.
+- Overall Network Defense state is `limited`.
+- Verified enforcement count remained `1` before and after activation.
+- DNS remains `not_staged`; DNS enforcement remains false.
+- Traffic controls and Network Defense timer state remain unchanged.
 
-## Live completion evidence
-
-Read-only completion preflight:
+Protected baseline evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/20260730T193415Z
-```
-
-Bounded freshness activation:
-
-```text
 /var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z
 ```
 
-The Network Defense freshness project is complete and accepted at live revision `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
+## Security completion authorization
 
-## Protected Suricata retention runtime phase
+The 2026-07-30 authorized handoff approved bounded implementation and deployment of:
 
-The repository-only implementation is complete and merged through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
+1. protected Suricata retention;
+2. minimized public-status publication;
+3. an authenticated detailed-operations browser/session boundary;
+4. staged public-boundary cutover and withdrawal of anonymous detailed routes.
 
-Implemented:
+The authorization and immutable guardrails are recorded in:
 
-- `server/suricata_protected_retention.py` for sanitized source validation, deterministic SHA-256 deduplication, bounded SQLite retention, age/count/page pruning, atomic root-only status, and bounded read-only local queries;
-- `deploy/systemd/wwcx-suricata-protected-retention.service` with AF_UNIX-only, empty-capability, strict filesystem sandboxing;
-- `deploy/systemd/wwcx-suricata-protected-retention.timer` with a proposed 120-second interval;
-- `tests/test_suricata_protected_retention.py` using temporary files and databases;
-- `registers/suricata-protected-retention-runtime-register-20260730.md`.
+```text
+config/security/edge1-security-completion-authorization.json
+```
 
-Exact-head validation for `f1a619479b9d407e83b44caa306e836c282b3b77` passed:
+## Repository implementation state
 
-- `Validate repository` run 640;
-- `Edge1 Operator Validation` run 472.
+A complete implementation bundle is prepared on the focused security-completion branch:
 
-The branch was zero commits behind `main`, mergeable, and had no review threads before merge.
+- root-only sanitized Suricata SQLite retention with deterministic SHA-256 deduplication;
+- 30-day, 100,000-event, 256-MiB limits and bounded incremental reclamation;
+- atomic status publication, integrity verification, separate systemd oneshot/timer, and data-preserving rollback;
+- hardened minimized-summary oneshot/timer and isolated publication tree;
+- Apache form/session authentication using an existing approved password-file provider;
+- encrypted, secure, HttpOnly, SameSite session cookies and fail-closed anonymous access;
+- authentication-first staged cutover, archive-before-withdrawal, exact minimized public aliases, detailed authenticated aliases, route/header/listener checks, and rollback;
+- protected evidence and SHA-256 manifests for every host phase;
+- 13 focused repository tests covering runtime behavior and deployment ordering.
 
-The authoritative committed policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`. No installer or live activation is included. No Edge1 database, unit, timer, listener, route, or public artifact has been created or changed.
+Primary assets:
 
-## Remaining separately authorized programs
+```text
+server/suricata_protected_retention.py
+config/security/suricata-protected-retention-runtime.json
+deploy/activate-suricata-protected-retention.sh
+deploy/stage-edge1-public-boundary.sh
+deploy/cutover-edge1-public-boundary.sh
+deploy/activate-edge1-security-completion-programs.sh
+tools/security/edge1-security-completion-preflight.sh
+tests/validate_edge1_security_completion.py
+```
 
-- separately design and authorize any Edge1 installer and live acceptance for protected retention;
-- minimized public-summary server-side publication;
-- authenticated detailed-operations browser/session boundary;
-- staged public-boundary cutover and detailed-artifact removal.
+## Live deployment state
+
+The new four-program deployment has not been executed from this runtime. This environment has no authenticated Edge1 shell or approved host connector and cannot access the existing root-owned Apache authentication file or a root-protected acceptance credential file.
+
+No new unit, Apache configuration, public route, authentication boundary, listener, status file, database, or evidence directory is claimed live. The accepted Network Defense baseline remains unchanged.
+
+Host execution must use a clean, fast-forwarded `main` checkout and the runbook:
+
+```text
+docs/security/edge1-security-completion-programs-runbook-20260730.md
+```
+
+Credentials must remain in root-protected host files and must never be supplied in chat or committed to Git.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables rules, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public routes, production traffic, or timer scheduling changed. Production history ingestion, data deletion, `/var/www` publication, and detailed-artifact removal remain unauthorized.
+The implementation does not enable DNS enforcement or modify Unbound, RPZ, nftables, firewall rules, routing, IDS rules, reputation lists, certificates, or production traffic. It creates no new network listener. Detailed files and retained evidence are archived and preserved rather than deleted.

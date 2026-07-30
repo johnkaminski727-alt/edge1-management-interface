@@ -1,84 +1,78 @@
-# Edge1 Project Completion Handoff
+# Edge1 Security Completion Programs Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Accepted Edge1 revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`
+Baseline record revision: `83fdb08670f3b65dcdee705e440f1441efd5531e`  
+Accepted live runtime revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`
 
-## Completed live baseline
+## Accepted live baseline
 
-Security Correlation and Network Defense are live and accepted. Suricata drill-down, caching, normalization, and enrichment are live. Spamhaus, Fail2ban, and nftables report accepted truthful states.
+Network Defense remains accepted with:
 
-The Network Defense freshness phase is now live and accepted:
+- freshness threshold `600` seconds;
+- overall state `limited`;
+- verified enforcement count `1` before and after activation;
+- DNS policy `not_staged`;
+- DNS enforcement false;
+- traffic controls unchanged;
+- timer state unchanged.
 
-- network-source stale threshold: `600` seconds;
-- overall Network Defense state: `limited`;
-- verified enforcement count: `1` before and after;
-- DNS policy: `not_staged`;
-- DNS enforcement: `false`;
-- traffic controls changed: `false`;
-- timer enabled/active state: unchanged.
-
-## Completed sequence
-
-1. Edge1 checkout was fast-forwarded to repository `main`.
-2. The read-only completion preflight passed.
-3. The first activation stopped safely during validation before mutation because an older runtime-wiring test contradicted the accepted freshness-wrapper contract.
-4. PR #136 corrected only that test and passed both required CI workflows.
-5. Edge1 was fast-forwarded to `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
-6. The bounded freshness activation passed and produced protected evidence.
-
-## Protected evidence
-
-Completion preflight:
+Protected baseline evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/20260730T193415Z
-```
-
-Successful freshness activation:
-
-```text
 /var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z
 ```
 
-Final acceptance register:
+## Authorized repository implementation
+
+The four security-completion programs have been implemented as a focused repository bundle:
+
+1. **Protected Suricata retention** — consumes only the sanitized collector contract, stores root-only SQLite history, enforces time/count/size limits, deduplicates deterministically, verifies integrity, and preserves data on rollback.
+2. **Minimized public summary** — packages the accepted seven-field allowlist exporter into a hardened oneshot/timer and isolated publication tree.
+3. **Authenticated detailed operations** — stages `/edge1-ops/` behind Apache form/session authentication using an existing approved password file, encrypted secure session cookies, fail-closed anonymous access, audit events, and no-store/security headers.
+4. **Public-boundary cutover** — proves authenticated access first, inventories/hashes/archives the detailed tree, switches `/edge1-status/` to minimized output, withdraws anonymous detailed routes, verifies authenticated equivalence, and restores the staged configuration on failure.
+
+Repository validation currently passes 13 focused tests. The implementation creates no new listener and contains no credential material.
+
+## Live execution fact
+
+No new host deployment has been performed from the current runtime. There is no authenticated Edge1 shell or approved host connector available here, and root-protected authentication/acceptance files are intentionally inaccessible.
+
+Therefore none of the following are claimed live yet:
+
+- `wwcx-suricata-protected-retention.service` or `.timer`;
+- `wwcx-edge1-minimized-public-summary.service` or `.timer`;
+- `/var/lib/bigbird-security/suricata-history/`;
+- `/var/lib/bigbird-public-status/www/`;
+- `/edge1-login/` or `/edge1-ops/`;
+- minimized `/edge1-status/` routing;
+- new protected completion evidence directories.
+
+## Exact host continuation
+
+After exact-head CI passes and the pull request is merged, use the runbook:
 
 ```text
-registers/network-defense-freshness-live-acceptance-20260730.md
+docs/security/edge1-security-completion-programs-runbook-20260730.md
 ```
 
-## Repository record
+The orchestrator is:
 
-Closed phases:
+```text
+deploy/activate-edge1-security-completion-programs.sh
+```
 
-- Network Defense freshness implementation and repository closeout through PR #127.
-- Protected Suricata retention design through PR #129; disabled and non-deploying.
-- Public access-boundary design through PR #131.
-- Minimized public summary implementation through PR #133; not published live.
-- Operator completion bundle through PR #134.
-- Runtime-validation correction through PR #136, merged as `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
-- Live Network Defense freshness acceptance recorded after successful authenticated execution.
+It requires only paths to root-protected host files through:
 
-PR #136 exact head and validation:
+```text
+EDGE1_AUTH_USER_FILE
+EDGE1_AUTH_ACCEPTANCE_FILE
+```
 
-- head: `ea4ad48daf51aab5bbb2fbdf90b0a1767eefe353`;
-- `Validate repository` run 636: success;
-- `Edge1 Operator Validation` run 468: success;
-- one changed test file;
-- no runtime or deployment files changed.
+Do not disclose their contents in chat. The cutover script cannot withdraw anonymous detail unless a browser-equivalent authenticated request succeeds first.
 
-## Project status
+## Safety boundary
 
-The original Edge1 Network Defense freshness project is complete. No further action is required for this phase.
-
-The following are separate future programs, not incomplete portions of this acceptance:
-
-- protected Suricata-retention runtime implementation;
-- minimized public-summary publication;
-- authenticated detailed-operations browser/session boundary;
-- staged public-boundary cutover and detailed-artifact removal.
-
-## Exact authorization boundary
-
-This completion does not authorize publication under `/var/www`, removal of detailed public artifacts, Apache/proxy/auth/header changes, authentication activation, certificate/listener/DNS/firewall changes, production cutover, traffic changes, or deletion of retained data or evidence.
+The bundle must not change DNS enforcement, Unbound, RPZ, nftables, firewall rules, routing, IDS rules, reputation lists, certificates, listeners, or production traffic. It archives before withdrawal, preserves operational data, and rolls back immediately on failed acceptance.

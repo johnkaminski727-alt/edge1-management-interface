@@ -1,0 +1,77 @@
+{
+  "contract": "wwcx.suricata-protected-retention-policy.v1",
+  "status": "implementation_ready",
+  "enabled": true,
+  "activation_requires_explicit_authorization": true,
+  "ingest": {
+    "source": "/var/lib/bigbird/operations-center/latest.json",
+    "required_source_schema": "wwcx.suricata-source-alert.v1",
+    "raw_eve_allowed": false,
+    "interval_seconds": 120,
+    "max_alerts_per_run": 100,
+    "deduplication": {
+      "algorithm": "sha256",
+      "unique_constraint": "event_key",
+      "canonical_fields": ["timestamp","signature","signature_id","generator_id","revision","flow_id","event_id","source","source_port","destination","destination_port","protocol","application_protocol","category","action"]
+    }
+  },
+  "storage": {
+    "database": "/var/lib/bigbird-security/suricata-history/alerts.sqlite3",
+    "status_file": "/var/lib/bigbird-security/suricata-history/status.json",
+    "owner": "root",
+    "group": "root",
+    "directory_mode": "0700",
+    "database_mode": "0600",
+    "status_mode": "0600",
+    "retention_days": 30,
+    "max_database_bytes": 268435456,
+    "max_events": 100000,
+    "page_size_bytes": 4096,
+    "max_page_count": 65536,
+    "prune_target_percent": 90,
+    "automatic_offhost_backup": false,
+    "legal_hold_export_required": true
+  },
+  "privacy": {
+    "sanitized_alerts_only": true,
+    "packet_payloads_included": false,
+    "raw_events_included": false,
+    "raw_logs_included": false,
+    "credentials_included": false,
+    "private_keys_included": false,
+    "arbitrary_metadata_included": false,
+    "approved_fields": ["timestamp","signature","severity","risk","category","action","source","source_port","destination","destination_port","protocol","application_protocol","signature_id","generator_id","revision","flow_id","event_id"]
+  },
+  "query": {
+    "network_listener": false,
+    "public_endpoint": false,
+    "local_cli_only": true,
+    "default_window_hours": 24,
+    "max_window_days": 7,
+    "default_limit": 100,
+    "max_limit": 500,
+    "future_operations_api_scope": "security.suricata.history.read",
+    "authentication_boundary_change_authorized": false
+  },
+  "incident_promotion": {
+    "automatic": false,
+    "evidence_root": "/var/lib/wwcx-deployment-evidence/suricata-history-holds",
+    "sha256_manifest_required": true,
+    "authorization_record_required": true,
+    "retention_class": "security_and_access_records"
+  },
+  "rollback": {
+    "disable_future_timer": true,
+    "remove_future_unit": true,
+    "preserve_database_by_default": true,
+    "data_destruction_requires_separate_authorization": true
+  },
+  "acceptance": {
+    "deployment_authorized": true,
+    "suricata_configuration_changed": false,
+    "suricata_service_changed": false,
+    "traffic_controls_changed": false,
+    "authentication_boundary_changed": false,
+    "public_access_changed": false
+  }
+}

@@ -1,69 +1,56 @@
 # Backlog
 
-## Completed live phases
+## Completed live baseline
 
 - [x] Security Correlation and Network Defense deployed and accepted.
 - [x] Suricata drill-down, caching, normalization, and enrichment deployed.
-- [x] Spamhaus, Fail2ban, and nftables truthful live states accepted.
-- [x] DNS remains `not_staged`; DNS enforcement remains false.
 - [x] Network Defense freshness threshold activated and accepted at `600` seconds.
 - [x] Verified enforcement count remained `1` before and after activation.
-- [x] Timer state and traffic controls remained unchanged.
+- [x] DNS remains `not_staged`; DNS enforcement remains false.
+- [x] Network Defense timer state and traffic controls remained unchanged.
 
-## Completed repository phases
+## Completed repository implementation
 
-- [x] Network Defense freshness implementation and closeout through PR #127.
-- [x] Protected Suricata retention design and closeout through PR #129.
-- [x] Public access-boundary design and closeout through PR #131.
-- [x] Minimized public summary implementation and closeout through PR #133.
-- [x] Edge1 project completion operator bundle merged through PR #134 as `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`.
-- [x] Runtime-wiring validation corrected through PR #136.
-- [x] Pass PR #136 `Validate repository` run 636.
-- [x] Pass PR #136 `Edge1 Operator Validation` run 468.
-- [x] Merge PR #136 as `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
-- [x] Protected Suricata retention runtime merged through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
+- [x] Record exact authorization and immutable guardrails for all four security-completion programs.
+- [x] Implement protected sanitized Suricata retention runtime.
+- [x] Enforce 30-day, 100,000-event, and 256-MiB retention ceilings.
+- [x] Add deterministic deduplication, strict allowlisting, atomic writes, integrity checks, and data-preserving rollback.
+- [x] Add separate hardened retention service and timer.
+- [x] Package the minimized public-status exporter as a hardened service and timer.
+- [x] Add an isolated minimized publication tree.
+- [x] Add an Apache form/session boundary for `/edge1-ops/` using an existing approved password file.
+- [x] Require encrypted secure HttpOnly SameSite session cookies, no directory listing, no wildcard CORS, and no-store headers.
+- [x] Add browser-equivalent authenticated acceptance and fail-closed anonymous checks.
+- [x] Add archive-before-withdrawal public cutover and exact anonymous 404 checks.
+- [x] Preserve the detailed tree and protected archive; do not destructively delete records.
+- [x] Add read-only preflight, rollback, protected evidence, and SHA-256 manifests.
+- [x] Pass 13 focused local repository tests plus Python compilation, JSON validation, and shell syntax validation.
+- [x] Add runbook, register, and `.agent` continuity updates.
 
-## Completed authenticated host sequence
+## Remaining exact-head repository gates
 
-- [x] Establish authenticated SSH access to `edge1.ww.cx` as `wwadmin` without sharing credentials.
-- [x] Fast-forward clean `/opt/edge1-management-interface` checkout to authoritative `main`.
-- [x] Run `sudo bash tools/security/edge1-project-completion-preflight.sh`.
-- [x] Capture protected preflight evidence at `/var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/20260730T193415Z`.
-- [x] Safely stop the first activation during pre-mutation validation when the stale test failed.
-- [x] Pull the PR #136 correction.
-- [x] Run `sudo bash deploy/activate-network-defense-freshness.sh` successfully.
-- [x] Confirm threshold `600`, local/public acceptance, unchanged timer/enforcement/DNS/traffic-control state, and successful completion.
-- [x] Capture protected activation evidence at `/var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z`.
-- [x] Update authoritative records with exact host evidence paths and live acceptance results.
+- [ ] Open the focused pull request against `main`.
+- [ ] Pass exact-head `Validate repository`.
+- [ ] Pass exact-head `Edge1 Operator Validation`.
+- [ ] Confirm changed-file scope, zero-behind state, mergeability, and no unresolved review threads.
+- [ ] Merge only the exact validated head.
 
-## Protected Suricata retention runtime
+## Remaining authenticated host sequence
 
-- [x] Create focused implementation branch.
-- [x] Add fail-closed sanitized-alert retention, deduplication, pruning, and bounded local query runtime.
-- [x] Add hardened oneshot service and 120-second timer definitions without installing or enabling them.
-- [x] Add temporary-database functional and static safety tests.
-- [x] Keep committed policy `design_only`, disabled, and deployment unauthorized.
-- [x] Pass exact-head `Validate repository` workflow run 640.
-- [x] Pass exact-head `Edge1 Operator Validation` workflow run 472.
-- [x] Complete PR scope, zero-behind, mergeability, and unresolved-thread review.
-- [x] Merge repository-only runtime implementation through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
-- [ ] Design a separate bounded installer and live acceptance only after exact authorization.
+- [ ] Establish an approved authenticated Edge1 execution path without sharing credentials in chat.
+- [ ] Fast-forward a clean `/opt/edge1-management-interface` checkout to the exact merged `main` revision.
+- [ ] Provide the path to an existing approved root-owned Apache password file through `EDGE1_AUTH_USER_FILE`.
+- [ ] Provide a temporary root-owned mode-`0600` acceptance JSON file through `EDGE1_AUTH_ACCEPTANCE_FILE`.
+- [ ] Run `tools/security/edge1-security-completion-preflight.sh` and review its protected manifest.
+- [ ] Deploy and accept protected Suricata retention.
+- [ ] Stage and accept authenticated `/edge1-ops/` while leaving anonymous detail unchanged.
+- [ ] Archive the detailed public tree and perform the minimized `/edge1-status/` cutover.
+- [ ] Confirm anonymous detailed routes return `404`, authenticated detailed routes return `200`, headers are correct, and listeners/control planes remain unchanged.
+- [ ] Record exact evidence paths and live acceptance results in the register and `.agent` files.
 
-## Separate future programs
+## Hard stop boundaries
 
-Require new branches, measured host evidence, exact-head CI, and separate deployment acceptance:
-
-- [ ] minimized public-summary server-side publication design;
-- [ ] authenticated detailed-operations browser/session design;
-- [ ] staged public-boundary cutover and detailed-artifact removal.
-
-These items are not blockers to the completed Network Defense freshness project or the merged repository-only protected-retention implementation.
-
-## Exact authorization still required
-
-- production Suricata-history database creation, unit installation, timer enablement, or ingestion;
-- `/var/www` publication or removal;
-- Apache/proxy/auth/header reload or route changes;
-- authentication, certificate, listener, DNS, firewall, or traffic changes;
-- public or production cutover;
-- deletion of retained status, report, incident, history, or evidence data.
+- Never request or copy passwords, password hashes, tokens, cookies, private keys, or session keys into chat or Git.
+- Stop and roll back if authentication, route isolation, public minimization, service health, data integrity, or listener equivalence fails.
+- Do not delete the retention database, detailed tree, archives, incident records, reports, or deployment evidence.
+- Do not alter DNS enforcement, Unbound, RPZ, nftables, firewall rules, routing, IDS rules, reputation lists, certificates, or production traffic.
