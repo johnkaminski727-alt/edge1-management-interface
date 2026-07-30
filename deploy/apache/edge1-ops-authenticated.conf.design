@@ -1,0 +1,56 @@
+# DESIGN ONLY — DO NOT INSTALL, INCLUDE, ENABLE, OR RELOAD WITHOUT EXACT AUTHORIZATION.
+# No identity provider, client identifier, client secret, issuer, audience, or claim mapping
+# is selected in this repository file. Provider material must remain external under
+# /etc/wwcx-edge1-ops and requires fresh live module/configuration inventory.
+#
+# The unconditional `Require all denied` clauses are deliberate activation gates.
+# They must remain until provider, scope mapping, session store, audit, rate limits,
+# route matrices, backup, rollback, and protected acceptance evidence are complete.
+
+Alias "/edge1-ops/" "/var/lib/wwcx-edge1-ops/current/"
+
+<Directory "/var/lib/wwcx-edge1-ops/current">
+    Options -Indexes +FollowSymLinks
+    AllowOverride None
+    DirectoryIndex index.html
+    Require all denied
+</Directory>
+
+<Location "/edge1-ops/">
+    AuthType openid-connect
+    AuthName "WW.CX Edge1 Restricted Operations"
+
+    <RequireAll>
+        Require valid-user
+        Require method GET HEAD
+        Require all denied
+    </RequireAll>
+
+    Header always set Cache-Control "no-store, max-age=0"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+    Header always unset Access-Control-Allow-Origin
+</Location>
+
+# History requires both edge1.status.detail.read and security.suricata.history.read.
+# Exact claim-to-scope expressions remain intentionally absent until the provider and
+# Apache adapter are selected and verified. This nested gate therefore remains denied.
+<Location "/edge1-ops/security/history/">
+    <RequireAll>
+        Require valid-user
+        Require method GET HEAD
+        Require all denied
+    </RequireAll>
+</Location>
+
+<Location "/edge1-ops/api/v1/security/suricata/history">
+    <RequireAll>
+        Require valid-user
+        Require method GET HEAD
+        Require all denied
+    </RequireAll>
+</Location>
