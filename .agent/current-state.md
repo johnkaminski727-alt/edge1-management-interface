@@ -4,7 +4,8 @@ Last verified: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Authenticated-boundary repository merge: `a0dd8103d8035862d03769ef4fabb0359cc73009`
+Latest completed repository closeout: `a8af7fa77d9eb81ecd69d22e9d314de478975d66`  
+Active repository branch: `design/edge1-restricted-artifact-migration-manifest-20260730`
 
 ## Verified live baseline
 
@@ -28,44 +29,37 @@ Protected live evidence:
 - Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
 - Minimized public-summary route and strict CSP corrections merged through PRs #140 and #141.
 - Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
-- Authenticated detailed-operations browser/session boundary merged through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
+- Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147; authoritative closeout is `a8af7fa77d9eb81ecd69d22e9d314de478975d66`.
 
-## Authenticated detailed-operations boundary
+## Restricted artifact migration manifest phase
 
-The repository-only design is complete.
+A repository-only, read-only migration design is in progress on `design/edge1-restricted-artifact-migration-manifest-20260730`.
 
 Implemented:
 
-- disabled `/edge1-ops/` browser/session policy and critical JSON schema;
-- OpenID Connect authorization-code plus PKCE design with external provider and secret paths;
-- server-side opaque-session, secure cookie, idle/absolute timeout, rotation, and logout requirements;
-- exact registered route and general/history scope matrix;
-- pure fail-closed path, identity, authorization, rate-limit, and redacted-audit evaluator;
-- explicit 404, 401, 403, 405, and 429 contracts;
-- strict restricted-response headers and no-CORS policy;
-- credential-free Apache `.design` file with unconditional deny gates;
-- policy drift, path ambiguity, session, scope, audit privacy, and static boundary tests;
+- disabled source-to-target migration manifest for `/var/www/edge1-status` to future `/var/lib/wwcx-edge1-ops/releases` staging;
+- 23 exact repository-declared artifacts and five live-enumerated prefix groups;
+- exact target-route and scope validation against the authenticated `/edge1-ops/` policy;
+- read-only SHA-256 inventory-record validation;
+- exact and prefix mapping with preserved evidence metadata;
+- unknown-artifact `preserve_review`, missing-known reporting, and duplicate-target blocking;
+- separate staging and cutover readiness results that remain false under the committed policy;
+- tests covering repository-reference coverage, safe paths, inventory metadata, unknown preservation, collision handling, and absence of mutation operations;
 - architecture and audit register.
 
-PR #146 exact head `afcccbf65c94f48944cf7dc221bd18445488a4f8` passed:
+Committed gates remain `design_only`, disabled, staging unauthorized, cutover unauthorized, deletion unauthorized, and source mutation forbidden.
 
-- `Validate repository` run 653;
-- `Edge1 Operator Validation` run 485.
-
-The branch changed only the 10 expected files, was zero commits behind `main`, was mergeable, and had no review threads.
-
-The committed policy remains `design_only`, disabled, deployment unauthorized, authentication-change unauthorized, live-route unauthorized, provider unselected, and Apache adapter unverified.
-
-No provider, client identifier, client secret, token, cookie, session store, audit file, listener, Apache include, route, authentication rule, user/group, or `/var/www` file has been created or changed.
+No live Edge1 filesystem was inspected. No source file was opened, hashed, copied, moved, renamed, modified, removed, or routed. Exact-head CI and final PR review are pending.
 
 ## Remaining separately authorized programs
 
-- fresh authenticated Edge1 Apache, route, module, filesystem, listener, provider, session-store, audit, and rate-limit inventory;
-- separately authorized provider/session implementation and restricted-route staging;
+- complete exact-head validation and merge for the repository-only migration manifest;
+- fresh authenticated Edge1 Apache, route, filesystem, publisher, service, listener, hash, backup, provider, session-store, audit, and rate-limit inventory;
+- separately authorized restricted release staging and authenticated route implementation;
 - separately authorized public-summary staging installation;
 - separately authorized public cutover and detailed-artifact removal;
 - separately authorized protected-retention installation and live acceptance.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables rules, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public or restricted routes, production traffic, timer scheduling, `/var/www` publication, release pruning, or data deletion changed.
+No DNS, Unbound, RPZ, nftables rules, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public or restricted routes, production traffic, timer scheduling, `/var/www` publication or removal, release creation, pruning, or data deletion changed.
