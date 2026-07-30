@@ -122,10 +122,10 @@ rollback() {
 }
 trap rollback ERR INT TERM
 
-python3 -m unittest \
-    tests.test_network_defense_freshness_policy \
-    tests.test_network_defense_deployment \
-    2>&1 | tee "$EVIDENCE_DIR/targeted-tests.txt"
+{
+    python3 "$REPO_ROOT/tests/test_network_defense_freshness_policy.py"
+    python3 "$REPO_ROOT/tests/test_network_defense_deployment.py"
+} 2>&1 | tee "$EVIDENCE_DIR/targeted-tests.txt"
 bash "$REPO_ROOT/tools/networking/validate-network-defense.sh" 2>&1 | tee "$EVIDENCE_DIR/network-defense-validation.txt"
 
 MUTATION_STARTED=1
