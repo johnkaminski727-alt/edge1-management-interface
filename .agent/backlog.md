@@ -2,57 +2,50 @@
 
 ## Completed live phases
 
-- [x] Deploy and accept Security Correlation and Network Defense observability.
-- [x] Deploy Suricata drill-down, caching, normalization, and source enrichment.
-- [x] Accept Spamhaus, Fail2ban, and nftables truthful live states.
-- [x] Preserve DNS `not_staged`, DNS enforcement disabled, and no traffic-control change.
+- [x] Security Correlation and Network Defense deployed and accepted.
+- [x] Suricata drill-down, caching, normalization, and enrichment deployed.
+- [x] Spamhaus, Fail2ban, and nftables truthful live states accepted.
+- [x] DNS remains unstaged/disabled and traffic controls unchanged.
 
 ## Completed repository phases
 
 - [x] Network Defense freshness closed through PR #127.
 - [x] Protected Suricata retention design closed through PR #129.
-- [x] Public access-boundary design closed through PR #131 at `1d995bbc0ec9029c9853d9968470f248eb8b6995`.
+- [x] Public access-boundary design closed through PR #131.
+- [x] Minimized public summary passed exact-head CI and merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`.
 
-## Pending live/host phases
+## Minimized public summary acceptance
 
-- [ ] Establish authenticated Edge1 execution.
-- [ ] Activate and accept the freshness change with terminal evidence.
-- [ ] Collect host evidence before protected-retention implementation.
-- [ ] Capture read-only Apache/auth/header/route/filesystem inventory before any public-boundary change.
-
-## Current repository phase — minimized public summary
-
-- [x] Define schema `wwcx.edge1-public-status.v1`.
-- [x] Implement allowlist-only exporter with required explicit source paths.
-- [x] Default output to `build/edge1-public-status/status.json`, never `/var/www`.
-- [x] Reduce Security to health state, alert count, and freshness only.
-- [x] Reduce Network Defense to overall state, available-source count, and freshness only.
-- [x] Reduce Operations Health to overall state, check count, and freshness only.
+- [x] Define `wwcx.edge1-public-status.v1`.
+- [x] Implement explicit-input, allowlist-only exporter.
+- [x] Default output to repository build path, never `/var/www`.
+- [x] Reduce Security, Network Defense, and Operations to state/count/freshness.
 - [x] Cap counts and maintenance notice.
 - [x] Degrade stale/missing sources without exposing errors or paths.
-- [x] Add hostile fixtures with topology, addresses, ports, IDs, Git, incidents, services, and reports.
-- [x] Recursively validate forbidden keys and hostile-value exclusion.
-- [x] Add static page and external renderer consuming only `./status.json`.
-- [x] Add CSP meta, no-referrer, omitted credentials, and browser no-store behavior.
-- [x] Add no-command, no-network, no-live-path, no-deploy, and no-systemd validations.
-- [x] Add implementation documentation and register.
-- [ ] Pass exact-head `Validate repository` and `Edge1 Operator Validation`.
-- [ ] Confirm changed-file scope, zero-behind, mergeability, and no unresolved threads.
-- [ ] Merge and close the repository phase.
+- [x] Add hostile fixtures and recursive forbidden-key/value tests.
+- [x] Add non-routed page consuming only `./status.json`.
+- [x] Add no-command/network/live-path/deployment/systemd validations.
+- [x] Pass `Validate repository` run 622 and `Edge1 Operator Validation` run 454.
+- [x] Confirm zero-behind, mergeable, and no unresolved review threads.
+- [x] Merge and update closeout records.
 
-## Explicitly not implemented or authorized
+## Remaining host/live work
 
-- deploy script or systemd unit;
-- Apache/vhost/alias/header changes;
-- `/var/www` output or publication;
-- public route activation or cutover;
-- authenticated operations UI/session;
-- removal of existing detailed files;
-- DNS, certificate, listener, firewall, proxy, or traffic changes.
+Requires authenticated Edge1 execution and exact authorization where noted:
 
-## Explicitly deferred
+- [ ] activate and accept Network Defense freshness with terminal evidence;
+- [ ] collect protected-retention host sizing/SQLite evidence before runtime implementation;
+- [ ] capture read-only Apache/vhost/alias/auth/header/CORS/listing/route/filesystem inventory;
+- [ ] design server-side minimized publication headers and ownership;
+- [ ] prepare backup and rollback for any future public route change;
+- [ ] obtain exact authorization before publishing minimized artifacts;
+- [ ] stage authenticated detailed operations separately;
+- [ ] cut over public access only under exact authorization and protected evidence.
 
-- protected-retention runtime and deployment;
-- authentication-boundary implementation;
-- public/production cutover;
+## Explicitly not authorized
+
+- `/var/www` publication or file removal;
+- Apache/proxy/auth/header reload or route changes;
+- authentication, certificate, listener, DNS, firewall, or traffic changes;
+- public or production cutover;
 - data/report/incident/status/evidence destruction.
