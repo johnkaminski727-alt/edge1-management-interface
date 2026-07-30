@@ -4,15 +4,15 @@ Last verified: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Latest completed repository closeout: `a8af7fa77d9eb81ecd69d22e9d314de478975d66`  
-Latest repository implementation merge: `975711be82cfb72b534d3eccd57744daf9893324`
+Latest repository closeout: `d236219067c78c584b06c11a5612c5ed28ef72fb`  
+Active repository branch: `ops/edge1-security-boundary-live-inventory-20260730`
 
 ## Verified live baseline
 
 - Security Correlation and Network Defense are live and accepted.
 - Suricata drill-down, caching, normalization, and enrichment are live.
-- Spamhaus, Fail2ban, and nftables report accepted truthful states.
 - Network Defense applies the accepted network-source freshness threshold of `600` seconds.
+- Overall Network Defense state is `limited`.
 - DNS remains `not_staged`; DNS enforcement is false.
 - Verified enforcement count remained `1` before and after freshness activation.
 - Traffic controls and Network Defense timer state remained unchanged.
@@ -26,48 +26,53 @@ Protected live evidence:
 
 ## Completed repository programs
 
-- Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
-- Minimized public-summary route and strict CSP corrections merged through PRs #140 and #141.
-- Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
-- Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147.
-- Restricted-artifact migration manifest merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
+- Protected Suricata retention runtime and closeout: PRs #138-139.
+- Minimized public-summary route, CSP, staging runtime, and closeout: PRs #140-145.
+- Authenticated detailed-operations browser/session boundary and closeout: PRs #146-147.
+- Restricted-artifact migration manifest and closeout: PRs #148-149.
+- Latest repository closeout: `d236219067c78c584b06c11a5612c5ed28ef72fb`.
 
-## Restricted artifact migration manifest completion
+No public-summary staging, authenticated restricted route, restricted release, detailed-artifact migration, public cutover, detailed-artifact removal, or protected-retention installation has occurred on Edge1.
 
-The repository-only, read-only migration design is complete and merged.
+## Security-boundary live inventory phase
+
+A focused read-only host-evidence bundle is implemented on `ops/edge1-security-boundary-live-inventory-20260730`.
 
 Implemented:
 
-- disabled source-to-target migration manifest for `/var/www/edge1-status` to future `/var/lib/wwcx-edge1-ops/releases` staging;
-- 23 exact repository-declared artifacts and five live-enumerated prefix groups;
-- exact target-route and scope validation against the authenticated `/edge1-ops/` policy;
-- read-only SHA-256 inventory-record validation;
-- exact and prefix mapping with preserved evidence metadata;
-- unknown-artifact `preserve_review`, missing-known reporting, and duplicate-target blocking;
-- separate staging and cutover readiness results that remain false under the committed policy;
-- tests covering repository-reference coverage, safe paths, inventory metadata, unknown preservation, collision handling, and absence of mutation operations;
-- architecture and audit register.
+- machine-readable record of the user's explicit authorization for the four named security-completion programs;
+- root-run, clean-`main` inventory guard;
+- protected timestamped evidence directory;
+- exact JSON path/SHA-256/mode/byte inventory of `/var/www/edge1-status`;
+- symlink and non-regular-file anomaly reporting;
+- automatic reconciliation against the merged restricted-artifact manifest and access policy;
+- Apache syntax, vhost, module, config-hash, and directive-name-only readiness evidence;
+- redacted systemd unit and service-state evidence;
+- local/public anonymous route and security-header matrix;
+- listener, capacity, candidate-root, audit-log-metadata, and retention-tree inventories;
+- explicit no-credential, no-cookie-value, no-source-mutation, no-traffic-change results;
+- unit, redaction, static non-mutation, and synthetic reconciliation tests;
+- runbook and audit register.
 
-Exact implementation head `52a686a4aed7fc3eca3fbccfd2d665fd71b61170` passed:
+The bundle records no Git remote URLs, environment dump, SSH material, private keys, shadow data, password-file contents, provider/client secret values, cookie values, or audit-log contents.
 
-- `Validate repository` run 657;
-- `Edge1 Operator Validation` run 489;
-- eight changed files;
-- zero unresolved review threads;
-- merge through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
+## Repository validation state
 
-Committed gates remain `design_only`, disabled, staging unauthorized, cutover unauthorized, deletion unauthorized, and source mutation forbidden.
+Exact-head CI, changed-file review, zero-behind review, mergeability, and review-thread checks are pending.
 
-No live Edge1 filesystem was inspected. No source file was opened, hashed, copied, moved, renamed, modified, removed, or routed.
+## Live execution state
 
-## Remaining separately authorized programs
+No authenticated Edge1 execution path is available in the current authoring runtime. The new inventory script has not been executed on Edge1 and no new protected evidence directory is claimed.
 
-- fresh authenticated Edge1 Apache, route, filesystem, publisher, service, listener, hash, backup, provider, session-store, audit, and rate-limit inventory;
-- separately authorized restricted release staging and authenticated route implementation;
-- separately authorized public-summary staging installation;
-- separately authorized public cutover and detailed-artifact removal;
-- separately authorized protected-retention installation and live acceptance.
+## Next gates
+
+1. pass exact-head repository workflows and merge the inventory bundle;
+2. run the merged inventory on a clean authenticated Edge1 `main` checkout;
+3. review unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts;
+4. select only an actually available approved identity-provider/Apache adapter path;
+5. construct restricted and public staging installers from the measured host evidence;
+6. preserve authentication-first, archive-before-withdrawal, rollback, and no-traffic-change gates.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables rules, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public or restricted routes, production traffic, timer scheduling, `/var/www` publication or removal, release creation, pruning, or data deletion changed.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, listeners, public or restricted routes, production traffic, timer scheduling, `/var/www` publication or removal, release creation, source mutation, pruning, or data deletion changed.
