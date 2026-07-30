@@ -3,22 +3,18 @@
 Date: 2026-07-30  
 Classification: internal, sanitized design  
 System: `edge1.ww.cx` / WW.CX Operations Center  
-Repository state: design branch only
+Repository state: merged through PR #130 as `6e0bbb9d38cd2b89a5ba59ced1534a93ba3aa2eb`
 
-## Trigger
+## Trigger and decision
 
-The accepted `edge1.ww.cx/edge1-status/` tree combines public-facing status pages with detailed operational files. The optional review was opened to determine whether the public boundary should remain unchanged.
+The accepted `edge1.ww.cx/edge1-status/` tree combines public-facing status pages with detailed operational files. Repository review concluded that this mixed tree should not remain unchanged as the long-term access boundary.
 
-## Decision
-
-The boundary should not remain unchanged as the long-term design.
-
-The repository should move toward:
+Target:
 
 1. a minimized public landing page and allowlist-only aggregate status feed;
 2. a separately authenticated, fail-closed detailed operations surface.
 
-This register records a design decision only. No live access, proxy, authentication, certificate, DNS, listener, or published-file change is authorized or performed.
+No live access, proxy, authentication, certificate, DNS, listener, or published-file change was authorized or performed.
 
 ## Evidence reviewed
 
@@ -28,25 +24,18 @@ This register records a design decision only. No live access, proxy, authenticat
 | `deploy/operations-center/publish.sh` | Operations Center HTML is installed mode `0644` under `/var/www/edge1-status` |
 | `src/web/operations-center/index.html` | Public page fetches security, wallet, mining, inventory, network, change, automation, incident, communications, carrier, and report data |
 | `tools/operations/validate-operations-center.sh` | Numerous detailed JSON artifacts and reports are expected under the same web root |
-| `server/operations-inventory-exporter.py` | Host, kernel, Python, modules, and running services are published |
-| `server/operations-network-exporter.py` | Interfaces, routes, WireGuard output, and resolver output are published |
-| `server/operations-version-exporter.py` | Branch, commit, and dirty state are published |
-| `server/operations-changes-exporter.py` | Recent commit hashes/messages and worktree state are published |
-| `server/operations-automation-health-exporter.py` | Timer names, states, and next-run values are published |
-| incident exporters | Active incident detail and complete incident state history are published |
-| communications/carrier exporters | Loopback service responses are passed through into public-root files |
-| report exporters | HTML, JSON, PDF, and report index artifacts are generated under the public root |
+| representative operations exporters | Host, service, topology, Git, timer, incident, communications, carrier, and report detail is emitted beneath the web root |
 
-Repository evidence does not prove the complete live Apache authorization, CORS, directory-listing, or HTTP-security-header state. Those are required Phase 0 live checks.
+Repository evidence does not prove the complete live Apache authorization, CORS, directory-listing, alias, or HTTP-security-header state. Those remain Phase 0 live checks.
 
-## Registered design assets
+## Accepted design assets
 
-| Asset | Purpose | State |
+| Asset | Purpose | Repository state |
 | --- | --- | --- |
-| `config/security/edge1-public-access-boundary-policy.json` | Disabled route, field, rollout, rollback, and acceptance contract | Designed; disabled |
-| `schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json` | Contract constraints | Designed |
-| `docs/security/edge1-public-access-boundary-design-20260730.md` | Evidence, classification, target architecture, staging, rollback, and acceptance design | Designed |
-| `tests/validate_edge1_public_access_boundary_design.py` | Static scope and safety validation | Designed |
+| `config/security/edge1-public-access-boundary-policy.json` | Disabled route, field, rollout, rollback, and acceptance contract | Merged; disabled |
+| `schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json` | Contract constraints | Merged |
+| `docs/security/edge1-public-access-boundary-design-20260730.md` | Evidence, classification, target architecture, staging, rollback, and acceptance design | Merged |
+| `tests/validate_edge1_public_access_boundary_design.py` | Static scope and safety validation | Merged and passed |
 
 ## Information classification
 
@@ -64,44 +53,30 @@ Repository evidence does not prove the complete live Apache authorization, CORS,
 
 ## Target route model
 
-### Public
+Public design:
 
 ```text
 /edge1-status/
 /edge1-status/public/status.json
 ```
 
-The public JSON must be produced from an explicit allowlist, not by redacting arbitrary detailed feeds.
-
-### Future restricted
+Future restricted placeholder:
 
 ```text
 /edge1-ops/
 ```
 
-The path is a design placeholder. Browser authentication and routing require a separate exact authorization. Detailed API access should use narrowly scoped authorization such as `edge1.status.detail.read`; future Suricata history remains separately scoped as `security.suricata.history.read`.
+The public JSON must be produced from an explicit allowlist, not by redacting arbitrary detailed feeds. Browser authentication and routing require separate exact authorization. Proposed scopes are `edge1.status.detail.read` and, separately, `security.suricata.history.read`.
 
-## Public data prohibitions
+## Public prohibitions and server controls
 
-Public output must exclude:
+Public output excludes host/service/runtime, Git, topology, endpoint/port, rule/flow/event, incident, report/evidence, communications, wallet, mining, and raw error detail.
 
-- host, kernel, runtime, module, service, timer, and schedule names;
-- Git branch, commit, dirty state, hashes, and messages;
-- interfaces, routes, WireGuard, resolver detail, addresses, and ports;
-- rule, flow, event, signature, and incident identifiers;
-- incident narratives, recommendations, and history;
-- report filenames, evidence paths, and raw errors;
-- wallet, mining, telephony, messaging, numbering, and carrier detail.
-
-## Header and browser boundary
-
-Future dynamic status must use server-side `Cache-Control: no-store, max-age=0`. Browser `fetch(..., {cache: "no-store"})` alone is not acceptance evidence.
-
-Future public HTML should have a restrictive CSP, `Referrer-Policy: no-referrer`, and `X-Content-Type-Options: nosniff`. Wildcard CORS and directory listing are prohibited.
+Future dynamic status requires server-side `Cache-Control: no-store, max-age=0`. Future public HTML requires restrictive CSP, no-referrer, and nosniff headers. Wildcard CORS and directory listing are prohibited.
 
 ## Staging boundary
 
-| Phase | Allowed design activity | Production change |
+| Phase | Allowed work | Production change |
 | --- | --- | --- |
 | 0 | Read-only route/header/filesystem inventory | None |
 | 1 | Build minimized exporter/page without routing | None |
@@ -109,19 +84,24 @@ Future public HTML should have a restrictive CSP, `Referrer-Policy: no-referrer`
 | 3 | Public cutover | Exact authorization required |
 | 4 | Remove detailed public artifacts | Exact authorization required |
 
-## Validation state
+## Validation and merge
+
+Exact design head: `24eacfa1388b9c3b9bafb1c8f880af1da3355aea`
 
 | Validation | State |
 | --- | --- |
 | Accepted domain and repository publication paths inspected | Passed |
 | Detailed feed content classes inspected | Passed |
-| Mixed-boundary conclusion recorded | Passed |
-| Disabled policy and schema | Defined |
-| Public allowlist and forbidden-field contract | Defined |
-| Staged rollout and rollback | Defined |
-| Static repository validation | Pending exact-head CI |
+| Mixed-boundary conclusion | Passed |
+| Disabled policy, schema, route and forbidden-field contract | Passed |
+| Staged rollout and rollback | Passed |
+| `Validate repository` run 618 | Success |
+| `Edge1 Operator Validation` run 450 | Success |
+| Zero commits behind `main` before merge | Confirmed |
+| Unresolved review threads | None |
+| PR #130 | Merged as `6e0bbb9d38cd2b89a5ba59ced1534a93ba3aa2eb` |
 | Live Apache/header/auth inventory | Not performed; no Edge1 shell |
-| Runtime implementation | Not started |
+| Runtime/public implementation | Not started |
 | Public/authentication change | Not authorized or performed |
 
 ## Required implementation evidence

@@ -1,136 +1,88 @@
-# Edge1 Public Access Boundary Design Handoff
+# Edge1 Public Access Boundary Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative base: `74323ce0d572806278afe400f3c1e9e244e89d10`  
-Design branch: `design/edge1-public-access-boundary-20260730`
+Design merge: `6e0bbb9d38cd2b89a5ba59ced1534a93ba3aa2eb`  
+Design PR: `#130`
 
 ## Verified live baseline
 
 - Network Defense and Security Correlation are deployed and accepted.
-- Suricata drill-down, last-known-good caching, normalization, and source enrichment are live.
-- Spamhaus is `active_verified` and remains the sole enforcement-verified source.
-- Fail2ban is `active_observed` with service/socket health and 7 observed jails.
-- General nftables aggregate visibility is `ruleset_observed`.
-- Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls remain unchanged.
+- Suricata drill-down, last-known-good caching, normalization, and enrichment are live.
+- Spamhaus is `active_verified`; Fail2ban is `active_observed`; nftables is `ruleset_observed`.
+- Network Defense remains `limited`, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls remain unchanged.
 
-## Prior repository phases
+## Repository-complete boundary decision
 
-- Network Defense freshness is closed through PR #127; its live activation remains unclaimed without an Edge1 shell.
-- Protected Suricata retention design is closed through PR #129; its policy remains disabled and no runtime exists.
+The current `/edge1-status/` tree combines a public-facing dashboard with detailed operational artifacts. PR #130 records that the unchanged mixed tree is not the safest long-term boundary.
 
-## Current boundary finding
-
-The repository shows a mixed public tree under `/edge1-status/`.
-
-The Operations Center page fetches detailed security, wallet, mining, health, automation, version, inventory, network, telephony, messaging, carrier, incident, incident-history, and report feeds. Representative exporters place host, service, kernel, route, WireGuard, resolver, Git, schedule, incident, passthrough subsystem, and generated report detail beneath `/var/www/edge1-status`.
-
-Decision: the unchanged mixed boundary is not the safest long-term design.
-
-## Target design
-
-### Public
+Target public design:
 
 ```text
 /edge1-status/
 /edge1-status/public/status.json
 ```
 
-The public surface contains a static minimized landing page and an explicit allowlist-only summary. Allowed information is limited to aggregate state, bounded counts, coarse freshness, maintenance notices, and read-only/no-traffic-change flags.
+The public contract permits only aggregate states, bounded counts, coarse freshness, maintenance notices, and read-only/no-traffic-change flags.
 
-### Restricted
-
-A future authenticated surface is represented as:
+Future restricted placeholder:
 
 ```text
 /edge1-ops/
 ```
 
-Detailed security, topology, change, automation, incident, communications, financial, and report/evidence data is restricted. The exact browser-authentication mechanism and proxy routing are separate design and authorization work.
+Detailed security, topology, Git/change, automation, incident, communications, financial, and report/evidence data is restricted. Browser authentication and proxy routing require separate exact authorization. Proposed scopes are `edge1.status.detail.read` and separately `security.suricata.history.read`.
 
-Proposed scopes:
+## Accepted controls
 
-```text
-edge1.status.detail.read
-security.suricata.history.read
-```
-
-No anonymous fallback is allowed.
-
-## Design assets
-
-```text
-config/security/edge1-public-access-boundary-policy.json
-schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json
-docs/security/edge1-public-access-boundary-design-20260730.md
-registers/edge1-public-access-boundary-design-register-20260730.md
-tests/validate_edge1_public_access_boundary_design.py
-```
-
-Contract:
-
-```text
-wwcx.edge1-public-access-boundary-policy.v1
-```
-
-The policy is `design_only`, `enabled: false`, and `deployment_authorized: false`.
-
-## Required server-side controls for a future implementation
-
-- public allowlist and recursive forbidden-field scan;
-- restricted routes fail closed;
-- audited and rate-limited authorized reads;
-- `Cache-Control: no-store, max-age=0` for dynamic status;
-- restrictive CSP, no-referrer, and nosniff headers;
-- no wildcard CORS;
-- no directory listing;
+- explicit public allowlist, never arbitrary redaction;
+- no anonymous fallback for restricted detail;
+- audited and rate-limited restricted reads;
+- server-side `Cache-Control: no-store, max-age=0`;
+- restrictive CSP, no-referrer, and nosniff;
+- no wildcard CORS or directory listing;
 - no new listener;
 - unchanged TLS identity and HTTP-to-HTTPS redirect;
-- rollback restoring previous vhost/aliases and static files while preserving operational data.
+- rollback restores previous vhost/aliases/static files and preserves operational data.
 
-## Staged sequence
+## Validation and merge
 
-1. read-only live Apache/header/filesystem/route inventory;
-2. build minimized output without routing;
-3. stage authenticated surface under separate authorization;
-4. public cutover under exact authorization;
-5. remove detailed public artifacts only after authenticated acceptance and separate authorization.
+Exact design head: `24eacfa1388b9c3b9bafb1c8f880af1da3355aea`
 
-## Validation status
-
-Completed:
-
-- accepted domain record and publication path review;
-- browser dependency inventory;
-- representative detailed exporter review;
-- route and information classification;
-- disabled policy and schema;
-- static design validator;
-- design, register, backlog, state, and handoff updates.
-
-Pending:
-
-- exact-head `Validate repository`;
-- exact-head `Edge1 Operator Validation`;
-- final scope, mergeability, and review-thread checks;
-- merge and authoritative closeout.
+- `Validate repository` run 618: success.
+- `Edge1 Operator Validation` run 450: success.
+- PR #130 was mergeable and zero commits behind `main`.
+- No unresolved review threads existed.
+- Scope contained policy, schema, design, register, static validation, and `.agent` records only.
+- Merged as `6e0bbb9d38cd2b89a5ba59ced1534a93ba3aa2eb`.
 
 ## Live evidence gap
 
-No authenticated Edge1 shell is available. The repository does not establish the complete current Apache authorization, alias, CORS, directory-listing, response-header, or extra-filesystem route state. Do not claim those controls are present or absent until a read-only live inventory is captured.
+No authenticated Edge1 shell is available. Complete current Apache authorization, aliases, headers, CORS, directory listing, and extra route/filesystem state remain unknown until read-only Phase 0 evidence is captured.
+
+## Next safe repository sequence
+
+Build Phase 1 without routing or publishing:
+
+1. define `wwcx.edge1-public-status.v1`;
+2. implement an allowlist-only summary exporter;
+3. add hostile fixtures containing forbidden fields and prove none propagate;
+4. add a static landing page that consumes only the minimized summary;
+5. default output to a repository build/test path, never `/var/www`;
+6. add validation proving no deploy script, systemd unit, Apache change, or live access change;
+7. pass exact-head CI and merge review.
 
 ## Explicitly not implemented
 
-- minimized exporter or landing page;
+- minimized public exporter/page;
 - authenticated operations UI or browser session;
-- proxy/vhost/alias changes;
-- security headers;
+- proxy/vhost/alias/header changes;
 - API scope activation;
 - publication/removal under `/var/www`;
 - service reload;
-- Edge1 deployment or cutover.
+- Edge1 deployment or public cutover.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication boundary, certificate, listener, public access, published file, deletion, or production traffic is changed or authorized by this design.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication boundary, certificate, listener, public access, published file, deletion, or production traffic is changed or authorized.
