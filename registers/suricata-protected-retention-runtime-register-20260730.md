@@ -3,7 +3,7 @@
 Date: 2026-07-30  
 Classification: internal security operations; no alert data  
 System: Edge1 / WW.CX Security Operations  
-State: repository implementation; disabled and not deployed
+State: repository implementation merged; disabled and not deployed
 
 ## Objective
 
@@ -62,11 +62,33 @@ The local CLI opens the database read-only and enforces:
 - root-only file permissions;
 - no HTTP, TCP, UDP, browser, or public-static history surface.
 
-## Validation intent
+## Validation and merge evidence
 
 The test suite covers disabled fail-closed behavior, two-run deduplication, schema rejection, unknown-field rejection, stable canonical hashing, time/count pruning, root-only modes, bounded read-only queries, status truthfulness, systemd hardening, and absence of raw-EVE or network-server paths.
 
-Local clone validation could not run in the authoring container because DNS resolution for `github.com` was unavailable. Exact-head GitHub Actions is therefore required before merge.
+PR #138 exact head:
+
+```text
+f1a619479b9d407e83b44caa306e836c282b3b77
+```
+
+Required exact-head workflows passed:
+
+- `Validate repository` run 640;
+- `Edge1 Operator Validation` run 472.
+
+Pre-merge review confirmed:
+
+- branch zero commits behind `main`;
+- pull request mergeable;
+- no unresolved review threads;
+- seven expected files changed only.
+
+PR #138 merged to `main` as:
+
+```text
+98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694
+```
 
 ## Explicit non-authorization
 

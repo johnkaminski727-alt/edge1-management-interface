@@ -3,8 +3,8 @@
 Last verified: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Accepted Edge1 revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Active repository branch: `feature/suricata-protected-retention-runtime-20260730`
+Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
+Protected-retention repository merge: `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`
 
 ## Verified live baseline
 
@@ -30,11 +30,11 @@ Bounded freshness activation:
 /var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z
 ```
 
-The Network Defense freshness project is complete and accepted at revision `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
+The Network Defense freshness project is complete and accepted at live revision `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
 
 ## Protected Suricata retention runtime phase
 
-A repository-only implementation is in progress on `feature/suricata-protected-retention-runtime-20260730`.
+The repository-only implementation is complete and merged through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
 
 Implemented:
 
@@ -44,14 +44,18 @@ Implemented:
 - `tests/test_suricata_protected_retention.py` using temporary files and databases;
 - `registers/suricata-protected-retention-runtime-register-20260730.md`.
 
-The authoritative committed policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`. No installer or live activation is included. No Edge1 database, unit, timer, listener, route, or public artifact has been created or changed.
+Exact-head validation for `f1a619479b9d407e83b44caa306e836c282b3b77` passed:
 
-The authoring container could not resolve `github.com`, so local clone validation was unavailable. Exact-head GitHub Actions is required before merge.
+- `Validate repository` run 640;
+- `Edge1 Operator Validation` run 472.
+
+The branch was zero commits behind `main`, mergeable, and had no review threads before merge.
+
+The authoritative committed policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`. No installer or live activation is included. No Edge1 database, unit, timer, listener, route, or public artifact has been created or changed.
 
 ## Remaining separately authorized programs
 
-- complete CI and merge review for the repository-only protected-retention runtime;
-- separately design and authorize any Edge1 installer and live acceptance;
+- separately design and authorize any Edge1 installer and live acceptance for protected retention;
 - minimized public-summary server-side publication;
 - authenticated detailed-operations browser/session boundary;
 - staged public-boundary cutover and detailed-artifact removal.

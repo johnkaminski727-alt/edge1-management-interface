@@ -21,6 +21,7 @@
 - [x] Pass PR #136 `Validate repository` run 636.
 - [x] Pass PR #136 `Edge1 Operator Validation` run 468.
 - [x] Merge PR #136 as `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
+- [x] Protected Suricata retention runtime merged through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
 
 ## Completed authenticated host sequence
 
@@ -42,10 +43,10 @@
 - [x] Add hardened oneshot service and 120-second timer definitions without installing or enabling them.
 - [x] Add temporary-database functional and static safety tests.
 - [x] Keep committed policy `design_only`, disabled, and deployment unauthorized.
-- [ ] Pass exact-head `Validate repository` workflow.
-- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
-- [ ] Complete PR scope, zero-behind, mergeability, and unresolved-thread review.
-- [ ] Merge repository-only runtime implementation.
+- [x] Pass exact-head `Validate repository` workflow run 640.
+- [x] Pass exact-head `Edge1 Operator Validation` workflow run 472.
+- [x] Complete PR scope, zero-behind, mergeability, and unresolved-thread review.
+- [x] Merge repository-only runtime implementation through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
 - [ ] Design a separate bounded installer and live acceptance only after exact authorization.
 
 ## Separate future programs
@@ -56,7 +57,7 @@ Require new branches, measured host evidence, exact-head CI, and separate deploy
 - [ ] authenticated detailed-operations browser/session design;
 - [ ] staged public-boundary cutover and detailed-artifact removal.
 
-These items are not blockers to the completed Network Defense freshness project.
+These items are not blockers to the completed Network Defense freshness project or the merged repository-only protected-retention implementation.
 
 ## Exact authorization still required
 
