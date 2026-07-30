@@ -21,7 +21,7 @@
 - [x] Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
 - [x] Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
 - [x] Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
-- [x] Authenticated detailed-operations browser/session boundary merged through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
+- [x] Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147 as `a8af7fa77d9eb81ecd69d22e9d314de478975d66`.
 
 ## Completed authenticated host sequence
 
@@ -49,23 +49,29 @@
 
 ## Authenticated detailed-operations browser/session boundary
 
-- [x] Add disabled browser/session policy and critical JSON schema.
-- [x] Require OIDC authorization code, PKCE S256, state, nonce, issuer/audience validation, MFA, and external provider configuration.
-- [x] Define opaque server-side sessions, secure cookie, timeout, rotation, and logout/CSRF requirements.
-- [x] Define exact registered route and scope matrix under `/edge1-ops/`.
-- [x] Add pure fail-closed path, identity, scope, rate-limit, and redacted-audit evaluator.
-- [x] Add exact 404, 401, 403, 405, and 429 contracts.
-- [x] Add strict restricted-response headers and no-CORS contract.
-- [x] Add credential-free Apache `.design` with unconditional deny gates.
-- [x] Add policy drift, ambiguity, session, scope, privacy, and static boundary tests.
-- [x] Add architecture and audit register.
-- [x] Pass exact-head `Validate repository` run 653.
-- [x] Pass exact-head `Edge1 Operator Validation` run 485.
-- [x] Confirm 10 expected files, zero-behind, mergeable state, and no review threads.
-- [x] Merge repository-only authenticated-boundary design through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
+- [x] Add disabled policy, OIDC/session requirements, exact routes/scopes, pure evaluator, denied Apache design, tests, and records.
+- [x] Pass exact-head workflows and merge through PR #146; close through PR #147.
 - [ ] Run a fresh authenticated Edge1 module, route, provider, session-store, audit, and rate-limit inventory.
 - [ ] Select and verify an identity provider and Apache adapter under separate authorization.
 - [ ] Implement and stage the restricted session boundary only after exact authorization.
+
+## Restricted artifact migration manifest
+
+- [x] Inventory repository-declared detailed Operations Center pages and feeds.
+- [x] Add a disabled exact source-to-target manifest.
+- [x] Record 23 exact artifacts and five live-enumerated prefix groups.
+- [x] Validate every target against the registered restricted routes and general detail scope.
+- [x] Add a read-only SHA-256 inventory reconciler.
+- [x] Preserve unknown artifacts for review, report missing known files, and block target collisions.
+- [x] Keep staging, cutover, deletion, and source mutation disabled.
+- [x] Add synthetic coverage, mapping, metadata, privacy, and non-mutation tests.
+- [x] Add architecture and audit records.
+- [ ] Pass exact-head `Validate repository` workflow.
+- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
+- [ ] Complete changed-file, zero-behind, mergeability, and review-thread checks.
+- [ ] Merge repository-only migration design and close records.
+- [ ] Run a fresh authenticated live filesystem, route, publisher, service, and SHA-256 inventory.
+- [ ] Reconcile all unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts.
 
 ## Separate future program
 
@@ -76,6 +82,7 @@
 - production Suricata-history database creation, unit installation, timer enablement, or ingestion;
 - public-summary staging-root creation, unit installation, timer enablement, or service invocation on Edge1;
 - identity-provider registration, credentials, client secrets, user/group/scope mapping, session-store creation, or authentication changes;
+- restricted release creation or source-tree copying on Edge1;
 - `/var/www` publication or removal;
 - Apache/proxy/auth/header reload or route changes;
 - certificate, listener, DNS, firewall, or traffic changes;
