@@ -35,11 +35,23 @@
 - [x] Capture protected activation evidence at `/var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z`.
 - [x] Update authoritative records with exact host evidence paths and live acceptance results.
 
+## Protected Suricata retention runtime
+
+- [x] Create focused implementation branch.
+- [x] Add fail-closed sanitized-alert retention, deduplication, pruning, and bounded local query runtime.
+- [x] Add hardened oneshot service and 120-second timer definitions without installing or enabling them.
+- [x] Add temporary-database functional and static safety tests.
+- [x] Keep committed policy `design_only`, disabled, and deployment unauthorized.
+- [ ] Pass exact-head `Validate repository` workflow.
+- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
+- [ ] Complete PR scope, zero-behind, mergeability, and unresolved-thread review.
+- [ ] Merge repository-only runtime implementation.
+- [ ] Design a separate bounded installer and live acceptance only after exact authorization.
+
 ## Separate future programs
 
 Require new branches, measured host evidence, exact-head CI, and separate deployment acceptance:
 
-- [ ] protected Suricata-retention runtime implementation;
 - [ ] minimized public-summary server-side publication design;
 - [ ] authenticated detailed-operations browser/session design;
 - [ ] staged public-boundary cutover and detailed-artifact removal.
@@ -48,8 +60,9 @@ These items are not blockers to the completed Network Defense freshness project.
 
 ## Exact authorization still required
 
+- production Suricata-history database creation, unit installation, timer enablement, or ingestion;
 - `/var/www` publication or removal;
 - Apache/proxy/auth/header reload or route changes;
 - authentication, certificate, listener, DNS, firewall, or traffic changes;
 - public or production cutover;
-- deletion of retained status, report, incident, or evidence data.
+- deletion of retained status, report, incident, history, or evidence data.
