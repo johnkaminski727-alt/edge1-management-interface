@@ -3,8 +3,8 @@
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative synchronized closeout: `d1a6a94568f235a2153e3f7946f9990b7a050547`  
-Feature branch: `feature/network-defense-freshness-policy-20260730`
+Implementation merge: `711952afb053fa3bd50c390516fa7b58f3943985`  
+Implementation PR: `#126`
 
 ## Verified live baseline
 
@@ -15,15 +15,15 @@ Feature branch: `feature/network-defense-freshness-policy-20260730`
 - General nftables aggregate visibility is `ruleset_observed`.
 - Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls remain unchanged.
 
-## Current implementation
+## Repository-complete implementation
 
-A narrow schedule-aware freshness improvement is implemented on the feature branch.
+The schedule-aware freshness improvement is merged.
 
 Evidence:
 
 - `wwcx-operations-network.timer` publishes every 300 seconds.
 - `wwcx-network-defense.timer` consumes every 60 seconds with up to 10 seconds randomized delay.
-- The prior 300-second network stale limit equaled the producer interval and could classify healthy data stale between normal runs.
+- The prior 300-second network stale limit equaled the producer interval.
 - The existing live-acceptance freshness ceiling is 600 seconds.
 
 Change:
@@ -32,15 +32,17 @@ Change:
 network stale_after_seconds: 300 -> 600
 ```
 
-Assets:
+The final wrapper preserves the nftables-, Fail2ban-, DNS-, Spamhaus-, Security Operations, Security Correlation, and operations-center layers. Every other source threshold remains unchanged.
 
-- `server/network_defense_freshness_exporter.py`
-- `deploy/systemd/wwcx-network-defense.service`
-- `tests/test_network_defense_freshness_policy.py`
-- `docs/security/network-defense-freshness-policy-20260730.md`
-- `registers/network-defense-freshness-policy-register-20260730.md`
+## Validation and merge
 
-The wrapper leaves every other source threshold unchanged and preserves the final DNS-, Spamhaus-, Fail2ban-, and nftables-aware exporter chain.
+Exact implementation head: `d2c6357cd913fa376f91b27e43081d1b1e37a6d6`
+
+- `Validate repository` run 610: success.
+- `Edge1 Operator Validation` run 442: success.
+- PR #126 was mergeable and zero commits behind `main`.
+- No unresolved review threads existed.
+- Merged as `711952afb053fa3bd50c390516fa7b58f3943985`.
 
 ## Safety
 
@@ -48,35 +50,22 @@ No producer timer, collection command, DNS, Unbound, RPZ, nftables, firewall, Fa
 
 The Network Defense unit remains capability-free and restricted to AF_UNIX. `verified_enforcement_count` semantics are unchanged and `traffic_controls_changed` remains false.
 
-## Validation state
+## Remaining live activation work
 
-Completed:
+No authenticated Edge1 terminal was available in this runtime. Do not claim the freshness change is live until terminal evidence proves:
 
-- authoritative branch and base commit verification;
-- schedule and acceptance-threshold inspection;
-- focused implementation review;
-- test and documentation additions.
+1. a clean Edge1 checkout was fast-forwarded to the authoritative merge;
+2. the wrapper and unit were installed through a bounded rollback-safe procedure;
+3. daemon reload and the one-shot exporter succeeded;
+4. the generated snapshot reports `network.stale_after_seconds: 600`;
+5. public and local endpoint checks pass without changing enforcement state;
+6. protected evidence was captured.
 
-Pending:
+## Next optional repository phase
 
-- targeted tests on the exact feature head;
-- full repository validation;
-- both required exact-head CI workflows;
-- PR scope, thread, review, and mergeability checks;
-- merge and authoritative-main closeout.
+Design protected historical Suricata retention with explicit size, time, privacy, authentication, rollback, and acceptance limits. Keep public `edge1.ww.cx` access-boundary review separate.
 
-No authenticated Edge1 terminal was available in the current runtime. No live deployment or endpoint acceptance is claimed.
-
-## Required next sequence
-
-1. Open the focused PR from `feature/network-defense-freshness-policy-20260730` to `main`.
-2. Require both exact-head workflows: `Validate repository` and `Edge1 Operator Validation`.
-3. Inspect the final diff and ensure no unrelated files or protected controls changed.
-4. Merge only if checks pass and the PR is mergeable with no unresolved review threads.
-5. Update `.agent` and register closeout on authoritative `main`.
-6. Treat Edge1 activation as a separate bounded terminal-evidence phase.
-
-## Authoritative live evidence
+## Authoritative existing live evidence
 
 ```text
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
