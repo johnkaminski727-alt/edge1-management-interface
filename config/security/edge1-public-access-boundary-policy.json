@@ -1,0 +1,265 @@
+{
+  "contract": "wwcx.edge1-public-access-boundary-policy.v1",
+  "status": "design_only",
+  "enabled": false,
+  "deployment_authorized": false,
+  "domain": "edge1.ww.cx",
+  "current_boundary": {
+    "public_root": "/edge1-status/",
+    "classification": "mixed_boundary_review_required",
+    "https_verified": true,
+    "http_redirect_verified": true,
+    "access_control_completeness_verified": false,
+    "http_security_headers_verified": false,
+    "directory_listing_disabled_verified": false,
+    "cors_policy_verified": false
+  },
+  "target_boundary": {
+    "public_root": "/edge1-status/",
+    "future_authenticated_root": "/edge1-ops/",
+    "public_mode": "minimized_summary_only",
+    "restricted_mode": "authenticated_fail_closed",
+    "public_change_authorized": false,
+    "authentication_change_authorized": false,
+    "certificate_change_authorized": false,
+    "proxy_change_authorized": false,
+    "listener_change_authorized": false
+  },
+  "public_contract": {
+    "allowed_fields": [
+      "schema_version",
+      "generated_at",
+      "overall_state",
+      "component_category",
+      "component_state",
+      "bounded_count",
+      "freshness_bucket",
+      "maintenance_notice",
+      "read_only",
+      "traffic_controls_changed"
+    ],
+    "forbidden_fields": [
+      "host",
+      "hostname",
+      "kernel",
+      "python_version",
+      "running_services",
+      "service_name",
+      "timer_name",
+      "next_run",
+      "branch",
+      "commit",
+      "dirty",
+      "git_hash",
+      "commit_message",
+      "interface",
+      "route",
+      "wireguard",
+      "resolver_detail",
+      "ip_address",
+      "source_address",
+      "destination_address",
+      "source_port",
+      "destination_port",
+      "flow_id",
+      "event_id",
+      "signature_id",
+      "incident_id",
+      "incident_detail",
+      "incident_history",
+      "recommendation_detail",
+      "report_filename",
+      "filesystem_path",
+      "wallet_detail",
+      "mining_detail",
+      "telephony_detail",
+      "messaging_detail",
+      "carrier_detail",
+      "raw_error"
+    ],
+    "cache_control": "no-store, max-age=0",
+    "content_security_policy": "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+    "referrer_policy": "no-referrer",
+    "x_content_type_options": "nosniff",
+    "cors_allow_origin": "none",
+    "directory_listing": false
+  },
+  "route_classes": [
+    {
+      "path": "/edge1-status/",
+      "current_role": "mixed_operations_dashboard",
+      "target_class": "public_minimized_summary",
+      "target_action": "replace_data_dependencies_before_public_cutover"
+    },
+    {
+      "path": "/edge1-status/security/",
+      "current_role": "security_alert_drilldown",
+      "target_class": "restricted_security_operations",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/security/correlation.html",
+      "current_role": "cross_source_security_correlation",
+      "target_class": "restricted_security_operations",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/network-defense/",
+      "current_role": "detailed_network_defense",
+      "target_class": "restricted_network_operations",
+      "target_action": "publish_separate_minimized_summary"
+    },
+    {
+      "path": "/edge1-status/bitcoin/",
+      "current_role": "wallet_operations",
+      "target_class": "restricted_financial_operations",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/mining/",
+      "current_role": "mining_operations",
+      "target_class": "restricted_financial_operations",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/security-operations.json",
+      "current_role": "sanitized_but_detailed_alert_feed",
+      "target_class": "restricted_security_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/security-correlation.json",
+      "current_role": "cross_source_event_feed",
+      "target_class": "restricted_security_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/network-defense/data/network-defense.json",
+      "current_role": "detailed_defense_source_feed",
+      "target_class": "restricted_network_data",
+      "target_action": "publish_separate_minimized_summary"
+    },
+    {
+      "path": "/edge1-status/operations-health.json",
+      "current_role": "component_health_and_recommendations",
+      "target_class": "restricted_operations_data",
+      "target_action": "derive_public_summary_only"
+    },
+    {
+      "path": "/edge1-status/operations-inventory.json",
+      "current_role": "host_kernel_modules_and_running_services",
+      "target_class": "restricted_topology",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-network.json",
+      "current_role": "interfaces_routes_wireguard_and_resolver",
+      "target_class": "restricted_topology",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-version.json",
+      "current_role": "branch_commit_and_dirty_state",
+      "target_class": "restricted_change_management",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-changes.json",
+      "current_role": "git_history_and_worktree_state",
+      "target_class": "restricted_change_management",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-automation.json",
+      "current_role": "timer_names_states_and_schedules",
+      "target_class": "restricted_operations_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-incidents.json",
+      "current_role": "active_incident_detail",
+      "target_class": "restricted_incident_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-incident-history.json",
+      "current_role": "incident_history",
+      "target_class": "restricted_incident_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-telephony.json",
+      "current_role": "loopback_telephony_status_passthrough",
+      "target_class": "restricted_communications_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-messaging.json",
+      "current_role": "loopback_messaging_status_passthrough",
+      "target_class": "restricted_communications_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/operations-carrier.json",
+      "current_role": "telephony_numbering_and_carrier_status",
+      "target_class": "restricted_communications_data",
+      "target_action": "authenticate_or_unpublish"
+    },
+    {
+      "path": "/edge1-status/reports/",
+      "current_role": "generated_operations_reports_and_index",
+      "target_class": "restricted_evidence_and_reports",
+      "target_action": "authenticate_disable_listing_and_remove_public_links"
+    }
+  ],
+  "future_public_outputs": [
+    {
+      "path": "/edge1-status/",
+      "content": "static_minimized_landing_page"
+    },
+    {
+      "path": "/edge1-status/public/status.json",
+      "content": "aggregate_status_contract_only"
+    }
+  ],
+  "future_restricted_access": {
+    "api_scope": "edge1.status.detail.read",
+    "security_history_scope": "security.suricata.history.read",
+    "browser_authentication_design_required": true,
+    "anonymous_fallback": false,
+    "audit_log_required": true,
+    "rate_limit_required": true,
+    "authorization_failure_statuses": [401, 403],
+    "unpublished_status": 404
+  },
+  "rollout": {
+    "phase_0_read_only_inventory": true,
+    "phase_1_build_minimized_outputs_without_routing": true,
+    "phase_2_stage_authenticated_surface_without_public_cutover": true,
+    "phase_3_public_cutover_requires_explicit_authorization": true,
+    "phase_4_remove_sensitive_public_artifacts_requires_explicit_authorization": true
+  },
+  "rollback": {
+    "restore_previous_virtual_host_and_aliases": true,
+    "restore_previous_static_files_from_backup": true,
+    "preserve_operational_data": true,
+    "data_deletion_not_part_of_rollback": true,
+    "dns_change_required": false,
+    "certificate_change_required": false,
+    "firewall_change_required": false
+  },
+  "acceptance": {
+    "route_matrix_required": true,
+    "unauthenticated_public_allowlist_only": true,
+    "restricted_routes_fail_closed": true,
+    "authorized_restricted_access_verified": true,
+    "no_directory_listing": true,
+    "no_wildcard_cors": true,
+    "dynamic_no_store_headers": true,
+    "sensitive_field_scan_required": true,
+    "no_new_listener": true,
+    "tls_identity_unchanged": true,
+    "traffic_controls_changed": false,
+    "live_change_authorized": false
+  }
+}

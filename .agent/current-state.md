@@ -1,10 +1,10 @@
 # Current State
 
-Last verified: 2026-07-30 18:55 UTC  
+Last verified: 2026-07-30 19:08 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Latest design merge: `13b87f876be3f6676b58863499d36395267fb870`  
-Design PR: `#128`
+Authoritative closeout: `74323ce0d572806278afe400f3c1e9e244e89d10`  
+Current design branch: `design/edge1-public-access-boundary-20260730`
 
 ## Verified live security observability
 
@@ -15,45 +15,51 @@ Design PR: `#128`
 - General nftables aggregate visibility is accepted as `ruleset_observed`.
 - Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls are unchanged.
 
-## Freshness policy repository state
+## Completed repository phases
 
-The schedule-aware Network Defense freshness policy is repository-complete through PR #127 at `bbefaca8fddc33270178daada5ca20ca3fce0c08`.
+- Network Defense freshness: closed through PR #127 at `bbefaca8fddc33270178daada5ca20ca3fce0c08`; not claimed live.
+- Protected Suricata retention design: closed through PR #129 at `74323ce0d572806278afe400f3c1e9e244e89d10`; policy remains disabled and no runtime exists.
 
-The freshness change is not claimed live because no authenticated Edge1 shell is available in this runtime.
+## Current design phase — public access boundary
 
-## Repository-complete protected retention design
+Repository evidence shows that `/edge1-status/` is a mixed boundary. The public-facing dashboard consumes detailed files containing host inventory, service names, kernel/runtime versions, interfaces/routes, WireGuard/resolver output, Git state and recent changes, timer schedules, incident detail/history, communications/carrier passthrough, wallet/mining state, and generated reports.
 
-PR #128 merged the disabled protected historical Suricata-retention design as `13b87f876be3f6676b58863499d36395267fb870`.
+Design decision:
 
-Accepted design limits:
+- do not retain the current mixed tree unchanged as the long-term boundary;
+- keep a minimized public landing page and allowlist-only aggregate status feed;
+- move detailed operations to a separately authenticated, fail-closed surface under a future exact authorization.
 
-- sanitized collector source only: `/var/lib/bigbird/operations-center/latest.json`;
-- raw EVE access prohibited;
-- 30-day operational target;
-- 256 MiB hard database ceiling;
-- 100,000 unique-event hard ceiling;
-- pruning to at most 90 percent of capacity;
-- root-only directory `0700` and files `0600`;
-- deterministic SHA-256 deduplication;
-- local root CLI only;
-- default query 24 hours/100 rows, maximum seven days/500 rows;
-- no listener, public endpoint, browser storage, or automatic off-host backup;
-- incident promotion only through a separately authorized sanitized export with SHA-256 manifest and authorization record.
+Design assets:
 
-The policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`.
+- `config/security/edge1-public-access-boundary-policy.json`;
+- `schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json`;
+- `docs/security/edge1-public-access-boundary-design-20260730.md`;
+- `registers/edge1-public-access-boundary-design-register-20260730.md`;
+- `tests/validate_edge1_public_access_boundary_design.py`.
 
-## Repository validation
+The policy is `design_only`, `enabled: false`, and `deployment_authorized: false`.
 
-Exact design head: `32dd1363ca3d1327dddaaddf9bba20b75514457d`
+## Target boundary
 
-- `Validate repository` run 614: success;
-- `Edge1 Operator Validation` run 446: success;
-- PR mergeable and zero commits behind `main` before merge;
-- no unresolved review threads;
-- scope limited to policy, schema, design documentation, register, static validation, and `.agent` records;
-- no runtime, systemd, public, API, authentication, or protected-control assets entered scope.
+Future public outputs are limited to:
 
-No runtime ingester, database, service, timer, query tool, evidence exporter, API route, authentication change, backup transfer, or Edge1 deployment exists.
+```text
+/edge1-status/
+/edge1-status/public/status.json
+```
+
+The public contract permits only bounded aggregate state, count, freshness, maintenance, read-only, and no-traffic-change fields. Detailed security, topology, change, automation, incident, communications, financial, and report data is classified restricted.
+
+A future authenticated root is represented as `/edge1-ops/`, but the browser authentication model, proxy routing, scopes, and cutover require separate exact authorization.
+
+## Current validation status
+
+- Accepted domain record, publisher, dashboard dependencies, and representative exporters were inspected.
+- A complete repository route-class policy and forbidden-field contract were added.
+- Static validation was added.
+- Live Apache authorization, headers, CORS, directory listing, aliases, and complete route matrix remain unverified because no authenticated Edge1 shell is available.
+- No Apache, proxy, auth, certificate, DNS, listener, `/var/www`, service, or traffic change exists in this phase.
 
 ## Authoritative existing live evidence
 
@@ -67,10 +73,6 @@ No runtime ingester, database, service, timer, query tool, evidence exporter, AP
 /var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
 ```
 
-## Next phase
-
-The next separate repository phase is review of the public `edge1.ww.cx` access boundary. It must remain design-only unless a later exact authorization permits an authentication, certificate, proxy, listener, or public-access change.
-
 ## Safety boundary
 
-Repository work remains non-deploying. It does not authorize or make changes to Suricata configuration/service state, DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, reputation lists, authentication, certificates, listeners, public access, deletion, or production traffic.
+This phase is design-only. It does not authorize or change DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation lists, authentication, certificates, listeners, public access, published files, deletion, or production traffic.

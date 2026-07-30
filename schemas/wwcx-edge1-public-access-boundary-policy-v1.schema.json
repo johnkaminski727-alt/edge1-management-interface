@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json",
+  "title": "WW.CX Edge1 public access boundary policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "status",
+    "enabled",
+    "deployment_authorized",
+    "domain",
+    "current_boundary",
+    "target_boundary",
+    "public_contract",
+    "route_classes",
+    "future_public_outputs",
+    "future_restricted_access",
+    "rollout",
+    "rollback",
+    "acceptance"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.edge1-public-access-boundary-policy.v1"},
+    "status": {"const": "design_only"},
+    "enabled": {"const": false},
+    "deployment_authorized": {"const": false},
+    "domain": {"const": "edge1.ww.cx"},
+    "current_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_root",
+        "classification",
+        "https_verified",
+        "http_redirect_verified",
+        "access_control_completeness_verified",
+        "http_security_headers_verified",
+        "directory_listing_disabled_verified",
+        "cors_policy_verified"
+      ],
+      "properties": {
+        "public_root": {"const": "/edge1-status/"},
+        "classification": {"const": "mixed_boundary_review_required"},
+        "https_verified": {"const": true},
+        "http_redirect_verified": {"const": true},
+        "access_control_completeness_verified": {"const": false},
+        "http_security_headers_verified": {"const": false},
+        "directory_listing_disabled_verified": {"const": false},
+        "cors_policy_verified": {"const": false}
+      }
+    },
+    "target_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_root",
+        "future_authenticated_root",
+        "public_mode",
+        "restricted_mode",
+        "public_change_authorized",
+        "authentication_change_authorized",
+        "certificate_change_authorized",
+        "proxy_change_authorized",
+        "listener_change_authorized"
+      ],
+      "properties": {
+        "public_root": {"const": "/edge1-status/"},
+        "future_authenticated_root": {"const": "/edge1-ops/"},
+        "public_mode": {"const": "minimized_summary_only"},
+        "restricted_mode": {"const": "authenticated_fail_closed"},
+        "public_change_authorized": {"const": false},
+        "authentication_change_authorized": {"const": false},
+        "certificate_change_authorized": {"const": false},
+        "proxy_change_authorized": {"const": false},
+        "listener_change_authorized": {"const": false}
+      }
+    },
+    "public_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_fields",
+        "forbidden_fields",
+        "cache_control",
+        "content_security_policy",
+        "referrer_policy",
+        "x_content_type_options",
+        "cors_allow_origin",
+        "directory_listing"
+      ],
+      "properties": {
+        "allowed_fields": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "forbidden_fields": {
+          "type": "array",
+          "minItems": 20,
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "cache_control": {"const": "no-store, max-age=0"},
+        "content_security_policy": {"type": "string", "minLength": 20},
+        "referrer_policy": {"const": "no-referrer"},
+        "x_content_type_options": {"const": "nosniff"},
+        "cors_allow_origin": {"const": "none"},
+        "directory_listing": {"const": false}
+      }
+    },
+    "route_classes": {
+      "type": "array",
+      "minItems": 15,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "current_role", "target_class", "target_action"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^/edge1-status/"},
+          "current_role": {"type": "string", "minLength": 3},
+          "target_class": {
+            "enum": [
+              "public_minimized_summary",
+              "restricted_security_operations",
+              "restricted_network_operations",
+              "restricted_financial_operations",
+              "restricted_security_data",
+              "restricted_network_data",
+              "restricted_operations_data",
+              "restricted_topology",
+              "restricted_change_management",
+              "restricted_incident_data",
+              "restricted_communications_data",
+              "restricted_evidence_and_reports"
+            ]
+          },
+          "target_action": {"type": "string", "minLength": 5}
+        }
+      }
+    },
+    "future_public_outputs": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "content"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^/edge1-status/"},
+          "content": {"type": "string", "minLength": 5}
+        }
+      }
+    },
+    "future_restricted_access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "api_scope",
+        "security_history_scope",
+        "browser_authentication_design_required",
+        "anonymous_fallback",
+        "audit_log_required",
+        "rate_limit_required",
+        "authorization_failure_statuses",
+        "unpublished_status"
+      ],
+      "properties": {
+        "api_scope": {"const": "edge1.status.detail.read"},
+        "security_history_scope": {"const": "security.suricata.history.read"},
+        "browser_authentication_design_required": {"const": true},
+        "anonymous_fallback": {"const": false},
+        "audit_log_required": {"const": true},
+        "rate_limit_required": {"const": true},
+        "authorization_failure_statuses": {
+          "type": "array",
+          "const": [401, 403]
+        },
+        "unpublished_status": {"const": 404}
+      }
+    },
+    "rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase_0_read_only_inventory",
+        "phase_1_build_minimized_outputs_without_routing",
+        "phase_2_stage_authenticated_surface_without_public_cutover",
+        "phase_3_public_cutover_requires_explicit_authorization",
+        "phase_4_remove_sensitive_public_artifacts_requires_explicit_authorization"
+      ],
+      "properties": {
+        "phase_0_read_only_inventory": {"const": true},
+        "phase_1_build_minimized_outputs_without_routing": {"const": true},
+        "phase_2_stage_authenticated_surface_without_public_cutover": {"const": true},
+        "phase_3_public_cutover_requires_explicit_authorization": {"const": true},
+        "phase_4_remove_sensitive_public_artifacts_requires_explicit_authorization": {"const": true}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_previous_virtual_host_and_aliases",
+        "restore_previous_static_files_from_backup",
+        "preserve_operational_data",
+        "data_deletion_not_part_of_rollback",
+        "dns_change_required",
+        "certificate_change_required",
+        "firewall_change_required"
+      ],
+      "properties": {
+        "restore_previous_virtual_host_and_aliases": {"const": true},
+        "restore_previous_static_files_from_backup": {"const": true},
+        "preserve_operational_data": {"const": true},
+        "data_deletion_not_part_of_rollback": {"const": true},
+        "dns_change_required": {"const": false},
+        "certificate_change_required": {"const": false},
+        "firewall_change_required": {"const": false}
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_matrix_required",
+        "unauthenticated_public_allowlist_only",
+        "restricted_routes_fail_closed",
+        "authorized_restricted_access_verified",
+        "no_directory_listing",
+        "no_wildcard_cors",
+        "dynamic_no_store_headers",
+        "sensitive_field_scan_required",
+        "no_new_listener",
+        "tls_identity_unchanged",
+        "traffic_controls_changed",
+        "live_change_authorized"
+      ],
+      "properties": {
+        "route_matrix_required": {"const": true},
+        "unauthenticated_public_allowlist_only": {"const": true},
+        "restricted_routes_fail_closed": {"const": true},
+        "authorized_restricted_access_verified": {"const": true},
+        "no_directory_listing": {"const": true},
+        "no_wildcard_cors": {"const": true},
+        "dynamic_no_store_headers": {"const": true},
+        "sensitive_field_scan_required": {"const": true},
+        "no_new_listener": {"const": true},
+        "tls_identity_unchanged": {"const": true},
+        "traffic_controls_changed": {"const": false},
+        "live_change_authorized": {"const": false}
+      }
+    }
+  }
+}
