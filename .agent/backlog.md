@@ -22,6 +22,7 @@
 - [x] Protected-retention closeout merged through PR #139 as `4b14a3c513dd7878c0d8c2ee4fa751f292e7bb6a`.
 - [x] Minimized public-summary route contract corrected through PR #140 as `4fc5d765805b86be8ddee58f08c2676116517cbb`.
 - [x] Minimized public-summary CSP contract corrected through PR #141 as `feb771b6ab53ed9547fec81dbaea964a0246f27d`.
+- [x] Disabled public-summary staging runtime merged through PR #144 as `86a906a536bbb785d47e249615d9c22e411d2ac3`.
 
 ## Completed authenticated host sequence
 
@@ -51,10 +52,10 @@
 - [x] Add an explicitly non-active Apache alias/header proposal.
 - [x] Add temporary-directory functional, privacy, permission, and static safety tests.
 - [x] Add architecture and audit records.
-- [ ] Pass exact-head `Validate repository` workflow.
-- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
-- [ ] Complete changed-file, zero-behind, mergeability, and review-thread checks.
-- [ ] Merge repository-only staging runtime.
+- [x] Pass exact-head `Validate repository` run 649.
+- [x] Pass exact-head `Edge1 Operator Validation` run 481.
+- [x] Complete changed-file, zero-behind, mergeability, and review-thread checks.
+- [x] Merge repository-only staging runtime through PR #144 as `86a906a536bbb785d47e249615d9c22e411d2ac3`.
 - [ ] Re-run fresh authenticated Edge1 boundary inventory before any staging installation.
 - [ ] Design a bounded installer and staging acceptance only after exact authorization.
 
