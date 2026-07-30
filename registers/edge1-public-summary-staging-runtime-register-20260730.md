@@ -3,7 +3,7 @@
 Date: 2026-07-30  
 Classification: internal security and publication-boundary record  
 System: `edge1.ww.cx` / WW.CX Operations Center  
-State: repository implementation; disabled and not deployed
+State: repository implementation merged; disabled and not deployed
 
 ## Objective
 
@@ -108,28 +108,50 @@ Directory listing: disabled
 
 The Apache proposal is not installed and cannot become active through this repository phase.
 
-## Validation scope
+## Validation and merge evidence
 
-The new tests are intended to prove:
+PR #144 exact head:
 
-- committed policy remains disabled and production paths are exact;
-- route, header, runtime, and authorization drift is rejected;
-- disabled operation performs no filesystem change;
-- enabled temporary tests create only the exact release files;
-- public files are `0644`, metadata is private, and SHA-256 values match;
-- hostile source values do not propagate;
-- existing releases are not overwritten;
-- tampered or symlinked assets fail closed;
-- runtime has no command, network, listener, systemctl, or Apache operation;
-- systemd write scope excludes `/var/www`;
-- Apache proposal has exact headers, no listing, no CORS, no proxying, and no authentication claim;
-- no installer exists.
+```text
+422f01c122dd7b982cefd1943f507f71e9f59de9
+```
 
-Exact-head workflow results and merge evidence remain pending until the pull request is validated.
+Required workflows passed:
+
+- `Validate repository` run 649;
+- `Edge1 Operator Validation` run 481.
+
+Pre-merge review confirmed:
+
+- 13 expected changed files only;
+- zero commits behind `main`;
+- pull request mergeable;
+- no unresolved review threads.
+
+PR #144 merged to `main` as:
+
+```text
+86a906a536bbb785d47e249615d9c22e411d2ac3
+```
+
+Functional validation covered:
+
+- committed policy disabled and production paths exact;
+- route, header, runtime, and authorization drift rejection;
+- disabled operation with no filesystem change;
+- exact release contents and modes;
+- private metadata and matching SHA-256 values;
+- hostile source-value exclusion;
+- existing release non-overwrite;
+- tampered and symlinked asset rejection;
+- no command, network, listener, systemctl, or Apache operation;
+- systemd write scope excluding `/var/www`;
+- exact proposed Apache header/listing/CORS/proxy boundary;
+- absence of an installer.
 
 ## Live prerequisite status
 
-A fresh authenticated Edge1 Apache, route, header, filesystem, service, and capacity inventory is still required before any staging activation or public cutover. No authenticated Edge1 execution path was available in the current repository-authoring session, so no live-state claim is made.
+A fresh authenticated Edge1 Apache, route, header, filesystem, service, and capacity inventory is still required before any staging activation or public cutover. No authenticated Edge1 execution path was available in the repository-authoring session, so no live-state claim is made.
 
 ## Explicit non-authorization
 
