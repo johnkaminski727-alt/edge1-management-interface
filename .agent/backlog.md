@@ -9,29 +9,24 @@
 - [x] Deploy and accept sanitized general nftables aggregate visibility as `ruleset_observed`.
 - [x] Confirm Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
 
-## Current repository phase — freshness policy
+## Completed repository phase — freshness policy
 
-- [x] Verify authoritative `main` at `d1a6a94568f235a2153e3f7946f9990b7a050547`.
-- [x] Verify the operations-network producer interval is 300 seconds.
-- [x] Verify the Network Defense consumer interval is 60 seconds with up to 10 seconds randomized delay.
-- [x] Verify the established Security observability acceptance ceiling is 600 seconds.
-- [x] Create focused branch `feature/network-defense-freshness-policy-20260730`.
-- [x] Implement a final read-only wrapper that changes only the network-source stale threshold from 300 to 600 seconds.
-- [x] Preserve every other source threshold.
+- [x] Verify producer and consumer schedules and the established 600-second acceptance ceiling.
+- [x] Implement a final read-only wrapper changing only the network-source stale threshold from 300 to 600 seconds.
+- [x] Preserve every other source threshold and the full layered exporter chain.
 - [x] Retain the capability-free AF_UNIX-only Network Defense service boundary.
-- [x] Add focused threshold, hardening, and no-command/no-network tests.
-- [x] Add architecture documentation and a sanitized implementation register.
-- [ ] Pass targeted and full repository validation on the exact feature head.
-- [ ] Confirm both required exact-head CI workflows succeed.
-- [ ] Review scope, diff, unresolved threads, and mergeability.
-- [ ] Merge only after all required checks pass.
-- [ ] Update closeout documentation on authoritative `main`.
+- [x] Add focused and legacy-chain validation coverage.
+- [x] Pass exact-head `Validate repository` run 610.
+- [x] Pass exact-head `Edge1 Operator Validation` run 442.
+- [x] Confirm scope, zero-behind state, mergeability, and no unresolved review threads.
+- [x] Merge PR #126 as `711952afb053fa3bd50c390516fa7b58f3943985`.
+- [x] Update repository closeout records.
 
 ## Live activation boundary
 
-Not included in the repository phase:
+Not completed or claimed:
 
-- [ ] Fast-forward a clean Edge1 checkout to the eventual merge commit.
+- [ ] Verify a clean Edge1 checkout and fast-forward it to the repository merge.
 - [ ] Install the wrapper and updated systemd unit through a bounded, rollback-safe operator procedure.
 - [ ] Run daemon reload and the one-shot exporter without changing producer timers or traffic controls.
 - [ ] Verify service result, generated snapshot, source threshold, endpoint state, and unchanged enforcement count.
