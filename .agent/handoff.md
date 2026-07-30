@@ -4,7 +4,7 @@ Date: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Active repository branch: `feature/edge1-public-summary-staging-runtime-20260730`
+Latest repository implementation merge: `86a906a536bbb785d47e249615d9c22e411d2ac3`
 
 ## Accepted live baseline
 
@@ -23,24 +23,28 @@ Protected evidence:
 - Protected Suricata retention runtime merged through PR #138; closeout through PR #139.
 - Minimized public-summary route corrected through PR #140.
 - Strict public-summary CSP corrected through PR #141.
+- Disabled public-summary staging runtime merged through PR #144 as `86a906a536bbb785d47e249615d9c22e411d2ac3`.
 
-The canonical minimized feed is `/edge1-status/public/status.json`. The landing page uses only external same-origin JavaScript and CSS and matches the strict approved CSP without `unsafe-inline`.
+PR #144 exact head `422f01c122dd7b982cefd1943f507f71e9f59de9` passed:
 
-## Current repository phase
+- `Validate repository` run 649;
+- `Edge1 Operator Validation` run 481;
+- zero commits behind `main`;
+- mergeable state;
+- no unresolved review threads.
 
-A disabled, repository-only public-summary staging runtime is implemented on `feature/edge1-public-summary-staging-runtime-20260730`.
+## Public-summary staging result
 
-Assets include:
+The repository now contains:
 
-- `config/security/edge1-public-summary-staging-policy.json`;
-- `schemas/wwcx-edge1-public-summary-staging-policy-v1.schema.json`;
-- `server/edge1_public_summary_stager.py`;
-- proposed hardened systemd service and timer;
-- `deploy/apache/edge1-public-summary.conf.proposed`;
+- disabled staging policy and schema;
+- exact sanitized-source and four-file release allowlists;
+- immutable release construction with atomic `current` selection;
+- private per-release SHA-256 metadata;
+- hardened proposed service and 60-second timer;
+- explicitly non-active Apache route/header proposal;
 - functional and static tests;
-- architecture and register records.
-
-The runtime builds an exact four-file release under a non-public `/var/lib/wwcx-public-summary` design, records private SHA-256 metadata, and atomically selects a release through a `current` symlink. It does not overwrite or prune releases.
+- architecture and audit records.
 
 Committed gates remain:
 
@@ -53,19 +57,15 @@ live_publication_authorized=false
 
 No installer or activation script exists. Nothing has been installed, enabled, started, staged, routed, or published on Edge1.
 
-## Validation remaining
+## Next repository program
 
-- exact-head `Validate repository`;
-- exact-head `Edge1 Operator Validation`;
-- changed-file and zero-behind review;
-- mergeability and unresolved-thread review;
-- repository-only merge and closeout records.
+The next safe program is the authenticated detailed-operations browser/session boundary design. It must remain repository-only until authentication mechanisms, session handling, authorization scopes, audit logging, rate limiting, failure behavior, and live route inventory are fully specified and validated.
 
 ## Live work remaining under separate authorization
 
 1. establish an authenticated Edge1 execution path;
 2. run a fresh read-only Apache, route, header, filesystem, service, and capacity inventory;
-3. separately authorize and execute a bounded staging installation and acceptance;
+3. separately authorize and execute a bounded public-summary staging installation and acceptance;
 4. design and stage the authenticated detailed-operations browser/session boundary;
 5. separately authorize public cutover and detailed-artifact removal.
 
