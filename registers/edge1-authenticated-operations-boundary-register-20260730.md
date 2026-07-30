@@ -4,7 +4,7 @@ Date: 2026-07-30
 Classification: internal security architecture and access-control record  
 System: `edge1.ww.cx` / WW.CX Operations Center  
 Target: `/edge1-ops/`  
-State: repository design; disabled and not deployed
+State: repository design merged; disabled and not deployed
 
 ## Objective
 
@@ -72,11 +72,9 @@ The pure evaluator rejects invalid issuer, audience, MFA, timestamps, hash, expi
 
 Detailed resources allow only `GET` and `HEAD`. The future local logout route is a separate POST-plus-CSRF authentication operation and is not implemented here.
 
-Path normalization rejects query strings, fragments, percent encoding, backslashes, duplicate separators, dot segments, control characters, oversize paths, and paths outside `/edge1-ops/`.
+Path normalization rejects query strings, fragments, percent encoding, backslashes, duplicate separators, dot segments, control characters, oversize paths, and paths outside `/edge1-ops/`. Prefix matching is segment bounded.
 
-Prefix matching is segment bounded.
-
-## Scope matrix
+## Scope and rate-limit boundary
 
 General scope:
 
@@ -92,14 +90,14 @@ security.suricata.history.read
 
 General scope covers the restricted landing, Security, Network Defense, bitcoin, mining, reports, and data routes. Suricata history routes require both scopes.
 
-## Rate limits
+Rate limits:
 
 - general reads: 120 per 60 seconds per session;
 - history reads: 30 per 60 seconds per session;
 - authentication failures: 10 per 600 seconds per source and subject;
 - failure status: `429`.
 
-The evaluator exposes the contract only. Storage and counters are deferred until the live adapter/session inventory.
+The evaluator exposes the contract only. Storage and counters remain deferred until live adapter/session inventory.
 
 ## Audit boundary
 
@@ -134,29 +132,51 @@ The `.design` file:
 - sets strict no-store and browser-security headers;
 - removes CORS;
 - contains no proxy rule;
-- retains unconditional `Require all denied` gates for every represented restricted route.
+- retains unconditional `Require all denied` gates.
 
 It cannot authorize access in its committed form.
 
-## Validation scope
+## Validation and merge evidence
 
-Repository tests are intended to prove:
+PR #146 exact head:
 
-- committed policy remains disabled and exact;
-- unexpected fields and weakened provider, cookie, status, CORS, audit, route, or scope settings fail validation;
-- partial or unverified activation is rejected;
-- unknown and ambiguous paths return `404` before authentication;
-- invalid sessions return `401`;
-- missing scopes return `403`;
-- unsupported methods return `405`;
-- general and history scopes are separated;
-- rate-limit contracts are bounded;
-- audit fields are exact and redacted;
-- the evaluator has no HTTP server, socket, subprocess, token, cookie, database, Apache, or systemd operation;
-- the Apache design remains denied and credential-free;
-- no installer exists.
+```text
+afcccbf65c94f48944cf7dc221bd18445488a4f8
+```
 
-Exact-head workflow results and merge evidence remain pending.
+Required exact-head workflows passed:
+
+- `Validate repository` run 653;
+- `Edge1 Operator Validation` run 485.
+
+Pre-merge review confirmed:
+
+- 10 expected changed files only;
+- zero commits behind `main`;
+- pull request mergeable;
+- no unresolved review threads.
+
+PR #146 merged to `main` as:
+
+```text
+a0dd8103d8035862d03769ef4fabb0359cc73009
+```
+
+Functional and static validation covered:
+
+- committed policy disabled and exact;
+- unexpected fields and weakened provider, cookie, status, CORS, audit, route, or scope settings rejected;
+- partial or unverified activation rejected;
+- unknown and ambiguous paths returning `404` before authentication;
+- invalid sessions returning `401`;
+- missing scopes returning `403`;
+- unsupported methods returning `405`;
+- general and history scope separation;
+- bounded rate-limit contracts;
+- exact redacted audit fields;
+- no HTTP server, socket, subprocess, token, cookie, database, Apache, or systemd operation in the evaluator;
+- denied credential-free Apache design;
+- absence of an installer.
 
 ## Live prerequisites
 
