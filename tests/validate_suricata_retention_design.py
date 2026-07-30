@@ -158,7 +158,7 @@ class SuricataRetentionDesignTests(unittest.TestCase):
             promotion["retention_class"],
             "security_and_access_records",
         )
-        self.assertIn("rolling database is not the authoritative incident archive", self.register)
+        self.assertIn("30-day rolling history is not the authoritative incident archive", self.register)
 
     def test_rollback_preserves_data_and_control_planes(self) -> None:
         rollback = self.policy["rollback"]
@@ -179,7 +179,7 @@ class SuricataRetentionDesignTests(unittest.TestCase):
         for marker in (
             "No Suricata service restart",
             "preserve the database by default",
-            "does not authorize runtime code",
+            "This phase does not include runtime code",
         ):
             self.assertIn(marker, self.design)
 
