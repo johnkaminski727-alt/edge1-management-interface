@@ -3,7 +3,8 @@
 Date: 2026-07-30  
 Classification: internal security and deployment-evidence control  
 Repository baseline: `d236219067c78c584b06c11a5612c5ed28ef72fb`  
-State: repository implementation; not executed on Edge1
+Implementation merge: `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`  
+State: repository implementation complete and merged; not executed on Edge1
 
 ## Objective
 
@@ -61,16 +62,28 @@ The inventory contains no service start, stop, restart, reload, enable, disable,
 - symlinks and non-regular files are reported separately;
 - staging and cutover remain false under the committed disabled policies.
 
-## Repository validation status
+## Repository validation and merge acceptance
 
-Pending exact-head validation and PR review for:
+Exact implementation head:
 
-- Python unit and functional tests;
-- shell syntax and static non-mutation checks;
-- JSON validation;
-- zero-behind and changed-file review;
-- mergeability and review-thread review.
+```text
+4a18c05f2a6f31369a3abfa695330ac5bf39d40a
+```
+
+Acceptance:
+
+- `Validate repository` run 662: success;
+- `Edge1 Operator Validation` run 494: success;
+- changed scope: 11 files;
+- zero commits behind `main`;
+- mergeable state;
+- zero unresolved review threads;
+- merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
+
+The validation covered Python unit and functional tests, shell syntax, JSON parsing, static non-mutation controls, redaction, synthetic inventory reconciliation, and the existing Python 3.6 collector compatibility gate.
 
 ## Live status
 
 No authenticated Edge1 execution occurred from the authoring runtime. No new evidence directory, filesystem inventory, route observation, service observation, or reconciliation result is claimed live.
+
+The next accepted action is execution of the merged read-only script through an approved authenticated Edge1 path, followed by review of all reconciliation and anomaly evidence before any staging.

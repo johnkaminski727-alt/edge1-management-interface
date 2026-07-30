@@ -4,8 +4,7 @@ Last verified: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Latest repository closeout: `d236219067c78c584b06c11a5612c5ed28ef72fb`  
-Active repository branch: `ops/edge1-security-boundary-live-inventory-20260730`
+Latest repository implementation merge: `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`
 
 ## Verified live baseline
 
@@ -30,48 +29,46 @@ Protected live evidence:
 - Minimized public-summary route, CSP, staging runtime, and closeout: PRs #140-145.
 - Authenticated detailed-operations browser/session boundary and closeout: PRs #146-147.
 - Restricted-artifact migration manifest and closeout: PRs #148-149.
-- Latest repository closeout: `d236219067c78c584b06c11a5612c5ed28ef72fb`.
+- Security-boundary live inventory bundle merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 
 No public-summary staging, authenticated restricted route, restricted release, detailed-artifact migration, public cutover, detailed-artifact removal, or protected-retention installation has occurred on Edge1.
 
-## Security-boundary live inventory phase
+## Security-boundary live inventory repository completion
 
-A focused read-only host-evidence bundle is implemented on `ops/edge1-security-boundary-live-inventory-20260730`.
+The authenticated read-only host-evidence bundle is implemented and merged.
 
-Implemented:
+Assets:
 
-- machine-readable record of the user's explicit authorization for the four named security-completion programs;
-- root-run, clean-`main` inventory guard;
-- protected timestamped evidence directory;
-- exact JSON path/SHA-256/mode/byte inventory of `/var/www/edge1-status`;
-- symlink and non-regular-file anomaly reporting;
-- automatic reconciliation against the merged restricted-artifact manifest and access policy;
-- Apache syntax, vhost, module, config-hash, and directive-name-only readiness evidence;
-- redacted systemd unit and service-state evidence;
-- local/public anonymous route and security-header matrix;
-- listener, capacity, candidate-root, audit-log-metadata, and retention-tree inventories;
-- explicit no-credential, no-cookie-value, no-source-mutation, no-traffic-change results;
-- unit, redaction, static non-mutation, and synthetic reconciliation tests;
-- runbook and audit register.
+- `config/security/edge1-security-completion-authorization-20260730.json`;
+- `tools/security/edge1-security-boundary-live-inventory.sh`;
+- `tools/security/reconcile-edge1-live-inventory.py`;
+- `tools/security/redact-edge1-boundary-text.py`;
+- `tests/test_edge1_security_boundary_live_inventory.py`;
+- runbook, validation checklist, register, and continuity records.
 
-The bundle records no Git remote URLs, environment dump, SSH material, private keys, shadow data, password-file contents, provider/client secret values, cookie values, or audit-log contents.
+Exact implementation head `4a18c05f2a6f31369a3abfa695330ac5bf39d40a` passed:
 
-## Repository validation state
+- `Validate repository` run 662;
+- `Edge1 Operator Validation` run 494;
+- 11 changed files;
+- zero commits behind `main`;
+- mergeable state;
+- zero unresolved review threads;
+- merge through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 
-Exact-head CI, changed-file review, zero-behind review, mergeability, and review-thread checks are pending.
+The bundle records exact public-tree hashes and modes, filesystem anomalies, manifest reconciliation, Apache/module readiness, redacted service definitions, anonymous route/header observations, listeners, capacity, candidate roots, audit metadata, retention metadata, and an evidence SHA-256 manifest. It does not collect credentials, secret values, cookie values, environment dumps, SSH material, private keys, password-file contents, or audit-log contents.
 
 ## Live execution state
 
-No authenticated Edge1 execution path is available in the current authoring runtime. The new inventory script has not been executed on Edge1 and no new protected evidence directory is claimed.
+The inventory script has not been executed on Edge1 from this runtime. No new protected evidence directory, filesystem inventory, route observation, or reconciliation counts are claimed live.
 
 ## Next gates
 
-1. pass exact-head repository workflows and merge the inventory bundle;
-2. run the merged inventory on a clean authenticated Edge1 `main` checkout;
-3. review unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts;
-4. select only an actually available approved identity-provider/Apache adapter path;
-5. construct restricted and public staging installers from the measured host evidence;
-6. preserve authentication-first, archive-before-withdrawal, rollback, and no-traffic-change gates.
+1. run the merged inventory on a clean authenticated Edge1 `main` checkout;
+2. review unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts;
+3. verify an actually available approved identity-provider/Apache adapter path;
+4. construct restricted and public staging installers from measured host evidence;
+5. preserve authentication-first, archive-before-withdrawal, rollback, and no-traffic-change gates.
 
 ## Safety boundary
 

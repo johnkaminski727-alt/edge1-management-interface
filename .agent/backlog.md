@@ -15,7 +15,7 @@
 - [x] Minimized public-summary route, CSP, staging runtime, and closeout through PRs #140-145.
 - [x] Authenticated detailed-operations browser/session boundary and closeout through PRs #146-147.
 - [x] Restricted-artifact migration manifest and closeout through PRs #148-149.
-- [x] Latest repository closeout `d236219067c78c584b06c11a5612c5ed28ef72fb`.
+- [x] Security-boundary live inventory bundle merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 
 ## Security-boundary live inventory bundle
 
@@ -32,10 +32,10 @@
 - [x] Capture metadata-only candidate-root, audit-log, and retention-tree inventories.
 - [x] Add evidence redactor and synthetic functional/static safety tests.
 - [x] Add operator runbook, audit register, and continuity records.
-- [ ] Pass exact-head `Validate repository`.
-- [ ] Pass exact-head `Edge1 Operator Validation`.
-- [ ] Confirm changed-file scope, zero-behind state, mergeability, and no unresolved review threads.
-- [ ] Merge the repository bundle and close records.
+- [x] Pass exact-head `Validate repository` run 662.
+- [x] Pass exact-head `Edge1 Operator Validation` run 494.
+- [x] Confirm 11 changed files, zero-behind state, mergeability, and zero unresolved review threads.
+- [x] Merge through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 - [ ] Run the merged script through an approved authenticated Edge1 path.
 - [ ] Record the exact protected evidence directory and reconciliation counts.
 
