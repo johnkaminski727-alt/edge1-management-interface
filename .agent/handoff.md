@@ -3,25 +3,14 @@
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative base: `1d995bbc0ec9029c9853d9968470f248eb8b6995`  
-Feature branch: `feature/edge1-minimized-public-summary-20260730`
+Implementation merge: `25359040ba07a3b7bf513f95b32ce24f6be480f2`  
+Implementation PR: `#132`
 
-## Verified live baseline
+## Live baseline
 
-- Security Correlation and Network Defense are live and accepted.
-- Suricata drill-down, caching, normalization, and enrichment are live.
-- Spamhaus, Fail2ban, and nftables report accepted truthful states.
-- DNS remains unstaged and disabled; traffic controls remain unchanged.
+Security observability remains at the previously accepted state: Security Correlation and Network Defense are live; Suricata enrichment is live; Spamhaus, Fail2ban, and nftables report accepted truthful states; DNS remains unstaged and disabled; traffic controls remain unchanged.
 
-## Prior repository decisions
-
-- Freshness phase is repository-complete but not live-activated.
-- Protected-retention design is disabled and non-deploying.
-- Public boundary design concluded that the current mixed `/edge1-status/` tree should be replaced in a future authorized cutover by a minimized public summary and separately authenticated detail.
-
-## Current implementation
-
-Phase 1 builds the minimized artifacts without routing or publication.
+## Repository-complete implementation
 
 Schema:
 
@@ -42,78 +31,52 @@ docs/security/edge1-minimized-public-summary-20260730.md
 registers/edge1-minimized-public-summary-register-20260730.md
 ```
 
-## Output
+The exporter accepts explicit Security Operations, Network Defense, and Operations Health paths and reduces them to three fixed category records containing only state, bounded count, and coarse freshness. It never copies source objects or arbitrary detail strings.
 
-Exact top-level fields:
+## Privacy and bounds
 
-```text
-schema_version
-generated_at
-overall_state
-component_category
-maintenance_notice
-read_only
-traffic_controls_changed
-```
+- Seven exact top-level fields.
+- Security count maximum 999.
+- Network and Operations count maximum 99.
+- Maintenance notice maximum 160 characters.
+- Fresh at most five minutes; aging to fifteen minutes; older data stale/attention.
+- Missing or invalid input becomes unavailable/unknown without error or path disclosure.
+- Always `read_only:true` and `traffic_controls_changed:false`.
 
-Fixed categories:
+Hostile fixtures contain host, kernel, service, addresses, ports, signatures, IDs, routes, WireGuard, resolver, Git, incident, report, error, and recommendation data. Tests prove those values and forbidden keys do not propagate.
 
-```text
-security
-network_defense
-operations
-```
+## Validation and merge
 
-Each category contains only category, state, bounded count, and freshness bucket.
+Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
 
-## Source minimization
-
-- Security: health state, recent-alert count, generation time.
-- Network Defense: overall state, available-source count, generation time.
-- Operations: overall state, check count, generation time.
-
-No source object, detail, recommendation, error, path, address, port, ID, service, timer, Git, incident, report, communications, wallet, or mining field is copied.
-
-## Bounds
-
-- Security count: 999 maximum.
-- Network and Operations counts: 99 maximum.
-- Notice: 160 characters maximum.
-- Fresh: no older than five minutes.
-- Aging: five to fifteen minutes.
-- Stale: older than fifteen minutes and represented as attention.
+- `Validate repository` run 622: success.
+- `Edge1 Operator Validation` run 454: success.
+- PR #132 was mergeable and zero commits behind `main`.
+- No unresolved review threads existed.
+- Merged as `25359040ba07a3b7bf513f95b32ce24f6be480f2`.
 
 ## Publication boundary
 
-- All input paths are required.
+- Required input arguments; no live input defaults.
 - Default output is `build/edge1-public-status/status.json`.
-- Exporter has no command execution, network access, `/var/www`, Apache, or systemd path.
-- Page fetches only `./status.json`.
-- No deploy script, service, timer, alias, route, or public URL activation exists.
+- No `/var/www`, deploy script, service, timer, Apache, command, or network access.
+- Page fetches only `./status.json` and has no detailed-feed or restricted links.
+- No public URL, route, deployment, or cutover is claimed.
 
-## Validation coverage
+## Required next live sequence
 
-- exact allowlists and schema/policy alignment;
-- hostile source value and forbidden-key exclusion;
-- count, notice, freshness, stale, and missing-source behavior;
-- atomic mode-0644 build output;
-- no command/network/live publication markers;
-- page minimized-feed-only and no restricted links;
-- no deployment or service assets.
+1. Establish authenticated Edge1 execution.
+2. Capture read-only Apache vhost/alias/auth/header/CORS/listing/route/filesystem evidence.
+3. Confirm the current anonymous/authorized response matrix and extra artifacts outside repository evidence.
+4. Design server-side no-store/CSP/referrer/nosniff headers, output ownership, backup, and rollback.
+5. Obtain exact authorization for any publication, alias, proxy, authentication, reload, or public route change.
+6. Stage and verify before cutover.
+7. Capture protected terminal acceptance and rollback evidence.
 
-## Pending sequence
+## Other pending programs
 
-1. Open focused PR.
-2. Require exact-head `Validate repository` and `Edge1 Operator Validation`.
-3. Repair only implementation/test defects.
-4. Confirm changed scope contains no deploy, systemd, Apache, auth, or live-publication assets.
-5. Confirm zero behind, mergeable, and no unresolved threads.
-6. Merge and close repository records.
-7. Do not publish until read-only live inventory and exact public-change authorization exist.
-
-## Live evidence gap
-
-No authenticated Edge1 shell is available. Current Apache/auth/header/CORS/listing/alias/filesystem behavior remains unverified.
+- Network Defense freshness still requires live activation and acceptance.
+- Protected Suricata retention still requires host sizing/SQLite evidence and a separate runtime implementation phase.
 
 ## Safety boundary
 
