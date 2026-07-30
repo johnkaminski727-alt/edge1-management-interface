@@ -1,6 +1,7 @@
 # Fail2ban Live-State Verifier Register
 
 Date: 2026-07-29  
+Live acceptance: 2026-07-30  
 Classification: internal, sanitized  
 System: Edge1 / WW.CX Network Defense
 
@@ -12,13 +13,13 @@ Network Defense previously reported Fail2ban from normalized event counts only. 
 
 | Asset | Purpose | State |
 | --- | --- | --- |
-| `server/fail2ban_live_state_verifier.py` | Read-only service/socket/jail counter verifier | Implemented on feature branch |
-| `server/network_defense_fail2ban_exporter.py` | Public aggregate-only Network Defense integration | Implemented on feature branch |
-| `deploy/systemd/wwcx-fail2ban-live-state.service` | Hardened root oneshot with no capabilities | Implemented on feature branch |
-| `deploy/systemd/wwcx-fail2ban-live-state.timer` | One-minute refresh schedule | Implemented on feature branch |
-| `deploy/systemd/wwcx-network-defense.service` | Orders after verifier and uses final wrapper | Updated on feature branch |
-| `deploy/install-fail2ban-live-state-observability.sh` | Rollback-safe activation and evidence capture | Implemented on feature branch |
-| `/var/lib/bigbird-security/fail2ban/live-state.json` | Sanitized private runtime snapshot | Pending activation |
+| `server/fail2ban_live_state_verifier.py` | Read-only service/socket/jail counter verifier | Deployed and accepted |
+| `server/network_defense_fail2ban_exporter.py` | Public aggregate-only Network Defense integration | Deployed and accepted |
+| `deploy/systemd/wwcx-fail2ban-live-state.service` | Hardened root oneshot with no capabilities | Deployed and accepted |
+| `deploy/systemd/wwcx-fail2ban-live-state.timer` | One-minute refresh schedule | Enabled and active |
+| `deploy/systemd/wwcx-network-defense.service` | Orders after verifier and uses final wrapper | Deployed and accepted |
+| `deploy/install-fail2ban-live-state-observability.sh` | Rollback-safe activation and evidence capture | Executed successfully |
+| `/var/lib/bigbird-security/fail2ban/live-state.json` | Sanitized private runtime snapshot | Live, root-owned mode `0640` |
 
 ## Contract
 
@@ -66,36 +67,59 @@ No state in this contract is equivalent to packet-enforcement verification.
 
 | Validation | State |
 | --- | --- |
-| Root and jail status parsing | Implemented |
-| Jail-name sanitization and count bound | Implemented |
-| Aggregate counter calculation | Implemented |
-| Address, path, and raw-output exclusion | Implemented |
-| Read-only command enforcement | Implemented |
-| Atomic publication | Implemented |
-| Public aggregate-only integration | Implemented |
-| Stale-source downgrade | Implemented |
-| Capability-free hardened unit | Implemented |
-| Runtime ordering | Implemented |
-| Rollback-safe installer | Implemented |
-| Exact-head CI | Pending PR |
-| Live Edge1 activation | Pending merge |
+| Root and jail status parsing | Passed |
+| Jail-name sanitization and count bound | Passed |
+| Aggregate counter calculation | Passed |
+| Address, path, and raw-output exclusion | Passed |
+| Read-only command enforcement | Passed |
+| Atomic private publication | Passed |
+| Public aggregate-only integration | Passed |
+| Stale-source downgrade | Passed |
+| Capability-free hardened unit | Passed |
+| Runtime ordering | Passed |
+| Rollback-safe installer | Passed |
+| Edge1 Operator Validation | Passed on PR #122 head |
+| Full repository validation | Passed on PR #122 head |
+| PR merge | PR #122 merged as `725a09c1c488c2a0cb99931183e535e9fe726894` |
+| Live Edge1 activation | Passed |
 
-## Planned activation
+## Exact live acceptance
 
-```bash
-cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-fail2ban-live-state-observability.sh
-```
-
-Expected evidence:
+Evidence:
 
 ```text
-/var/lib/wwcx-deployment-evidence/fail2ban-live-state/<timestamp>
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
 ```
 
-A truthful degraded state is acceptable. The installer must not start or modify `fail2ban.service` to improve the result.
+```json
+{
+  "ok": true,
+  "fail2ban_state": "active_observed",
+  "fail2ban_health_observed": true,
+  "fail2ban_enforcement_verified": false,
+  "observed_jails": 7,
+  "currently_banned": 0,
+  "total_banned": 0,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 7,
+  "source_count": 8,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
+
+Interpretation:
+
+- Fail2ban service was active and the local socket was reachable.
+- All seven sanitized reported jails were observed.
+- Current and total banned counters were zero at acceptance time.
+- Fail2ban did not add a verified enforcement source; the count of one remains attributable to Spamhaus.
+- Network Defense consumed the same aggregate state.
+- No traffic-control mutation occurred.
 
 ## Safety boundary
 
-No Fail2ban jail/action mutation, service start/stop/reload/restart, nftables or firewall mutation, DNS/resolver/RPZ change, routing, proxy, IDS, authentication, reputation-list, or traffic-control change is included.
+No Fail2ban jail/action mutation, service start/stop/reload/restart, nftables or firewall mutation, DNS/resolver/RPZ change, routing, proxy, IDS, authentication, reputation-list, or traffic-control change was performed.
