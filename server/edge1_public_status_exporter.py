@@ -18,7 +18,7 @@ from typing import Any
 
 SCHEMA_VERSION = "wwcx.edge1-public-status.v1"
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = ROOT / "build" / "edge1-public-status" / "status.json"
+DEFAULT_OUTPUT = ROOT / "build" / "edge1-public-status" / "public" / "status.json"
 FRESH_SECONDS = 5 * 60
 AGING_SECONDS = 15 * 60
 MAX_PUBLIC_COUNT = 999
