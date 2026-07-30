@@ -1,10 +1,10 @@
-# Protected Suricata Retention Design Handoff
+# Edge1 Public Access Boundary Design Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Design merge: `13b87f876be3f6676b58863499d36395267fb870`  
-Design PR: `#128`
+Authoritative base: `74323ce0d572806278afe400f3c1e9e244e89d10`  
+Design branch: `design/edge1-public-access-boundary-20260730`
 
 ## Verified live baseline
 
@@ -15,98 +15,122 @@ Design PR: `#128`
 - General nftables aggregate visibility is `ruleset_observed`.
 - Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls remain unchanged.
 
-## Freshness phase
+## Prior repository phases
 
-The Network Defense freshness repository phase is closed through PR #127 at `bbefaca8fddc33270178daada5ca20ca3fce0c08`.
+- Network Defense freshness is closed through PR #127; its live activation remains unclaimed without an Edge1 shell.
+- Protected Suricata retention design is closed through PR #129; its policy remains disabled and no runtime exists.
 
-The freshness change is not claimed live. No authenticated Edge1 shell is available in this runtime.
+## Current boundary finding
 
-## Repository-complete retention design
+The repository shows a mixed public tree under `/edge1-status/`.
 
-PR #128 merged the disabled protected history design for already-sanitized Suricata alerts.
+The Operations Center page fetches detailed security, wallet, mining, health, automation, version, inventory, network, telephony, messaging, carrier, incident, incident-history, and report feeds. Representative exporters place host, service, kernel, route, WireGuard, resolver, Git, schedule, incident, passthrough subsystem, and generated report detail beneath `/var/www/edge1-status`.
 
-Machine-readable contract:
+Decision: the unchanged mixed boundary is not the safest long-term design.
 
-```text
-wwcx.suricata-protected-retention-policy.v1
-```
+## Target design
 
-Assets:
-
-```text
-config/security/suricata-protected-retention-policy.json
-schemas/wwcx-suricata-protected-retention-policy-v1.schema.json
-docs/security/suricata-protected-retention-design-20260730.md
-registers/suricata-protected-retention-design-register-20260730.md
-tests/validate_suricata_retention_design.py
-```
-
-The policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`.
-
-## Accepted design decisions
-
-- Read only `/var/lib/bigbird/operations-center/latest.json` and require `wwcx.suricata-source-alert.v1`.
-- Never open raw Suricata EVE logs from a future history component.
-- Retain up to 30 days, 256 MiB, or 100,000 unique alerts, whichever limit is reached first.
-- Use SHA-256 canonical event keys and a database unique constraint for deduplication.
-- Store under `/var/lib/bigbird-security/suricata-history` as `root:root`, directory `0700`, files `0600`.
-- Create no listener, HTTP route, static history JSON, browser storage, or public page.
-- Initial queries are root-local CLI only, default 24 hours/100 rows, maximum seven days/500 rows.
-- Future API access requires separate authorization and the existing authenticated operations API scope `security.suricata.history.read`.
-- Automatic off-host backup is disabled.
-- Incident promotion is manual and separately authorized, with sanitized rows, SHA-256 manifest, and authorization record.
-- Rollback preserves the database by default; deletion requires separate records authority.
-
-## Records boundary
-
-The rolling 30-day store is operational telemetry, not the authoritative incident archive. Selected alerts for an incident, audit, hold, or legal preservation need must be promoted into a separate evidence package under:
+### Public
 
 ```text
-/var/lib/wwcx-deployment-evidence/suricata-history-holds/<UTC timestamp>/
+/edge1-status/
+/edge1-status/public/status.json
 ```
 
-The promoted package receives the appropriate security/evidence retention class.
+The public surface contains a static minimized landing page and an explicit allowlist-only summary. Allowed information is limited to aggregate state, bounded counts, coarse freshness, maintenance notices, and read-only/no-traffic-change flags.
 
-## Validation and merge
+### Restricted
 
-Exact design head: `32dd1363ca3d1327dddaaddf9bba20b75514457d`
+A future authenticated surface is represented as:
 
-- `Validate repository` run 614: success.
-- `Edge1 Operator Validation` run 446: success.
-- PR #128 was mergeable and zero commits behind `main`.
-- No unresolved review threads existed.
-- Changed scope contained policy, schema, documentation, register, static validation, and `.agent` records only.
-- Merged as `13b87f876be3f6676b58863499d36395267fb870`.
+```text
+/edge1-ops/
+```
 
-The local container could not resolve `github.com`, so GitHub exact-head CI was the authoritative execution path.
+Detailed security, topology, change, automation, incident, communications, financial, and report/evidence data is restricted. The exact browser-authentication mechanism and proxy routing are separate design and authorization work.
+
+Proposed scopes:
+
+```text
+edge1.status.detail.read
+security.suricata.history.read
+```
+
+No anonymous fallback is allowed.
+
+## Design assets
+
+```text
+config/security/edge1-public-access-boundary-policy.json
+schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json
+docs/security/edge1-public-access-boundary-design-20260730.md
+registers/edge1-public-access-boundary-design-register-20260730.md
+tests/validate_edge1_public_access_boundary_design.py
+```
+
+Contract:
+
+```text
+wwcx.edge1-public-access-boundary-policy.v1
+```
+
+The policy is `design_only`, `enabled: false`, and `deployment_authorized: false`.
+
+## Required server-side controls for a future implementation
+
+- public allowlist and recursive forbidden-field scan;
+- restricted routes fail closed;
+- audited and rate-limited authorized reads;
+- `Cache-Control: no-store, max-age=0` for dynamic status;
+- restrictive CSP, no-referrer, and nosniff headers;
+- no wildcard CORS;
+- no directory listing;
+- no new listener;
+- unchanged TLS identity and HTTP-to-HTTPS redirect;
+- rollback restoring previous vhost/aliases and static files while preserving operational data.
+
+## Staged sequence
+
+1. read-only live Apache/header/filesystem/route inventory;
+2. build minimized output without routing;
+3. stage authenticated surface under separate authorization;
+4. public cutover under exact authorization;
+5. remove detailed public artifacts only after authenticated acceptance and separate authorization.
+
+## Validation status
+
+Completed:
+
+- accepted domain record and publication path review;
+- browser dependency inventory;
+- representative detailed exporter review;
+- route and information classification;
+- disabled policy and schema;
+- static design validator;
+- design, register, backlog, state, and handoff updates.
+
+Pending:
+
+- exact-head `Validate repository`;
+- exact-head `Edge1 Operator Validation`;
+- final scope, mergeability, and review-thread checks;
+- merge and authoritative closeout.
+
+## Live evidence gap
+
+No authenticated Edge1 shell is available. The repository does not establish the complete current Apache authorization, alias, CORS, directory-listing, response-header, or extra-filesystem route state. Do not claim those controls are present or absent until a read-only live inventory is captured.
 
 ## Explicitly not implemented
 
-- SQLite ingester or database;
-- service or timer;
-- query CLI;
-- evidence-export command;
-- API route;
-- authentication change;
-- public endpoint;
-- off-host backup;
-- Edge1 deployment.
-
-## Pre-implementation evidence still required
-
-- representative sanitized alert sizes and unique-event rates;
-- Edge1 free-space and growth tolerance;
-- SQLite version and page-limit behavior;
-- root-only CLI sufficiency;
-- records-custodian treatment of promoted incident exports;
-- backup requirements, if any;
-- future service account and systemd sandbox;
-- rollback and temporary-database pruning tests.
-
-## Next separate phase
-
-Review the public `edge1.ww.cx` access boundary using repository evidence only. Inventory routes, endpoint data classes, cache behavior, and intended audiences. Do not modify proxying, authentication, certificates, listeners, DNS, or public access during that design phase.
+- minimized exporter or landing page;
+- authenticated operations UI or browser session;
+- proxy/vhost/alias changes;
+- security headers;
+- API scope activation;
+- publication/removal under `/var/www`;
+- service reload;
+- Edge1 deployment or cutover.
 
 ## Safety boundary
 
-No Suricata configuration/service state, DNS, Unbound, RPZ, nftables, firewall, Fail2ban jail/action, routing, proxy, reputation list, certificate, authentication boundary, listener, public access, deletion, or production traffic is changed or authorized by this design.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication boundary, certificate, listener, public access, published file, deletion, or production traffic is changed or authorized by this design.
