@@ -1,0 +1,61 @@
+{
+  "contract": "wwcx.edge1-public-summary-staging-policy.v1",
+  "status": "design_only",
+  "enabled": false,
+  "deployment_authorized": false,
+  "live_publication_authorized": false,
+  "activation_requires_explicit_authorization": true,
+  "source_paths": {
+    "security": "/var/www/edge1-status/security-operations.json",
+    "network_defense": "/var/www/edge1-status/network-defense/data/network-defense.json",
+    "operations": "/var/www/edge1-status/operations-health.json"
+  },
+  "static_source_root": "/opt/edge1-management-interface/src/web/public-status",
+  "staging_root": "/var/lib/wwcx-public-summary",
+  "public_routes": {
+    "root": "/edge1-status/",
+    "feed": "/edge1-status/public/status.json"
+  },
+  "release_assets": [
+    "index.html",
+    "app.js",
+    "style.css",
+    "public/status.json"
+  ],
+  "headers": {
+    "cache_control": "no-store, max-age=0",
+    "content_security_policy": "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+    "referrer_policy": "no-referrer",
+    "x_content_type_options": "nosniff",
+    "cors_allow_origin": null,
+    "directory_listing": false
+  },
+  "filesystem": {
+    "staging_directory_mode": "0755",
+    "release_directory_mode": "0755",
+    "public_file_mode": "0644",
+    "metadata_directory_mode": "0700",
+    "metadata_file_mode": "0600",
+    "current_pointer": "current",
+    "release_directory": "releases",
+    "metadata_directory": "metadata"
+  },
+  "runtime": {
+    "network_access": false,
+    "command_execution": false,
+    "raw_suricata_access": false,
+    "apache_mutation": false,
+    "public_tree_write": false,
+    "release_pruning": false
+  },
+  "acceptance": {
+    "exact_asset_allowlist": true,
+    "atomic_current_pointer": true,
+    "sha256_metadata_required": true,
+    "source_detail_exclusion_required": true,
+    "strict_header_contract_required": true,
+    "no_new_listener": true,
+    "no_live_route_change": true,
+    "traffic_controls_changed": false
+  }
+}

@@ -3,7 +3,7 @@
 Date: 2026-07-30  
 Classification: internal, sanitized implementation record  
 System: `edge1.ww.cx` / WW.CX Operations Center  
-Repository state: merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`; route correction merged through PR #140 as `4fc5d765805b86be8ddee58f08c2676116517cbb`; CSP correction in validation; not deployed
+Repository state: implementation and pre-publication corrections merged; not deployed
 
 ## Trigger
 
@@ -21,13 +21,13 @@ The canonical route now matches the policy, and the stylesheet is external so th
 | Asset | Purpose | Repository state |
 | --- | --- | --- |
 | `server/edge1_public_status_exporter.py` | Allowlist-only summary builder with explicit input paths and build-scoped `public/status.json` output | Merged through PR #140 |
-| `schemas/wwcx-edge1-public-status-v1.schema.json` | Exact minimized document contract | Merged |
-| `src/web/public-status/index.html` | Non-routed static minimized landing page with exact approved CSP | Merged; CSP correction in validation |
+| `schemas/wwcx-edge1-public-status-v1.schema.json` | Exact minimized document contract | Merged through PR #132 |
+| `src/web/public-status/index.html` | Non-routed static minimized landing page with exact approved CSP | Merged through PR #141 |
 | `src/web/public-status/app.js` | Renderer that fetches only `./public/status.json` | Merged through PR #140 |
-| `src/web/public-status/style.css` | Same-origin external presentation with no inline-style requirement | CSP correction in validation |
-| hostile JSON fixtures | Prove detailed source values do not propagate | Merged |
-| `tests/validate_edge1_public_status.py` | Privacy, bounds, failure, output, page, route, CSP, and no-deployment validation | CSP correction in validation |
-| `docs/security/edge1-minimized-public-summary-20260730.md` | Architecture and deployment boundary | CSP correction in validation |
+| `src/web/public-status/style.css` | Same-origin external presentation with no inline-style requirement | Merged through PR #141 |
+| hostile JSON fixtures | Prove detailed source values do not propagate | Merged through PR #132 |
+| `tests/validate_edge1_public_status.py` | Privacy, bounds, failure, output, page, route, CSP, and no-deployment validation | Merged through PR #141 |
+| `docs/security/edge1-minimized-public-summary-20260730.md` | Architecture and deployment boundary | Merged through PR #141 |
 
 ## Public contract
 
@@ -91,7 +91,7 @@ default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'
 
 All three input paths are required. The exporter contains no `/var/www`, Apache, systemd, command-execution, or network-access path.
 
-The page consumes only `./public/status.json`, loads `app.js` and `style.css` from the same origin, has no inline script or style dependency, requests no-store, omits credentials, suppresses referrer data, references no detailed feeds, and links to no restricted surface. It is not connected to a deploy script or public route.
+The page consumes only `./public/status.json`, loads `app.js` and `style.css` from the same origin, has no inline script or style dependency, requests no-store, omits credentials, suppresses referrer data, references no detailed feeds, and links to no restricted surface.
 
 ## Hostile fixture boundary
 
@@ -99,40 +99,45 @@ Fixtures include host/kernel, service, addresses, ports, alert signatures/IDs, r
 
 ## Validation and merge
 
-Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
-
-| Validation | State |
+| Evidence | Result |
 | --- | --- |
-| Exact field allowlist | Passed |
-| Policy/schema alignment | Passed |
-| Hostile-value exclusion | Passed |
-| Count/notice/freshness bounds | Passed |
-| Missing/stale degradation | Passed |
-| Atomic build-scoped output | Passed |
-| No command/network/live path | Passed |
-| Page minimized-feed-only | Passed |
-| No deployment/service assets | Passed |
-| `Validate repository` run 622 | Success |
-| `Edge1 Operator Validation` run 454 | Success |
-| Zero commits behind `main` before merge | Confirmed |
-| Unresolved review threads | None |
-| PR #132 | Merged as `25359040ba07a3b7bf513f95b32ce24f6be480f2` |
+| Initial implementation PR #132 | Merged as `25359040ba07a3b7bf513f95b32ce24f6be480f2` |
+| PR #132 `Validate repository` run 622 | Success |
+| PR #132 `Edge1 Operator Validation` run 454 | Success |
 | Canonical route correction PR #140 | Merged as `4fc5d765805b86be8ddee58f08c2676116517cbb` |
-| Strict CSP agreement | Correction implemented; exact-head validation pending |
+| PR #140 exact head | `b9472dc19f0585dcfba4af79bef0a5dc726054e2` |
+| PR #140 `Validate repository` run 644 | Success |
+| PR #140 `Edge1 Operator Validation` run 476 | Success |
+| Strict CSP correction PR #141 | Merged as `feb771b6ab53ed9547fec81dbaea964a0246f27d` |
+| PR #141 exact head | `6a6044a1524f393449754d75236bacfeefbac4e9` |
+| PR #141 `Validate repository` run 646 | Success |
+| PR #141 `Edge1 Operator Validation` run 478 | Success |
+| Zero-behind and mergeability checks | Confirmed before each merge |
+| Unresolved review threads | None |
 | Edge1 publication | Not authorized or performed |
 | Public cutover | Not authorized or performed |
 
+## Next repository phase
+
+The separate non-public staging runtime is tracked in:
+
+```text
+registers/edge1-public-summary-staging-runtime-register-20260730.md
+```
+
+That phase must remain disabled and does not authorize Apache or `/var/www` changes.
+
 ## Future live prerequisites
 
-Before publication:
+Before any staging activation or publication:
 
-- read-only Apache route, alias, auth, header, CORS, listing, and filesystem inventory;
-- server-side no-store/CSP/referrer/nosniff policy;
-- output ownership/mode and publication design;
-- backup and rollback procedure;
-- exact authorization for public route change;
+- fresh read-only Apache route, alias, auth, header, CORS, listing, module, and filesystem inventory;
+- verified output ownership/modes and staging capacity;
+- protected backup and rollback procedure;
+- exact authorization for staging installation;
+- separate exact authorization for public route change;
 - protected terminal acceptance evidence.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public access, `/var/www` publication, deletion, or production traffic is changed.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public access, `/var/www` publication, deletion, or production traffic was changed.

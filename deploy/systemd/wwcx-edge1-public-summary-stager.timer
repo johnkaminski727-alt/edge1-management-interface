@@ -1,0 +1,13 @@
+[Unit]
+Description=Schedule minimized Edge1 public-summary release staging
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+AccuracySec=10s
+RandomizedDelaySec=10s
+Persistent=false
+Unit=wwcx-edge1-public-summary-stager.service
+
+[Install]
+WantedBy=timers.target

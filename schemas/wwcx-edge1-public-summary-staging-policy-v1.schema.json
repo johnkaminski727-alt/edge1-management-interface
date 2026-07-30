@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/wwcx-edge1-public-summary-staging-policy-v1.schema.json",
+  "title": "WW.CX Edge1 public summary staging policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "status",
+    "enabled",
+    "deployment_authorized",
+    "live_publication_authorized",
+    "activation_requires_explicit_authorization",
+    "source_paths",
+    "static_source_root",
+    "staging_root",
+    "public_routes",
+    "release_assets",
+    "headers",
+    "filesystem",
+    "runtime",
+    "acceptance"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.edge1-public-summary-staging-policy.v1"},
+    "status": {"const": "design_only"},
+    "enabled": {"type": "boolean"},
+    "deployment_authorized": {"type": "boolean"},
+    "live_publication_authorized": {"type": "boolean"},
+    "activation_requires_explicit_authorization": {"const": true},
+    "source_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["security", "network_defense", "operations"],
+      "properties": {
+        "security": {"type": "string", "minLength": 1},
+        "network_defense": {"type": "string", "minLength": 1},
+        "operations": {"type": "string", "minLength": 1}
+      }
+    },
+    "static_source_root": {"type": "string", "minLength": 1},
+    "staging_root": {"type": "string", "minLength": 1},
+    "public_routes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "feed"],
+      "properties": {
+        "root": {"const": "/edge1-status/"},
+        "feed": {"const": "/edge1-status/public/status.json"}
+      }
+    },
+    "release_assets": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "index.html"},
+        {"const": "app.js"},
+        {"const": "style.css"},
+        {"const": "public/status.json"}
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cache_control",
+        "content_security_policy",
+        "referrer_policy",
+        "x_content_type_options",
+        "cors_allow_origin",
+        "directory_listing"
+      ],
+      "properties": {
+        "cache_control": {"const": "no-store, max-age=0"},
+        "content_security_policy": {"const": "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"},
+        "referrer_policy": {"const": "no-referrer"},
+        "x_content_type_options": {"const": "nosniff"},
+        "cors_allow_origin": {"type": "null"},
+        "directory_listing": {"const": false}
+      }
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "staging_directory_mode",
+        "release_directory_mode",
+        "public_file_mode",
+        "metadata_directory_mode",
+        "metadata_file_mode",
+        "current_pointer",
+        "release_directory",
+        "metadata_directory"
+      ],
+      "properties": {
+        "staging_directory_mode": {"const": "0755"},
+        "release_directory_mode": {"const": "0755"},
+        "public_file_mode": {"const": "0644"},
+        "metadata_directory_mode": {"const": "0700"},
+        "metadata_file_mode": {"const": "0600"},
+        "current_pointer": {"const": "current"},
+        "release_directory": {"const": "releases"},
+        "metadata_directory": {"const": "metadata"}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network_access",
+        "command_execution",
+        "raw_suricata_access",
+        "apache_mutation",
+        "public_tree_write",
+        "release_pruning"
+      ],
+      "properties": {
+        "network_access": {"const": false},
+        "command_execution": {"const": false},
+        "raw_suricata_access": {"const": false},
+        "apache_mutation": {"const": false},
+        "public_tree_write": {"const": false},
+        "release_pruning": {"const": false}
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_asset_allowlist",
+        "atomic_current_pointer",
+        "sha256_metadata_required",
+        "source_detail_exclusion_required",
+        "strict_header_contract_required",
+        "no_new_listener",
+        "no_live_route_change",
+        "traffic_controls_changed"
+      ],
+      "properties": {
+        "exact_asset_allowlist": {"const": true},
+        "atomic_current_pointer": {"const": true},
+        "sha256_metadata_required": {"const": true},
+        "source_detail_exclusion_required": {"const": true},
+        "strict_header_contract_required": {"const": true},
+        "no_new_listener": {"const": true},
+        "no_live_route_change": {"const": true},
+        "traffic_controls_changed": {"const": false}
+      }
+    }
+  }
+}

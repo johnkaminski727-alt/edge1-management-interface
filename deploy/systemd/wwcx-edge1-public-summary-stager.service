@@ -1,0 +1,43 @@
+[Unit]
+Description=WW.CX minimized Edge1 public-summary release stager
+After=local-fs.target wwcx-security-operations.service wwcx-network-defense.service wwcx-operations-health.service
+ConditionPathExists=/opt/edge1-management-interface/config/security/edge1-public-summary-staging-policy.json
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0022
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_public_summary_stager.py
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+ReadOnlyPaths=/opt/edge1-management-interface
+ReadOnlyPaths=/var/www/edge1-status/security-operations.json
+ReadOnlyPaths=/var/www/edge1-status/network-defense/data/network-defense.json
+ReadOnlyPaths=/var/www/edge1-status/operations-health.json
+ReadWritePaths=/var/lib/wwcx-public-summary
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target
