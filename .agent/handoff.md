@@ -4,8 +4,7 @@ Date: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Latest completed repository closeout: `0a09c8894ed6669e3a7fdf15b3f173bdbfa2caa7`  
-Active branch: `design/edge1-authenticated-ops-browser-session-20260730`
+Latest repository implementation merge: `a0dd8103d8035862d03769ef4fabb0359cc73009`
 
 ## Accepted live baseline
 
@@ -24,27 +23,31 @@ Protected evidence:
 - Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
 - Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
 - Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
+- Authenticated detailed-operations browser/session boundary merged through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
 
-No public-summary staging or publication has occurred on Edge1.
+PR #146 exact head `afcccbf65c94f48944cf7dc221bd18445488a4f8` passed:
 
-## Current repository phase
+- `Validate repository` run 653;
+- `Edge1 Operator Validation` run 485;
+- 10 expected files only;
+- zero commits behind `main`;
+- mergeable state;
+- no unresolved review threads.
 
-The authenticated detailed-operations browser/session boundary is implemented as a disabled repository design on `design/edge1-authenticated-ops-browser-session-20260730`.
+## Authenticated boundary result
 
-Assets include:
+The repository now contains:
 
-- `config/security/edge1-authenticated-operations-policy.json`;
-- `schemas/wwcx-edge1-authenticated-operations-policy-v1.schema.json`;
-- `server/edge1_ops_access_policy.py`;
-- `deploy/apache/edge1-ops-authenticated.conf.design`;
-- `tests/test_edge1_ops_access_policy.py`;
-- architecture and audit register records.
-
-The design requires external OIDC authorization code plus PKCE, state, nonce, trusted issuer, valid audience, MFA, server-side opaque sessions, strict cookie flags, timeouts, rotation, exact registered routes, separate general and Suricata-history scopes, bounded rate limits, redacted append-only audit, strict response headers, no CORS, and no anonymous fallback.
-
-The evaluator is pure. It opens no listener, reads no credential or token, issues no cookie or session, writes no database or audit file, executes no command, and changes no Apache state.
-
-The Apache `.design` file contains no provider or credential directives and retains unconditional deny gates.
+- a disabled browser/session policy and critical schema;
+- external OIDC authorization-code plus PKCE, issuer/audience, state, nonce, and MFA requirements;
+- opaque server-side session and strict cookie/time/rotation requirements;
+- an exact registered `/edge1-ops/` route and general/history scope matrix;
+- a pure path, identity, scope, rate-limit, and redacted-audit evaluator;
+- exact 404, 401, 403, 405, and 429 contracts;
+- strict restricted-response headers and no CORS;
+- a credential-free Apache `.design` with unconditional deny gates;
+- functional and static tests;
+- architecture and audit records.
 
 Committed gates remain:
 
@@ -58,13 +61,13 @@ provider_selected=false
 apache_adapter_verified=false
 ```
 
-## Validation remaining
+No installer, provider configuration, credential, session service, audit writer, or active Apache file exists. Nothing has been installed, enabled, started, authenticated, routed, or published on Edge1.
 
-- exact-head `Validate repository`;
-- exact-head `Edge1 Operator Validation`;
-- changed-file and zero-behind review;
-- mergeability and unresolved-thread review;
-- repository-only merge and closeout records.
+## Next safe work
+
+A fresh authenticated Edge1 inventory is required before provider selection or restricted-route implementation. It must cover Apache modules and includes, current route/header/TLS behavior, filesystem and listener state, provider/MFA requirements, session and rate-limit storage, audit capacity, detailed assets, backups, and rollback.
+
+Without that authenticated path, the remaining safe repository work is limited to non-live artifact inventories and implementation planning that make no provider or host assumptions.
 
 ## Live work remaining under separate authorization
 
