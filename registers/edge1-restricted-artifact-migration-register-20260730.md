@@ -5,7 +5,7 @@ Classification: internal security, publication-boundary, and evidence-planning r
 System: `edge1.ww.cx` / WW.CX Operations Center  
 Source: `/edge1-status/` / `/var/www/edge1-status`  
 Future target: `/edge1-ops/` / `/var/lib/wwcx-edge1-ops/releases`  
-State: repository design; disabled, read-only, and not executed
+State: repository design complete; disabled, read-only, merged, and not executed
 
 ## Objective
 
@@ -121,7 +121,7 @@ Output records preserve the supplied hash, mode, and size and add only proposed 
 
 ## Required acceptance before cutover or removal
 
-The current register explicitly records:
+The register records:
 
 ```text
 public_cutover_performed: false
@@ -132,9 +132,24 @@ live_change_authorized: false
 
 Cutover requires its own explicit authorization and protected acceptance. Removal requires accepted cutover, complete target and route verification, publisher reconciliation, protected backup, and separate deletion authorization.
 
-## Validation scope
+## Repository validation and merge acceptance
 
-Repository tests are intended to prove:
+Exact implementation head:
+
+```text
+52a686a4aed7fc3eca3fbccfd2d665fd71b61170
+```
+
+Acceptance:
+
+- `Validate repository` run 657: success;
+- `Edge1 Operator Validation` run 489: success;
+- changed scope: eight files;
+- branch was based on the then-current authenticated-boundary closeout;
+- zero unresolved review threads;
+- merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
+
+Repository tests prove:
 
 - committed authorization flags remain disabled and non-destructive;
 - every mapping and prefix is unique, safe, scope-compatible, and covered by a registered restricted route;
@@ -147,11 +162,9 @@ Repository tests are intended to prove:
 - the reconciler contains no mutation, deployment, listener, Apache, or systemd operation;
 - no migration installer exists.
 
-Exact-head workflow and merge evidence remain pending.
-
 ## Live prerequisite status
 
-No authenticated Edge1 execution path is available in the current repository-authoring session. No current live file count, ownership, mode, SHA-256, route, publisher, service, or completeness claim is made.
+No authenticated Edge1 execution path was available in the repository-authoring session. No current live file count, ownership, mode, SHA-256, route, publisher, service, or completeness claim is made.
 
 A fresh authenticated host pass must reconcile the entire live source tree, including unknown and prefix-contained artifacts, before the manifest can be considered complete for staging.
 
