@@ -1,10 +1,10 @@
 # Current State
 
-Last verified: 2026-07-30 19:36 UTC  
+Last verified: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Latest implementation merge: `25359040ba07a3b7bf513f95b32ce24f6be480f2`  
-Implementation PR: `#132`
+Authoritative base: `4d2e717f8b0475fed574a4a6114c1a318d7e9655`  
+Current branch: `ops/edge1-project-completion-bundle-20260730`
 
 ## Verified live baseline
 
@@ -13,51 +13,57 @@ Implementation PR: `#132`
 - Spamhaus, Fail2ban, and nftables report accepted truthful states.
 - DNS remains unstaged and disabled; traffic controls remain unchanged.
 
-## Completed repository phases
+## Repository-complete phases
 
-- Network Defense freshness closed through PR #127; live activation unclaimed.
-- Protected Suricata retention design closed through PR #129; disabled and non-deploying.
-- Public access-boundary design closed through PR #131.
-- Minimized public summary implementation merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`.
+- Network Defense freshness implementation and repository closeout through PR #127; live activation remains unclaimed.
+- Protected Suricata retention design through PR #129; policy disabled and no runtime deployed.
+- Public access-boundary design through PR #131.
+- Minimized public summary implementation and closeout through PR #133 at `4d2e717f8b0475fed574a4a6114c1a318d7e9655`.
 
-## Repository-complete minimized summary
+## Current repository phase — operator completion bundle
 
-Schema:
+The branch adds:
 
-```text
-wwcx.edge1-public-status.v1
-```
+- `deploy/activate-network-defense-freshness.sh`;
+- `tools/security/edge1-project-completion-preflight.sh`;
+- `tests/test_edge1_project_completion_bundle.py`;
+- `docs/security/edge1-project-completion-runbook-20260730.md`;
+- `registers/edge1-project-completion-bundle-register-20260730.md`.
 
-The exporter emits only generation time, overall state, three fixed categories, bounded counts, coarse freshness, a capped explicit maintenance notice, `read_only:true`, and `traffic_controls_changed:false`.
+### Bounded freshness activation
 
-Hostile fixtures and validation prove that host, service, topology, addresses, ports, alert IDs/signatures, Git, incidents, reports, errors, and recommendations do not propagate.
+The activation script:
 
-## Validation
+- requires authenticated root execution, clean `main`, and the merged freshness commit;
+- backs up the installed service unit and current Network Defense snapshot;
+- installs only `wwcx-network-defense.service`;
+- does not modify the timer;
+- executes one one-shot export;
+- verifies threshold `600`, unchanged enforcement count, DNS `not_staged`, DNS enforcement false, and `traffic_controls_changed:false`;
+- verifies local and real-domain JSON;
+- automatically restores the saved unit and snapshot on failure;
+- records protected evidence and SHA-256 hashes.
 
-Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
+### Protected completion preflight
 
-- `Validate repository` run 622: success;
-- `Edge1 Operator Validation` run 454: success;
-- zero commits behind `main` before merge;
-- no unresolved review threads;
-- scope contained exporter, schema, fixtures, non-routed page, tests, docs, register, and `.agent` records only.
+The read-only preflight captures:
 
-## Publication boundary
+- host, principal, Git, systemd, and capacity state;
+- Apache syntax, vhost, module, and redacted directive inventory;
+- public-root file metadata and hashes;
+- local/public route and security-header matrix;
+- SQLite capabilities and sanitized Suricata size/rate evidence;
+- a staged minimized public summary under the protected evidence directory.
 
-- Required explicit input paths.
-- Default output: `build/edge1-public-status/status.json`.
-- No `/var/www`, deploy script, systemd unit, Apache, auth, network call, or command execution.
-- Page fetches only `./status.json`.
-- No live URL, route, public cutover, or deployment is claimed.
+It performs no service control, Apache reload, authentication change, route change, `/var/www` write, or traffic-control mutation.
 
-## Remaining live gates
+## Execution status
 
-- establish authenticated Edge1 execution;
-- capture read-only Apache/auth/header/CORS/listing/route/filesystem inventory;
-- define server-side headers, publication ownership, backup, rollback, and exact route change;
-- obtain exact authorization before any public publication or cutover;
-- capture protected terminal evidence.
+- No authenticated Edge1 connector, SSH configuration, or key material is available in this runtime.
+- The operator bundle has not been executed on Edge1.
+- Repository exact-head CI, PR scope review, and merge remain pending.
+- No public cutover, authentication staging, detailed-artifact removal, or protected-retention runtime is authorized or claimed.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public access, `/var/www` publication, deletion, or production traffic is changed.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public route, `/var/www` publication, deletion, or production traffic is changed by this repository phase.
