@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/wwcx-suricata-protected-retention-policy-v1.schema.json",
+  "title": "WW.CX protected Suricata retention policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "status",
+    "enabled",
+    "activation_requires_explicit_authorization",
+    "ingest",
+    "storage",
+    "privacy",
+    "query",
+    "incident_promotion",
+    "rollback",
+    "acceptance"
+  ],
+  "properties": {
+    "contract": {
+      "const": "wwcx.suricata-protected-retention-policy.v1"
+    },
+    "status": {
+      "const": "design_only"
+    },
+    "enabled": {
+      "const": false
+    },
+    "activation_requires_explicit_authorization": {
+      "const": true
+    },
+    "ingest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "required_source_schema",
+        "raw_eve_allowed",
+        "interval_seconds",
+        "max_alerts_per_run",
+        "deduplication"
+      ],
+      "properties": {
+        "source": {
+          "const": "/var/lib/bigbird/operations-center/latest.json"
+        },
+        "required_source_schema": {
+          "const": "wwcx.suricata-source-alert.v1"
+        },
+        "raw_eve_allowed": {
+          "const": false
+        },
+        "interval_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 600
+        },
+        "max_alerts_per_run": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "deduplication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "unique_constraint", "canonical_fields"],
+          "properties": {
+            "algorithm": {
+              "const": "sha256"
+            },
+            "unique_constraint": {
+              "const": "event_key"
+            },
+            "canonical_fields": {
+              "type": "array",
+              "minItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database",
+        "status_file",
+        "owner",
+        "group",
+        "directory_mode",
+        "database_mode",
+        "status_mode",
+        "retention_days",
+        "max_database_bytes",
+        "max_events",
+        "page_size_bytes",
+        "max_page_count",
+        "prune_target_percent",
+        "automatic_offhost_backup",
+        "legal_hold_export_required"
+      ],
+      "properties": {
+        "database": {
+          "const": "/var/lib/bigbird-security/suricata-history/alerts.sqlite3"
+        },
+        "status_file": {
+          "const": "/var/lib/bigbird-security/suricata-history/status.json"
+        },
+        "owner": {
+          "const": "root"
+        },
+        "group": {
+          "const": "root"
+        },
+        "directory_mode": {
+          "const": "0700"
+        },
+        "database_mode": {
+          "const": "0600"
+        },
+        "status_mode": {
+          "const": "0600"
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        },
+        "max_database_bytes": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 268435456
+        },
+        "max_events": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 100000
+        },
+        "page_size_bytes": {
+          "const": 4096
+        },
+        "max_page_count": {
+          "const": 65536
+        },
+        "prune_target_percent": {
+          "type": "integer",
+          "minimum": 70,
+          "maximum": 90
+        },
+        "automatic_offhost_backup": {
+          "const": false
+        },
+        "legal_hold_export_required": {
+          "const": true
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sanitized_alerts_only",
+        "packet_payloads_included",
+        "raw_events_included",
+        "raw_logs_included",
+        "credentials_included",
+        "private_keys_included",
+        "arbitrary_metadata_included",
+        "approved_fields"
+      ],
+      "properties": {
+        "sanitized_alerts_only": {
+          "const": true
+        },
+        "packet_payloads_included": {
+          "const": false
+        },
+        "raw_events_included": {
+          "const": false
+        },
+        "raw_logs_included": {
+          "const": false
+        },
+        "credentials_included": {
+          "const": false
+        },
+        "private_keys_included": {
+          "const": false
+        },
+        "arbitrary_metadata_included": {
+          "const": false
+        },
+        "approved_fields": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network_listener",
+        "public_endpoint",
+        "local_cli_only",
+        "default_window_hours",
+        "max_window_days",
+        "default_limit",
+        "max_limit",
+        "future_operations_api_scope",
+        "authentication_boundary_change_authorized"
+      ],
+      "properties": {
+        "network_listener": {
+          "const": false
+        },
+        "public_endpoint": {
+          "const": false
+        },
+        "local_cli_only": {
+          "const": true
+        },
+        "default_window_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24
+        },
+        "max_window_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "default_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_limit": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 500
+        },
+        "future_operations_api_scope": {
+          "const": "security.suricata.history.read"
+        },
+        "authentication_boundary_change_authorized": {
+          "const": false
+        }
+      }
+    },
+    "incident_promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automatic",
+        "evidence_root",
+        "sha256_manifest_required",
+        "authorization_record_required",
+        "retention_class"
+      ],
+      "properties": {
+        "automatic": {
+          "const": false
+        },
+        "evidence_root": {
+          "const": "/var/lib/wwcx-deployment-evidence/suricata-history-holds"
+        },
+        "sha256_manifest_required": {
+          "const": true
+        },
+        "authorization_record_required": {
+          "const": true
+        },
+        "retention_class": {
+          "const": "security_and_access_records"
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disable_future_timer",
+        "remove_future_unit",
+        "preserve_database_by_default",
+        "data_destruction_requires_separate_authorization"
+      ],
+      "properties": {
+        "disable_future_timer": {
+          "const": true
+        },
+        "remove_future_unit": {
+          "const": true
+        },
+        "preserve_database_by_default": {
+          "const": true
+        },
+        "data_destruction_requires_separate_authorization": {
+          "const": true
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_authorized",
+        "suricata_configuration_changed",
+        "suricata_service_changed",
+        "traffic_controls_changed",
+        "authentication_boundary_changed",
+        "public_access_changed"
+      ],
+      "properties": {
+        "deployment_authorized": {
+          "const": false
+        },
+        "suricata_configuration_changed": {
+          "const": false
+        },
+        "suricata_service_changed": {
+          "const": false
+        },
+        "traffic_controls_changed": {
+          "const": false
+        },
+        "authentication_boundary_changed": {
+          "const": false
+        },
+        "public_access_changed": {
+          "const": false
+        }
+      }
+    }
+  }
+}
