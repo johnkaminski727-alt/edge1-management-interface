@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'">
 <title>WW.CX Edge1 Status</title>
 <style>
 :root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#a8b4bd;--good:#45b879;--warn:#d6a13c;--bad:#df6b6b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3f6}.shell{width:min(980px,100%);margin:auto;padding:24px}header,.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin:18px 0}h1,h2{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}.card.healthy{border-color:var(--good)}.card.limited{border-color:var(--warn)}.card.attention,.card.unavailable{border-color:var(--bad)}.label{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}.value{font-size:1.3rem;font-weight:750;margin-top:6px}.muted,small{color:var(--muted)}.notice{border-left:4px solid var(--warn);padding-left:12px}.status{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:7px 11px}@media(max-width:640px){.shell{padding:14px}}
@@ -31,47 +31,6 @@
 <small id="checked">Not checked yet</small>
 </section>
 </main>
-<script>
-"use strict";
-const STATUS_URL="./status.json";
-const allowedStates=new Set(["healthy","limited","attention","unavailable"]);
-const allowedFreshness=new Set(["fresh","aging","stale","unknown"]);
-const allowedCategories=new Set(["security","network_defense","operations"]);
-const esc=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
-const label=value=>({security:"Security",network_defense:"Network defense",operations:"Operations"}[value]||"Status");
-function componentCard(item){
- const category=allowedCategories.has(item?.component_category)?item.component_category:"operations";
- const state=allowedStates.has(item?.component_state)?item.component_state:"unavailable";
- const freshness=allowedFreshness.has(item?.freshness_bucket)?item.freshness_bucket:"unknown";
- const count=Number.isInteger(item?.bounded_count)&&item.bounded_count>=0&&item.bounded_count<=999?item.bounded_count:0;
- return `<article class="card ${esc(state)}"><div class="label">${esc(label(category))}</div><div class="value">${esc(state)}</div><small>Count ${count}; freshness ${esc(freshness)}.</small></article>`;
-}
-function render(documentValue){
- const state=allowedStates.has(documentValue?.overall_state)?documentValue.overall_state:"unavailable";
- const overall=document.getElementById("overall");
- overall.textContent=`Overall: ${state}`;
- overall.className=`status ${state}`;
- const components=Array.isArray(documentValue?.component_category)?documentValue.component_category:[];
- document.getElementById("components").innerHTML=components.map(componentCard).join("")||componentCard({});
- const notice=typeof documentValue?.maintenance_notice==="string"?documentValue.maintenance_notice.trim():"";
- document.getElementById("maintenance-panel").hidden=!notice;
- document.getElementById("maintenance").textContent=notice;
- document.getElementById("checked").textContent=`Last checked: ${new Date().toLocaleString()}`;
-}
-async function load(){
- try{
-  const response=await fetch(STATUS_URL,{cache:"no-store",credentials:"omit",referrerPolicy:"no-referrer"});
-  if(!response.ok)throw new Error(`HTTP ${response.status}`);
-  const value=await response.json();
-  if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("Invalid status document");
-  render(value);
- }catch(error){
-  console.warn("Minimized status unavailable",error);
-  render({overall_state:"unavailable",component_category:[]});
- }
-}
-load();
-setInterval(load,60000);
-</script>
+<script src="./app.js" defer></script>
 </body>
 </html>
