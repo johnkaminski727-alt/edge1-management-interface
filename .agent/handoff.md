@@ -4,7 +4,8 @@ Date: 2026-07-30
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Latest repository implementation merge: `a0dd8103d8035862d03769ef4fabb0359cc73009`
+Latest completed repository closeout: `a8af7fa77d9eb81ecd69d22e9d314de478975d66`  
+Active branch: `design/edge1-restricted-artifact-migration-manifest-20260730`
 
 ## Accepted live baseline
 
@@ -23,60 +24,58 @@ Protected evidence:
 - Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
 - Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
 - Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
-- Authenticated detailed-operations browser/session boundary merged through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
+- Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147.
 
-PR #146 exact head `afcccbf65c94f48944cf7dc221bd18445488a4f8` passed:
+No public-summary staging, authenticated restricted route, or detailed-artifact migration has occurred on Edge1.
 
-- `Validate repository` run 653;
-- `Edge1 Operator Validation` run 485;
-- 10 expected files only;
-- zero commits behind `main`;
-- mergeable state;
-- no unresolved review threads.
+## Current repository phase
 
-## Authenticated boundary result
+A disabled, read-only restricted-artifact migration manifest is implemented on `design/edge1-restricted-artifact-migration-manifest-20260730`.
 
-The repository now contains:
+Assets include:
 
-- a disabled browser/session policy and critical schema;
-- external OIDC authorization-code plus PKCE, issuer/audience, state, nonce, and MFA requirements;
-- opaque server-side session and strict cookie/time/rotation requirements;
-- an exact registered `/edge1-ops/` route and general/history scope matrix;
-- a pure path, identity, scope, rate-limit, and redacted-audit evaluator;
-- exact 404, 401, 403, 405, and 429 contracts;
-- strict restricted-response headers and no CORS;
-- a credential-free Apache `.design` with unconditional deny gates;
-- functional and static tests;
-- architecture and audit records.
+- `config/security/edge1-restricted-artifact-migration-manifest.json`;
+- `server/edge1_restricted_artifact_manifest.py`;
+- `tests/test_edge1_restricted_artifact_manifest.py`;
+- architecture and audit register records;
+- updated continuity records.
+
+The manifest records 23 exact repository-declared artifacts and five directory families requiring fresh live enumeration. It maps future targets beneath `/edge1-ops/`, validates scope and registered-route coverage, accepts only supplied path/SHA-256/mode/size inventory evidence, preserves unknown artifacts for review, reports missing known artifacts, and blocks duplicate targets.
+
+The reconciler is read-only. It performs no filesystem access, hash calculation, copy, move, rename, chmod, chown, release creation, Apache operation, route change, service operation, or deletion.
 
 Committed gates remain:
 
 ```text
 status=design_only
 enabled=false
-deployment_authorized=false
-authentication_change_authorized=false
-live_route_authorized=false
-provider_selected=false
-apache_adapter_verified=false
+staging_authorized=false
+cutover_authorized=false
+deletion_authorized=false
+source_mutation_allowed=false
+unknown_artifact_action=preserve_review
+duplicate_target_action=block
 ```
 
-No installer, provider configuration, credential, session service, audit writer, or active Apache file exists. Nothing has been installed, enabled, started, authenticated, routed, or published on Edge1.
+The repository evidence is explicitly incomplete until a fresh authenticated Edge1 filesystem, route, publisher, service, and SHA-256 inventory is captured.
 
-## Next safe work
+## Validation remaining
 
-A fresh authenticated Edge1 inventory is required before provider selection or restricted-route implementation. It must cover Apache modules and includes, current route/header/TLS behavior, filesystem and listener state, provider/MFA requirements, session and rate-limit storage, audit capacity, detailed assets, backups, and rollback.
-
-Without that authenticated path, the remaining safe repository work is limited to non-live artifact inventories and implementation planning that make no provider or host assumptions.
+- exact-head `Validate repository`;
+- exact-head `Edge1 Operator Validation`;
+- changed-file and zero-behind review;
+- mergeability and unresolved-thread review;
+- repository-only merge and closeout records.
 
 ## Live work remaining under separate authorization
 
 1. establish an authenticated Edge1 execution path;
-2. run fresh Apache module, vhost, route, header, TLS, filesystem, listener, provider, session-store, rate-limit, and audit inventory;
-3. separately authorize any identity-provider registration, credential creation, session implementation, or authentication change;
-4. stage and accept the restricted `/edge1-ops/` surface without changing the anonymous public route;
-5. separately authorize public cutover and detailed-artifact removal.
+2. capture fresh Apache, route, filesystem, ownership, mode, hash, publisher, service, listener, provider, session-store, audit, backup, and rollback evidence;
+3. reconcile every known, prefix-contained, unknown, missing, duplicate, stale, historical, and operator-maintained artifact;
+4. separately authorize restricted release staging without changing the source tree;
+5. separately authorize authenticated route implementation and acceptance;
+6. separately authorize public-summary staging, public cutover, and detailed-artifact removal.
 
 ## Safety boundary
 
-No provider, credential, client secret, token, cookie, session store, audit file, user/group, `/var/www` write, Apache include, alias, header, reload, authentication change, certificate, listener, DNS, firewall, traffic control, public or restricted route, timer scheduling, data deletion, or production traffic change is authorized by this handoff.
+No source file was opened, hashed, copied, moved, renamed, modified, removed, or routed. No provider, credential, session store, audit file, `/var/www` write, Apache include, alias, header, reload, authentication change, certificate, listener, DNS, firewall, traffic control, public or restricted route, release, timer, pruning, data deletion, or production traffic change is authorized by this handoff.
