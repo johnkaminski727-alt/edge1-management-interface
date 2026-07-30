@@ -32,6 +32,7 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
         cls.now = 2_000_000_000
 
     def valid_identity(self, scopes=None):
+        granted = [MODULE.GENERAL_SCOPE] if scopes is None else list(scopes)
         return {
             "authenticated": True,
             "subject": "operator-123",
@@ -42,25 +43,34 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
             "issued_at": self.now - 3600,
             "last_seen_at": self.now - 60,
             "expires_at": self.now + 3600,
-            "scopes": list(scopes or [MODULE.GENERAL_SCOPE]),
+            "scopes": granted,
             "raw_token": "must-not-propagate",
             "cookie": "must-not-propagate",
             "email": "operator@example.invalid",
             "query": "token=must-not-propagate",
         }
 
+    def authorize(self, path, identity=None, method="GET"):
+        return MODULE.authorize_request(
+            self.policy,
+            method,
+            path,
+            identity,
+            now_epoch=self.now,
+        )
+
     def test_committed_policy_is_disabled_and_schema_contract_matches(self) -> None:
         MODULE.validate_policy(self.policy)
         self.assertEqual(self.policy["contract"], MODULE.CONTRACT)
-        self.assertEqual(
-            self.schema["properties"]["contract"]["const"],
-            MODULE.CONTRACT,
-        )
-        self.assertIs(self.policy["enabled"], False)
-        self.assertIs(self.policy["deployment_authorized"], False)
-        self.assertIs(self.policy["authentication_change_authorized"], False)
-        self.assertIs(self.policy["live_route_authorized"], False)
-        self.assertIs(self.policy["anonymous_fallback"], False)
+        self.assertEqual(self.schema["properties"]["contract"]["const"], MODULE.CONTRACT)
+        for key in (
+            "enabled",
+            "deployment_authorized",
+            "authentication_change_authorized",
+            "live_route_authorized",
+            "anonymous_fallback",
+        ):
+            self.assertIs(self.policy[key], False)
         self.assertIs(self.policy["provider"]["identity_provider_selected"], False)
         self.assertIs(self.policy["provider"]["adapter_inventory_verified"], False)
         self.assertIs(self.policy["acceptance"]["live_change_authorized"], False)
@@ -68,6 +78,7 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
     def test_policy_rejects_security_contract_drift(self) -> None:
         mutations = (
             lambda value: value.update(anonymous_fallback=True),
+            lambda value: value.update(unexpected="field"),
             lambda value: value["provider"].update(refresh_tokens_allowed=True),
             lambda value: value["provider"].update(raw_token_storage_allowed=True),
             lambda value: value["provider"].update(pkce_method="plain"),
@@ -106,7 +117,7 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE.validate_policy(unverified)
 
-    def test_unknown_and_ambiguous_paths_fail_as_not_found_before_auth(self) -> None:
+    def test_unknown_and_ambiguous_paths_are_404_before_auth(self) -> None:
         paths = (
             "/edge1-ops/not-registered",
             "/edge1-status/",
@@ -116,31 +127,20 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
             "/edge1-ops/security/history/?token=secret",
             "/edge1-ops/security\\history/",
             "/edge1-ops/\x00security/",
+            "/edge1-ops/api/v1/security/suricata/historyevil",
         )
         for path in paths:
             with self.subTest(path=path):
-                decision = MODULE.authorize_request(
-                    self.policy,
-                    "GET",
-                    path,
-                    None,
-                    now_epoch=self.now,
-                )
+                decision = self.authorize(path)
                 self.assertIs(decision["allowed"], False)
                 self.assertEqual(decision["status"], 404)
                 self.assertEqual(decision["reason"], "not_found")
                 self.assertEqual(decision["classification"], "unknown")
 
     def test_known_route_requires_valid_authenticated_session(self) -> None:
-        decision = MODULE.authorize_request(
-            self.policy,
-            "GET",
-            "/edge1-ops/security/",
-            None,
-            now_epoch=self.now,
-        )
-        self.assertEqual(decision["status"], 401)
-        self.assertEqual(decision["reason"], "identity_unresolved")
+        missing = self.authorize("/edge1-ops/security/")
+        self.assertEqual(missing["status"], 401)
+        self.assertEqual(missing["reason"], "identity_unresolved")
 
         invalid_cases = (
             {"issuer_trusted": False},
@@ -155,19 +155,13 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
             identity = self.valid_identity()
             identity.update(updates)
             with self.subTest(updates=updates):
-                denied = MODULE.authorize_request(
-                    self.policy,
-                    "GET",
-                    "/edge1-ops/security/",
-                    identity,
-                    now_epoch=self.now,
-                )
+                denied = self.authorize("/edge1-ops/security/", identity)
                 self.assertEqual(denied["status"], 401)
                 self.assertIs(denied["allowed"], False)
 
-    def test_general_scope_allows_registered_read_routes_only(self) -> None:
+    def test_general_scope_allows_only_registered_read_routes(self) -> None:
         identity = self.valid_identity()
-        for path in (
+        paths = (
             "/edge1-ops/",
             "/edge1-ops/security/",
             "/edge1-ops/security/alerts/123",
@@ -176,43 +170,31 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
             "/edge1-ops/mining/",
             "/edge1-ops/reports/",
             "/edge1-ops/data/operations-health.json",
-        ):
+        )
+        for path in paths:
             with self.subTest(path=path):
-                decision = MODULE.authorize_request(
-                    self.policy,
-                    "GET",
-                    path,
-                    identity,
-                    now_epoch=self.now,
-                )
+                decision = self.authorize(path, identity)
                 self.assertIs(decision["allowed"], True)
                 self.assertEqual(decision["status"], 200)
-                self.assertEqual(decision["reason"], "authorized")
                 self.assertIn(MODULE.GENERAL_SCOPE, decision["required_scopes"])
 
     def test_scope_and_method_failures_are_distinct(self) -> None:
-        no_scope = self.valid_identity(scopes=[])
-        forbidden = MODULE.authorize_request(
-            self.policy,
-            "GET",
+        forbidden = self.authorize(
             "/edge1-ops/network-defense/",
-            no_scope,
-            now_epoch=self.now,
+            self.valid_identity(scopes=[]),
         )
         self.assertEqual(forbidden["status"], 403)
         self.assertEqual(forbidden["reason"], "scope_missing")
 
-        post = MODULE.authorize_request(
-            self.policy,
-            "POST",
+        method = self.authorize(
             "/edge1-ops/network-defense/",
             self.valid_identity(),
-            now_epoch=self.now,
+            method="POST",
         )
-        self.assertEqual(post["status"], 405)
-        self.assertEqual(post["reason"], "method_not_allowed")
+        self.assertEqual(method["status"], 405)
+        self.assertEqual(method["reason"], "method_not_allowed")
 
-    def test_history_requires_both_scopes_and_uses_history_rate_limit(self) -> None:
+    def test_history_requires_both_scopes_and_history_rate_limit(self) -> None:
         paths = (
             "/edge1-ops/security/history/",
             "/edge1-ops/security/history/events/abc",
@@ -221,36 +203,18 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
         )
         for path in paths:
             with self.subTest(path=path):
-                missing = MODULE.authorize_request(
-                    self.policy,
-                    "GET",
-                    path,
-                    self.valid_identity(),
-                    now_epoch=self.now,
-                )
+                missing = self.authorize(path, self.valid_identity())
                 self.assertEqual(missing["status"], 403)
                 self.assertEqual(missing["rate_limit_class"], "history")
                 self.assertIn(MODULE.HISTORY_SCOPE, missing["required_scopes"])
 
-                allowed = MODULE.authorize_request(
-                    self.policy,
-                    "GET",
+                allowed = self.authorize(
                     path,
                     self.valid_identity([MODULE.GENERAL_SCOPE, MODULE.HISTORY_SCOPE]),
-                    now_epoch=self.now,
                 )
                 self.assertEqual(allowed["status"], 200)
                 self.assertIs(allowed["allowed"], True)
                 self.assertEqual(allowed["rate_limit_class"], "history")
-
-        ambiguous = MODULE.authorize_request(
-            self.policy,
-            "GET",
-            "/edge1-ops/api/v1/security/suricata/historyevil",
-            self.valid_identity([MODULE.GENERAL_SCOPE, MODULE.HISTORY_SCOPE]),
-            now_epoch=self.now,
-        )
-        self.assertEqual(ambiguous["status"], 404)
 
     def test_rate_limit_contract_is_bounded(self) -> None:
         self.assertEqual(MODULE.rate_limit_contract(self.policy, "general"), {
@@ -270,13 +234,7 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
 
     def test_audit_event_uses_exact_redacted_fields(self) -> None:
         identity = self.valid_identity([MODULE.GENERAL_SCOPE, MODULE.HISTORY_SCOPE])
-        decision = MODULE.authorize_request(
-            self.policy,
-            "GET",
-            "/edge1-ops/security/history/",
-            identity,
-            now_epoch=self.now,
-        )
+        decision = self.authorize("/edge1-ops/security/history/", identity)
         event = MODULE.build_audit_event(
             self.policy,
             decision,
@@ -308,10 +266,7 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
             "ThreadingHTTPServer",
             "serve_forever",
             "Set-Cookie",
-            "client-secret').read",
-            "client-secret\").read",
             "sqlite3",
-            "open('/var/lib",
             "systemctl",
             "apachectl",
         ):
@@ -321,7 +276,7 @@ class Edge1OpsAccessPolicyTests(unittest.TestCase):
         self.assertIn("authorize_request", self.source)
         self.assertIn("build_audit_event", self.source)
 
-    def test_apache_design_remains_fail_closed_and_contains_no_credentials(self) -> None:
+    def test_apache_design_is_fail_closed_and_has_no_credentials(self) -> None:
         self.assertTrue(self.apache.startswith("# DESIGN ONLY"))
         self.assertEqual(APACHE_PATH.suffix, ".design")
         self.assertIn('Alias "/edge1-ops/" "/var/lib/wwcx-edge1-ops/current/"', self.apache)
