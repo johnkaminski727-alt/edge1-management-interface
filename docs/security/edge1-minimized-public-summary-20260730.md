@@ -13,7 +13,7 @@ The implementation provides:
 - an explicit allowlist-only summary exporter;
 - schema `wwcx.edge1-public-status.v1`;
 - hostile fixtures containing internal topology, alert, Git, incident, service, and report detail;
-- a static landing page that consumes only the minimized document;
+- a static landing page and external stylesheet that consume only the minimized document;
 - no deploy script, systemd unit, Apache configuration, `/var/www` output default, authentication change, or route change.
 
 ## Inputs
@@ -149,18 +149,22 @@ Repository source:
 ```text
 src/web/public-status/index.html
 src/web/public-status/app.js
+src/web/public-status/style.css
 ```
 
 The page:
 
 - fetches only `./public/status.json`, matching the accepted `/edge1-status/public/status.json` route when the landing page is served from `/edge1-status/`;
+- loads JavaScript and CSS only from same-origin external files;
+- contains no inline script or inline stylesheet requirement;
+- uses the exact approved CSP `default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'`;
 - omits credentials and referrer data;
 - requests browser no-store behavior;
 - allows only the three component categories and approved state/freshness values;
 - provides no links to detailed Security, Network Defense, wallet, mining, incident, report, or operations surfaces;
 - contains no deployment or publication mechanism.
 
-The page includes a CSP meta policy for repository preview. Server-side CSP, no-store, nosniff, referrer, CORS, and directory controls remain mandatory acceptance items in a future live phase.
+The CSP meta policy supports repository preview and matches the accepted server-side policy. Server-side no-store, nosniff, referrer, CORS, and directory controls remain mandatory acceptance items in a future live phase.
 
 ## Hostile fixture validation
 
@@ -195,6 +199,7 @@ Repository validation must prove:
 - missing/stale input degradation;
 - atomic build-scoped output at the canonical `public/status.json` relative route;
 - page and policy route agreement;
+- exact CSP agreement with no inline-style dependency;
 - no command execution, network access, live publication path, Apache marker, or systemd marker;
 - page consumes only the minimized document;
 - no deployment/service assets exist.
