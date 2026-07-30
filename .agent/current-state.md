@@ -1,10 +1,10 @@
 # Current State
 
-Last verified: 2026-07-30 18:43 UTC  
+Last verified: 2026-07-30 18:46 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Latest implementation merge: `711952afb053fa3bd50c390516fa7b58f3943985`  
-Implementation PR: `#126`
+Authoritative closeout commit: `bbefaca8fddc33270178daada5ca20ca3fce0c08`  
+Current design branch: `design/suricata-protected-retention-20260730`
 
 ## Verified live security observability
 
@@ -15,37 +15,53 @@ Implementation PR: `#126`
 - General nftables aggregate visibility is accepted as `ruleset_observed`.
 - Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls are unchanged.
 
-## Repository-complete freshness policy
+## Freshness policy repository state
 
-PR #126 merged the schedule-aware Network Defense freshness policy as `711952afb053fa3bd50c390516fa7b58f3943985`.
+The schedule-aware Network Defense freshness policy is repository-complete through:
 
-Evidence:
+- implementation PR #126, merge `711952afb053fa3bd50c390516fa7b58f3943985`;
+- repository closeout PR #127, merge `bbefaca8fddc33270178daada5ca20ca3fce0c08`.
 
-- `wwcx-operations-network.timer`: 300-second producer interval;
-- `wwcx-network-defense.timer`: 60-second interval with up to 10 seconds randomized delay;
-- Security observability live acceptance: 600-second default freshness ceiling.
+The change is not claimed live because no authenticated Edge1 shell is available in this runtime.
 
-Implemented behavior:
+## Current repository phase — protected Suricata retention design
 
-- only the network-source threshold changes from 300 to 600 seconds;
-- every other source threshold remains unchanged;
-- the capability-free AF_UNIX-only Network Defense service invokes the final freshness wrapper;
-- the full freshness -> nftables -> Fail2ban -> DNS exporter chain is validated;
-- no timer interval, producer, enforcement state, or privacy contract changes.
+A disabled, non-deploying design now defines the historical retention boundary.
 
-## Repository validation
+Proposed limits:
 
-Exact implementation head: `d2c6357cd913fa376f91b27e43081d1b1e37a6d6`
+- sanitized collector source only: `/var/lib/bigbird/operations-center/latest.json`;
+- raw EVE access prohibited;
+- 30-day operational target;
+- 256 MiB hard database ceiling;
+- 100,000 unique-event hard ceiling;
+- pruning to at most 90 percent of capacity;
+- root-only directory `0700` and files `0600`;
+- deterministic SHA-256 deduplication;
+- local root CLI only;
+- default query 24 hours/100 rows, maximum seven days/500 rows;
+- no listener, public endpoint, browser storage, or automatic off-host backup;
+- incident promotion only through a separately authorized sanitized export with SHA-256 manifest and authorization record.
 
-- `Validate repository` run 610: success;
-- `Edge1 Operator Validation` run 442: success;
-- PR mergeable and zero commits behind `main` before merge;
-- no unresolved review threads;
-- changed scope limited to the wrapper, one systemd command path, focused and legacy-chain validations, documentation, register, and `.agent` records.
+Assets:
 
-No authenticated Edge1 shell was available in this runtime. No live deployment or live endpoint acceptance is claimed for the freshness change.
+- `config/security/suricata-protected-retention-policy.json`;
+- `schemas/wwcx-suricata-protected-retention-policy-v1.schema.json`;
+- `docs/security/suricata-protected-retention-design-20260730.md`;
+- `registers/suricata-protected-retention-design-register-20260730.md`;
+- `tests/validate_suricata_retention_design.py`.
 
-## Authoritative live evidence
+The policy is `design_only`, `enabled: false`, and records `deployment_authorized: false`.
+
+## Validation status
+
+- Existing collector, exporter, drill-down/cache design, and records schedule were inspected.
+- Static design validation was added.
+- The current container cannot resolve `github.com`, so an isolated local clone could not be used for pre-PR execution.
+- Exact-head GitHub CI remains the authoritative validation path for this branch.
+- No runtime ingester, database, systemd unit, installer, API route, authentication change, or deployment exists.
+
+## Authoritative existing live evidence
 
 ```text
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
@@ -57,10 +73,6 @@ No authenticated Edge1 shell was available in this runtime. No live deployment o
 /var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
 ```
 
-## Next phase
-
-The next safest optional repository item is a protected historical Suricata-retention design with explicit size, time, privacy, authentication, rollback, and acceptance limits. Public `edge1.ww.cx` access-boundary review remains separate.
-
 ## Safety boundary
 
-Repository work remains read-only observability only. Live activation requires separate terminal evidence and must not modify traffic controls or protected production boundaries.
+Repository work is design-only. It does not authorize or make changes to Suricata configuration/service state, DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, reputation lists, authentication, certificates, listeners, public access, deletion, or production traffic.
