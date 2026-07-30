@@ -3,8 +3,7 @@
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Current branch: `feature/nftables-aggregate-observability-20260730`  
-Latest live closeout merge: `1ea802effb166ced18c3e1e4675419349aa647eb`
+Latest implementation merge: `6b7991b1e37c327813199057c90cf2a9f834aa14`
 
 ## Completed live work
 
@@ -13,7 +12,8 @@ Latest live closeout merge: `1ea802effb166ced18c3e1e4675419349aa647eb`
 - Accessible Suricata drill-down, last-known-good cache, normalized schema, and source collector enrichment deployed.
 - Spamhaus live-state accepted as `active_verified` and remains the sole verified enforcement source.
 - Fail2ban live-state accepted as `active_observed` with service/socket health and all 7 reported jails observed.
-- Network Defense remains `limited`, DNS remains unstaged, and traffic controls remain unchanged.
+- General nftables aggregate live-state accepted as `ruleset_observed`.
+- Network Defense remains `limited`, 8 of 9 sources are available, DNS remains unstaged, and traffic controls remain unchanged.
 
 ## Live URLs
 
@@ -35,56 +35,54 @@ https://edge1.ww.cx/edge1-status/network-defense/
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z/acceptance-summary.json
 ```
 
-## Current bounded implementation
+## Final nftables aggregate state
 
-Objective:
-
-Publish sanitized general nftables topology and counter aggregates without changing nftables or claiming general firewall enforcement.
-
-Implemented:
-
-- contract `wwcx.nftables-aggregate-live-state.v1`;
-- read-only `nft -j list ruleset` inspection;
-- read-only `systemctl show nftables.service` inspection;
-- aggregate object, family, hook, policy, verdict, element, packet, and byte counts;
-- strict exclusion of all names, addresses, ports, interfaces, elements, expressions, comments, handles, priorities, jump targets, raw output, credentials, and private keys;
-- private mode-`0640` snapshot under a mode-`0750` directory;
-- public aggregate-only final Network Defense wrapper layered over DNS, Spamhaus, and Fail2ban;
-- `enforcement_verified: false` and `traffic_controls_changed: false` in every state;
-- truthful `ruleset_observed`, `partial`, `empty`, `not_installed`, and `unavailable` states;
-- hardened root oneshot with only `CAP_NET_ADMIN` and `AF_UNIX AF_NETLINK`;
-- 60-second timer and capability-free Network Defense ordering;
-- rollback-safe installer and evidence capture;
-- parser, privacy, stale-state, integration, runtime-wiring, deployment-safety, and legacy compatibility tests;
-- architecture document and implementation register.
-
-## Remaining gate
-
-1. Open the nftables aggregate observability PR.
-2. Require Edge1 Operator Validation and full repository validation on the exact head.
-3. Merge only if scope, review state, and both checks pass.
-4. On Edge1 run:
-
-```bash
-cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-nftables-live-state-observability.sh
+```json
+{
+  "ok": true,
+  "nftables_state": "ruleset_observed",
+  "nftables_observed": true,
+  "nftables_enforcement_verified": false,
+  "tables": 4,
+  "chains": 14,
+  "base_chains": 7,
+  "rules": 46,
+  "sets": 6,
+  "maps": 0,
+  "counter_packets": 1866364147,
+  "counter_bytes": 4478865062835,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 8,
+  "source_count": 9,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
 ```
 
-5. Record the truthful live state and evidence root:
+The observer snapshot immediately before the Network Defense refresh reported 1,866,363,293 packets and 4,478,862,225,755 bytes. The later public snapshot increased to 1,866,364,147 packets and 4,478,865,062,835 bytes as live counters advanced.
 
-```text
-/var/lib/wwcx-deployment-evidence/nftables-live-state/<timestamp>
-```
+`ruleset_observed` proves bounded current topology and counter visibility only. It does not prove general firewall policy correctness, intended enforcement, or that every packet path traverses a particular rule. The verified-enforcement count remains 1 because only the dedicated Spamhaus contract is enforcement-verified.
 
-A degraded state is acceptable evidence. Do not reload, restart, repair, or otherwise mutate nftables to improve the result.
+## Privacy and safety boundary
+
+The verifier publishes aggregate counts and fixed category labels only. It excludes table, chain, set, map, object, and jump-target names; addresses, prefixes, ports, interfaces, devices, elements, expressions, match values, comments, handles, priorities, full ruleset content, raw command output, credentials, and private keys.
+
+No nftables or firewall mutation, service reload/restart, Fail2ban jail/action mutation, Unbound or RPZ change, DNS-answer change, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change was performed.
+
+## Remaining optional work
+
+- review Network Defense freshness thresholds using observed timing;
+- design protected historical Suricata retention with explicit privacy, size, time, authentication, rollback, and acceptance boundaries;
+- review whether the public `edge1.ww.cx` access boundary should remain unchanged.
+
+Each remains a separate design and authorization phase.
 
 ## Repository audit note
 
-Commit `f954e3395dbecf36cad9dc209cf378eb2dcc986d` accidentally created a one-byte verifier placeholder on `main`; commit `7b79f564f11928a63d5b028ab1e2fe0a61f65e6a` removed it immediately before the branch was created. No runtime or production system was affected.
-
-## Safety boundary
-
-No nftables or firewall mutation, service reload/restart, Fail2ban jail/action mutation, Unbound or RPZ change, DNS-answer change, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change is included. Public status exposes only sanitized aggregates and no ruleset names, addresses, elements, expressions, comments, handles, raw output, credentials, or private keys.
+Commit `f954e3395dbecf36cad9dc209cf378eb2dcc986d` accidentally created a one-byte verifier placeholder on `main`; commit `7b79f564f11928a63d5b028ab1e2fe0a61f65e6a` removed it immediately before the feature branch was created. No runtime or production system was affected.
