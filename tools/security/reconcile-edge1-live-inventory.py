@@ -14,13 +14,44 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "server"))
 
 from edge1_ops_access_policy import load_policy as load_access_policy  # noqa: E402
-from edge1_restricted_artifact_manifest import (  # noqa: E402
-    load_object,
-    reconcile_inventory,
-)
+import edge1_restricted_artifact_manifest as migration  # noqa: E402
 
 DEFAULT_MANIFEST = ROOT / "config/security/edge1-restricted-artifact-migration-manifest.json"
 DEFAULT_ACCESS_POLICY = ROOT / "config/security/edge1-authenticated-operations-policy.json"
+
+
+def safe_relative(value: Any, *, directory: bool = False) -> str:
+    """Validate exact paths and slash-terminated directory prefixes.
+
+    The merged manifest module validates every split segment before accounting
+    for the required trailing slash, so valid prefixes such as ``security/``
+    are rejected as containing an empty segment. Keep the same fail-closed
+    contract while excluding only that intentional terminal delimiter.
+    """
+    if not isinstance(value, str) or not value or value.startswith("/"):
+        raise ValueError("artifact path must be a non-empty relative path")
+    if any(token in value for token in ("\\", "?", "#", "%", "\x00")):
+        raise ValueError("artifact path contains an ambiguous token")
+    if directory:
+        if not value.endswith("/"):
+            raise ValueError("prefix path must end with a slash")
+        segment_value = value[:-1]
+    else:
+        if value.endswith("/"):
+            raise ValueError("exact artifact path must not end with a slash")
+        segment_value = value
+    if not segment_value or "//" in value or any(
+        part in {"", ".", ".."} for part in segment_value.split("/")
+    ):
+        raise ValueError("artifact path contains an unsafe segment")
+    return value
+
+
+# Compatibility correction for the merged validator. All validation and
+# reconciliation functions resolve safe_relative from their module globals.
+migration.safe_relative = safe_relative
+load_object = migration.load_object
+reconcile_inventory = migration.reconcile_inventory
 
 
 def load_inventory(path: Path) -> list[dict[str, Any]]:
