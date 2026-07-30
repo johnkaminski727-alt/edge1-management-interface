@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-07-30T19:00:00+00:00",
+  "health": {
+    "status": "healthy",
+    "detail": "internal-only health detail"
+  },
+  "engine": {
+    "version": "8.0.1",
+    "MemoryCurrent": 123456789,
+    "service_name": "suricata.service"
+  },
+  "recent_alerts": [
+    {
+      "timestamp": "2026-07-30T18:59:58+00:00",
+      "signature": "HOSTILE INTERNAL SIGNATURE",
+      "source": "10.10.10.10",
+      "source_port": 45678,
+      "destination": "10.20.20.20",
+      "destination_port": 443,
+      "flow_id": "999999999",
+      "event_id": "evt-secret",
+      "signature_id": 12345,
+      "raw_error": "must never propagate"
+    },
+    {
+      "timestamp": "2026-07-30T18:59:59+00:00",
+      "signature": "SECOND INTERNAL SIGNATURE",
+      "source": "192.0.2.10",
+      "destination": "198.51.100.20"
+    }
+  ],
+  "host": "edge1-secret-host",
+  "kernel": "secret-kernel",
+  "credentials": "never-copy"
+}

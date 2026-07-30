@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'">
+<title>WW.CX Edge1 Status</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#a8b4bd;--good:#45b879;--warn:#d6a13c;--bad:#df6b6b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3f6}.shell{width:min(980px,100%);margin:auto;padding:24px}header,.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin:18px 0}h1,h2{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}.card.healthy{border-color:var(--good)}.card.limited{border-color:var(--warn)}.card.attention,.card.unavailable{border-color:var(--bad)}.label{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}.value{font-size:1.3rem;font-weight:750;margin-top:6px}.muted,small{color:var(--muted)}.notice{border-left:4px solid var(--warn);padding-left:12px}.status{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:7px 11px}@media(max-width:640px){.shell{padding:14px}}
+</style>
+</head>
+<body>
+<main class="shell">
+<header>
+<h1>WW.CX Edge1 Status</h1>
+<p>Minimized read-only service status. Detailed operations and investigative data are not included on this surface.</p>
+<p><span id="overall" class="status">Loading</span></p>
+</header>
+<section class="panel" aria-labelledby="components-title">
+<h2 id="components-title">Current status</h2>
+<div id="components" class="grid"><p class="muted">Loading minimized status…</p></div>
+</section>
+<section id="maintenance-panel" class="panel" hidden aria-labelledby="maintenance-title">
+<h2 id="maintenance-title">Maintenance</h2>
+<p id="maintenance" class="notice"></p>
+</section>
+<section class="panel" aria-labelledby="about-title">
+<h2 id="about-title">About this page</h2>
+<p>This page reports bounded category states, counts, and coarse freshness only. It does not publish host, network, alert, incident, source-control, communications, wallet, mining, or report detail.</p>
+<small id="checked">Not checked yet</small>
+</section>
+</main>
+<script src="./app.js" defer></script>
+</body>
+</html>

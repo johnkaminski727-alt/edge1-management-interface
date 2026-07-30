@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-07-30T18:56:00+00:00",
+  "overall_state": "limited",
+  "summary": {
+    "available_source_count": 8,
+    "source_count": 9,
+    "verified_enforcement_count": 1
+  },
+  "sources": {
+    "network": {
+      "file": "operations-network.json",
+      "modified_at": "2026-07-30T18:55:30+00:00",
+      "detail": "loaded from secret path"
+    }
+  },
+  "components": {
+    "firewall": {
+      "detail": "internal nftables topology",
+      "metrics": {
+        "interfaces": ["wg0", "eth0"],
+        "routes": ["10.0.0.0/8 via secret"],
+        "counter_packets": 999999999
+      }
+    }
+  },
+  "wireguard": "private peer details",
+  "resolver_detail": "127.0.0.1 secret",
+  "traffic_controls_changed": false
+}
