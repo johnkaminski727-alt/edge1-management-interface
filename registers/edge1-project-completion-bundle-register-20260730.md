@@ -3,11 +3,11 @@
 Date: 2026-07-30  
 Classification: internal operations; no credentials or raw alert data  
 System: Edge1 / WW.CX Security Observability  
-Repository state: focused operator-bundle branch; not executed on Edge1
+Repository state: merged through PR #134 as `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`; not executed on Edge1
 
 ## Trigger
 
-The security-observability repository phases are complete, but the following host-dependent work remained:
+The security-observability repository phases were complete, but host-dependent work remained:
 
 - live activation and acceptance of the Network Defense 600-second network-source freshness threshold;
 - read-only Apache, route, header, CORS, directory-listing, and public-filesystem inventory;
@@ -27,16 +27,7 @@ No authenticated Edge1 shell was available in the authoring runtime.
 
 ## Freshness activation controls
 
-The activation script requires:
-
-- root execution through an authenticated operator path;
-- repository branch `main`;
-- clean working tree;
-- freshness merge `711952afb053fa3bd50c390516fa7b58f3943985` as an ancestor;
-- required wrapper, service unit, validation script, and test files;
-- protected evidence directory mode `0700`;
-- backup of the installed unit and current status snapshot;
-- automatic rollback after any post-mutation error.
+The activation requires authenticated root execution, repository `main`, a clean worktree, the merged freshness commit, protected evidence mode `0700`, backups, and automatic rollback.
 
 It verifies:
 
@@ -56,41 +47,33 @@ It does not enable, disable, start, stop, or reschedule the timer.
 
 ## Completion preflight controls
 
-The preflight captures:
-
-- host, principal, repository, systemd, and capacity state;
-- Apache syntax, vhost, module, and selected redacted directives;
-- metadata and SHA-256 inventory for public-root files;
-- anonymous local and public route/status/header results;
-- cache, CSP, referrer, nosniff, CORS, and HSTS evidence;
-- SQLite version, page limits, and compile options;
-- sanitized alert count and serialized-size distribution without alert contents;
-- staged minimized summary under the protected evidence directory;
-- SHA-256 evidence manifest.
+The preflight captures host, principal, repository, systemd, capacity, Apache syntax/vhost/module/redacted directives, public-root metadata/hashes, anonymous local/public route and security-header evidence, SQLite capabilities, sanitized alert-size distribution, staged minimized summary, and a SHA-256 evidence manifest.
 
 It performs no service control, Git update, Apache reload, authentication change, `/var/www` write, public route change, or protected-control mutation.
 
-## Static validation requirements
+## Repository validation and merge
 
-The bundle validator requires:
+Exact bundle head: `6060348f4fcfcc955f93c4739a167321fe488013`
 
-- `bash -n` success for both scripts;
-- branch, clean-worktree, ancestor, backup, rollback, and evidence gates;
-- exact freshness, DNS, enforcement-count, traffic-control, and timer-state assertions;
-- no timer mutation;
-- no Apache reload or site/module activation;
-- no DNS, resolver, firewall, nftables, Fail2ban, routing, IDS, or reputation mutation commands;
-- no destructive Git commands;
-- no public landing-page overwrite;
-- no credentials, environment dump, SSH key, or shadow-file collection.
+| Validation | Result |
+| --- | --- |
+| Shell syntax and static safety tests | Passed |
+| `Validate repository` run 626 | Success |
+| `Edge1 Operator Validation` run 458 | Success |
+| Zero commits behind `main` | Confirmed |
+| Mergeability | Confirmed |
+| Unresolved review threads | None |
+| PR #134 | Merged as `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1` |
+
+Changed scope was limited to two scripts, one validator, `tests/__init__.py`, the runbook, this register, and `.agent` continuity records.
 
 ## Execution status
 
 | Item | State |
 | --- | --- |
-| Repository implementation | In progress on focused branch |
-| Exact-head CI | Pending |
-| PR scope/merge review | Pending |
+| Repository implementation | Complete and merged |
+| Exact-head CI | Passed |
+| PR scope/merge review | Passed |
 | Edge1 authenticated preflight | Not executed; no authenticated path in this runtime |
 | Edge1 freshness activation | Not executed; no authenticated path in this runtime |
 | Public cutover | Not authorized or performed |
@@ -109,4 +92,4 @@ Exact separate authorization remains required before:
 
 ## Safety statement
 
-The repository bundle changes no live host. It contains no credentials or raw alert records. It does not authorize public disclosure, authentication changes, traffic-control changes, or production cutover.
+The repository bundle changed no live host. It contains no credentials or raw alert records. It does not authorize public disclosure, authentication changes, traffic-control changes, or production cutover.
