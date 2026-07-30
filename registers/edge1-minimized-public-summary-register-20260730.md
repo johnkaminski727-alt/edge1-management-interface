@@ -3,23 +3,25 @@
 Date: 2026-07-30  
 Classification: internal, sanitized implementation record  
 System: `edge1.ww.cx` / WW.CX Operations Center  
-Repository state: merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`; not deployed
+Repository state: merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`; route-contract correction in validation; not deployed
 
 ## Trigger
 
 The accepted public-boundary design concluded that the current mixed `/edge1-status/` tree should not remain unchanged. Phase 1 implemented a minimized summary in the repository without routing or publication.
 
+A follow-up review found that the accepted policy route `/edge1-status/public/status.json` did not match the landing-page relative fetch `./status.json`. The canonical contract is the accepted policy route; the repository build and page are aligned to it before any publication phase.
+
 ## Accepted assets
 
 | Asset | Purpose | Repository state |
 | --- | --- | --- |
-| `server/edge1_public_status_exporter.py` | Allowlist-only summary builder with explicit input paths and build-scoped output | Merged |
+| `server/edge1_public_status_exporter.py` | Allowlist-only summary builder with explicit input paths and build-scoped `public/status.json` output | Merged; route alignment in validation |
 | `schemas/wwcx-edge1-public-status-v1.schema.json` | Exact minimized document contract | Merged |
 | `src/web/public-status/index.html` | Non-routed static minimized landing page | Merged |
-| `src/web/public-status/app.js` | Renderer that fetches only `./status.json` | Merged |
+| `src/web/public-status/app.js` | Renderer that fetches only `./public/status.json` | Merged; route alignment in validation |
 | hostile JSON fixtures | Prove detailed source values do not propagate | Merged |
-| `tests/validate_edge1_public_status.py` | Privacy, bounds, failure, output, page, and no-deployment validation | Merged and passed |
-| `docs/security/edge1-minimized-public-summary-20260730.md` | Architecture and deployment boundary | Merged |
+| `tests/validate_edge1_public_status.py` | Privacy, bounds, failure, output, page, route, and no-deployment validation | Merged; route alignment in validation |
+| `docs/security/edge1-minimized-public-summary-20260730.md` | Architecture and deployment boundary | Merged; route alignment in validation |
 
 ## Public contract
 
@@ -66,12 +68,18 @@ Source objects and arbitrary strings are never copied into output.
 Default output:
 
 ```text
-build/edge1-public-status/status.json
+build/edge1-public-status/public/status.json
+```
+
+Canonical future public route:
+
+```text
+/edge1-status/public/status.json
 ```
 
 All three input paths are required. The exporter contains no `/var/www`, Apache, systemd, command-execution, or network-access path.
 
-The page consumes only `./status.json`, requests no-store, omits credentials, suppresses referrer data, references no detailed feeds, and links to no restricted surface. It is not connected to a deploy script or public route.
+The page consumes only `./public/status.json`, requests no-store, omits credentials, suppresses referrer data, references no detailed feeds, and links to no restricted surface. It is not connected to a deploy script or public route.
 
 ## Hostile fixture boundary
 
@@ -97,6 +105,7 @@ Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
 | Zero commits behind `main` before merge | Confirmed |
 | Unresolved review threads | None |
 | PR #132 | Merged as `25359040ba07a3b7bf513f95b32ce24f6be480f2` |
+| Canonical route agreement | Correction implemented; exact-head validation pending |
 | Edge1 publication | Not authorized or performed |
 | Public cutover | Not authorized or performed |
 

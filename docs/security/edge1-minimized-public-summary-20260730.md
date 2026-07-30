@@ -135,10 +135,10 @@ The optional maintenance notice is supplied explicitly by the caller, whitespace
 Default output:
 
 ```text
-build/edge1-public-status/status.json
+build/edge1-public-status/public/status.json
 ```
 
-The exporter contains no `/var/www` path and requires explicit source inputs. It performs an atomic mode-`0644` write to the selected build/test output.
+The repository build layout mirrors the accepted future route `/edge1-status/public/status.json`. The exporter contains no `/var/www` path and requires explicit source inputs. It performs an atomic mode-`0644` write to the selected build/test output.
 
 A mode-`0644` repository build artifact is not a public deployment. A future live publisher, response headers, path, ownership, and rollback require a separate authorized phase.
 
@@ -153,7 +153,7 @@ src/web/public-status/app.js
 
 The page:
 
-- fetches only `./status.json`;
+- fetches only `./public/status.json`, matching the accepted `/edge1-status/public/status.json` route when the landing page is served from `/edge1-status/`;
 - omits credentials and referrer data;
 - requests browser no-store behavior;
 - allows only the three component categories and approved state/freshness values;
@@ -193,7 +193,8 @@ Repository validation must prove:
 - hostile values and forbidden keys excluded;
 - state, count, notice, and freshness limits;
 - missing/stale input degradation;
-- atomic build-scoped output;
+- atomic build-scoped output at the canonical `public/status.json` relative route;
+- page and policy route agreement;
 - no command execution, network access, live publication path, Apache marker, or systemd marker;
 - page consumes only the minimized document;
 - no deployment/service assets exist.

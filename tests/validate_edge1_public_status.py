@@ -168,10 +168,14 @@ class Edge1PublicStatusTests(unittest.TestCase):
         self.assertLessEqual(len(result["maintenance_notice"]), 160)
 
     def test_atomic_output_is_build_scoped_and_non_executable(self) -> None:
-        self.assertTrue(str(MODULE.DEFAULT_OUTPUT).endswith("build/edge1-public-status/status.json"))
+        self.assertTrue(
+            str(MODULE.DEFAULT_OUTPUT).endswith(
+                "build/edge1-public-status/public/status.json"
+            )
+        )
         self.assertNotIn("/var/www", str(MODULE.DEFAULT_OUTPUT))
         with tempfile.TemporaryDirectory() as tmp:
-            output = pathlib.Path(tmp) / "status.json"
+            output = pathlib.Path(tmp) / "public" / "status.json"
             MODULE.write_public_status(self.build(), output)
             self.assertEqual(
                 json.loads(output.read_text(encoding="utf-8"))["schema_version"],
@@ -202,9 +206,17 @@ class Edge1PublicStatusTests(unittest.TestCase):
         self.assertIn('<script src="./app.js" defer></script>', self.page)
         self.assertIn("script-src 'self'", self.page)
         self.assertNotIn("script-src 'self' 'unsafe-inline'", self.page)
-        self.assertIn('const STATUS_URL = "./status.json";', self.app)
+        self.assertIn('const STATUS_URL = "./public/status.json";', self.app)
         self.assertIn('cache: "no-store"', self.app)
         self.assertIn('credentials: "omit"', self.app)
+        policy_outputs = {
+            item["path"]: item["content"]
+            for item in self.policy["future_public_outputs"]
+        }
+        self.assertEqual(
+            policy_outputs["/edge1-status/public/status.json"],
+            "aggregate_status_contract_only",
+        )
         for forbidden_feed in (
             "security-operations.json",
             "security-correlation.json",
