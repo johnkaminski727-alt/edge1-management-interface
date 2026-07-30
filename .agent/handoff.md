@@ -1,22 +1,19 @@
-# Security Observability, Spamhaus, and Fail2ban Handoff
+# Security Observability and nftables Aggregate Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Fail2ban implementation merge: `725a09c1c488c2a0cb99931183e535e9fe726894`
+Current branch: `feature/nftables-aggregate-observability-20260730`  
+Latest live closeout merge: `1ea802effb166ced18c3e1e4675419349aa647eb`
 
 ## Completed live work
 
 - Network Defense and Security Correlation deployed and accepted.
 - `edge1.ww.cx` HTTPS status pages and JSON feeds accepted.
 - Accessible Suricata drill-down, last-known-good cache, normalized schema, and source collector enrichment deployed.
-- The accepted collector run retained ports, application protocol, SID/GID/revision, and flow ID for all 22 observed alerts.
-- Read-only Spamhaus live-state verifier deployed and directly accepted as `active_verified`.
-- Read-only Fail2ban live-state verifier deployed and accepted as `active_observed`.
-- Fail2ban service active, local socket reachable, and all 7 reported jails observed.
-- Fail2ban counters at acceptance: currently banned 0, total banned 0.
-- Fail2ban enforcement remains unverified by design; Spamhaus remains the sole verified enforcement source.
-- Network Defense remains `limited`, 7 of 8 sources are available, DNS remains unstaged, and traffic controls remain unchanged.
+- Spamhaus live-state accepted as `active_verified` and remains the sole verified enforcement source.
+- Fail2ban live-state accepted as `active_observed` with service/socket health and all 7 reported jails observed.
+- Network Defense remains `limited`, DNS remains unstaged, and traffic controls remain unchanged.
 
 ## Live URLs
 
@@ -27,62 +24,67 @@ https://edge1.ww.cx/edge1-status/security/correlation.html
 https://edge1.ww.cx/edge1-status/network-defense/
 ```
 
-## Authoritative evidence
+## Authoritative live evidence
 
 ```text
-Security observability:
 /var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
-
-edge1.ww.cx domain:
 /var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
-
-Suricata normalization:
 /var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
-
-Suricata collector enrichment:
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
-
-Spamhaus live-state and exact summary:
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
-
-Fail2ban live-state and exact summary:
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
 ```
 
-## Final Fail2ban verifier state
+## Current bounded implementation
 
-```json
-{
-  "ok": true,
-  "fail2ban_state": "active_observed",
-  "fail2ban_health_observed": true,
-  "fail2ban_enforcement_verified": false,
-  "observed_jails": 7,
-  "currently_banned": 0,
-  "total_banned": 0,
-  "verified_enforcement_count": 1,
-  "overall_state": "limited",
-  "available_sources": 7,
-  "source_count": 8,
-  "dns_policy_state": "not_staged",
-  "dns_enforcement_enabled": false,
-  "traffic_controls_changed": false
-}
+Objective:
+
+Publish sanitized general nftables topology and counter aggregates without changing nftables or claiming general firewall enforcement.
+
+Implemented:
+
+- contract `wwcx.nftables-aggregate-live-state.v1`;
+- read-only `nft -j list ruleset` inspection;
+- read-only `systemctl show nftables.service` inspection;
+- aggregate object, family, hook, policy, verdict, element, packet, and byte counts;
+- strict exclusion of all names, addresses, ports, interfaces, elements, expressions, comments, handles, priorities, jump targets, raw output, credentials, and private keys;
+- private mode-`0640` snapshot under a mode-`0750` directory;
+- public aggregate-only final Network Defense wrapper layered over DNS, Spamhaus, and Fail2ban;
+- `enforcement_verified: false` and `traffic_controls_changed: false` in every state;
+- truthful `ruleset_observed`, `partial`, `empty`, `not_installed`, and `unavailable` states;
+- hardened root oneshot with only `CAP_NET_ADMIN` and `AF_UNIX AF_NETLINK`;
+- 60-second timer and capability-free Network Defense ordering;
+- rollback-safe installer and evidence capture;
+- parser, privacy, stale-state, integration, runtime-wiring, deployment-safety, and legacy compatibility tests;
+- architecture document and implementation register.
+
+## Remaining gate
+
+1. Open the nftables aggregate observability PR.
+2. Require Edge1 Operator Validation and full repository validation on the exact head.
+3. Merge only if scope, review state, and both checks pass.
+4. On Edge1 run:
+
+```bash
+cd /opt/edge1-management-interface
+git pull --ff-only origin main
+sudo bash ./deploy/install-nftables-live-state-observability.sh
 ```
 
-`active_observed` proves current service/socket/jail-health visibility only. It does not prove that every Fail2ban action is installed correctly or that every packet path is enforced. The verified-enforcement count remains 1 because only the dedicated Spamhaus contract is enforcement-verified.
+5. Record the truthful live state and evidence root:
 
-## Optional future work
+```text
+/var/lib/wwcx-deployment-evidence/nftables-live-state/<timestamp>
+```
 
-- bounded general nftables aggregate visibility through a separate least-privilege verifier;
-- review of Network Defense freshness thresholds;
-- protected historical Suricata retention with explicit privacy, size, time, authentication, rollback, and acceptance boundaries;
-- review of the public `edge1.ww.cx` access boundary.
+A degraded state is acceptable evidence. Do not reload, restart, repair, or otherwise mutate nftables to improve the result.
 
-Each remains a separate design and authorization phase.
+## Repository audit note
+
+Commit `f954e3395dbecf36cad9dc209cf378eb2dcc986d` accidentally created a one-byte verifier placeholder on `main`; commit `7b79f564f11928a63d5b028ab1e2fe0a61f65e6a` removed it immediately before the branch was created. No runtime or production system was affected.
 
 ## Safety boundary
 
-No Fail2ban jail/action mutation, service start/stop/reload/restart, nftables or firewall mutation, Unbound or RPZ change, DNS-answer change, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change was performed. Public status exposes no jail records, banned addresses, log paths, raw client output, credentials, or private keys.
+No nftables or firewall mutation, service reload/restart, Fail2ban jail/action mutation, Unbound or RPZ change, DNS-answer change, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change is included. Public status exposes only sanitized aggregates and no ruleset names, addresses, elements, expressions, comments, handles, raw output, credentials, or private keys.
