@@ -3,7 +3,7 @@
 Date: 2026-07-30  
 Classification: internal, security-sensitive design; no alert data  
 System: Edge1 / WW.CX Security Operations  
-Repository state: design branch only
+Repository state: merged through PR #128 as `13b87f876be3f6676b58863499d36395267fb870`
 
 ## Trigger
 
@@ -22,12 +22,12 @@ The design treats the rolling database as short-lived operational telemetry. Sel
 
 ## Registered design assets
 
-| Asset | Purpose | State |
+| Asset | Purpose | Repository state |
 | --- | --- | --- |
-| `config/security/suricata-protected-retention-policy.json` | Disabled machine-readable limits and safety gates | Designed; disabled |
-| `schemas/wwcx-suricata-protected-retention-policy-v1.schema.json` | Contract constraints for the disabled policy | Designed |
-| `docs/security/suricata-protected-retention-design-20260730.md` | Architecture, privacy, authentication, capacity, rollback, and acceptance design | Designed |
-| `tests/validate_suricata_retention_design.py` | Static design and boundary validation | Designed |
+| `config/security/suricata-protected-retention-policy.json` | Disabled machine-readable limits and safety gates | Merged; disabled |
+| `schemas/wwcx-suricata-protected-retention-policy-v1.schema.json` | Contract constraints for the disabled policy | Merged |
+| `docs/security/suricata-protected-retention-design-20260730.md` | Architecture, privacy, authentication, capacity, rollback, and acceptance design | Merged |
+| `tests/validate_suricata_retention_design.py` | Static design and boundary validation | Merged and passed |
 
 ## Accepted design decisions
 
@@ -68,18 +68,24 @@ The 30-day rolling history is not the authoritative incident archive. A document
 
 The export must contain a SHA-256 manifest and authorization record. Its retention is then governed by the assigned security/evidence record class rather than the rolling database policy.
 
-## Validation state
+## Validation and merge
+
+Exact design head: `32dd1363ca3d1327dddaaddf9bba20b75514457d`
 
 | Validation | State |
 | --- | --- |
 | Existing source and public schema inspected | Passed |
-| Explicit time, byte, event, and query limits | Defined |
-| Disabled-by-default contract | Defined |
-| Raw EVE and public exposure prohibition | Defined |
-| Root-only initial authorization boundary | Defined |
-| Incident promotion and records boundary | Defined |
-| Rollback preserving data by default | Defined |
-| Static repository validation | Pending exact-head CI |
+| Explicit time, byte, event, and query limits | Defined and validated |
+| Disabled-by-default contract | Passed |
+| Raw EVE and public exposure prohibition | Passed |
+| Root-only initial authorization boundary | Passed |
+| Incident promotion and records boundary | Passed |
+| Rollback preserving data by default | Passed |
+| `Validate repository` run 614 | Success |
+| `Edge1 Operator Validation` run 446 | Success |
+| Zero commits behind `main` before merge | Confirmed |
+| Unresolved review threads | None |
+| PR #128 | Merged as `13b87f876be3f6676b58863499d36395267fb870` |
 | Runtime implementation | Not started |
 | Edge1 deployment | Not authorized or performed |
 | Live acceptance | Not performed |

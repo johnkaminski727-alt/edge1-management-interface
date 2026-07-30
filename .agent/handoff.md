@@ -3,8 +3,8 @@
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative base: `bbefaca8fddc33270178daada5ca20ca3fce0c08`  
-Design branch: `design/suricata-protected-retention-20260730`
+Design merge: `13b87f876be3f6676b58863499d36395267fb870`  
+Design PR: `#128`
 
 ## Verified live baseline
 
@@ -21,9 +21,9 @@ The Network Defense freshness repository phase is closed through PR #127 at `bbe
 
 The freshness change is not claimed live. No authenticated Edge1 shell is available in this runtime.
 
-## Current design
+## Repository-complete retention design
 
-The design branch defines a disabled protected history for already-sanitized Suricata alerts.
+PR #128 merged the disabled protected history design for already-sanitized Suricata alerts.
 
 Machine-readable contract:
 
@@ -41,18 +41,18 @@ registers/suricata-protected-retention-design-register-20260730.md
 tests/validate_suricata_retention_design.py
 ```
 
-The policy is `design_only`, `enabled: false`, and `deployment_authorized: false`.
+The policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`.
 
-## Design decisions
+## Accepted design decisions
 
 - Read only `/var/lib/bigbird/operations-center/latest.json` and require `wwcx.suricata-source-alert.v1`.
-- Never open raw Suricata EVE logs from the future history component.
+- Never open raw Suricata EVE logs from a future history component.
 - Retain up to 30 days, 256 MiB, or 100,000 unique alerts, whichever limit is reached first.
 - Use SHA-256 canonical event keys and a database unique constraint for deduplication.
 - Store under `/var/lib/bigbird-security/suricata-history` as `root:root`, directory `0700`, files `0600`.
 - Create no listener, HTTP route, static history JSON, browser storage, or public page.
 - Initial queries are root-local CLI only, default 24 hours/100 rows, maximum seven days/500 rows.
-- Future API access requires a separate authorization and the existing authenticated operations API scope `security.suricata.history.read`.
+- Future API access requires separate authorization and the existing authenticated operations API scope `security.suricata.history.read`.
 - Automatic off-host backup is disabled.
 - Incident promotion is manual and separately authorized, with sanitized rows, SHA-256 manifest, and authorization record.
 - Rollback preserves the database by default; deletion requires separate records authority.
@@ -67,25 +67,18 @@ The rolling 30-day store is operational telemetry, not the authoritative inciden
 
 The promoted package receives the appropriate security/evidence retention class.
 
-## Validation state
+## Validation and merge
 
-Completed:
+Exact design head: `32dd1363ca3d1327dddaaddf9bba20b75514457d`
 
-- collector/exporter schema inspection;
-- drill-down/cache boundary inspection;
-- records-schedule review;
-- machine-readable disabled policy and schema;
-- static design validator;
-- documentation, register, and project-state updates.
+- `Validate repository` run 614: success.
+- `Edge1 Operator Validation` run 446: success.
+- PR #128 was mergeable and zero commits behind `main`.
+- No unresolved review threads existed.
+- Changed scope contained policy, schema, documentation, register, static validation, and `.agent` records only.
+- Merged as `13b87f876be3f6676b58863499d36395267fb870`.
 
-Pending:
-
-- exact-head `Validate repository` workflow;
-- exact-head `Edge1 Operator Validation` workflow;
-- final diff, scope, thread, and mergeability review;
-- PR merge and authoritative-main closeout.
-
-The local container could not resolve `github.com`, so it could not clone the branch for pre-PR execution. GitHub exact-head CI remains the authoritative validation path.
+The local container could not resolve `github.com`, so GitHub exact-head CI was the authoritative execution path.
 
 ## Explicitly not implemented
 
@@ -99,15 +92,20 @@ The local container could not resolve `github.com`, so it could not clone the br
 - off-host backup;
 - Edge1 deployment.
 
-## Required next sequence
+## Pre-implementation evidence still required
 
-1. Open the design PR from `design/suricata-protected-retention-20260730` to `main`.
-2. Require both exact-head workflows.
-3. Inspect failures and repair only design/test defects.
-4. Confirm no runtime, systemd, public, authentication, or protected-control assets entered scope.
-5. Merge only when zero behind, mergeable, and no unresolved threads remain.
-6. Close `.agent` and register records on authoritative `main`.
-7. Keep runtime implementation and Edge1 activation as separate phases.
+- representative sanitized alert sizes and unique-event rates;
+- Edge1 free-space and growth tolerance;
+- SQLite version and page-limit behavior;
+- root-only CLI sufficiency;
+- records-custodian treatment of promoted incident exports;
+- backup requirements, if any;
+- future service account and systemd sandbox;
+- rollback and temporary-database pruning tests.
+
+## Next separate phase
+
+Review the public `edge1.ww.cx` access boundary using repository evidence only. Inventory routes, endpoint data classes, cache behavior, and intended audiences. Do not modify proxying, authentication, certificates, listeners, DNS, or public access during that design phase.
 
 ## Safety boundary
 

@@ -1,10 +1,10 @@
 # Current State
 
-Last verified: 2026-07-30 18:46 UTC  
+Last verified: 2026-07-30 18:55 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative closeout commit: `bbefaca8fddc33270178daada5ca20ca3fce0c08`  
-Current design branch: `design/suricata-protected-retention-20260730`
+Latest design merge: `13b87f876be3f6676b58863499d36395267fb870`  
+Design PR: `#128`
 
 ## Verified live security observability
 
@@ -17,18 +17,15 @@ Current design branch: `design/suricata-protected-retention-20260730`
 
 ## Freshness policy repository state
 
-The schedule-aware Network Defense freshness policy is repository-complete through:
+The schedule-aware Network Defense freshness policy is repository-complete through PR #127 at `bbefaca8fddc33270178daada5ca20ca3fce0c08`.
 
-- implementation PR #126, merge `711952afb053fa3bd50c390516fa7b58f3943985`;
-- repository closeout PR #127, merge `bbefaca8fddc33270178daada5ca20ca3fce0c08`.
+The freshness change is not claimed live because no authenticated Edge1 shell is available in this runtime.
 
-The change is not claimed live because no authenticated Edge1 shell is available in this runtime.
+## Repository-complete protected retention design
 
-## Current repository phase — protected Suricata retention design
+PR #128 merged the disabled protected historical Suricata-retention design as `13b87f876be3f6676b58863499d36395267fb870`.
 
-A disabled, non-deploying design now defines the historical retention boundary.
-
-Proposed limits:
+Accepted design limits:
 
 - sanitized collector source only: `/var/lib/bigbird/operations-center/latest.json`;
 - raw EVE access prohibited;
@@ -43,23 +40,20 @@ Proposed limits:
 - no listener, public endpoint, browser storage, or automatic off-host backup;
 - incident promotion only through a separately authorized sanitized export with SHA-256 manifest and authorization record.
 
-Assets:
+The policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`.
 
-- `config/security/suricata-protected-retention-policy.json`;
-- `schemas/wwcx-suricata-protected-retention-policy-v1.schema.json`;
-- `docs/security/suricata-protected-retention-design-20260730.md`;
-- `registers/suricata-protected-retention-design-register-20260730.md`;
-- `tests/validate_suricata_retention_design.py`.
+## Repository validation
 
-The policy is `design_only`, `enabled: false`, and records `deployment_authorized: false`.
+Exact design head: `32dd1363ca3d1327dddaaddf9bba20b75514457d`
 
-## Validation status
+- `Validate repository` run 614: success;
+- `Edge1 Operator Validation` run 446: success;
+- PR mergeable and zero commits behind `main` before merge;
+- no unresolved review threads;
+- scope limited to policy, schema, design documentation, register, static validation, and `.agent` records;
+- no runtime, systemd, public, API, authentication, or protected-control assets entered scope.
 
-- Existing collector, exporter, drill-down/cache design, and records schedule were inspected.
-- Static design validation was added.
-- The current container cannot resolve `github.com`, so an isolated local clone could not be used for pre-PR execution.
-- Exact-head GitHub CI remains the authoritative validation path for this branch.
-- No runtime ingester, database, systemd unit, installer, API route, authentication change, or deployment exists.
+No runtime ingester, database, service, timer, query tool, evidence exporter, API route, authentication change, backup transfer, or Edge1 deployment exists.
 
 ## Authoritative existing live evidence
 
@@ -73,6 +67,10 @@ The policy is `design_only`, `enabled: false`, and records `deployment_authorize
 /var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
 ```
 
+## Next phase
+
+The next separate repository phase is review of the public `edge1.ww.cx` access boundary. It must remain design-only unless a later exact authorization permits an authentication, certificate, proxy, listener, or public-access change.
+
 ## Safety boundary
 
-Repository work is design-only. It does not authorize or make changes to Suricata configuration/service state, DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, reputation lists, authentication, certificates, listeners, public access, deletion, or production traffic.
+Repository work remains non-deploying. It does not authorize or make changes to Suricata configuration/service state, DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, reputation lists, authentication, certificates, listeners, public access, deletion, or production traffic.
