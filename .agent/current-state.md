@@ -1,78 +1,57 @@
 # Current State
 
-Last verified: 2026-07-30 19:08 UTC  
+Last verified: 2026-07-30 19:15 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative closeout: `74323ce0d572806278afe400f3c1e9e244e89d10`  
-Current design branch: `design/edge1-public-access-boundary-20260730`
+Latest design merge: `6e0bbb9d38cd2b89a5ba59ced1534a93ba3aa2eb`  
+Design PR: `#130`
 
 ## Verified live security observability
 
 - Network Defense and Security Correlation are deployed and accepted through `edge1.ww.cx`.
-- Security Operations includes accessible Suricata drill-down, last-known-good caching, normalized schema `2.0`, and enriched allowlisted alert fields.
-- Spamhaus is accepted as `active_verified` and remains the sole verified enforcement source.
-- Fail2ban is accepted as `active_observed`; the service and local socket were healthy and all 7 reported jails were observed.
-- General nftables aggregate visibility is accepted as `ruleset_observed`.
+- Security Operations includes accessible Suricata drill-down, last-known-good caching, normalization, and enriched allowlisted alert fields.
+- Spamhaus is `active_verified` and remains the sole enforcement-verified source.
+- Fail2ban is `active_observed` with service/socket health and 7 observed jails.
+- General nftables aggregate visibility is `ruleset_observed`.
 - Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls are unchanged.
 
 ## Completed repository phases
 
-- Network Defense freshness: closed through PR #127 at `bbefaca8fddc33270178daada5ca20ca3fce0c08`; not claimed live.
-- Protected Suricata retention design: closed through PR #129 at `74323ce0d572806278afe400f3c1e9e244e89d10`; policy remains disabled and no runtime exists.
+- Network Defense freshness: closed through PR #127; live activation unclaimed.
+- Protected Suricata retention design: closed through PR #129; disabled and non-deploying.
+- Edge1 public access boundary design: merged through PR #130 as `6e0bbb9d38cd2b89a5ba59ced1534a93ba3aa2eb`.
 
-## Current design phase — public access boundary
+## Accepted public-boundary decision
 
-Repository evidence shows that `/edge1-status/` is a mixed boundary. The public-facing dashboard consumes detailed files containing host inventory, service names, kernel/runtime versions, interfaces/routes, WireGuard/resolver output, Git state and recent changes, timer schedules, incident detail/history, communications/carrier passthrough, wallet/mining state, and generated reports.
+The current `/edge1-status/` tree is a mixed boundary and should not remain unchanged as the long-term design.
 
-Design decision:
+Target:
 
-- do not retain the current mixed tree unchanged as the long-term boundary;
-- keep a minimized public landing page and allowlist-only aggregate status feed;
-- move detailed operations to a separately authenticated, fail-closed surface under a future exact authorization.
+- public: minimized landing page plus allowlist-only `/edge1-status/public/status.json`;
+- restricted: separately authenticated, fail-closed detailed operations surface represented as `/edge1-ops/`;
+- no anonymous fallback;
+- detailed security, topology, Git/change, automation, incident, communications, financial, and report/evidence data restricted.
 
-Design assets:
+The policy remains `design_only`, `enabled: false`, and `deployment_authorized: false`.
 
-- `config/security/edge1-public-access-boundary-policy.json`;
-- `schemas/wwcx-edge1-public-access-boundary-policy-v1.schema.json`;
-- `docs/security/edge1-public-access-boundary-design-20260730.md`;
-- `registers/edge1-public-access-boundary-design-register-20260730.md`;
-- `tests/validate_edge1_public_access_boundary_design.py`.
+## Validation
 
-The policy is `design_only`, `enabled: false`, and `deployment_authorized: false`.
+Exact design head: `24eacfa1388b9c3b9bafb1c8f880af1da3355aea`
 
-## Target boundary
+- `Validate repository` run 618: success;
+- `Edge1 Operator Validation` run 450: success;
+- zero commits behind `main` before merge;
+- no unresolved review threads;
+- scope limited to policy, schema, design, register, static validation, and `.agent` records.
 
-Future public outputs are limited to:
+## Next safest repository phase
 
-```text
-/edge1-status/
-/edge1-status/public/status.json
-```
+Build the minimized public summary schema, allowlist exporter, fixtures, and static landing page without routing or publishing them. No Apache, proxy, authentication, certificate, listener, DNS, `/var/www`, or production change is authorized.
 
-The public contract permits only bounded aggregate state, count, freshness, maintenance, read-only, and no-traffic-change fields. Detailed security, topology, change, automation, incident, communications, financial, and report data is classified restricted.
+## Live evidence gap
 
-A future authenticated root is represented as `/edge1-ops/`, but the browser authentication model, proxy routing, scopes, and cutover require separate exact authorization.
-
-## Current validation status
-
-- Accepted domain record, publisher, dashboard dependencies, and representative exporters were inspected.
-- A complete repository route-class policy and forbidden-field contract were added.
-- Static validation was added.
-- Live Apache authorization, headers, CORS, directory listing, aliases, and complete route matrix remain unverified because no authenticated Edge1 shell is available.
-- No Apache, proxy, auth, certificate, DNS, listener, `/var/www`, service, or traffic change exists in this phase.
-
-## Authoritative existing live evidence
-
-```text
-/var/lib/wwcx-deployment-evidence/security-observability-acceptance/20260729T061936Z
-/var/lib/wwcx-deployment-evidence/edge1-status-domain/20260729T064854Z
-/var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
-/var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
-/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
-```
+No authenticated Edge1 shell is available. Complete Apache authorization, aliases, headers, CORS, directory listing, and route inventory remain unverified.
 
 ## Safety boundary
 
-This phase is design-only. It does not authorize or change DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation lists, authentication, certificates, listeners, public access, published files, deletion, or production traffic.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation lists, authentication, certificates, listeners, public access, published files, deletion, or production traffic is changed.
