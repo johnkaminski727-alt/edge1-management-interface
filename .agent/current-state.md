@@ -1,75 +1,62 @@
 # Current State
 
-Last verified: 2026-07-30 19:28 UTC  
+Last verified: 2026-07-30 19:36 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative closeout: `1d995bbc0ec9029c9853d9968470f248eb8b6995`  
-Current feature branch: `feature/edge1-minimized-public-summary-20260730`
+Latest implementation merge: `25359040ba07a3b7bf513f95b32ce24f6be480f2`  
+Implementation PR: `#132`
 
-## Verified live security observability
+## Verified live baseline
 
-- Network Defense and Security Correlation are deployed and accepted through `edge1.ww.cx`.
-- Suricata drill-down, caching, normalization, and source enrichment are live.
-- Spamhaus is `active_verified`; Fail2ban is `active_observed`; nftables is `ruleset_observed`.
-- Network Defense remains `limited`, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls are unchanged.
+- Security Correlation and Network Defense are live and accepted.
+- Suricata drill-down, caching, normalization, and enrichment are live.
+- Spamhaus, Fail2ban, and nftables report accepted truthful states.
+- DNS remains unstaged and disabled; traffic controls remain unchanged.
 
 ## Completed repository phases
 
 - Network Defense freshness closed through PR #127; live activation unclaimed.
 - Protected Suricata retention design closed through PR #129; disabled and non-deploying.
-- Public access-boundary design closed through PR #131 at `1d995bbc0ec9029c9853d9968470f248eb8b6995`.
+- Public access-boundary design closed through PR #131.
+- Minimized public summary implementation merged through PR #132 as `25359040ba07a3b7bf513f95b32ce24f6be480f2`.
 
-## Current repository phase — minimized public summary
+## Repository-complete minimized summary
 
-Phase 1 is implemented without live routing or publication.
-
-Assets:
-
-- `server/edge1_public_status_exporter.py`;
-- `schemas/wwcx-edge1-public-status-v1.schema.json`;
-- `src/web/public-status/index.html`;
-- `src/web/public-status/app.js`;
-- hostile fixtures under `tests/fixtures/edge1_public_status/`;
-- `tests/validate_edge1_public_status.py`;
-- implementation documentation and register.
-
-## Output contract
-
-Schema identifier:
+Schema:
 
 ```text
 wwcx.edge1-public-status.v1
 ```
 
-The exporter emits only:
+The exporter emits only generation time, overall state, three fixed categories, bounded counts, coarse freshness, a capped explicit maintenance notice, `read_only:true`, and `traffic_controls_changed:false`.
 
-- schema version and generation time;
-- overall state;
-- three fixed category records: Security, Network Defense, Operations;
-- bounded count and coarse freshness per category;
-- an explicit capped maintenance notice;
-- `read_only:true` and `traffic_controls_changed:false`.
+Hostile fixtures and validation prove that host, service, topology, addresses, ports, alert IDs/signatures, Git, incidents, reports, errors, and recommendations do not propagate.
 
-It never copies source objects, detail strings, errors, paths, addresses, ports, IDs, service names, Git state, incidents, reports, communications, wallet, or mining detail.
+## Validation
 
-## Build and publication boundary
+Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
 
-- All three source paths are required CLI arguments.
-- Default output is `build/edge1-public-status/status.json`.
-- No `/var/www`, Apache, systemd, command execution, or network access exists in the exporter.
-- The page fetches only `./status.json` and is not connected to a deploy path.
-- No live status URL or public cutover is claimed.
+- `Validate repository` run 622: success;
+- `Edge1 Operator Validation` run 454: success;
+- zero commits behind `main` before merge;
+- no unresolved review threads;
+- scope contained exporter, schema, fixtures, non-routed page, tests, docs, register, and `.agent` records only.
 
-## Validation status
+## Publication boundary
 
-- Exact field and state allowlists implemented.
-- Hostile fixtures include internal values that must not propagate.
-- Count, maintenance, freshness, stale, missing-source, atomic-output, page, and no-deployment validations added.
-- Exact-head CI, scope review, mergeability, and merge remain pending.
+- Required explicit input paths.
+- Default output: `build/edge1-public-status/status.json`.
+- No `/var/www`, deploy script, systemd unit, Apache, auth, network call, or command execution.
+- Page fetches only `./status.json`.
+- No live URL, route, public cutover, or deployment is claimed.
 
-## Live evidence gaps
+## Remaining live gates
 
-No authenticated Edge1 shell is available. Apache routes, aliases, authorization, headers, CORS, directory listing, and actual filesystem exposure remain unverified.
+- establish authenticated Edge1 execution;
+- capture read-only Apache/auth/header/CORS/listing/route/filesystem inventory;
+- define server-side headers, publication ownership, backup, rollback, and exact route change;
+- obtain exact authorization before any public publication or cutover;
+- capture protected terminal evidence.
 
 ## Safety boundary
 
