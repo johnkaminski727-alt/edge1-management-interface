@@ -5,7 +5,7 @@ Repository: `johnkaminski727-alt/edge1-management-interface`
 Authoritative branch: `main`  
 Accepted Edge1 live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
 Latest completed repository closeout: `a8af7fa77d9eb81ecd69d22e9d314de478975d66`  
-Active repository branch: `design/edge1-restricted-artifact-migration-manifest-20260730`
+Latest repository implementation merge: `975711be82cfb72b534d3eccd57744daf9893324`
 
 ## Verified live baseline
 
@@ -29,11 +29,12 @@ Protected live evidence:
 - Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
 - Minimized public-summary route and strict CSP corrections merged through PRs #140 and #141.
 - Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
-- Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147; authoritative closeout is `a8af7fa77d9eb81ecd69d22e9d314de478975d66`.
+- Authenticated detailed-operations browser/session boundary and closeout merged through PRs #146 and #147.
+- Restricted-artifact migration manifest merged through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
 
-## Restricted artifact migration manifest phase
+## Restricted artifact migration manifest completion
 
-A repository-only, read-only migration design is in progress on `design/edge1-restricted-artifact-migration-manifest-20260730`.
+The repository-only, read-only migration design is complete and merged.
 
 Implemented:
 
@@ -47,13 +48,20 @@ Implemented:
 - tests covering repository-reference coverage, safe paths, inventory metadata, unknown preservation, collision handling, and absence of mutation operations;
 - architecture and audit register.
 
+Exact implementation head `52a686a4aed7fc3eca3fbccfd2d665fd71b61170` passed:
+
+- `Validate repository` run 657;
+- `Edge1 Operator Validation` run 489;
+- eight changed files;
+- zero unresolved review threads;
+- merge through PR #148 as `975711be82cfb72b534d3eccd57744daf9893324`.
+
 Committed gates remain `design_only`, disabled, staging unauthorized, cutover unauthorized, deletion unauthorized, and source mutation forbidden.
 
-No live Edge1 filesystem was inspected. No source file was opened, hashed, copied, moved, renamed, modified, removed, or routed. Exact-head CI and final PR review are pending.
+No live Edge1 filesystem was inspected. No source file was opened, hashed, copied, moved, renamed, modified, removed, or routed.
 
 ## Remaining separately authorized programs
 
-- complete exact-head validation and merge for the repository-only migration manifest;
 - fresh authenticated Edge1 Apache, route, filesystem, publisher, service, listener, hash, backup, provider, session-store, audit, and rate-limit inventory;
 - separately authorized restricted release staging and authenticated route implementation;
 - separately authorized public-summary staging installation;
