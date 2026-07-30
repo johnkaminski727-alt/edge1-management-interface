@@ -1,12 +1,12 @@
 [Unit]
-Description=Refresh protected sanitized Suricata retention every two minutes
+Description=Schedule WW.CX protected Suricata retention
 
 [Timer]
 OnBootSec=2min
 OnUnitActiveSec=120s
 AccuracySec=10s
-RandomizedDelaySec=5s
-Persistent=true
+RandomizedDelaySec=10s
+Persistent=false
 Unit=wwcx-suricata-protected-retention.service
 
 [Install]

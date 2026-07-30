@@ -1,33 +1,36 @@
 [Unit]
-Description=WW.CX protected sanitized Suricata retention
-After=local-fs.target wwcx-security-operations.service
-ConditionPathIsReadWrite=/var/lib/bigbird-security/suricata-history
+Description=WW.CX protected Suricata sanitized-alert retention
+After=local-fs.target
+ConditionPathExists=/etc/wwcx/security/suricata-protected-retention-runtime.json
 
 [Service]
 Type=oneshot
 User=root
 Group=root
-ExecStart=/usr/bin/python3 /usr/local/libexec/wwcx-security/suricata_protected_retention.py --policy /etc/wwcx/security/suricata-protected-retention-runtime.json ingest
-ExecStartPost=/usr/bin/python3 /usr/local/libexec/wwcx-security/suricata_protected_retention.py --policy /etc/wwcx/security/suricata-protected-retention-runtime.json verify
 UMask=0077
-ReadOnlyPaths=/var/lib/bigbird/operations-center/latest.json /etc/wwcx/security/suricata-protected-retention-runtime.json /usr/local/libexec/wwcx-security/suricata_protected_retention.py
-ReadWritePaths=/var/lib/bigbird-security/suricata-history
-NoNewPrivileges=true
-PrivateTmp=true
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/suricata_protected_retention.py --policy /etc/wwcx/security/suricata-protected-retention-runtime.json ingest
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
 ProtectSystem=strict
-ProtectHome=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-ProtectKernelLogs=true
-ProtectClock=true
-ProtectHostname=true
-RestrictSUIDSGID=true
-LockPersonality=true
-MemoryDenyWriteExecute=true
-RestrictRealtime=true
-RestrictNamespaces=true
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
 RestrictAddressFamilies=AF_UNIX
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/bigbird/operations-center /etc/wwcx/security/suricata-protected-retention-runtime.json
+ReadWritePaths=/var/lib/bigbird-security/suricata-history
 CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

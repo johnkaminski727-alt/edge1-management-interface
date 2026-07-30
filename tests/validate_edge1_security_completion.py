@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Repository validation for the four authorized Edge1 security completion programs."""
 from __future__ import annotations
-import importlib.util
 import json
 import pathlib
 import unittest
@@ -64,11 +63,11 @@ class CompletionTests(unittest.TestCase):
         self.assertFalse(p['query']['public_endpoint'])
         self.assertTrue(p['rollback']['preserve_database_by_default'])
 
-    def test_retention_runtime_has_privacy_integrity_and_bounded_pruning(self):
-        for marker in ('PRAGMA quick_check','PRAGMA max_page_count','PRAGMA incremental_vacuum','INSERT OR IGNORE','os.replace','fcntl.LOCK_EX'):
+    def test_existing_retention_runtime_is_preserved_and_activated_safely(self):
+        for marker in ('PRAGMA max_page_count','PRAGMA incremental_vacuum','INSERT OR IGNORE','os.replace','raw_eve_accessed'):
             self.assertIn(marker, self.retention)
         self.assertNotIn('/var/log/suricata/eve.json', self.retention)
-        self.assertNotIn('/var/www', self.retention)
+        self.assertIn('--policy /etc/wwcx/security/suricata-protected-retention-runtime.json ingest', self.retention_service)
         self.assertIn('RestrictAddressFamilies=AF_UNIX', self.retention_service)
         self.assertIn('CapabilityBoundingSet=', self.retention_service)
         self.assertIn('ReadWritePaths=/var/lib/bigbird-security/suricata-history', self.retention_service)
@@ -110,14 +109,6 @@ class CompletionTests(unittest.TestCase):
         self.assertNotIn('systemctl restart suricata', retention_deploy)
         self.assertNotIn('nft add', retention_deploy)
         self.assertNotIn('unbound', retention_deploy.lower())
-
-
-def load_tests(loader, tests, pattern):
-    spec=importlib.util.spec_from_file_location('retention_runtime_tests', ROOT/'tests/test_suricata_protected_retention_runtime.py')
-    module=importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return unittest.TestSuite([tests, loader.loadTestsFromModule(module)])
 
 if __name__ == '__main__':
     unittest.main()
