@@ -13,39 +13,26 @@
 - [x] Protected Suricata retention design and closeout through PR #129.
 - [x] Public access-boundary design and closeout through PR #131.
 - [x] Minimized public summary implementation and closeout through PR #133.
-
-## Current phase — operator completion bundle
-
-- [x] Add bounded Network Defense freshness activation.
-- [x] Require clean `main` and the merged freshness commit.
-- [x] Back up installed unit and current snapshot before mutation.
-- [x] Preserve timer enablement, active state, and schedule.
-- [x] Verify threshold `600`, unchanged enforcement count, DNS `not_staged`, DNS enforcement false, and no traffic-control change.
-- [x] Add automatic rollback and protected evidence capture.
-- [x] Add read-only Apache/vhost/auth/header/CORS/listing/route/filesystem inventory.
-- [x] Add SQLite and sanitized Suricata retention-sizing evidence.
-- [x] Stage the minimized summary only beneath protected evidence.
-- [x] Add shell-syntax and static safety validation.
-- [x] Add runbook, register, current-state, backlog, and handoff updates.
-- [ ] Pass exact-head `Validate repository`.
-- [ ] Pass exact-head `Edge1 Operator Validation`.
-- [ ] Confirm changed-file scope, zero-behind state, mergeability, and no unresolved review threads.
-- [ ] Merge and close the repository phase.
+- [x] Edge1 project completion operator bundle merged through PR #134 as `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`.
+- [x] Pass exact-head `Validate repository` run 626.
+- [x] Pass exact-head `Edge1 Operator Validation` run 458.
+- [x] Confirm zero-behind state, mergeability, scope, and no unresolved review threads.
 
 ## Remaining authenticated host sequence
 
-- [ ] Fast-forward a clean Edge1 checkout to authoritative `main`.
+- [ ] Establish an approved authenticated Edge1 shell without sharing credentials in chat.
+- [ ] Fast-forward a clean `/opt/edge1-management-interface` checkout to authoritative `main`.
 - [ ] Run `sudo bash tools/security/edge1-project-completion-preflight.sh`.
-- [ ] Review the protected preflight result and evidence manifest.
+- [ ] Review the protected preflight result and SHA-256 evidence manifest.
 - [ ] Run `sudo bash deploy/activate-network-defense-freshness.sh`.
-- [ ] Confirm local and public acceptance, rollback state false, and protected evidence.
-- [ ] Update repository records with exact host evidence paths and live result.
+- [ ] Confirm local and public acceptance, unchanged timer/enforcement/DNS state, `rolled_back=false`, and protected evidence.
+- [ ] Update records with exact host evidence paths and live acceptance results.
 
 ## Separate future programs
 
-Require new branches and evidence from the preflight:
+Require new branches, measured host evidence, exact-head CI, and separate deployment acceptance:
 
-- [ ] protected Suricata retention runtime implementation, tests, deployment, and acceptance;
+- [ ] protected Suricata retention runtime implementation;
 - [ ] minimized public summary server-side publication design;
 - [ ] authenticated detailed-operations browser/session design;
 - [ ] staged public-boundary cutover and detailed-artifact removal.
