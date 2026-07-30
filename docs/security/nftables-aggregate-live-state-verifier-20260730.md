@@ -2,13 +2,13 @@
 
 Date: 2026-07-30  
 System: Edge1 / WW.CX Network Defense  
-Status: implemented; live activation pending merge
+Status: deployed and accepted
 
 ## Objective
 
 Publish bounded current topology and counter aggregates for the live Edge1 nftables ruleset without changing nftables, firewall policy, sets, rules, chains, DNS, routing, Fail2ban, proxy, IDS, authentication, or traffic controls.
 
-The existing Network Defense firewall card used normalized event counts only. It could not distinguish absent event telemetry from a present live ruleset or show bounded object, hook, policy, verdict, and counter totals.
+The prior Network Defense firewall card used normalized event counts only. It could not distinguish absent event telemetry from a present live ruleset or show bounded object, hook, policy, verdict, and counter totals.
 
 ## Contract
 
@@ -54,7 +54,7 @@ Allowed in the private verifier snapshot and public aggregate view:
 
 Excluded:
 
-- table, chain, set, map, counter, or flowtable names;
+- table, chain, set, map, counter, flowtable, object, or jump-target names;
 - addresses, prefixes, ports, interfaces, devices, or client identifiers;
 - set and map elements;
 - rule expressions, match values, comments, handles, priorities, or jump targets;
@@ -96,23 +96,47 @@ The private snapshot is mode `0640` under a mode `0750` directory.
 
 `wwcx-nftables-live-state.timer` refreshes every 60 seconds. Network Defense orders after the Spamhaus, Fail2ban, and nftables observer oneshots.
 
-## Deployment
+## Accepted deployment
 
-After merge:
+Implementation merged through PR #124. The bounded installer was run successfully on Edge1 on 2026-07-30.
 
-```bash
-cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-nftables-live-state-observability.sh
-```
-
-Expected evidence root:
+Evidence:
 
 ```text
-/var/lib/wwcx-deployment-evidence/nftables-live-state/<timestamp>
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z/acceptance-summary.json
 ```
 
-The installer validates the complete layered exporter path, backs up affected observability units and snapshots, installs only the new observer units and updated Network Defense unit, captures acceptance evidence, and restores prior observability state on failure. A degraded observation state is acceptable and does not trigger any firewall repair or reload.
+Accepted Network Defense result:
+
+```json
+{
+  "nftables_state": "ruleset_observed",
+  "nftables_observed": true,
+  "nftables_enforcement_verified": false,
+  "tables": 4,
+  "chains": 14,
+  "base_chains": 7,
+  "rules": 46,
+  "sets": 6,
+  "maps": 0,
+  "counter_packets": 1866364147,
+  "counter_bytes": 4478865062835,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 8,
+  "source_count": 9,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
+
+The private observer snapshot immediately before the public refresh reported the same topology and 1,866,363,293 packets with 4,478,862,225,755 bytes. The public snapshot reported 1,866,364,147 packets and 4,478,865,062,835 bytes moments later because live counters continued to advance.
+
+The accepted state does not add a general firewall enforcement claim. The verified-enforcement count remains one from the separate Spamhaus verifier.
+
+The installer made no nftables, firewall, DNS, routing, Fail2ban, proxy, IDS, authentication, or traffic-control change.
 
 ## Repository audit note
 
@@ -120,4 +144,4 @@ Before the feature branch was created, connector misuse briefly created a one-by
 
 ## Safety boundary
 
-This phase makes no nftables or firewall mutation, service reload/restart, DNS/resolver/RPZ change, routing, Fail2ban, proxy, IDS, reputation-list, authentication, or traffic-control change. Any future control change requires separate explicit authorization and rollback/validation planning.
+This phase made no nftables or firewall mutation, service reload/restart, DNS/resolver/RPZ change, routing, Fail2ban, proxy, IDS, reputation-list, authentication, or traffic-control change. Any future control change requires separate explicit authorization and rollback/validation planning.

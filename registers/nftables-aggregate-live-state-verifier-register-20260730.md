@@ -12,13 +12,13 @@ Network Defense previously reported the general firewall layer from normalized e
 
 | Asset | Purpose | State |
 | --- | --- | --- |
-| `server/nftables_live_state_verifier.py` | Read-only full-ruleset parser that publishes aggregates only | Implemented on feature branch |
-| `server/network_defense_nftables_exporter.py` | Final public aggregate-only Network Defense layer | Implemented on feature branch |
-| `deploy/systemd/wwcx-nftables-live-state.service` | Hardened root oneshot with `CAP_NET_ADMIN` and netlink only | Implemented on feature branch |
-| `deploy/systemd/wwcx-nftables-live-state.timer` | 60-second refresh schedule | Implemented on feature branch |
-| `deploy/systemd/wwcx-network-defense.service` | Orders after all dedicated observers and remains capability-free | Updated on feature branch |
-| `deploy/install-nftables-live-state-observability.sh` | Rollback-safe activation and evidence capture | Implemented on feature branch |
-| `/var/lib/bigbird-networking/nftables/live-state.json` | Sanitized private runtime snapshot | Pending activation |
+| `server/nftables_live_state_verifier.py` | Read-only full-ruleset parser that publishes aggregates only | Merged and deployed |
+| `server/network_defense_nftables_exporter.py` | Final public aggregate-only Network Defense layer | Merged and deployed |
+| `deploy/systemd/wwcx-nftables-live-state.service` | Hardened root oneshot with `CAP_NET_ADMIN` and netlink only | Installed |
+| `deploy/systemd/wwcx-nftables-live-state.timer` | 60-second refresh schedule | Installed and enabled |
+| `deploy/systemd/wwcx-network-defense.service` | Orders after all dedicated observers and remains capability-free | Updated live |
+| `deploy/install-nftables-live-state-observability.sh` | Rollback-safe activation and evidence capture | Executed successfully |
+| `/var/lib/bigbird-networking/nftables/live-state.json` | Sanitized private runtime snapshot | Live |
 
 ## Contract
 
@@ -55,47 +55,69 @@ Excluded everywhere:
 | `not_installed` | `nft` command unavailable |
 | `unavailable` | Ruleset query or JSON unavailable |
 
-No state in this contract is equivalent to packet-enforcement verification.
+No state in this contract is equivalent to general packet-enforcement verification.
+
+## Accepted live result
+
+Implementation merged through PR #124 and was deployed successfully on Edge1.
+
+```json
+{
+  "nftables_state": "ruleset_observed",
+  "nftables_observed": true,
+  "nftables_enforcement_verified": false,
+  "tables": 4,
+  "chains": 14,
+  "base_chains": 7,
+  "rules": 46,
+  "sets": 6,
+  "maps": 0,
+  "counter_packets": 1866364147,
+  "counter_bytes": 4478865062835,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 8,
+  "source_count": 9,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
+
+The private observer snapshot taken immediately before the Network Defense refresh reported 1,866,363,293 packets and 4,478,862,225,755 bytes. The public snapshot increased to 1,866,364,147 packets and 4,478,865,062,835 bytes as live counters advanced. Topology counts remained identical.
+
+The accepted state proves current sanitized aggregate visibility only. It does not verify general policy correctness or packet-path enforcement. The one verified enforcement source remains Spamhaus.
+
+## Evidence
+
+```text
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z/acceptance-summary.json
+```
 
 ## Validation state
 
 | Validation | State |
 | --- | --- |
-| Ruleset object, family, hook, policy, verdict, element, and counter parsing | Implemented |
-| Sensitive fixture names, addresses, interfaces, comments, handles, and expressions excluded | Implemented |
-| Read-only command enforcement | Implemented |
-| Atomic private `0640` publication | Implemented |
-| Public aggregate-only integration | Implemented |
-| Stale-source downgrade | Implemented |
-| No verified-enforcement increment | Implemented |
-| Least-privilege observer service | Implemented |
-| Capability-free Network Defense service | Implemented |
-| Runtime ordering | Implemented |
-| Rollback-safe installer | Implemented |
-| Legacy DNS, Spamhaus, and Fail2ban validator compatibility | Implemented |
-| Exact-head CI | Pending PR |
-| Live Edge1 activation | Pending merge |
+| Ruleset object, family, hook, policy, verdict, element, and counter parsing | Passed |
+| Sensitive fixture names, addresses, interfaces, comments, handles, and expressions excluded | Passed |
+| Read-only command enforcement | Passed |
+| Atomic private `0640` publication | Passed live |
+| Public aggregate-only integration | Passed live |
+| Stale-source downgrade | Passed |
+| No verified-enforcement increment | Passed live |
+| Least-privilege observer service | Passed live |
+| Capability-free Network Defense service | Passed live |
+| Runtime ordering | Passed live |
+| Rollback-safe installer | Passed |
+| Legacy DNS, Spamhaus, and Fail2ban validator compatibility | Passed |
+| Exact-head CI | Passed |
+| Live Edge1 activation | Accepted |
 
 ## Repository audit trail
 
 A one-byte placeholder was accidentally created on `main` by commit `f954e3395dbecf36cad9dc209cf378eb2dcc986d` before the feature branch existed. Commit `7b79f564f11928a63d5b028ab1e2fe0a61f65e6a` removed it immediately. The implementation branch was then created from corrected `main`. No runtime or production system was changed.
 
-## Planned activation
-
-```bash
-cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-nftables-live-state-observability.sh
-```
-
-Expected evidence:
-
-```text
-/var/lib/wwcx-deployment-evidence/nftables-live-state/<timestamp>
-```
-
-A truthful degraded state is acceptable. The installer must not reload, restart, repair, or otherwise mutate nftables to improve the result.
-
 ## Safety boundary
 
-No nftables or firewall mutation, service reload/restart, DNS/resolver/RPZ change, Fail2ban jail/action change, routing, proxy, IDS, authentication, reputation-list, or traffic-control change is included.
+No nftables or firewall mutation, service reload/restart, DNS/resolver/RPZ change, Fail2ban jail/action change, routing, proxy, IDS, authentication, reputation-list, or traffic-control change was included or performed.
