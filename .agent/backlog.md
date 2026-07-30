@@ -20,7 +20,8 @@
 - [x] Runtime-wiring validation corrected through PR #136 and merged as `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
 - [x] Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
 - [x] Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
-- [x] Disabled public-summary staging runtime and closeout merged through PRs #144 and #145 as `0a09c8894ed6669e3a7fdf15b3f173bdbfa2caa7`.
+- [x] Disabled public-summary staging runtime and closeout merged through PRs #144 and #145.
+- [x] Authenticated detailed-operations browser/session boundary merged through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
 
 ## Completed authenticated host sequence
 
@@ -34,17 +35,15 @@
 
 ## Protected Suricata retention runtime
 
-- [x] Add fail-closed sanitized-alert retention, deduplication, pruning, bounded query runtime, hardened proposed units, tests, and register.
-- [x] Pass exact-head `Validate repository` run 640 and `Edge1 Operator Validation` run 472.
-- [x] Merge PR #138 and close records through PR #139.
+- [x] Add fail-closed runtime, hardened proposed units, tests, and register.
+- [x] Pass exact-head workflows and merge through PR #138; close through PR #139.
 - [ ] Design a separate bounded installer and live acceptance only after exact authorization.
 
 ## Minimized public summary staging runtime
 
 - [x] Reconcile the canonical route and strict CSP.
 - [x] Add disabled policy, immutable release builder, SHA-256 metadata, proposed units, strict Apache proposal, tests, and records.
-- [x] Pass exact-head `Validate repository` run 649 and `Edge1 Operator Validation` run 481.
-- [x] Merge and close through PRs #144 and #145.
+- [x] Pass exact-head workflows and merge through PR #144; close through PR #145.
 - [ ] Re-run fresh authenticated Edge1 boundary inventory before any staging installation.
 - [ ] Design a bounded installer and staging acceptance only after exact authorization.
 
@@ -60,10 +59,10 @@
 - [x] Add credential-free Apache `.design` with unconditional deny gates.
 - [x] Add policy drift, ambiguity, session, scope, privacy, and static boundary tests.
 - [x] Add architecture and audit register.
-- [ ] Pass exact-head `Validate repository` workflow.
-- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
-- [ ] Complete changed-file, zero-behind, mergeability, and review-thread checks.
-- [ ] Merge repository-only authenticated-boundary design and close records.
+- [x] Pass exact-head `Validate repository` run 653.
+- [x] Pass exact-head `Edge1 Operator Validation` run 485.
+- [x] Confirm 10 expected files, zero-behind, mergeable state, and no review threads.
+- [x] Merge repository-only authenticated-boundary design through PR #146 as `a0dd8103d8035862d03769ef4fabb0359cc73009`.
 - [ ] Run a fresh authenticated Edge1 module, route, provider, session-store, audit, and rate-limit inventory.
 - [ ] Select and verify an identity provider and Apache adapter under separate authorization.
 - [ ] Implement and stage the restricted session boundary only after exact authorization.
