@@ -7,6 +7,7 @@ VERIFIER = ROOT / 'server' / 'spamhaus_live_state_verifier.py'
 SERVICE = ROOT / 'deploy' / 'systemd' / 'wwcx-spamhaus-live-state.service'
 TIMER = ROOT / 'deploy' / 'systemd' / 'wwcx-spamhaus-live-state.timer'
 NETWORK_SERVICE = ROOT / 'deploy' / 'systemd' / 'wwcx-network-defense.service'
+FINAL_WRAPPER = ROOT / 'server' / 'network_defense_nftables_exporter.py'
 PAGE = ROOT / 'src' / 'web' / 'network-defense' / 'index.html'
 
 installer = INSTALLER.read_text(encoding='utf-8')
@@ -14,6 +15,7 @@ verifier = VERIFIER.read_text(encoding='utf-8')
 service = SERVICE.read_text(encoding='utf-8')
 timer = TIMER.read_text(encoding='utf-8')
 network_service = NETWORK_SERVICE.read_text(encoding='utf-8')
+final_wrapper = FINAL_WRAPPER.read_text(encoding='utf-8')
 page = PAGE.read_text(encoding='utf-8')
 
 required_installer = (
@@ -84,9 +86,14 @@ for marker in (
     'Wants=network-online.target',
     'wwcx-spamhaus-live-state.service',
     'wwcx-fail2ban-live-state.service',
+    'wwcx-nftables-live-state.service',
+    'server/network_defense_nftables_exporter.py',
 ):
     if marker not in network_service:
         raise SystemExit(f'Network Defense verifier ordering marker missing: {marker}')
+
+if 'network_defense_fail2ban_exporter.py' not in final_wrapper:
+    raise SystemExit('Final Network Defense wrapper does not preserve the Fail2ban-aware layer')
 
 if 'Counts only dedicated sanitized live-state verifiers.' not in page:
     raise SystemExit('Network Defense page does not explain verified-enforcement counting')
