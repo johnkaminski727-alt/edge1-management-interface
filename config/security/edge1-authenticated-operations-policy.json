@@ -1,0 +1,230 @@
+{
+  "contract": "wwcx.edge1-authenticated-operations-policy.v1",
+  "status": "design_only",
+  "enabled": false,
+  "deployment_authorized": false,
+  "authentication_change_authorized": false,
+  "live_route_authorized": false,
+  "domain": "edge1.ww.cx",
+  "restricted_root": "/edge1-ops/",
+  "public_root": "/edge1-status/",
+  "anonymous_fallback": false,
+  "provider": {
+    "protocol": "openid_connect",
+    "flow": "authorization_code",
+    "pkce_method": "S256",
+    "discovery_required": true,
+    "state_required": true,
+    "nonce_required": true,
+    "mfa_required": true,
+    "subject_claim": "sub",
+    "audience_validation_required": true,
+    "issuer_allowlist_required": true,
+    "configuration_external": true,
+    "configuration_path": "/etc/wwcx-edge1-ops/oidc.json",
+    "client_secret_path": "/etc/wwcx-edge1-ops/client-secret",
+    "refresh_tokens_allowed": false,
+    "raw_token_storage_allowed": false,
+    "preferred_apache_adapter": "mod_auth_openidc",
+    "adapter_inventory_verified": false,
+    "identity_provider_selected": false
+  },
+  "session": {
+    "server_side_required": true,
+    "opaque_identifier_bytes": 32,
+    "identifier_storage": "sha256_only",
+    "idle_timeout_seconds": 900,
+    "absolute_timeout_seconds": 28800,
+    "clock_skew_seconds": 60,
+    "rotate_on_authentication": true,
+    "rotate_on_scope_change": true,
+    "invalidate_on_logout": true,
+    "persistent_session": false,
+    "cookie": {
+      "name": "__Secure-wwcx_edge1_ops_session",
+      "path": "/edge1-ops/",
+      "domain": null,
+      "secure": true,
+      "http_only": true,
+      "same_site": "Strict"
+    }
+  },
+  "request_boundary": {
+    "allowed_methods": ["GET", "HEAD"],
+    "maximum_path_bytes": 2048,
+    "query_credentials_forbidden": true,
+    "cross_origin_requests_allowed": false,
+    "unknown_route_status": 404,
+    "unauthenticated_api_status": 401,
+    "authenticated_forbidden_status": 403,
+    "method_not_allowed_status": 405,
+    "browser_navigation_challenge": "oidc_redirect",
+    "api_redirect_on_auth_failure": false
+  },
+  "authentication_routes": {
+    "redirect_uri": "https://edge1.ww.cx/edge1-ops/oidc/callback",
+    "post_logout_uri": "https://edge1.ww.cx/edge1-status/",
+    "local_logout_path": "/edge1-ops/session/logout",
+    "local_logout_method": "POST",
+    "local_logout_csrf_required": true
+  },
+  "scopes": {
+    "general_detail": "edge1.status.detail.read",
+    "suricata_history": "security.suricata.history.read"
+  },
+  "route_rules": [
+    {
+      "path": "/edge1-ops/security/history/",
+      "match": "prefix",
+      "classification": "restricted_security_history",
+      "required_scopes": ["edge1.status.detail.read", "security.suricata.history.read"],
+      "rate_limit_class": "history"
+    },
+    {
+      "path": "/edge1-ops/api/v1/security/suricata/history",
+      "match": "prefix",
+      "classification": "restricted_security_history_api",
+      "required_scopes": ["edge1.status.detail.read", "security.suricata.history.read"],
+      "rate_limit_class": "history"
+    },
+    {
+      "path": "/edge1-ops/security/",
+      "match": "prefix",
+      "classification": "restricted_security_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    },
+    {
+      "path": "/edge1-ops/network-defense/",
+      "match": "prefix",
+      "classification": "restricted_network_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    },
+    {
+      "path": "/edge1-ops/bitcoin/",
+      "match": "prefix",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    },
+    {
+      "path": "/edge1-ops/mining/",
+      "match": "prefix",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    },
+    {
+      "path": "/edge1-ops/reports/",
+      "match": "prefix",
+      "classification": "restricted_evidence_and_reports",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    },
+    {
+      "path": "/edge1-ops/data/",
+      "match": "prefix",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    },
+    {
+      "path": "/edge1-ops/",
+      "match": "exact",
+      "classification": "restricted_operations_landing",
+      "required_scopes": ["edge1.status.detail.read"],
+      "rate_limit_class": "general"
+    }
+  ],
+  "rate_limits": {
+    "general": {
+      "requests": 120,
+      "window_seconds": 60,
+      "key": "session"
+    },
+    "history": {
+      "requests": 30,
+      "window_seconds": 60,
+      "key": "session"
+    },
+    "authentication_failures": {
+      "requests": 10,
+      "window_seconds": 600,
+      "key": "source_and_subject"
+    },
+    "failure_status": 429
+  },
+  "audit": {
+    "required": true,
+    "append_only": true,
+    "storage_root": "/var/lib/wwcx-edge1-ops/audit",
+    "file_mode": "0600",
+    "directory_mode": "0700",
+    "events": [
+      "login_started",
+      "login_succeeded",
+      "login_failed",
+      "logout",
+      "session_expired",
+      "authorization_denied",
+      "rate_limited",
+      "restricted_read"
+    ],
+    "fields": [
+      "schema_version",
+      "timestamp",
+      "request_id",
+      "actor_subject",
+      "session_identifier_hash",
+      "method",
+      "path_classification",
+      "required_scopes",
+      "authorization_decision",
+      "status",
+      "reason"
+    ],
+    "cookies_recorded": false,
+    "tokens_recorded": false,
+    "query_strings_recorded": false,
+    "response_bodies_recorded": false
+  },
+  "response_headers": {
+    "cache_control": "no-store, max-age=0",
+    "content_security_policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "referrer_policy": "no-referrer",
+    "x_content_type_options": "nosniff",
+    "permissions_policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "cross_origin_opener_policy": "same-origin",
+    "cross_origin_resource_policy": "same-origin",
+    "cors_allow_origin": null,
+    "directory_listing": false
+  },
+  "failure_behavior": {
+    "identity_unresolved": "deny",
+    "policy_unavailable": "deny",
+    "session_store_unavailable": "deny",
+    "issuer_untrusted": "deny",
+    "audience_invalid": "deny",
+    "mfa_missing": "deny",
+    "scope_missing": "deny",
+    "unknown_route": "not_found",
+    "error_details_public": false,
+    "audit_rejection_required": true
+  },
+  "acceptance": {
+    "fresh_live_inventory_required": true,
+    "provider_selected_and_verified": false,
+    "apache_adapter_verified": false,
+    "session_store_verified": false,
+    "authorized_route_matrix_verified": false,
+    "unauthorized_route_matrix_verified": false,
+    "audit_verified": false,
+    "rate_limit_verified": false,
+    "no_anonymous_fallback": true,
+    "no_new_tcp_listener": true,
+    "tls_identity_unchanged": true,
+    "traffic_controls_changed": false,
+    "live_change_authorized": false
+  }
+}

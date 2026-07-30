@@ -16,13 +16,11 @@
 - [x] Protected Suricata retention design and closeout through PR #129.
 - [x] Public access-boundary design and closeout through PR #131.
 - [x] Minimized public summary implementation and closeout through PR #133.
-- [x] Edge1 project completion operator bundle merged through PR #134 as `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`.
+- [x] Edge1 project completion operator bundle merged through PR #134.
 - [x] Runtime-wiring validation corrected through PR #136 and merged as `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`.
-- [x] Protected Suricata retention runtime merged through PR #138 as `98d4d2bb2b3f57b54f3ca6f1779ec9fd2d4ab694`.
-- [x] Protected-retention closeout merged through PR #139 as `4b14a3c513dd7878c0d8c2ee4fa751f292e7bb6a`.
-- [x] Minimized public-summary route contract corrected through PR #140 as `4fc5d765805b86be8ddee58f08c2676116517cbb`.
-- [x] Minimized public-summary CSP contract corrected through PR #141 as `feb771b6ab53ed9547fec81dbaea964a0246f27d`.
-- [x] Disabled public-summary staging runtime merged through PR #144 as `86a906a536bbb785d47e249615d9c22e411d2ac3`.
+- [x] Protected Suricata retention runtime and closeout merged through PRs #138 and #139.
+- [x] Minimized public-summary route and CSP corrections merged through PRs #140 and #141.
+- [x] Disabled public-summary staging runtime and closeout merged through PRs #144 and #145 as `0a09c8894ed6669e3a7fdf15b3f173bdbfa2caa7`.
 
 ## Completed authenticated host sequence
 
@@ -43,35 +41,44 @@
 
 ## Minimized public summary staging runtime
 
-- [x] Reconcile the canonical `/edge1-status/public/status.json` route.
-- [x] Externalize CSS and align the page to the strict approved CSP.
-- [x] Add a disabled staging policy and schema.
-- [x] Add a fail-closed immutable release builder with exact asset allowlisting.
-- [x] Add atomic current-pointer selection and private SHA-256 metadata.
-- [x] Add hardened proposed systemd service and 60-second timer.
-- [x] Add an explicitly non-active Apache alias/header proposal.
-- [x] Add temporary-directory functional, privacy, permission, and static safety tests.
-- [x] Add architecture and audit records.
-- [x] Pass exact-head `Validate repository` run 649.
-- [x] Pass exact-head `Edge1 Operator Validation` run 481.
-- [x] Complete changed-file, zero-behind, mergeability, and review-thread checks.
-- [x] Merge repository-only staging runtime through PR #144 as `86a906a536bbb785d47e249615d9c22e411d2ac3`.
+- [x] Reconcile the canonical route and strict CSP.
+- [x] Add disabled policy, immutable release builder, SHA-256 metadata, proposed units, strict Apache proposal, tests, and records.
+- [x] Pass exact-head `Validate repository` run 649 and `Edge1 Operator Validation` run 481.
+- [x] Merge and close through PRs #144 and #145.
 - [ ] Re-run fresh authenticated Edge1 boundary inventory before any staging installation.
 - [ ] Design a bounded installer and staging acceptance only after exact authorization.
 
-## Separate future programs
+## Authenticated detailed-operations browser/session boundary
 
-Require new branches, measured host evidence, exact-head CI, and separate deployment acceptance:
+- [x] Add disabled browser/session policy and critical JSON schema.
+- [x] Require OIDC authorization code, PKCE S256, state, nonce, issuer/audience validation, MFA, and external provider configuration.
+- [x] Define opaque server-side sessions, secure cookie, timeout, rotation, and logout/CSRF requirements.
+- [x] Define exact registered route and scope matrix under `/edge1-ops/`.
+- [x] Add pure fail-closed path, identity, scope, rate-limit, and redacted-audit evaluator.
+- [x] Add exact 404, 401, 403, 405, and 429 contracts.
+- [x] Add strict restricted-response headers and no-CORS contract.
+- [x] Add credential-free Apache `.design` with unconditional deny gates.
+- [x] Add policy drift, ambiguity, session, scope, privacy, and static boundary tests.
+- [x] Add architecture and audit register.
+- [ ] Pass exact-head `Validate repository` workflow.
+- [ ] Pass exact-head `Edge1 Operator Validation` workflow.
+- [ ] Complete changed-file, zero-behind, mergeability, and review-thread checks.
+- [ ] Merge repository-only authenticated-boundary design and close records.
+- [ ] Run a fresh authenticated Edge1 module, route, provider, session-store, audit, and rate-limit inventory.
+- [ ] Select and verify an identity provider and Apache adapter under separate authorization.
+- [ ] Implement and stage the restricted session boundary only after exact authorization.
 
-- [ ] authenticated detailed-operations browser/session design;
+## Separate future program
+
 - [ ] staged public-boundary cutover and detailed-artifact removal.
 
 ## Exact authorization still required
 
 - production Suricata-history database creation, unit installation, timer enablement, or ingestion;
 - public-summary staging-root creation, unit installation, timer enablement, or service invocation on Edge1;
+- identity-provider registration, credentials, client secrets, user/group/scope mapping, session-store creation, or authentication changes;
 - `/var/www` publication or removal;
 - Apache/proxy/auth/header reload or route changes;
-- authentication, certificate, listener, DNS, firewall, or traffic changes;
+- certificate, listener, DNS, firewall, or traffic changes;
 - public or production cutover;
-- deletion or pruning of retained status, releases, reports, incidents, history, or evidence.
+- deletion or pruning of retained status, releases, reports, incidents, history, audit, or evidence.

@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/wwcx-edge1-authenticated-operations-policy-v1.schema.json",
+  "title": "WW.CX Edge1 authenticated operations policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "status",
+    "enabled",
+    "deployment_authorized",
+    "authentication_change_authorized",
+    "live_route_authorized",
+    "domain",
+    "restricted_root",
+    "public_root",
+    "anonymous_fallback",
+    "provider",
+    "session",
+    "request_boundary",
+    "authentication_routes",
+    "scopes",
+    "route_rules",
+    "rate_limits",
+    "audit",
+    "response_headers",
+    "failure_behavior",
+    "acceptance"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.edge1-authenticated-operations-policy.v1"},
+    "status": {"const": "design_only"},
+    "enabled": {"type": "boolean"},
+    "deployment_authorized": {"type": "boolean"},
+    "authentication_change_authorized": {"type": "boolean"},
+    "live_route_authorized": {"type": "boolean"},
+    "domain": {"const": "edge1.ww.cx"},
+    "restricted_root": {"const": "/edge1-ops/"},
+    "public_root": {"const": "/edge1-status/"},
+    "anonymous_fallback": {"const": false},
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "flow",
+        "pkce_method",
+        "discovery_required",
+        "state_required",
+        "nonce_required",
+        "mfa_required",
+        "subject_claim",
+        "audience_validation_required",
+        "issuer_allowlist_required",
+        "configuration_external",
+        "configuration_path",
+        "client_secret_path",
+        "refresh_tokens_allowed",
+        "raw_token_storage_allowed",
+        "preferred_apache_adapter",
+        "adapter_inventory_verified",
+        "identity_provider_selected"
+      ],
+      "properties": {
+        "protocol": {"const": "openid_connect"},
+        "flow": {"const": "authorization_code"},
+        "pkce_method": {"const": "S256"},
+        "discovery_required": {"const": true},
+        "state_required": {"const": true},
+        "nonce_required": {"const": true},
+        "mfa_required": {"const": true},
+        "subject_claim": {"const": "sub"},
+        "audience_validation_required": {"const": true},
+        "issuer_allowlist_required": {"const": true},
+        "configuration_external": {"const": true},
+        "configuration_path": {"const": "/etc/wwcx-edge1-ops/oidc.json"},
+        "client_secret_path": {"const": "/etc/wwcx-edge1-ops/client-secret"},
+        "refresh_tokens_allowed": {"const": false},
+        "raw_token_storage_allowed": {"const": false},
+        "preferred_apache_adapter": {"const": "mod_auth_openidc"},
+        "adapter_inventory_verified": {"type": "boolean"},
+        "identity_provider_selected": {"type": "boolean"}
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "server_side_required",
+        "opaque_identifier_bytes",
+        "identifier_storage",
+        "idle_timeout_seconds",
+        "absolute_timeout_seconds",
+        "clock_skew_seconds",
+        "rotate_on_authentication",
+        "rotate_on_scope_change",
+        "invalidate_on_logout",
+        "persistent_session",
+        "cookie"
+      ],
+      "properties": {
+        "server_side_required": {"const": true},
+        "opaque_identifier_bytes": {"type": "integer", "minimum": 32, "maximum": 64},
+        "identifier_storage": {"const": "sha256_only"},
+        "idle_timeout_seconds": {"type": "integer", "minimum": 300, "maximum": 1800},
+        "absolute_timeout_seconds": {"type": "integer", "minimum": 3600, "maximum": 43200},
+        "clock_skew_seconds": {"type": "integer", "minimum": 0, "maximum": 300},
+        "rotate_on_authentication": {"const": true},
+        "rotate_on_scope_change": {"const": true},
+        "invalidate_on_logout": {"const": true},
+        "persistent_session": {"const": false},
+        "cookie": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "path", "domain", "secure", "http_only", "same_site"],
+          "properties": {
+            "name": {"const": "__Secure-wwcx_edge1_ops_session"},
+            "path": {"const": "/edge1-ops/"},
+            "domain": {"type": "null"},
+            "secure": {"const": true},
+            "http_only": {"const": true},
+            "same_site": {"const": "Strict"}
+          }
+        }
+      }
+    },
+    "request_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_methods",
+        "maximum_path_bytes",
+        "query_credentials_forbidden",
+        "cross_origin_requests_allowed",
+        "unknown_route_status",
+        "unauthenticated_api_status",
+        "authenticated_forbidden_status",
+        "method_not_allowed_status",
+        "browser_navigation_challenge",
+        "api_redirect_on_auth_failure"
+      ],
+      "properties": {
+        "allowed_methods": {
+          "type": "array",
+          "prefixItems": [{"const": "GET"}, {"const": "HEAD"}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "maximum_path_bytes": {"type": "integer", "minimum": 256, "maximum": 4096},
+        "query_credentials_forbidden": {"const": true},
+        "cross_origin_requests_allowed": {"const": false},
+        "unknown_route_status": {"const": 404},
+        "unauthenticated_api_status": {"const": 401},
+        "authenticated_forbidden_status": {"const": 403},
+        "method_not_allowed_status": {"const": 405},
+        "browser_navigation_challenge": {"const": "oidc_redirect"},
+        "api_redirect_on_auth_failure": {"const": false}
+      }
+    },
+    "authentication_routes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redirect_uri",
+        "post_logout_uri",
+        "local_logout_path",
+        "local_logout_method",
+        "local_logout_csrf_required"
+      ],
+      "properties": {
+        "redirect_uri": {"const": "https://edge1.ww.cx/edge1-ops/oidc/callback"},
+        "post_logout_uri": {"const": "https://edge1.ww.cx/edge1-status/"},
+        "local_logout_path": {"const": "/edge1-ops/session/logout"},
+        "local_logout_method": {"const": "POST"},
+        "local_logout_csrf_required": {"const": true}
+      }
+    },
+    "scopes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["general_detail", "suricata_history"],
+      "properties": {
+        "general_detail": {"const": "edge1.status.detail.read"},
+        "suricata_history": {"const": "security.suricata.history.read"}
+      }
+    },
+    "route_rules": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "match", "classification", "required_scopes", "rate_limit_class"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^/edge1-ops/"},
+          "match": {"enum": ["exact", "prefix"]},
+          "classification": {"type": "string", "minLength": 1, "maxLength": 128},
+          "required_scopes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "items": {"enum": ["edge1.status.detail.read", "security.suricata.history.read"]}
+          },
+          "rate_limit_class": {"enum": ["general", "history"]}
+        }
+      }
+    },
+    "rate_limits": {"type": "object"},
+    "audit": {"type": "object"},
+    "response_headers": {"type": "object"},
+    "failure_behavior": {"type": "object"},
+    "acceptance": {"type": "object"}
+  }
+}
