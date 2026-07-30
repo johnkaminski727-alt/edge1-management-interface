@@ -1,0 +1,18 @@
+# PROPOSED ONLY — DO NOT INSTALL OR ENABLE WITHOUT EXACT PUBLIC-CUTOVER AUTHORIZATION.
+# Requires verified mod_alias, mod_headers, and mod_mime availability and a successful apachectl -t.
+
+Alias "/edge1-status/" "/var/lib/wwcx-public-summary/current/"
+
+<Directory "/var/lib/wwcx-public-summary/current">
+    Options -Indexes +FollowSymLinks
+    AllowOverride None
+    Require all granted
+    DirectoryIndex index.html
+    AddType application/json .json
+
+    Header always set Cache-Control "no-store, max-age=0"
+    Header always set Content-Security-Policy "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always unset Access-Control-Allow-Origin
+</Directory>
