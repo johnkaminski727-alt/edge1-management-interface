@@ -1,6 +1,6 @@
 "use strict";
 
-const STATUS_URL = "./status.json";
+const STATUS_URL = "./public/status.json";
 const allowedStates = new Set(["healthy", "limited", "attention", "unavailable"]);
 const allowedFreshness = new Set(["fresh", "aging", "stale", "unknown"]);
 const allowedCategories = new Set(["security", "network_defense", "operations"]);
