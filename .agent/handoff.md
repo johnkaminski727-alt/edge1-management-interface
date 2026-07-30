@@ -1,28 +1,80 @@
-# Security Observability and nftables Aggregate Handoff
+# Network Defense Freshness Policy Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Latest implementation merge: `6b7991b1e37c327813199057c90cf2a9f834aa14`
+Authoritative synchronized closeout: `d1a6a94568f235a2153e3f7946f9990b7a050547`  
+Feature branch: `feature/network-defense-freshness-policy-20260730`
 
-## Completed live work
+## Verified live baseline
 
-- Network Defense and Security Correlation deployed and accepted.
-- `edge1.ww.cx` HTTPS status pages and JSON feeds accepted.
-- Accessible Suricata drill-down, last-known-good cache, normalized schema, and source collector enrichment deployed.
-- Spamhaus live-state accepted as `active_verified` and remains the sole verified enforcement source.
-- Fail2ban live-state accepted as `active_observed` with service/socket health and all 7 reported jails observed.
-- General nftables aggregate live-state accepted as `ruleset_observed`.
-- Network Defense remains `limited`, 8 of 9 sources are available, DNS remains unstaged, and traffic controls remain unchanged.
+- Network Defense and Security Correlation are deployed and accepted.
+- Suricata drill-down, last-known-good caching, normalization, and source enrichment are live.
+- Spamhaus is `active_verified` and remains the sole enforcement-verified source.
+- Fail2ban is `active_observed` with service/socket health and 7 observed jails.
+- General nftables aggregate visibility is `ruleset_observed`.
+- Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and traffic controls remain unchanged.
 
-## Live URLs
+## Current implementation
+
+A narrow schedule-aware freshness improvement is implemented on the feature branch.
+
+Evidence:
+
+- `wwcx-operations-network.timer` publishes every 300 seconds.
+- `wwcx-network-defense.timer` consumes every 60 seconds with up to 10 seconds randomized delay.
+- The prior 300-second network stale limit equaled the producer interval and could classify healthy data stale between normal runs.
+- The existing live-acceptance freshness ceiling is 600 seconds.
+
+Change:
 
 ```text
-https://edge1.ww.cx/edge1-status/
-https://edge1.ww.cx/edge1-status/security/
-https://edge1.ww.cx/edge1-status/security/correlation.html
-https://edge1.ww.cx/edge1-status/network-defense/
+network stale_after_seconds: 300 -> 600
 ```
+
+Assets:
+
+- `server/network_defense_freshness_exporter.py`
+- `deploy/systemd/wwcx-network-defense.service`
+- `tests/test_network_defense_freshness_policy.py`
+- `docs/security/network-defense-freshness-policy-20260730.md`
+- `registers/network-defense-freshness-policy-register-20260730.md`
+
+The wrapper leaves every other source threshold unchanged and preserves the final DNS-, Spamhaus-, Fail2ban-, and nftables-aware exporter chain.
+
+## Safety
+
+No producer timer, collection command, DNS, Unbound, RPZ, nftables, firewall, Fail2ban jail/action, routing, proxy, IDS rule, reputation list, certificate, authentication boundary, or production traffic was changed.
+
+The Network Defense unit remains capability-free and restricted to AF_UNIX. `verified_enforcement_count` semantics are unchanged and `traffic_controls_changed` remains false.
+
+## Validation state
+
+Completed:
+
+- authoritative branch and base commit verification;
+- schedule and acceptance-threshold inspection;
+- focused implementation review;
+- test and documentation additions.
+
+Pending:
+
+- targeted tests on the exact feature head;
+- full repository validation;
+- both required exact-head CI workflows;
+- PR scope, thread, review, and mergeability checks;
+- merge and authoritative-main closeout.
+
+No authenticated Edge1 terminal was available in the current runtime. No live deployment or endpoint acceptance is claimed.
+
+## Required next sequence
+
+1. Open the focused PR from `feature/network-defense-freshness-policy-20260730` to `main`.
+2. Require both exact-head workflows: `Validate repository` and `Edge1 Operator Validation`.
+3. Inspect the final diff and ensure no unrelated files or protected controls changed.
+4. Merge only if checks pass and the PR is mergeable with no unresolved review threads.
+5. Update `.agent` and register closeout on authoritative `main`.
+6. Treat Edge1 activation as a separate bounded terminal-evidence phase.
 
 ## Authoritative live evidence
 
@@ -32,57 +84,6 @@ https://edge1.ww.cx/edge1-status/network-defense/
 /var/lib/wwcx-deployment-evidence/suricata-alert-normalization/20260729T082557Z
 /var/lib/wwcx-deployment-evidence/suricata-collector-enrichment/20260729T165711Z
 /var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z
-/var/lib/wwcx-deployment-evidence/spamhaus-live-state/20260729T180755Z/acceptance-summary.json
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
-/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
 /var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
-/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z/acceptance-summary.json
 ```
-
-## Final nftables aggregate state
-
-```json
-{
-  "ok": true,
-  "nftables_state": "ruleset_observed",
-  "nftables_observed": true,
-  "nftables_enforcement_verified": false,
-  "tables": 4,
-  "chains": 14,
-  "base_chains": 7,
-  "rules": 46,
-  "sets": 6,
-  "maps": 0,
-  "counter_packets": 1866364147,
-  "counter_bytes": 4478865062835,
-  "verified_enforcement_count": 1,
-  "overall_state": "limited",
-  "available_sources": 8,
-  "source_count": 9,
-  "dns_policy_state": "not_staged",
-  "dns_enforcement_enabled": false,
-  "traffic_controls_changed": false
-}
-```
-
-The observer snapshot immediately before the Network Defense refresh reported 1,866,363,293 packets and 4,478,862,225,755 bytes. The later public snapshot increased to 1,866,364,147 packets and 4,478,865,062,835 bytes as live counters advanced.
-
-`ruleset_observed` proves bounded current topology and counter visibility only. It does not prove general firewall policy correctness, intended enforcement, or that every packet path traverses a particular rule. The verified-enforcement count remains 1 because only the dedicated Spamhaus contract is enforcement-verified.
-
-## Privacy and safety boundary
-
-The verifier publishes aggregate counts and fixed category labels only. It excludes table, chain, set, map, object, and jump-target names; addresses, prefixes, ports, interfaces, devices, elements, expressions, match values, comments, handles, priorities, full ruleset content, raw command output, credentials, and private keys.
-
-No nftables or firewall mutation, service reload/restart, Fail2ban jail/action mutation, Unbound or RPZ change, DNS-answer change, proxy, routing, IDS-rule, reputation-list, authentication, or traffic-cutover change was performed.
-
-## Remaining optional work
-
-- review Network Defense freshness thresholds using observed timing;
-- design protected historical Suricata retention with explicit privacy, size, time, authentication, rollback, and acceptance boundaries;
-- review whether the public `edge1.ww.cx` access boundary should remain unchanged.
-
-Each remains a separate design and authorization phase.
-
-## Repository audit note
-
-Commit `f954e3395dbecf36cad9dc209cf378eb2dcc986d` accidentally created a one-byte verifier placeholder on `main`; commit `7b79f564f11928a63d5b028ab1e2fe0a61f65e6a` removed it immediately before the feature branch was created. No runtime or production system was affected.

@@ -9,6 +9,7 @@ TIMER = ROOT / 'deploy' / 'systemd' / 'wwcx-nftables-live-state.timer'
 NETWORK = ROOT / 'deploy' / 'systemd' / 'wwcx-network-defense.service'
 VERIFIER = ROOT / 'server' / 'nftables_live_state_verifier.py'
 WRAPPER = ROOT / 'server' / 'network_defense_nftables_exporter.py'
+FINAL_WRAPPER = ROOT / 'server' / 'network_defense_freshness_exporter.py'
 
 
 class NftablesLiveStateDeployerTests(unittest.TestCase):
@@ -53,8 +54,10 @@ class NftablesLiveStateDeployerTests(unittest.TestCase):
     def test_network_defense_remains_capability_free_and_layered(self):
         unit = NETWORK.read_text(encoding='utf-8')
         wrapper = WRAPPER.read_text(encoding='utf-8')
+        final_wrapper = FINAL_WRAPPER.read_text(encoding='utf-8')
         self.assertIn('wwcx-nftables-live-state.service', unit)
-        self.assertIn('server/network_defense_nftables_exporter.py', unit)
+        self.assertIn('server/network_defense_freshness_exporter.py', unit)
+        self.assertIn('network_defense_nftables_exporter.py', final_wrapper)
         self.assertIn('network_defense_fail2ban_exporter.py', wrapper)
         self.assertIn('CapabilityBoundingSet=\n', unit)
         self.assertIn('AmbientCapabilities=\n', unit)
