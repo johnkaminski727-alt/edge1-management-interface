@@ -3,23 +3,31 @@
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Authoritative base: `4d2e717f8b0475fed574a4a6114c1a318d7e9655`  
-Current branch: `ops/edge1-project-completion-bundle-20260730`
+Operator-bundle merge: `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`  
+Operator-bundle PR: `#134`
 
 ## Live baseline
 
 Security Correlation and Network Defense are live and accepted. Suricata drill-down, caching, normalization, and enrichment are live. Spamhaus, Fail2ban, and nftables report accepted truthful states. DNS remains unstaged and disabled, and traffic controls remain unchanged.
 
-## Repository history already closed
+## Repository completion
 
-- Network Defense freshness repository phase: PR #127; live activation unclaimed.
+Closed repository phases:
+
+- Network Defense freshness: PR #127; live activation still unclaimed.
 - Protected Suricata retention design: PR #129; disabled and non-deploying.
 - Public access-boundary design: PR #131.
-- Minimized public summary: PR #132 implementation and PR #133 closeout, authoritative merge `4d2e717f8b0475fed574a4a6114c1a318d7e9655`.
+- Minimized public summary: PR #132 implementation and PR #133 closeout.
+- Final operator completion bundle: PR #134, merge `00904a2d26b4b3b14e18144c9bccd29b3a9f10b1`.
 
-## Current operator bundle
+Exact operator-bundle head: `6060348f4fcfcc955f93c4739a167321fe488013`
 
-Assets:
+- `Validate repository` run 626: success.
+- `Edge1 Operator Validation` run 458: success.
+- Zero commits behind `main` before merge.
+- PR mergeable with no unresolved review threads.
+
+## Operator bundle
 
 ```text
 deploy/activate-network-defense-freshness.sh
@@ -29,84 +37,50 @@ docs/security/edge1-project-completion-runbook-20260730.md
 registers/edge1-project-completion-bundle-register-20260730.md
 ```
 
-### Completion preflight
-
-Command:
+### Read-only completion preflight
 
 ```bash
 cd /opt/edge1-management-interface
 sudo bash tools/security/edge1-project-completion-preflight.sh
 ```
 
-Protected evidence root:
+Evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/<UTC timestamp>/
 ```
 
-The preflight records host, principal, Git, systemd, capacity, Apache syntax/vhosts/modules/redacted directives, public file metadata/hashes, local and public route/header matrix, SQLite capability, sanitized Suricata size distribution, and a staged minimized public summary.
+The preflight captures protected host, Git, systemd, Apache, route, header, public-file metadata/hash, SQLite, sanitized Suricata sizing, and staged minimized-summary evidence. It does not reload services, alter authentication, change routes, write to `/var/www`, or modify traffic controls.
 
-It does not reload or change Apache, authentication, routes, services, timers, listeners, `/var/www`, DNS, firewall, or traffic controls.
+### Bounded freshness activation
 
-### Freshness activation
-
-Command after successful preflight:
+Run after the preflight succeeds:
 
 ```bash
 sudo bash deploy/activate-network-defense-freshness.sh
 ```
 
-Protected evidence root:
+Evidence:
 
 ```text
 /var/lib/wwcx-deployment-evidence/network-defense-freshness/<UTC timestamp>/
 ```
 
-The activation installs only `wwcx-network-defense.service`, starts the one-shot exporter once, and verifies:
-
-- network stale threshold `600`;
-- service success and zero exit status;
-- unchanged timer enabled and active states;
-- unchanged `verified_enforcement_count`;
-- DNS policy `not_staged`;
-- DNS enforcement false and unverified;
-- `traffic_controls_changed:false`;
-- matching local and real-domain output.
-
-Failure after mutation restores the prior unit and status snapshot and records `rolled_back=true`.
-
-## Current validation state
-
-Completed in repository:
-
-- script implementation;
-- protected evidence and rollback design;
-- static safety tests;
-- runbook and register;
-- project-state updates.
-
-Pending:
-
-- exact-head `Validate repository`;
-- exact-head `Edge1 Operator Validation`;
-- PR scope, zero-behind, mergeability, and thread review;
-- merge and repository closeout;
-- authenticated Edge1 execution.
+The activation installs only `wwcx-network-defense.service`, starts its one-shot exporter once, verifies threshold `600`, unchanged timer/enforcement state, DNS `not_staged`, DNS enforcement false, `traffic_controls_changed:false`, and matching local/public JSON. Failure restores the prior unit and snapshot.
 
 ## Execution-path fact
 
-The authoring runtime has no `/opt/edge1-management-interface`, SSH configuration, SSH key material, or approved authenticated Edge1 connector. No host command in this handoff has been represented as executed.
+The authoring runtime has no `/opt/edge1-management-interface`, SSH configuration, SSH key material, or approved authenticated Edge1 connector. The commands above are prepared and validated but have not been executed on Edge1.
 
-## Required continuation sequence
+## Required next sequence
 
-1. Finish exact-head CI and merge the operator bundle.
-2. Establish an authenticated Edge1 shell without sharing credentials in chat.
-3. Verify clean authoritative `main`.
-4. Execute the read-only preflight.
-5. Review protected evidence and correct only repository defects, if any.
-6. Execute the bounded freshness activation.
-7. Record exact evidence paths and live acceptance results.
-8. Use the preflight evidence for separate protected-retention and public-boundary implementation decisions.
+1. Establish an approved authenticated Edge1 shell without sharing credentials in chat.
+2. Fast-forward a clean checkout to authoritative `main`.
+3. Run the read-only preflight.
+4. Review its protected evidence and manifest.
+5. Run the bounded freshness activation.
+6. Record exact evidence paths and live acceptance results.
+7. Use the measured evidence for separately authorized protected-retention and public-boundary programs.
 
 ## Exact authorization boundary
 
