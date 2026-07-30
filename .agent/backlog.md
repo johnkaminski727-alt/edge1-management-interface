@@ -10,7 +10,12 @@
 - [x] Confirm Spamhaus `active_verified`, enforcement verification true, and verified-enforcement count 1.
 - [x] Implement, deploy, and accept read-only Fail2ban live-state observability.
 - [x] Confirm Fail2ban `active_observed`, service/socket health, 7 observed jails, zero accepted ban counters, and no enforcement claim.
-- [x] Confirm DNS policy remains `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
+- [x] Implement and merge sanitized general nftables aggregate observability through PR #124.
+- [x] Deploy the nftables observer and timer on Edge1 without changing the ruleset or firewall behavior.
+- [x] Confirm nftables state `ruleset_observed`: 4 tables, 14 chains, 46 rules, 6 sets, 0 maps, and 7 base chains.
+- [x] Confirm Network Defense consumes the same aggregate state while nftables `enforcement_verified` remains false.
+- [x] Confirm verified-enforcement count remains 1 from Spamhaus only.
+- [x] Confirm Network Defense remains `limited`, 8 of 9 sources are available, DNS policy is `not_staged`, DNS enforcement is disabled, and `traffic_controls_changed` is false.
 
 ## Authoritative live evidence
 
@@ -34,29 +39,11 @@ Spamhaus live-state:
 Fail2ban live-state:
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
 /var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
+
+nftables aggregate live-state:
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z
+/var/lib/wwcx-deployment-evidence/nftables-live-state/20260730T090522Z/acceptance-summary.json
 ```
-
-## Current bounded implementation — general nftables aggregate visibility
-
-- [x] Define contract `wwcx.nftables-aggregate-live-state.v1`.
-- [x] Add a dedicated verifier that executes only `nft -j list ruleset` and `systemctl show nftables.service`.
-- [x] Reduce the full ruleset to numeric object, family, hook, policy, verdict, element, packet, and byte aggregates.
-- [x] Exclude names, addresses, prefixes, ports, interfaces, devices, elements, rule expressions, comments, handles, priorities, jump targets, raw output, credentials, and private keys.
-- [x] Keep `enforcement_verified: false` and `traffic_controls_changed: false` in every state.
-- [x] Add truthful `ruleset_observed`, `partial`, `empty`, `not_installed`, and `unavailable` states.
-- [x] Add `server/network_defense_nftables_exporter.py` as the final layered exporter over DNS, Spamhaus, and Fail2ban.
-- [x] Keep public Network Defense aggregate-only and keep verified-enforcement count unchanged.
-- [x] Add hardened root oneshot and 60-second timer with only `CAP_NET_ADMIN`, `AF_UNIX`, and `AF_NETLINK`.
-- [x] Keep `wwcx-network-defense.service` capability-free.
-- [x] Add parser, privacy, stale-state, layered-integration, runtime-wiring, deployment-safety, and rollback validation.
-- [x] Add rollback-safe `deploy/install-nftables-live-state-observability.sh` without nftables or firewall mutation.
-- [x] Update legacy Network Defense, Spamhaus, and Fail2ban validators for the final layered wrapper.
-- [x] Record architecture, contract, state model, repository audit trail, and activation boundary.
-- [ ] Open and merge the nftables aggregate observability PR after both required CI workflows pass.
-- [ ] Fast-forward Edge1 and run `sudo bash ./deploy/install-nftables-live-state-observability.sh`.
-- [ ] Record the truthful live state and sanitized aggregate counts.
-- [ ] Verify Network Defense consumes the same state without a new enforcement claim.
-- [ ] Record live evidence and close the phase.
 
 ## Evidence-driven follow-up
 
