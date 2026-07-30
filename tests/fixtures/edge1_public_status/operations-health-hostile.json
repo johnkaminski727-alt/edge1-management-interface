@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-07-30T18:50:00+00:00",
+  "overall": "healthy",
+  "checks": [
+    {
+      "name": "Security",
+      "state": "healthy",
+      "detail": "Suricata memory 0.75 GB",
+      "recommendation": "internal recommendation",
+      "service_name": "suricata.service"
+    },
+    {
+      "name": "Inventory",
+      "state": "healthy",
+      "detail": "Inventory current: edge1-secret-host",
+      "host": "edge1-secret-host",
+      "kernel": "secret-kernel"
+    },
+    {
+      "name": "Network",
+      "state": "healthy",
+      "detail": "Network posture available",
+      "interface": "wg0",
+      "route": "10.0.0.0/8"
+    }
+  ],
+  "branch": "main",
+  "commit": "deadbee",
+  "dirty": false,
+  "incident_history": {
+    "INC-SECRET": {
+      "detail": "must never propagate"
+    }
+  },
+  "report_filename": "operations-report-secret.pdf"
+}
