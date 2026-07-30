@@ -1,83 +1,113 @@
-# Minimized Edge1 Public Summary Handoff
+# Edge1 Project Completion Operator Handoff
 
 Date: 2026-07-30  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`  
-Implementation merge: `25359040ba07a3b7bf513f95b32ce24f6be480f2`  
-Implementation PR: `#132`
+Authoritative base: `4d2e717f8b0475fed574a4a6114c1a318d7e9655`  
+Current branch: `ops/edge1-project-completion-bundle-20260730`
 
 ## Live baseline
 
-Security observability remains at the previously accepted state: Security Correlation and Network Defense are live; Suricata enrichment is live; Spamhaus, Fail2ban, and nftables report accepted truthful states; DNS remains unstaged and disabled; traffic controls remain unchanged.
+Security Correlation and Network Defense are live and accepted. Suricata drill-down, caching, normalization, and enrichment are live. Spamhaus, Fail2ban, and nftables report accepted truthful states. DNS remains unstaged and disabled, and traffic controls remain unchanged.
 
-## Repository-complete implementation
+## Repository history already closed
 
-Schema:
+- Network Defense freshness repository phase: PR #127; live activation unclaimed.
+- Protected Suricata retention design: PR #129; disabled and non-deploying.
+- Public access-boundary design: PR #131.
+- Minimized public summary: PR #132 implementation and PR #133 closeout, authoritative merge `4d2e717f8b0475fed574a4a6114c1a318d7e9655`.
 
-```text
-wwcx.edge1-public-status.v1
-```
+## Current operator bundle
 
 Assets:
 
 ```text
-server/edge1_public_status_exporter.py
-schemas/wwcx-edge1-public-status-v1.schema.json
-src/web/public-status/index.html
-src/web/public-status/app.js
-tests/fixtures/edge1_public_status/*.json
-tests/validate_edge1_public_status.py
-docs/security/edge1-minimized-public-summary-20260730.md
-registers/edge1-minimized-public-summary-register-20260730.md
+deploy/activate-network-defense-freshness.sh
+tools/security/edge1-project-completion-preflight.sh
+tests/test_edge1_project_completion_bundle.py
+docs/security/edge1-project-completion-runbook-20260730.md
+registers/edge1-project-completion-bundle-register-20260730.md
 ```
 
-The exporter accepts explicit Security Operations, Network Defense, and Operations Health paths and reduces them to three fixed category records containing only state, bounded count, and coarse freshness. It never copies source objects or arbitrary detail strings.
+### Completion preflight
 
-## Privacy and bounds
+Command:
 
-- Seven exact top-level fields.
-- Security count maximum 999.
-- Network and Operations count maximum 99.
-- Maintenance notice maximum 160 characters.
-- Fresh at most five minutes; aging to fifteen minutes; older data stale/attention.
-- Missing or invalid input becomes unavailable/unknown without error or path disclosure.
-- Always `read_only:true` and `traffic_controls_changed:false`.
+```bash
+cd /opt/edge1-management-interface
+sudo bash tools/security/edge1-project-completion-preflight.sh
+```
 
-Hostile fixtures contain host, kernel, service, addresses, ports, signatures, IDs, routes, WireGuard, resolver, Git, incident, report, error, and recommendation data. Tests prove those values and forbidden keys do not propagate.
+Protected evidence root:
 
-## Validation and merge
+```text
+/var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/<UTC timestamp>/
+```
 
-Exact implementation head: `d431bd358969ed1db4902f1bc84f02bea1ce7cd1`
+The preflight records host, principal, Git, systemd, capacity, Apache syntax/vhosts/modules/redacted directives, public file metadata/hashes, local and public route/header matrix, SQLite capability, sanitized Suricata size distribution, and a staged minimized public summary.
 
-- `Validate repository` run 622: success.
-- `Edge1 Operator Validation` run 454: success.
-- PR #132 was mergeable and zero commits behind `main`.
-- No unresolved review threads existed.
-- Merged as `25359040ba07a3b7bf513f95b32ce24f6be480f2`.
+It does not reload or change Apache, authentication, routes, services, timers, listeners, `/var/www`, DNS, firewall, or traffic controls.
 
-## Publication boundary
+### Freshness activation
 
-- Required input arguments; no live input defaults.
-- Default output is `build/edge1-public-status/status.json`.
-- No `/var/www`, deploy script, service, timer, Apache, command, or network access.
-- Page fetches only `./status.json` and has no detailed-feed or restricted links.
-- No public URL, route, deployment, or cutover is claimed.
+Command after successful preflight:
 
-## Required next live sequence
+```bash
+sudo bash deploy/activate-network-defense-freshness.sh
+```
 
-1. Establish authenticated Edge1 execution.
-2. Capture read-only Apache vhost/alias/auth/header/CORS/listing/route/filesystem evidence.
-3. Confirm the current anonymous/authorized response matrix and extra artifacts outside repository evidence.
-4. Design server-side no-store/CSP/referrer/nosniff headers, output ownership, backup, and rollback.
-5. Obtain exact authorization for any publication, alias, proxy, authentication, reload, or public route change.
-6. Stage and verify before cutover.
-7. Capture protected terminal acceptance and rollback evidence.
+Protected evidence root:
 
-## Other pending programs
+```text
+/var/lib/wwcx-deployment-evidence/network-defense-freshness/<UTC timestamp>/
+```
 
-- Network Defense freshness still requires live activation and acceptance.
-- Protected Suricata retention still requires host sizing/SQLite evidence and a separate runtime implementation phase.
+The activation installs only `wwcx-network-defense.service`, starts the one-shot exporter once, and verifies:
 
-## Safety boundary
+- network stale threshold `600`;
+- service success and zero exit status;
+- unchanged timer enabled and active states;
+- unchanged `verified_enforcement_count`;
+- DNS policy `not_staged`;
+- DNS enforcement false and unverified;
+- `traffic_controls_changed:false`;
+- matching local and real-domain output.
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban, routing, proxying, IDS, reputation list, authentication, certificate, listener, public access, `/var/www` publication, deletion, or production traffic is changed or authorized.
+Failure after mutation restores the prior unit and status snapshot and records `rolled_back=true`.
+
+## Current validation state
+
+Completed in repository:
+
+- script implementation;
+- protected evidence and rollback design;
+- static safety tests;
+- runbook and register;
+- project-state updates.
+
+Pending:
+
+- exact-head `Validate repository`;
+- exact-head `Edge1 Operator Validation`;
+- PR scope, zero-behind, mergeability, and thread review;
+- merge and repository closeout;
+- authenticated Edge1 execution.
+
+## Execution-path fact
+
+The authoring runtime has no `/opt/edge1-management-interface`, SSH configuration, SSH key material, or approved authenticated Edge1 connector. No host command in this handoff has been represented as executed.
+
+## Required continuation sequence
+
+1. Finish exact-head CI and merge the operator bundle.
+2. Establish an authenticated Edge1 shell without sharing credentials in chat.
+3. Verify clean authoritative `main`.
+4. Execute the read-only preflight.
+5. Review protected evidence and correct only repository defects, if any.
+6. Execute the bounded freshness activation.
+7. Record exact evidence paths and live acceptance results.
+8. Use the preflight evidence for separate protected-retention and public-boundary implementation decisions.
+
+## Exact authorization boundary
+
+This handoff does not authorize publication under `/var/www`, removal of detailed public artifacts, Apache/proxy/auth/header changes, authentication activation, certificate/listener/DNS/firewall changes, public cutover, traffic changes, or deletion of retained data or evidence.
