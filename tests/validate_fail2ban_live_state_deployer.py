@@ -9,6 +9,7 @@ TIMER = ROOT / 'deploy' / 'systemd' / 'wwcx-fail2ban-live-state.timer'
 NETWORK = ROOT / 'deploy' / 'systemd' / 'wwcx-network-defense.service'
 VERIFIER = ROOT / 'server' / 'fail2ban_live_state_verifier.py'
 WRAPPER = ROOT / 'server' / 'network_defense_fail2ban_exporter.py'
+FINAL_WRAPPER = ROOT / 'server' / 'network_defense_nftables_exporter.py'
 
 
 class Fail2banLiveStateDeployerTests(unittest.TestCase):
@@ -65,9 +66,12 @@ class Fail2banLiveStateDeployerTests(unittest.TestCase):
     def test_timer_and_network_ordering_are_explicit(self):
         timer = TIMER.read_text(encoding='utf-8')
         network = NETWORK.read_text(encoding='utf-8')
+        final_wrapper = FINAL_WRAPPER.read_text(encoding='utf-8')
         self.assertIn('OnUnitActiveSec=60s', timer)
         self.assertIn('wwcx-fail2ban-live-state.service', network)
-        self.assertIn('server/network_defense_fail2ban_exporter.py', network)
+        self.assertIn('wwcx-nftables-live-state.service', network)
+        self.assertIn('server/network_defense_nftables_exporter.py', network)
+        self.assertIn('network_defense_fail2ban_exporter.py', final_wrapper)
         self.assertIn('-/var/lib/bigbird-security', network)
         self.assertIn('CapabilityBoundingSet=\n', network)
 

@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "deploy" / "install-network-defense-observability.sh"
 SERVICE = ROOT / "deploy" / "systemd" / "wwcx-network-defense.service"
+NFTABLES_WRAPPER = ROOT / "server" / "network_defense_nftables_exporter.py"
 FAIL2BAN_WRAPPER = ROOT / "server" / "network_defense_fail2ban_exporter.py"
 OPERATIONS = ROOT / "src" / "web" / "operations-center" / "index.html"
 NETWORK = ROOT / "src" / "web" / "network-defense" / "index.html"
@@ -19,6 +20,7 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
     def setUpClass(cls):
         cls.installer = INSTALLER.read_text(encoding="utf-8")
         cls.service = SERVICE.read_text(encoding="utf-8")
+        cls.nftables_wrapper = NFTABLES_WRAPPER.read_text(encoding="utf-8")
         cls.fail2ban_wrapper = FAIL2BAN_WRAPPER.read_text(encoding="utf-8")
         cls.operations = OPERATIONS.read_text(encoding="utf-8")
         cls.network = NETWORK.read_text(encoding="utf-8")
@@ -92,10 +94,12 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
             self.assertIsNone(re.search(pattern, self.installer, re.I), pattern)
 
     def test_layered_exporter_is_the_runtime_entrypoint(self):
-        self.assertIn("server/network_defense_fail2ban_exporter.py", self.service)
+        self.assertIn("server/network_defense_nftables_exporter.py", self.service)
+        self.assertIn("network_defense_fail2ban_exporter.py", self.nftables_wrapper)
         self.assertIn("network_defense_dns_exporter.py", self.fail2ban_wrapper)
         self.assertNotRegex(self.service, r"ExecStart=.*server/network_defense_exporter\.py(?:\s|$)")
         self.assertNotRegex(self.service, r"ExecStart=.*server/network_defense_dns_exporter\.py(?:\s|$)")
+        self.assertNotRegex(self.service, r"ExecStart=.*server/network_defense_fail2ban_exporter\.py(?:\s|$)")
 
     def test_module_navigation_uses_authoritative_status_root(self):
         expected = (

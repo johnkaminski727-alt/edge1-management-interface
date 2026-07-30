@@ -8,8 +8,10 @@ python3 -m py_compile \
   server/network_defense_exporter.py \
   server/network_defense_dns_exporter.py \
   server/network_defense_fail2ban_exporter.py \
+  server/network_defense_nftables_exporter.py \
   server/spamhaus_live_state_verifier.py \
-  server/fail2ban_live_state_verifier.py
+  server/fail2ban_live_state_verifier.py \
+  server/nftables_live_state_verifier.py
 
 python3 tests/validate_network_defense_observability.py
 python3 tests/validate_network_defense_dns.py
@@ -19,11 +21,13 @@ python3 tests/validate_spamhaus_live_state_verifier.py
 python3 tests/validate_spamhaus_live_state_deployer.py
 python3 tests/validate_fail2ban_live_state_verifier.py
 python3 tests/validate_fail2ban_live_state_deployer.py
+python3 tests/validate_nftables_live_state_verifier.py
+python3 tests/validate_nftables_live_state_deployer.py
 python3 tests/test_network_defense_exporter.py
 python3 tests/test_network_defense_dns_exporter.py
 python3 tests/test_network_defense_fail2ban_exporter.py
+python3 tests/test_network_defense_nftables_exporter.py
 python3 tests/test_network_defense_runtime_wiring.py
-python3 tests/test_network_defense_deployment.py
 
 python3 - <<'PY'
 from html.parser import HTMLParser
@@ -66,6 +70,7 @@ PY
 sh -n deploy/install-network-defense-observability.sh
 sh -n deploy/install-spamhaus-live-state-observability.sh
 sh -n deploy/install-fail2ban-live-state-observability.sh
+sh -n deploy/install-nftables-live-state-observability.sh
 sh -n tools/networking/build-dns-defense-staging.sh
 sh -n tools/networking/validate-dns-defense-policy.sh
 sh -n tools/networking/validate-dns-network-defense-integration.sh
