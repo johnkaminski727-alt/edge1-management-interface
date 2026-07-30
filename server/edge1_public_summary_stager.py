@@ -35,6 +35,20 @@ PUBLIC_ROOT_ROUTE = "/edge1-status/"
 PUBLIC_FEED_ROUTE = "/edge1-status/public/status.json"
 CSP = "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
 MAX_STATIC_BYTES = 1_000_000
+FORBIDDEN_PUBLIC_TOKENS = (
+    "security-operations.json",
+    "security-correlation.json",
+    "network-defense.json",
+    "operations-inventory.json",
+    "operations-network.json",
+    "operations-version.json",
+    "operations-incidents.json",
+    "bitcoin-wallet.json",
+    "bitcoin-mining.json",
+    "reports/index.json",
+    "/edge1-ops/",
+    "/edge1-status/security/",
+)
 
 
 def utc_now() -> dt.datetime:
@@ -166,15 +180,46 @@ def read_static_asset(static_root: Path, name: str) -> bytes:
     return resolved.read_bytes()
 
 
-def write_public_file(path: Path, content: bytes) -> None:
-    ensure_real_directory(path.parent, 0o755)
+def validate_static_contract(static_content: dict[str, bytes]) -> None:
+    if tuple(static_content) != STATIC_ASSETS:
+        raise ValueError("static asset set is not exact")
+    try:
+        page = static_content["index.html"].decode("utf-8")
+        app = static_content["app.js"].decode("utf-8")
+        style = static_content["style.css"].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("public static assets must be UTF-8") from exc
+    if f'content="{CSP}"' not in page:
+        raise ValueError("page CSP does not match the approved contract")
+    if '<link rel="stylesheet" href="./style.css">' not in page:
+        raise ValueError("page does not load the approved external stylesheet")
+    if "<style" in page.lower() or "unsafe-inline" in page:
+        raise ValueError("page requires forbidden inline presentation")
+    if 'const STATUS_URL = "./public/status.json";' not in app:
+        raise ValueError("page script does not use the canonical minimized feed")
+    if not style.strip():
+        raise ValueError("public stylesheet is empty")
+    combined = "\n".join((page, app, style))
+    for token in FORBIDDEN_PUBLIC_TOKENS:
+        if token in combined:
+            raise ValueError(f"restricted public token found: {token}")
+
+
+def write_file(
+    path: Path,
+    content: bytes,
+    *,
+    parent_mode: int = 0o755,
+    file_mode: int = 0o644,
+) -> None:
+    ensure_real_directory(path.parent, parent_mode)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
         with temporary.open("xb") as handle:
             handle.write(content)
             handle.flush()
             os.fsync(handle.fileno())
-        os.chmod(temporary, 0o644)
+        os.chmod(temporary, file_mode)
         os.replace(temporary, path)
     finally:
         if os.path.lexists(temporary):
@@ -200,10 +245,13 @@ def inventory_release(release_root: Path) -> dict[str, dict[str, Any]]:
         if not path.is_file():
             continue
         relative = path.relative_to(release_root).as_posix()
+        mode = stat.S_IMODE(path.stat().st_mode)
+        if mode != 0o644:
+            raise ValueError(f"public release file mode is not 0644: {relative}")
         files[relative] = {
             "sha256": sha256_file(path),
             "bytes": path.stat().st_size,
-            "mode": f"{stat.S_IMODE(path.stat().st_mode):04o}",
+            "mode": f"{mode:04o}",
         }
     if tuple(files) != tuple(sorted(RELEASE_ASSETS)):
         raise ValueError("staged release file set is not exact")
@@ -250,6 +298,7 @@ def build_release(
         raise ValueError("source key allowlist is not exact")
 
     static_content = {name: read_static_asset(static_root, name) for name in STATIC_ASSETS}
+    validate_static_contract(static_content)
     status_document = build_public_status(
         load_object(source_paths["security"]),
         load_object(source_paths["network_defense"]),
@@ -273,7 +322,8 @@ def build_release(
     try:
         os.chmod(temporary_release, 0o755)
         for name, content in static_content.items():
-            write_public_file(temporary_release / name, content)
+            write_file(temporary_release / name, content)
+        ensure_real_directory(temporary_release / "public", 0o755)
         write_public_status(status_document, temporary_release / "public" / "status.json")
         inventory = inventory_release(temporary_release)
         os.replace(temporary_release, final_release)
@@ -295,8 +345,7 @@ def build_release(
     }
     metadata_path = metadata_root / f"{release_id}.json"
     encoded_metadata = (json.dumps(metadata, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    write_public_file(metadata_path, encoded_metadata)
-    os.chmod(metadata_path, 0o600)
+    write_file(metadata_path, encoded_metadata, parent_mode=0o700, file_mode=0o600)
 
     atomic_current_pointer(staging_root, final_release)
     return {
