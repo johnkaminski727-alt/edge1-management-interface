@@ -1,14 +1,15 @@
 # Fail2ban Live-State Observability
 
 Date: 2026-07-29  
+Live acceptance: 2026-07-30  
 System: Edge1 / WW.CX Network Defense  
-Status: implemented; live activation pending merge
+Status: implemented, merged, deployed, and accepted
 
 ## Objective
 
 Publish bounded, current Fail2ban service and jail-health evidence without changing the Fail2ban service, jails, actions, firewall, nftables, DNS, routing, proxy, IDS, authentication, or traffic controls.
 
-The existing Network Defense snapshot could count normalized Fail2ban events, but it could not distinguish absent telemetry from an inactive service, inaccessible control socket, or healthy active jails.
+The earlier Network Defense snapshot could count normalized Fail2ban events, but it could not distinguish absent telemetry from an inactive service, inaccessible control socket, or healthy active jails.
 
 ## Contract
 
@@ -90,30 +91,56 @@ Jail presence and ban counters do not independently prove that every action is c
 /var/lib/bigbird-security/fail2ban
 ```
 
-`wwcx-network-defense.service` remains capability-free and reads only the sanitized snapshot.
+The private snapshot is root-owned mode `0640` under a mode `0750` state directory. `wwcx-network-defense.service` remains capability-free and reads only the sanitized snapshot.
 
 ## Scheduling
 
 `wwcx-fail2ban-live-state.timer` refreshes the verifier every minute. Network Defense orders itself after both the Spamhaus and Fail2ban verifier oneshots.
 
-## Activation
+## Implementation and CI
 
-After merge:
-
-```bash
-cd /opt/edge1-management-interface
-git pull --ff-only origin main
-sudo bash ./deploy/install-fail2ban-live-state-observability.sh
-```
-
-Expected evidence root:
+Implementation merged through PR #122 at:
 
 ```text
-/var/lib/wwcx-deployment-evidence/fail2ban-live-state/<timestamp>
+725a09c1c488c2a0cb99931183e535e9fe726894
 ```
 
-The installer validates the repository, backs up affected observability units and snapshots, installs only the verifier units and updated Network Defense unit, captures acceptance evidence, and restores prior observability state on failure. It never starts, stops, reloads, or restarts `fail2ban.service`.
+Both required exact-head workflows passed before merge, including parser, privacy, stale-state, integration, systemd, rollback, shell, JSON, JavaScript, and compatibility validation.
+
+## Live acceptance
+
+The bounded installer completed successfully on Edge1.
+
+Evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z
+/var/lib/wwcx-deployment-evidence/fail2ban-live-state/20260730T004144Z/acceptance-summary.json
+```
+
+Accepted result:
+
+```json
+{
+  "ok": true,
+  "fail2ban_state": "active_observed",
+  "fail2ban_health_observed": true,
+  "fail2ban_enforcement_verified": false,
+  "observed_jails": 7,
+  "currently_banned": 0,
+  "total_banned": 0,
+  "verified_enforcement_count": 1,
+  "overall_state": "limited",
+  "available_sources": 7,
+  "source_count": 8,
+  "dns_policy_state": "not_staged",
+  "dns_enforcement_enabled": false,
+  "traffic_controls_changed": false
+}
+```
+
+The service was active, the local socket was reachable, and all seven sanitized reported jails were observed. Zero bans is the truthful counter state at acceptance time and does not indicate verifier failure. The verified-enforcement count remains one because only Spamhaus is enforcement-verified.
 
 ## Safety boundary
 
-This phase makes no Fail2ban jail/action mutation, firewall or nftables mutation, DNS/resolver/RPZ change, routing, proxy, IDS, authentication, reputation-list, or traffic-control change. Any future enforcement change requires separate explicit authorization and rollback/validation planning.
+This phase made no Fail2ban jail/action mutation, service start/stop/reload/restart, firewall or nftables mutation, DNS/resolver/RPZ change, routing, proxy, IDS, authentication, reputation-list, or traffic-control change. Any future enforcement change requires separate explicit authorization and rollback/validation planning.
