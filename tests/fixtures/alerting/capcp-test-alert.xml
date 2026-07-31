@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>wwcx-test-20260731T231500-001</identifier>
+  <sender>alert-lab.test.invalid</sender>
+  <sent>2026-07-31T23:15:00-00:00</sent>
+  <status>Test</status>
+  <msgType>Alert</msgType>
+  <source>WW.CX isolated compatibility laboratory</source>
+  <scope>Restricted</scope>
+  <restriction>WW.CX laboratory validation only; not for public distribution</restriction>
+  <code>profile:CAP-CP:1.0</code>
+  <info>
+    <language>en-CA</language>
+    <category>Safety</category>
+    <event>Compatibility test message</event>
+    <responseType>Monitor</responseType>
+    <urgency>Unknown</urgency>
+    <severity>Minor</severity>
+    <certainty>Unknown</certainty>
+    <eventCode><valueName>profile:CAP-CP:Event:1.0</valueName><value>testMessage</value></eventCode>
+    <headline>WW.CX CAP-CP compatibility test</headline>
+    <description>This synthetic message is for isolated parser validation only.</description>
+    <area><areaDesc>Saskatchewan laboratory test area</areaDesc><geocode><valueName>profile:CAP-CP:Location:1.0</valueName><value>47</value></geocode></area>
+  </info>
+  <info>
+    <language>fr-CA</language>
+    <category>Safety</category>
+    <event>Message d'essai de compatibilité</event>
+    <responseType>Monitor</responseType>
+    <urgency>Unknown</urgency>
+    <severity>Minor</severity>
+    <certainty>Unknown</certainty>
+    <eventCode><valueName>profile:CAP-CP:Event:1.0</valueName><value>testMessage</value></eventCode>
+    <headline>Essai de compatibilité CAP-PC de WW.CX</headline>
+    <description>Ce message synthétique sert uniquement à valider l'analyseur isolé.</description>
+    <area><areaDesc>Zone d'essai de laboratoire en Saskatchewan</areaDesc><geocode><valueName>profile:CAP-CP:Location:1.0</valueName><value>47</value></geocode></area>
+  </info>
+</alert>
