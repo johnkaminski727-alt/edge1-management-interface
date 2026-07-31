@@ -14,16 +14,16 @@ SERVER_ROOT = ROOT / "server"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-MODULE_PATH = SERVER_ROOT / "edge1_restricted_artifact_manifest.py"
+RECONCILER_PATH = ROOT / "tools/security/reconcile-edge1-live-inventory.py"
 MANIFEST_PATH = ROOT / "config/security/edge1-restricted-artifact-migration-manifest.json"
 ACCESS_POLICY_PATH = ROOT / "config/security/edge1-authenticated-operations-policy.json"
 INSTALLER_PATH = ROOT / "deploy/install-security-correlation-observability.sh"
 VERIFIER_PATH = ROOT / "tools/security/verify-security-observability-live.sh"
 
-SPEC = importlib.util.spec_from_file_location("edge1_restricted_artifact_manifest", MODULE_PATH)
-MODULE = importlib.util.module_from_spec(SPEC)
+SPEC = importlib.util.spec_from_file_location("reconcile_edge1_live_inventory", RECONCILER_PATH)
+RECONCILER = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(MODULE)
+SPEC.loader.exec_module(RECONCILER)
 
 LIVE_ARTIFACTS = {
     "bitcoin-mining-history.json": {
@@ -83,7 +83,11 @@ class Edge1LiveArtifactClassificationTests(unittest.TestCase):
             }
             for source, expected in LIVE_ARTIFACTS.items()
         ]
-        result = MODULE.reconcile_inventory(self.manifest, self.access_policy, inventory)
+        result = RECONCILER.reconcile_inventory(
+            self.manifest,
+            self.access_policy,
+            inventory,
+        )
         self.assertEqual(result["counts"]["inventory"], 4)
         self.assertEqual(result["counts"]["mapped"], 4)
         self.assertEqual(result["unknown_preserved"], [])
