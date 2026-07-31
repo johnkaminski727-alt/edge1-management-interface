@@ -1,0 +1,20 @@
+{
+  "schema": "wwcx.alerting-lab-policy.v1",
+  "mode": "offline-test-only",
+  "accepted_cap_status": ["Test", "Exercise", "Draft", "System"],
+  "accepted_cap_scope": ["Restricted", "Private"],
+  "allow_actual": false,
+  "allow_public_scope": false,
+  "allow_network_fetch": false,
+  "allow_network_listener": false,
+  "allow_call_origination": false,
+  "allow_pstn_delivery": false,
+  "allow_sip_delivery": false,
+  "allow_tone_generation": false,
+  "allow_asterisk_dialplan_change": false,
+  "require_explicit_timezone": true,
+  "require_capcp_profile": "profile:CAP-CP:1.0",
+  "require_single_subject_event": true,
+  "require_update_cancel_references": true,
+  "notes": "Compatibility evidence only. This policy does not authorize NPAS, Alert Ready, EAS, EBS, emergency calling, or public alert distribution."
+}
