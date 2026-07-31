@@ -35,7 +35,7 @@ HOST=$(hostname -f)
     exit 2
 }
 
-for command in asterisk apt-cache apt-get dpkg-query dpkg awk tar sha256sum ss grep sed sort tee; do
+for command in asterisk apt-cache apt-get dpkg-query dpkg awk tar sha256sum ss grep sed sort tee cat mktemp hostname id date mkdir sleep systemctl; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "ERROR missing $command" >&2
         exit 2
@@ -83,7 +83,12 @@ printf '%s\n' "$packages" | sed 's/^/Package: /'
 set -- $packages
 simulation=$(mktemp)
 trap 'rm -f "$simulation"' EXIT HUP INT TERM
-apt-get -s --only-upgrade install "$@" | tee "$simulation"
+if ! apt-get -s --only-upgrade install "$@" >"$simulation" 2>&1; then
+    cat "$simulation" >&2
+    echo "ERROR package simulation failed" >&2
+    exit 4
+fi
+cat "$simulation"
 if grep -Eq '^(Remv |The following packages will be REMOVED:)' "$simulation"; then
     echo "ERROR simulation proposes removal" >&2
     exit 4
@@ -120,11 +125,11 @@ ss -lntup | grep -E 'asterisk|kamailio|:5060|:5061|:5038|:8088|:8089' \
     >"$EVID/listeners-before.txt" || true
 
 if ! apt-get update >"$EVID/apt-update.txt" 2>&1; then
-    cat "$EVID/apt-update.txt" | tee -a "$EVID/update.log" >&2
+    tee -a "$EVID/update.log" <"$EVID/apt-update.txt" >&2
     echo "ERROR apt-get update failed" | tee -a "$EVID/update.log" >&2
     exit 5
 fi
-cat "$EVID/apt-update.txt" | tee -a "$EVID/update.log"
+tee -a "$EVID/update.log" <"$EVID/apt-update.txt"
 refreshed_candidate=$(apt-cache policy asterisk22 | awk '/^[[:space:]]*Candidate:/{value=$2} END{print value}')
 [ "$refreshed_candidate" = "$candidate" ] || {
     echo "ERROR candidate changed after metadata refresh: $candidate -> $refreshed_candidate" \
@@ -141,26 +146,26 @@ active_channels=$(printf '%s\n' "$channel_state" | awk '/active channels/{value=
 
 if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade \
     -o Dpkg::Options::=--force-confold "$@" >"$EVID/apt-install.txt" 2>&1; then
-    cat "$EVID/apt-install.txt" | tee -a "$EVID/update.log" >&2
+    tee -a "$EVID/update.log" <"$EVID/apt-install.txt" >&2
     echo "ERROR Asterisk package installation failed" | tee -a "$EVID/update.log" >&2
     exit 6
 fi
-cat "$EVID/apt-install.txt" | tee -a "$EVID/update.log"
+tee -a "$EVID/update.log" <"$EVID/apt-install.txt"
 
 if command -v fwconsole >/dev/null 2>&1; then
     if ! fwconsole restart >"$EVID/restart.txt" 2>&1; then
-        cat "$EVID/restart.txt" | tee -a "$EVID/update.log" >&2
+        tee -a "$EVID/update.log" <"$EVID/restart.txt" >&2
         echo "ERROR FreePBX restart failed" | tee -a "$EVID/update.log" >&2
         exit 7
     fi
 else
     if ! systemctl restart asterisk >"$EVID/restart.txt" 2>&1; then
-        cat "$EVID/restart.txt" | tee -a "$EVID/update.log" >&2
+        tee -a "$EVID/update.log" <"$EVID/restart.txt" >&2
         echo "ERROR Asterisk restart failed" | tee -a "$EVID/update.log" >&2
         exit 7
     fi
 fi
-cat "$EVID/restart.txt" | tee -a "$EVID/update.log"
+tee -a "$EVID/update.log" <"$EVID/restart.txt"
 sleep 5
 
 running=$(asterisk -V | awk '{print $2}')
