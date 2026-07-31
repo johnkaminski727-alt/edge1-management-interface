@@ -86,6 +86,20 @@
       "repository_source": "server/bitcoin_mining_readiness_exporter.py"
     },
     {
+      "source_relative": "bitcoin-mining-history.json",
+      "target_relative": "data/mining/bitcoin-mining-history.json",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "tools/bitcoin_mining_history_summary.py"
+    },
+    {
+      "source_relative": "mining-operations.json",
+      "target_relative": "data/mining/mining-operations.json",
+      "classification": "restricted_financial_operations",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/mining_operations_exporter.py"
+    },
+    {
       "source_relative": "operations-health.json",
       "target_relative": "data/operations/operations-health.json",
       "classification": "restricted_operations_data",
@@ -119,6 +133,20 @@
       "classification": "restricted_operations_data",
       "required_scopes": ["edge1.status.detail.read"],
       "repository_source": "server/operations_correlation_exporter.py"
+    },
+    {
+      "source_relative": "operations-changes.json",
+      "target_relative": "data/operations/operations-changes.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_changes_exporter.py"
+    },
+    {
+      "source_relative": "operations-trends.json",
+      "target_relative": "data/operations/operations-trends.json",
+      "classification": "restricted_operations_data",
+      "required_scopes": ["edge1.status.detail.read"],
+      "repository_source": "server/operations_trends_exporter.py"
     },
     {
       "source_relative": "reports/index.json",
