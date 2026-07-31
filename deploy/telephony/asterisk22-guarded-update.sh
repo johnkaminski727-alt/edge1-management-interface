@@ -119,7 +119,12 @@ asterisk -rx 'pjsip show transports' >"$EVID/transports-before.txt"
 ss -lntup | grep -E 'asterisk|kamailio|:5060|:5061|:5038|:8088|:8089' \
     >"$EVID/listeners-before.txt" || true
 
-apt-get update 2>&1 | tee -a "$EVID/update.log"
+if ! apt-get update >"$EVID/apt-update.txt" 2>&1; then
+    cat "$EVID/apt-update.txt" | tee -a "$EVID/update.log" >&2
+    echo "ERROR apt-get update failed" | tee -a "$EVID/update.log" >&2
+    exit 5
+fi
+cat "$EVID/apt-update.txt" | tee -a "$EVID/update.log"
 refreshed_candidate=$(apt-cache policy asterisk22 | awk '/^[[:space:]]*Candidate:/{value=$2} END{print value}')
 [ "$refreshed_candidate" = "$candidate" ] || {
     echo "ERROR candidate changed after metadata refresh: $candidate -> $refreshed_candidate" \
@@ -134,14 +139,28 @@ active_channels=$(printf '%s\n' "$channel_state" | awk '/active channels/{value=
     exit 5
 }
 
-DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade \
-    -o Dpkg::Options::=--force-confold "$@" 2>&1 | tee -a "$EVID/update.log"
+if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade \
+    -o Dpkg::Options::=--force-confold "$@" >"$EVID/apt-install.txt" 2>&1; then
+    cat "$EVID/apt-install.txt" | tee -a "$EVID/update.log" >&2
+    echo "ERROR Asterisk package installation failed" | tee -a "$EVID/update.log" >&2
+    exit 6
+fi
+cat "$EVID/apt-install.txt" | tee -a "$EVID/update.log"
 
 if command -v fwconsole >/dev/null 2>&1; then
-    fwconsole restart 2>&1 | tee -a "$EVID/update.log"
+    if ! fwconsole restart >"$EVID/restart.txt" 2>&1; then
+        cat "$EVID/restart.txt" | tee -a "$EVID/update.log" >&2
+        echo "ERROR FreePBX restart failed" | tee -a "$EVID/update.log" >&2
+        exit 7
+    fi
 else
-    systemctl restart asterisk 2>&1 | tee -a "$EVID/update.log"
+    if ! systemctl restart asterisk >"$EVID/restart.txt" 2>&1; then
+        cat "$EVID/restart.txt" | tee -a "$EVID/update.log" >&2
+        echo "ERROR Asterisk restart failed" | tee -a "$EVID/update.log" >&2
+        exit 7
+    fi
 fi
+cat "$EVID/restart.txt" | tee -a "$EVID/update.log"
 sleep 5
 
 running=$(asterisk -V | awk '{print $2}')
