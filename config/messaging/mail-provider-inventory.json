@@ -1,0 +1,183 @@
+{
+  "contract": "wwcx.mail-provider-inventory.v1",
+  "observed_at": "2026-08-01T05:28:53+00:00",
+  "production_changes_authorized": false,
+  "source": {
+    "workflow_run_id": 30685903870,
+    "artifact_id": 8813887895,
+    "artifact_sha256": "69a4b8620bd279be5276cf91ac4f1f0355bd968f1525f1005e4835cbd184f3e2",
+    "resolvers": [
+      "cloudflare",
+      "google"
+    ],
+    "resolver_consensus": true
+  },
+  "canonical_internal_addresses": {
+    "private_john_delivery_mailbox": "john-inbox@ww.cx",
+    "shared_role_delivery_mailbox": "maildesk@ww.cx",
+    "system_no_reply_sender": "noreply@ww.cx"
+  },
+  "domains": {
+    "ww.cx": {
+      "provider_family": "namecheap_private_email",
+      "provider_confidence": "high",
+      "mx": [
+        "10 mx1.privateemail.com",
+        "20 mx2.privateemail.com"
+      ],
+      "spf": [
+        "v=spf1 include:spf.privateemail.com ~all"
+      ],
+      "dmarc": [],
+      "authoritative_nameservers": [
+        "ns1194.dns.dyn.com",
+        "ns2150.dns.dyn.com",
+        "ns3190.dns.dyn.com",
+        "ns4142.dns.dyn.com"
+      ],
+      "configured_route_count": 6,
+      "operational_evidence": [
+        {
+          "date": "2026-07-17",
+          "type": "provider_onboarding",
+          "detail": "Google Workspace setup notice for techgod@ww.cx stated that domain verification was still required.",
+          "effect": "This is onboarding evidence only and does not override the published Namecheap Private Email MX records."
+        },
+        {
+          "date": "2026-07-19",
+          "type": "account_identity",
+          "detail": "A Google family-group invitation was issued by john@ww.cx.",
+          "effect": "This confirms a Google account identity exists, not that Google currently receives ww.cx mail."
+        }
+      ],
+      "provider_admin_verification": "required"
+    },
+    "creekco.ca": {
+      "provider_family": "namecheap_shared_hosting",
+      "provider_confidence": "high",
+      "mx": [
+        "5 mx1-hosting.jellyfish.systems",
+        "10 mx2-hosting.jellyfish.systems",
+        "20 mx3-hosting.jellyfish.systems"
+      ],
+      "spf": [
+        "v=spf1 +a +mx +ip4:162.0.217.71 include:spf.web-hosting.com ~all"
+      ],
+      "dmarc": [
+        "v=DMARC1; p=none;"
+      ],
+      "authoritative_nameservers": [
+        "dns1.namecheaphosting.com",
+        "dns2.namecheaphosting.com"
+      ],
+      "configured_route_count": 11,
+      "verified_round_trip_addresses": [
+        "abuse@creekco.ca",
+        "contact@creekco.ca",
+        "privacy@creekco.ca",
+        "regulatory@creekco.ca"
+      ],
+      "observed_but_unregistered_addresses": [
+        "accessibility@creekco.ca",
+        "noc@creekco.ca"
+      ],
+      "configured_but_unverified_addresses": [
+        "billing@creekco.ca",
+        "complaints@creekco.ca",
+        "john@creekco.ca",
+        "porting@creekco.ca",
+        "postmaster@creekco.ca",
+        "sales@creekco.ca",
+        "support@creekco.ca"
+      ],
+      "verification_date": "2026-07-28",
+      "provider_admin_verification": "required"
+    },
+    "spiritcreekgardens.com": {
+      "provider_family": "no_published_mx_observed",
+      "provider_confidence": "high",
+      "mx": [],
+      "spf": [],
+      "dmarc": [],
+      "authoritative_nameservers": [
+        "ns1194.dns.dyn.com",
+        "ns2150.dns.dyn.com",
+        "ns3190.dns.dyn.com",
+        "ns4142.dns.dyn.com"
+      ],
+      "configured_route_count": 7,
+      "operational_evidence": [
+        {
+          "date_range": "2026-07-18/2026-07-21",
+          "type": "hosting_setup",
+          "detail": "Namecheap support correspondence documented unresolved addon-domain authentication while the domain remained on external Dyn DNS."
+        }
+      ],
+      "delivery_status": "not_ready_no_mx",
+      "provider_admin_verification": "required"
+    },
+    "scgardens.ca": {
+      "provider_family": "namecheap_shared_hosting",
+      "provider_confidence": "high",
+      "mx": [
+        "5 mx1-hosting.jellyfish.systems",
+        "10 mx2-hosting.jellyfish.systems",
+        "20 mx3-hosting.jellyfish.systems"
+      ],
+      "spf": [
+        "v=spf1 +a +mx +ip4:162.0.217.71 include:spf.web-hosting.com ~all"
+      ],
+      "dmarc": [
+        "v=DMARC1; p=none;"
+      ],
+      "authoritative_nameservers": [
+        "dns1.namecheaphosting.com",
+        "dns2.namecheaphosting.com"
+      ],
+      "configured_route_count": 5,
+      "verified_round_trip_addresses": [],
+      "provider_admin_verification": "required"
+    },
+    "omegafx.com": {
+      "provider_family": "namecheap_shared_hosting",
+      "provider_confidence": "high",
+      "mx": [
+        "5 mx1-hosting.jellyfish.systems",
+        "10 mx2-hosting.jellyfish.systems",
+        "20 mx3-hosting.jellyfish.systems"
+      ],
+      "spf": [
+        "v=spf1 +a +mx +ip4:162.0.217.71 include:spf.web-hosting.com ~all"
+      ],
+      "dmarc": [
+        "v=DMARC1; p=none;"
+      ],
+      "authoritative_nameservers": [
+        "dns1.namecheaphosting.com",
+        "dns2.namecheaphosting.com"
+      ],
+      "configured_route_count": 6,
+      "verified_round_trip_addresses": [],
+      "provider_admin_verification": "required"
+    }
+  },
+  "gaps": [
+    "The actual provider-side mailbox, alias, and forwarder inventory has not been exported or reconciled.",
+    "john-inbox@ww.cx and maildesk@ww.cx are canonical definitions but are not proven provisioned at the provider.",
+    "DKIM selectors and signing status are not yet inventoried for any domain.",
+    "ww.cx has no published DMARC record in this observation.",
+    "spiritcreekgardens.com has no published MX, SPF, or DMARC record.",
+    "accessibility@creekco.ca and noc@creekco.ca were operationally observed but are not yet registered in the 35-route hub configuration.",
+    "No sender identity is live-enabled in the outbound gateway."
+  ],
+  "activation_boundary": {
+    "mailbox_provisioning_authorized": false,
+    "forwarding_changes_authorized": false,
+    "mx_changes_authorized": false,
+    "spf_changes_authorized": false,
+    "dkim_changes_authorized": false,
+    "dmarc_changes_authorized": false,
+    "live_inbound_routing_authorized": false,
+    "live_outbound_delivery_authorized": false
+  }
+}

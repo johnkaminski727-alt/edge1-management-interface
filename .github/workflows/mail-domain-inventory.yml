@@ -1,0 +1,50 @@
+name: Capture mail domain inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/mail-domain-inventory.yml"
+      - "tools/messaging/mail_domain_inventory.py"
+      - "tests/test_mail_domain_inventory.py"
+      - "tests/validate_mail_domain_inventory.py"
+      - "config/messaging/mail-provider-inventory.json"
+      - "docs/messaging/mail-provider-inventory.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mail-domain-inventory-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run deterministic unit tests
+        run: python3 -m unittest tests.test_mail_domain_inventory
+
+      - name: Capture current public DNS evidence
+        run: |
+          set -eu
+          mkdir -p evidence
+          python3 tools/messaging/mail_domain_inventory.py \
+            --output evidence/mail-domain-inventory.json
+          python3 -m json.tool evidence/mail-domain-inventory.json >/dev/null
+          cat evidence/mail-domain-inventory.json
+
+      - name: Upload inventory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mail-domain-inventory-${{ github.sha }}
+          path: evidence/mail-domain-inventory.json
+          if-no-files-found: error
+          retention-days: 30
