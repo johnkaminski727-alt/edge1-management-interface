@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from telephony_anomaly_indicators import evaluate_anomaly_indicators
 from telephony_platform import CallEvent, analyze_interconnects, health_score, summarize_calls
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -78,8 +79,24 @@ def health_payload() -> dict[str, Any]:
     })
 
 
+def anomaly_payload() -> dict[str, Any]:
+    """Evaluate informational indicators over the same accepted aggregates."""
+    return evaluate_anomaly_indicators(
+        health_payload(),
+        summarize_calls(sanitized_events()),
+        analyze_interconnects(interconnect_rows()),
+    )
+
+
+def health_response_payload() -> dict[str, Any]:
+    """Return the established health contract plus bounded indicators."""
+    payload = health_payload()
+    payload["anomalies"] = anomaly_payload()
+    return payload
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "WWCXTelephonyAnalytics/0.1"
+    server_version = "WWCXTelephonyAnalytics/0.2"
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store")
@@ -94,11 +111,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/healthz":
             self.send_json(HTTPStatus.OK, {"status": "ok", "mode": "read_only"})
         elif path == "/api/telephony/platform/health":
-            self.send_json(HTTPStatus.OK, health_payload())
+            self.send_json(HTTPStatus.OK, health_response_payload())
         elif path == "/api/telephony/platform/calls/summary":
             self.send_json(HTTPStatus.OK, summarize_calls(sanitized_events()))
         elif path == "/api/telephony/platform/interconnects/summary":
             self.send_json(HTTPStatus.OK, analyze_interconnects(interconnect_rows()))
+        elif path == "/api/telephony/platform/anomalies":
+            self.send_json(HTTPStatus.OK, anomaly_payload())
         else:
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
