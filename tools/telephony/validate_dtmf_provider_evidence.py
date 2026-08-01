@@ -12,11 +12,13 @@ from pathlib import Path
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,95}$")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 SIP_URI_RE = re.compile(r"(?i)\bsips?:[^\s]+")
-LONG_NUMBER_RE = re.compile(
-    r"(?<![A-Za-z0-9])"
-    r"(?![0-9]{4}-[0-9]{2}(?:-[0-9]{2})?(?:T|$))"
-    r"\+?[0-9][0-9 ()-]{5,}[0-9](?![A-Za-z0-9])"
+ISO_DATE_TOKEN_RE = re.compile(
+    r"(?<![0-9])"
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}"
+    r"(?:T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?"
+    r"(?![0-9])"
 )
+LONG_NUMBER_RE = re.compile(r"(?<![A-Za-z0-9])\+?[0-9][0-9 ()-]{5,}[0-9](?![A-Za-z0-9])")
 QUERY_URL_RE = re.compile(r"(?i)https?://[^\s?#]+\?[^\s]+")
 
 TOP_LEVEL_KEYS = {
@@ -129,6 +131,21 @@ def validate_timestamp(value, location):
         raise ValidationError("%s is not a valid UTC timestamp: %s" % (location, exc))
 
 
+def strip_valid_iso_date_tokens(value):
+    """Mask valid ISO dates and UTC timestamps before long-number scanning."""
+
+    def replace(match):
+        token = match.group(0)
+        fmt = "%Y-%m-%dT%H:%M:%SZ" if "T" in token else "%Y-%m-%d"
+        try:
+            datetime.datetime.strptime(token, fmt)
+        except ValueError:
+            return token
+        return " " * len(token)
+
+    return ISO_DATE_TOKEN_RE.sub(replace, value)
+
+
 def walk_for_prohibited_keys(value, location="record"):
     if isinstance(value, dict):
         for key, child in value.items():
@@ -149,9 +166,11 @@ def walk_for_sensitive_text(value, location="record"):
         for index, child in enumerate(value):
             walk_for_sensitive_text(child, "%s[%d]" % (location, index))
     elif isinstance(value, str):
+        number_scan_value = strip_valid_iso_date_tokens(value)
         require(EMAIL_RE.search(value) is None, "%s contains an email address" % location)
         require(SIP_URI_RE.search(value) is None, "%s contains a SIP URI" % location)
-        require(LONG_NUMBER_RE.search(value) is None, "%s contains a telephone, account, or personal number" % location)
+        require(LONG_NUMBER_RE.search(number_scan_value) is None,
+                "%s contains a telephone, account, or personal number" % location)
         require(QUERY_URL_RE.search(value) is None, "%s contains a URL with a query string" % location)
         require("-----BEGIN " not in value, "%s contains key or certificate material" % location)
 

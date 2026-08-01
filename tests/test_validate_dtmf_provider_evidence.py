@@ -46,6 +46,18 @@ def main():
     )
     validator.validate_record(dated_summary)
 
+    timestamped_summary = copy.deepcopy(example)
+    timestamped_summary["evidence"][0]["summary"] = (
+        "Reviewed at 2026-08-01T09:03:00Z; no provider-specific capability was documented."
+    )
+    validator.validate_record(timestamped_summary)
+
+    multiple_dates = copy.deepcopy(example)
+    multiple_dates["evidence"][0]["summary"] = (
+        "Compared records from 2026-08-01 and 2026-08-02; both remain unverified."
+    )
+    validator.validate_record(multiple_dates)
+
     leaked_email = copy.deepcopy(example)
     leaked_email["decision"]["notes"] = "Contact operator@example.test for the provider record."
     expect_failure(leaked_email, "contains an email address")
@@ -59,6 +71,24 @@ def main():
         "Reviewed on 2026-08-01 for customer account 123456789."
     )
     expect_failure(dated_leaked_number, "contains a telephone, account, or personal number")
+
+    timestamped_leaked_number = copy.deepcopy(example)
+    timestamped_leaked_number["evidence"][0]["summary"] = (
+        "Reviewed at 2026-08-01T09:03:00Z for customer account 123456789."
+    )
+    expect_failure(timestamped_leaked_number, "contains a telephone, account, or personal number")
+
+    invalid_date_shaped_number = copy.deepcopy(example)
+    invalid_date_shaped_number["evidence"][0]["summary"] = (
+        "External identifier 2026-99-99 was present in the source record."
+    )
+    expect_failure(invalid_date_shaped_number, "contains a telephone, account, or personal number")
+
+    embedded_date_shaped_number = copy.deepcopy(example)
+    embedded_date_shaped_number["evidence"][0]["summary"] = (
+        "External identifier 12026-08-011 was present in the source record."
+    )
+    expect_failure(embedded_date_shaped_number, "contains a telephone, account, or personal number")
 
     private_public = copy.deepcopy(example)
     private_public["evidence"][0]["retention"] = "repository-public"
