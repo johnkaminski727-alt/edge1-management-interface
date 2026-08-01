@@ -87,7 +87,6 @@ REPO_GROUP=$(stat -c '%G' "$REPO_ROOT")
 [ "$REPO_OWNER" != "UNKNOWN" ] || { echo "ERROR repository owner is unknown" >&2; exit 2; }
 
 install -d -m 0700 "$EVIDENCE_DIR"
-exec > >(tee -a "$EVIDENCE_DIR/operator.log") 2>&1
 
 mutation_started=0
 rollback_attempted=0
@@ -111,11 +110,13 @@ git_repo() {
 wait_for_url() {
     url=$1
     attempts=${2:-15}
-    for ((attempt = 1; attempt <= attempts; attempt++)); do
+    attempt=1
+    while [ "$attempt" -le "$attempts" ]; do
         if curl -fsS --max-time 3 "$url" >/dev/null 2>&1; then
             return 0
         fi
         sleep 1
+        attempt=$((attempt + 1))
     done
     return 1
 }
