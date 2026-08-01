@@ -17,30 +17,36 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVER_ROOT = REPO_ROOT / "server"
 WEB_ROOT = REPO_ROOT / "src" / "web" / "outbound-mail"
 DEFAULT_CONFIG = REPO_ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
+DEFAULT_IDENTITIES = REPO_ROOT / "config" / "messaging" / "mail-identities.json"
 
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
+import identity_aware_outbound_gateway as identity_gateway
+import mail_identity_registry
 import outbound_mail_gateway as gateway
 import outbound_mail_policy
 
 
 class GatewayApplication:
-    def __init__(self, config_path: Path) -> None:
+    def __init__(self, config_path: Path, identities_path: Path = DEFAULT_IDENTITIES) -> None:
         self.config_path = config_path.resolve()
+        self.identities_path = identities_path.resolve()
 
-    def load(self) -> tuple[dict[str, Any], dict[str, Any], Path]:
+    def load(self) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Path]:
         config = gateway.load_json(self.config_path)
         gateway.validate_gateway_config(config)
         policy_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["policy"])
         audit_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["audit_jsonl"])
         policy = outbound_mail_policy.load_policy(policy_path)
         outbound_mail_policy.validate_policy(policy)
-        return config, policy, audit_path
+        identities = gateway.load_json(self.identities_path)
+        mail_identity_registry.validate_registry(identities)
+        return config, policy, identities, audit_path
 
 
 class GatewayHandler(BaseHTTPRequestHandler):
-    server_version = "WWCXOutboundMailGateway/1.0"
+    server_version = "WWCXOutboundMailGateway/1.1"
 
     @property
     def application(self) -> GatewayApplication:
@@ -105,7 +111,15 @@ class GatewayHandler(BaseHTTPRequestHandler):
         elif isinstance(exc, gateway.ProviderUnavailableError):
             status = HTTPStatus.SERVICE_UNAVAILABLE
             code = "provider_unavailable"
-        elif isinstance(exc, (gateway.GatewayError, gateway.ConfigurationError, ValueError)):
+        elif isinstance(
+            exc,
+            (
+                gateway.GatewayError,
+                gateway.ConfigurationError,
+                mail_identity_registry.IdentityRegistryError,
+                ValueError,
+            ),
+        ):
             status = HTTPStatus.BAD_REQUEST
             code = "invalid_request"
         else:
@@ -116,7 +130,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         try:
-            config, policy, audit_path = self.application.load()
+            config, policy, identities, audit_path = self.application.load()
             if parsed.path in {"/outbound-mail", "/outbound-mail/"}:
                 self._serve_asset(WEB_ROOT / "index.html", "text/html; charset=utf-8")
                 return
@@ -133,7 +147,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 )
                 return
             if parsed.path == "/outbound-mail/status":
-                self._send_json(HTTPStatus.OK, gateway.status_payload(config, policy))
+                self._send_json(
+                    HTTPStatus.OK,
+                    identity_gateway.status_payload(config, policy, identities),
+                )
                 return
             if parsed.path == "/outbound-mail/audit":
                 query = parse_qs(parsed.query)
@@ -156,19 +173,20 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         try:
-            config, policy, audit_path = self.application.load()
+            config, policy, identities, audit_path = self.application.load()
             max_bytes = config["admin"]["max_body_bytes"] + 65536
             payload = self._read_json(max_bytes)
             if parsed.path == "/outbound-mail/preview":
-                preview = gateway.compose_preview(config, policy, payload)
+                preview = identity_gateway.compose_preview(config, policy, identities, payload)
                 preview.pop("action_token", None)
                 self._send_json(HTTPStatus.OK, preview)
                 return
             if parsed.path == "/outbound-mail/send":
                 confirmation = payload.pop("confirm_send", False) is True
-                result = gateway.send_message(
+                result = identity_gateway.send_message(
                     config,
                     policy,
+                    identities,
                     payload,
                     confirmation=confirmation,
                     audit_path=audit_path,
@@ -189,6 +207,7 @@ class GatewayServer(ThreadingHTTPServer):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--identities", type=Path, default=DEFAULT_IDENTITIES)
     parser.add_argument("--host", default=None)
     parser.add_argument("--port", type=int, default=None)
     return parser.parse_args()
@@ -196,9 +215,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    application = GatewayApplication(args.config)
-    config, policy, _ = application.load()
-    status = gateway.status_payload(config, policy)
+    application = GatewayApplication(args.config, args.identities)
+    config, policy, identities, _ = application.load()
+    status = identity_gateway.status_payload(config, policy, identities)
     host = args.host or config["listen"]["host"]
     port = args.port or config["listen"]["port"]
     if host not in {"127.0.0.1", "::1", "localhost"}:
@@ -210,6 +229,9 @@ def main() -> int:
                 "host": host,
                 "port": port,
                 "external_delivery_enabled": status["external_delivery_enabled"],
+                "automatic_sender_selection": status["sender_selection"][
+                    "automatic_selection_enabled"
+                ],
             },
             sort_keys=True,
         )
