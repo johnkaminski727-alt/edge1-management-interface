@@ -19,13 +19,19 @@ required = (
     "module show like res_stun_monitor",
     "/run/asterisk/asterisk.pid",
     "/var/run/asterisk/asterisk.pid",
+    'PID_RESOLVED=$candidate',
     'PID_SOURCE="pidfile:$pidfile"',
     "process-table:unique-asterisk-f",
+    "if resolve_asterisk_pid; then",
+    "PID=$PID_RESOLVED",
     "No tracer, packet capture, configuration, service, listener, route, certificate, firewall, package, call, logger, module, container, or traffic change was performed.",
 )
 for token in required:
     if token not in text:
         raise SystemExit(f"missing required probe behavior: {token}")
+
+if "PID=$(resolve_asterisk_pid)" in text:
+    raise SystemExit("PID discovery must not use command substitution because it loses PID_SOURCE")
 
 prohibited_patterns = (
     r"(?m)^\s*(?:sudo\s+)?apt(?:-get)?\s+(?:install|upgrade|remove|purge)\b",
