@@ -79,8 +79,8 @@ assert policy["enabled"] is False
 assert policy["smtp_cutover_authorized"] is False
 assert policy["delivery"]["allow_external_submission"] is False
 assert policy["delivery"]["allow_live_delivery"] is False
-assert identities["sender_selection"]["outbound_activation_authorized"] is False
-assert not any(profile["live_enabled"] for profile in identities["sender_profiles"].values())
+assert identities["outbound_activation_authorized"] is False
+assert not any(profile["outbound_enabled"] for profile in identities["sender_profiles"].values())
 PY
 
 service_active=false
