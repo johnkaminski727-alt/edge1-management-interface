@@ -40,6 +40,18 @@ Accepted facts:
 
 The audit completed without reading HMAC or certificate private-key contents and without changing runtime or network state.
 
+## Historical baseline authorization record
+
+At the time the baseline audit was accepted:
+
+- certificate/private-key content access authorized: **no**;
+- proxy installation or reload authorized: **no**;
+- DNS change authorized: **no**;
+- firewall change authorized: **no**;
+- production message authorized: **no**.
+
+A generic `Continue` does not authorize those privileged actions. This historical statement describes the accepted baseline at 19:28 UTC and is preserved unchanged even though later authorization expanded the project scope.
+
 ## Authorization received
 
 At approximately 2026-08-01 19:40 UTC, after the remaining B2/C work and privileged boundaries were stated, the user wrote: `I am authorizing all work.`
