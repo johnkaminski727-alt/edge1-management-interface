@@ -26,7 +26,10 @@ for marker in (
     "POST method boundary",
     "unsafe wildcard listener",
     "validate_telephony_analytics_evidence.py",
-    "safe.directory=",
+    "runuser -u \"$REPO_OWNER\" -- git -C \"$REPO_ROOT\"",
+    "repository index owner does not match repository owner",
+    "repository index ownership changed during the audit",
+    "index_owner_preserved",
     "RUNTIME SOURCE PROVENANCE",
     "runtime-api-path.txt",
     "runtime-platform-path.txt",
@@ -47,9 +50,10 @@ for forbidden in (
     "systemctl start", "systemctl restart", "systemctl stop", "systemctl enable",
     "systemctl disable", "systemctl daemon-reload", "apt install", "dnf install",
     "asterisk -rx", "mysql ", "psql ", "git config --global",
+    "git -c safe.directory=",
 ):
     if forbidden in source:
-        raise SystemExit(f"analytics live acceptance audit contains forbidden mutation: {forbidden}")
+        raise SystemExit(f"analytics live acceptance audit contains forbidden mutation or unsafe Git execution: {forbidden}")
 
 if 'sha256sum "$RUNTIME_API_PATH"' not in source:
     raise SystemExit("analytics live acceptance audit does not hash runtime API source")
