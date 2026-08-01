@@ -1,0 +1,42 @@
+{
+  "contract": "wwcx.edge1-security-completion-live-authorization.v1",
+  "authorized_at": "2026-08-01T20:19:00Z",
+  "authorization_source": "Explicit user authorization in the Edge1 security completion handoff",
+  "repository": "johnkaminski727-alt/edge1-management-interface",
+  "authoritative_branch": "main",
+  "supersedes_for_live_execution": "config/security/edge1-security-completion-authorization-20260730.json",
+  "programs": {
+    "protected_suricata_retention_runtime": true,
+    "minimized_public_status_publication": true,
+    "authenticated_detailed_operations_boundary": true,
+    "staged_public_boundary_cutover": true
+  },
+  "authorized_actions": {
+    "apache_configuration_changes": true,
+    "authentication_configuration_changes": true,
+    "routing_changes": true,
+    "public_file_changes": true,
+    "bounded_reversible_installation": true,
+    "bounded_reversible_production_deployment": true,
+    "service_install_enable_and_reload": true,
+    "protected_evidence_capture": true,
+    "rollback_on_acceptance_failure": true,
+    "archive_and_reversible_withdrawal": true
+  },
+  "guardrails": {
+    "dns_enforcement_change": false,
+    "unbound_or_rpz_change": false,
+    "firewall_or_nftables_change": false,
+    "ids_rule_change": false,
+    "reputation_list_change": false,
+    "new_public_listener": false,
+    "credential_material_in_repository": false,
+    "raw_alert_publication": false,
+    "retained_evidence_deletion": false,
+    "destructive_deletion": false,
+    "archive_before_withdrawal": true,
+    "authenticated_equivalence_before_cutover": true,
+    "rollback_on_authentication_or_route_failure": true,
+    "preserve_unrelated_dirty_work": true
+  }
+}
