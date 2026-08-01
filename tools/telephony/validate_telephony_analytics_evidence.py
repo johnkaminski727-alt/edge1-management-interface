@@ -20,6 +20,23 @@ PROHIBITED_KEYS = {
     "api_key", "credential", "credentials", "sip_uri", "email", "email_address",
     "message_body", "audio", "recording", "recording_path", "source_ip", "destination_ip",
 }
+ANOMALY_IDS = {
+    "platform_health_score",
+    "answer_rate",
+    "failure_ratio",
+    "dominant_failure_concentration",
+    "interconnect_attention_ratio",
+    "interconnect_latency",
+}
+ANOMALY_STATES = {"insufficient_data", "ok", "watch", "critical"}
+ANOMALY_TARGETS = {"#analytics-health", "#analytics-failures", "#analytics-carriers"}
+ANOMALY_SAFETY_KEYS = {
+    "automatic_action",
+    "notification_dispatch",
+    "traffic_enforcement",
+    "route_change",
+    "service_control",
+}
 
 
 def load_object(root: Path, name: str, errors: list[str]) -> dict[str, Any]:
@@ -60,6 +77,65 @@ def require(condition: bool, message: str, errors: list[str]) -> None:
         errors.append(message)
 
 
+def validate_anomalies(value: Any, location: str, errors: list[str]) -> None:
+    require(isinstance(value, dict), f"{location} must be an object", errors)
+    if not isinstance(value, dict):
+        return
+
+    require(value.get("schema_version") == "1.0", f"{location}.schema_version must be 1.0", errors)
+    require(value.get("mode") == "informational_no_enforcement",
+            f"{location}.mode must be informational_no_enforcement", errors)
+    require(value.get("overall_state") in ANOMALY_STATES,
+            f"{location}.overall_state is invalid", errors)
+
+    safety = value.get("safety")
+    require(isinstance(safety, dict), f"{location}.safety must be an object", errors)
+    if isinstance(safety, dict):
+        require(set(safety) == ANOMALY_SAFETY_KEYS,
+                f"{location}.safety keys do not match the fixed contract", errors)
+        for key in ANOMALY_SAFETY_KEYS:
+            require(safety.get(key) is False, f"{location}.safety.{key} must be false", errors)
+
+    indicators = value.get("indicators")
+    require(isinstance(indicators, list), f"{location}.indicators must be an array", errors)
+    if not isinstance(indicators, list):
+        return
+    require(len(indicators) == len(ANOMALY_IDS),
+            f"{location}.indicators must contain exactly six records", errors)
+
+    observed_ids: list[str] = []
+    for index, indicator in enumerate(indicators):
+        item_location = f"{location}.indicators[{index}]"
+        require(isinstance(indicator, dict), f"{item_location} must be an object", errors)
+        if not isinstance(indicator, dict):
+            continue
+        indicator_id = indicator.get("id")
+        require(indicator_id in ANOMALY_IDS, f"{item_location}.id is invalid", errors)
+        if isinstance(indicator_id, str):
+            observed_ids.append(indicator_id)
+        require(indicator.get("state") in ANOMALY_STATES, f"{item_location}.state is invalid", errors)
+        require(indicator.get("automatic_action") is False,
+                f"{item_location}.automatic_action must be false", errors)
+        require(indicator.get("investigation_target") in ANOMALY_TARGETS,
+                f"{item_location}.investigation_target is invalid", errors)
+        require(isinstance(indicator.get("minimum_sample"), int) and indicator["minimum_sample"] >= 0,
+                f"{item_location}.minimum_sample must be a non-negative integer", errors)
+        require(isinstance(indicator.get("sample_size"), int) and indicator["sample_size"] >= 0,
+                f"{item_location}.sample_size must be a non-negative integer", errors)
+        require(isinstance(indicator.get("thresholds"), dict),
+                f"{item_location}.thresholds must be an object", errors)
+        require(isinstance(indicator.get("reason_code"), str) and indicator["reason_code"],
+                f"{item_location}.reason_code must be a non-empty string", errors)
+        require(isinstance(indicator.get("unit"), str) and indicator["unit"],
+                f"{item_location}.unit must be a non-empty string", errors)
+        observed = indicator.get("observed_value")
+        require(observed is None or (isinstance(observed, (int, float)) and not isinstance(observed, bool)),
+                f"{item_location}.observed_value must be numeric or null", errors)
+
+    require(set(observed_ids) == ANOMALY_IDS and len(observed_ids) == len(set(observed_ids)),
+            f"{location}.indicators must contain each fixed identifier exactly once", errors)
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     healthz = load_object(root, "healthz.json", errors)
@@ -72,6 +148,16 @@ def validate(root: Path) -> list[str]:
     require(health.get("overall_status") in {"healthy", "degraded", "critical"},
             "health overall_status is invalid", errors)
     require(isinstance(health.get("components"), dict), "health components must be an object", errors)
+
+    anomaly_file = root / "platform-anomalies.json"
+    if anomaly_file.is_file():
+        anomalies = load_object(root, "platform-anomalies.json", errors)
+        validate_anomalies(anomalies, "platform-anomalies", errors)
+        validate_anomalies(health.get("anomalies"), "platform-health.anomalies", errors)
+        require(health.get("anomalies") == anomalies,
+                "platform-health.anomalies must match the dedicated anomaly endpoint", errors)
+    elif "anomalies" in health:
+        validate_anomalies(health.get("anomalies"), "platform-health.anomalies", errors)
 
     calls = load_object(root, "calls-summary.json", errors)
     for key in ("calls_total", "calls_answered", "answer_rate_percent", "duration_seconds_total", "duration_seconds_average"):
@@ -86,7 +172,14 @@ def validate(root: Path) -> list[str]:
     require(isinstance(interconnects.get("attention_required"), int),
             "attention_required must be an integer", errors)
 
-    for filename in ("healthz.json", "platform-health.json", "calls-summary.json", "interconnects-summary.json", "post-response.json"):
+    for filename in (
+        "healthz.json",
+        "platform-health.json",
+        "platform-anomalies.json",
+        "calls-summary.json",
+        "interconnects-summary.json",
+        "post-response.json",
+    ):
         path = root / filename
         if not path.is_file():
             continue
@@ -108,9 +201,10 @@ def main() -> int:
         for error in errors:
             print(f"FAIL: {error}")
         return 1
-    output.write_text("payload_validation=passed\nprivacy_scan=passed\n", encoding="utf-8")
+    output.write_text("payload_validation=passed\nprivacy_scan=passed\nanomaly_contract=passed\n", encoding="utf-8")
     print("payload_validation=passed")
     print("privacy_scan=passed")
+    print("anomaly_contract=passed")
     return 0
 
 
