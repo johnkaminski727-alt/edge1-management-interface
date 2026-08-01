@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/analytics-report.schema.json",
+  "title": "WW.CX Telephony Aggregate Analytics Report",
+  "description": "Deterministic offline report generated from accepted aggregate summaries only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_type",
+    "report_id",
+    "generated_at",
+    "repository_revision",
+    "report_kind",
+    "privacy_profile",
+    "source_contract",
+    "health_summary",
+    "call_summary",
+    "interconnect_summary",
+    "anomaly_summary",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "report_type": {"const": "telephony_analytics_aggregate_report"},
+    "report_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,47}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "repository_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "report_kind": {"const": "combined_summary"},
+    "privacy_profile": {"const": "aggregate_no_customer_identifiers"},
+    "source_contract": {"const": "already_aggregated_summaries_only"},
+    "health_summary": {
+      "$ref": "analytics-report-input.schema.json#/$defs/health_summary"
+    },
+    "call_summary": {
+      "$ref": "analytics-report-input.schema.json#/$defs/call_summary"
+    },
+    "interconnect_summary": {
+      "$ref": "analytics-report-input.schema.json#/$defs/interconnect_summary"
+    },
+    "anomaly_summary": {
+      "$ref": "anomaly-indicators.schema.json"
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "live_source_access",
+        "audit_log_append",
+        "notification_dispatch",
+        "traffic_enforcement",
+        "route_change",
+        "service_control",
+        "call_origination",
+        "dtmf_transmission"
+      ],
+      "properties": {
+        "live_source_access": {"const": false},
+        "audit_log_append": {"const": false},
+        "notification_dispatch": {"const": false},
+        "traffic_enforcement": {"const": false},
+        "route_change": {"const": false},
+        "service_control": {"const": false},
+        "call_origination": {"const": false},
+        "dtmf_transmission": {"const": false}
+      }
+    }
+  }
+}
