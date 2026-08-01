@@ -1,6 +1,6 @@
 # Outbound Mail Activation State
 
-Last reconciled: 2026-08-01 18:46 UTC  
+Last reconciled: 2026-08-01 19:00 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`
 
@@ -104,42 +104,74 @@ Root cause: `systemctl restart` completed before the Python HTTP listener was re
 
 Remediation: PR #214 merged as `79d6591e8f7ae8b404bff9cb3a4ab8929a63817c`. The installer now waits for both an active systemd unit and HTTP 200 from the loopback health endpoint before running the B1 canary, the Phase A disable smoke test, or rollback verification. Readiness attempts and failure diagnostics are written into the restricted evidence directory.
 
+PR #215 merged as `f1f65571902c7f377c6a7ca9c52f634973a7635a` and added the explicit approved-activation baseline guard. The wrapper refuses execution before temporary credential generation unless the supplied baseline exists, is an ancestor of the current clean `main`, and every protected B1 asset remains unchanged from that baseline.
+
+## Successful Phase B1 activation
+
+The authorized wrapper was executed again through authenticated SSH on `edge1.ww.cx` at 2026-08-01 19:00 UTC. The operator session was `wwadmin`; the bounded activation ran as `root` through `sudo`.
+
+Verified live acceptance:
+
+- approved activation baseline: `f1f65571902c7f377c6a7ca9c52f634973a7635a`;
+- deployed repository HEAD: `f1f65571902c7f377c6a7ca9c52f634973a7635a`;
+- evidence directory: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T190027Z`;
+- evidence manifest verification: every listed file passed `sha256sum -c SHA256SUMS`;
+- service: active and enabled;
+- service principal: `wwcx-mail-gateway`;
+- listener: exactly `127.0.0.1:8104`;
+- preparation API: enabled on loopback only;
+- runtime HMAC credential: configured in a root-owned mode `0600` environment file without being displayed;
+- runtime configuration: root-owned mode `0644`;
+- systemd drop-in: root-owned mode `0644`;
+- temporary secret source files remaining under `/run`: zero;
+- unsigned preparation API request: HTTP `401`;
+- send endpoint request: HTTP `403`;
+- gateway state: `disabled`;
+- external delivery: disabled;
+- policy activation: disabled;
+- live sender count: zero;
+- ready provider count: zero;
+- B2 reverse proxy: not installed;
+- no message was sent.
+
+The installer reported successful signed preparation-canary validation after the bounded readiness wait. The final operator validation returned `PHASE_B1_VALIDATION=PASS`.
+
 ## Current activation state
 
-- Phase A live: **yes**;
+- Phase A foundation live: **yes**;
 - Phase B repository package merged: **yes**;
 - B1 readiness audit executed and accepted: **yes**;
-- B1 readiness state: **ready for explicit B1 authorization**;
 - Phase B1 activation authorized: **yes**;
-- Phase B1 activation attempts: **1**;
-- latest Phase B1 attempt outcome: **failed startup race; automatic rollback complete**;
-- Phase B1 activation completed successfully: **no**;
-- B1 runtime overlay currently installed: **no**;
-- temporary activation secret generated during failed attempt: **yes; removed**;
-- production HMAC secret currently installed: **no**;
+- Phase B1 activation attempts: **2**;
+- latest Phase B1 attempt outcome: **successful**;
+- Phase B1 activation completed successfully: **yes**;
+- B1 runtime overlay currently installed: **yes**;
+- production HMAC secret currently installed: **yes; root-owned and not disclosed**;
+- preparation API enabled: **yes; loopback only**;
+- external delivery enabled: **no**;
+- policy enabled: **no**;
+- live sender identities: **zero**;
+- ready delivery providers: **zero**;
 - B2 certificate or reverse proxy installed: **no**;
 - DNS or firewall changed: **no**;
 - website bridge activated: **no**;
 - public correspondence route activated: **no**;
 - retention apply or scheduling activated: **no**;
 - provider credentials installed: **no**;
-- sender identity activated: **no**;
+- sender identity activated for delivery: **no**;
 - production mail delivery: **no**.
 
 ## Active execution boundary
 
-Phase B1 remains authorized, but it may be retried only after the startup-readiness remediation is merged, synchronized to Edge1, and verified as an ancestor of the current clean `main`.
+Phase B1 is accepted as live on the Edge1 loopback boundary. It permits authenticated message preparation only; it does not permit message delivery.
 
-The approved activation baseline commit must be supplied explicitly through `APPROVED_ACTIVATION_COMMIT`. It must identify the reviewed merged baseline containing the activation wrapper and startup-readiness remediation. The wrapper verifies that baseline is an ancestor and that every protected B1 asset—including the wrapper itself—has not changed after that baseline before it generates temporary credential material.
+Stop and obtain separate explicit authorization before any of the following:
 
-The operator must stop and report rather than bypassing any approved-baseline, preflight, evidence, loopback, credential-permission, readiness, canary, rollback, or no-send check.
-
-## Remaining stop conditions
-
-Stop before:
-
-- displaying, transmitting, exporting, or committing the production secret;
-- installing B2 proxy or certificate configuration;
-- changing DNS, firewall, or public routes;
-- activating the website bridge, public record, retention apply, provider, sender, or mail delivery;
-- sending any production message.
+- reading, displaying, transmitting, exporting, rotating, replacing, or committing the production HMAC secret;
+- installing or enabling the B2 reverse proxy or certificate configuration;
+- changing DNS, firewall, public listeners, or public routes;
+- activating the website bridge or public correspondence route;
+- applying or scheduling retention changes;
+- installing provider credentials or selecting a live provider;
+- enabling a sender identity for delivery;
+- enabling external delivery or sending any production message.
