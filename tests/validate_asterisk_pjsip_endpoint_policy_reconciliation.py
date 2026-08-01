@@ -97,10 +97,8 @@ if "sanitize_stream" not in text:
     raise SystemExit("reconciliation audit must sanitize Asterisk CLI output")
 
 for token in (
-    "Endpoint:)[[:space:]]+[^[:space:]]+",
-    "Aor:)[[:space:]]+[^[:space:]]+",
-    "Contact:)[[:space:]]+[^[:space:]]+",
-    "Transport:)[[:space:]]+[^[:space:]]+",
+    "Endpoint|Aor|Contact|Transport|InAuth|OutAuth|Identify|Channel",
+    "[[:space:]]+[^[:space:]]+",
     "username|password|secret|auth|outbound_auth",
 ):
     if token not in text:
