@@ -17,7 +17,8 @@ Allowed behavior:
 - aggregate CDR-style call events;
 - classify SIP response outcomes;
 - summarize interconnect state and latency;
-- generate operator-facing recommendations from already-authorized data.
+- generate operator-facing recommendations from already-authorized data;
+- record privacy-minimized evidence that an aggregate report was generated.
 
 Prohibited behavior:
 
@@ -49,11 +50,21 @@ Asterisk / SIP edge / registries / approved CDR source
        three fixed same-origin console routes
                          |
       privacy-minimized console panels on 8096
+
+separately reviewed report generator
+                         |
+          aggregate report + artifact hashes
+                         |
+         server/telephony_report_audit.py
+                         |
+      protected owner-only hash-chained JSONL
 ```
 
 The browser must continue to use the localhost-only server boundary. It must never connect directly to PBX, carrier, SBC, media, database administration interfaces, or the separate analytics port.
 
 The sanitized adapter library is not a live collector. It performs no file, network, database, credential, service-control, PBX, carrier, route, or configuration access.
+
+The report-audit module does not generate reports or read source data. It accepts only a pre-minimized event describing an already-generated aggregate report.
 
 ## Management and analysis capabilities
 
@@ -134,6 +145,29 @@ The browser calls only:
 
 Template values are HTML-escaped before rendering. The carrier panel shows opaque sanitized identifiers and aggregate counts only; it does not assert carrier SLA, route readiness, or end-to-end interoperability.
 
+### Report-generation audit events
+
+`server/telephony_report_audit.py` records one canonical JSONL event after an aggregate report has already been produced.
+
+The input and stored contracts are:
+
+- `schemas/telephony/analytics-report-audit-input.schema.json`;
+- `schemas/telephony/analytics-report-audit-event.schema.json`.
+
+Each event contains only opaque event/report/generator IDs, UTC occurrence time, bounded report kind, repository revision, sanitized input-manifest hash, output-artifact hash, aggregate record count, a fixed privacy profile, and the previous/current event hashes.
+
+The module:
+
+- opens an absolute `.jsonl` path with `O_APPEND` and `O_NOFOLLOW`;
+- requires an existing non-symlink parent directory and an owner-only regular file;
+- locks the log before verification and append;
+- validates every prior event and hash link;
+- writes canonical ASCII JSON plus one newline;
+- calls `fsync` before releasing the lock;
+- rejects unknown fields, unbounded report kinds, unsafe IDs, invalid hashes, invalid timestamps, excessive counts, and any changed or malformed chain entry.
+
+The audit chain is evidence of internal event integrity only. It does not establish report correctness, source completeness, lawful data access, carrier behavior, or production authorization.
+
 ## Privacy and evidence
 
 Collectors and adapters must minimize data before it reaches the platform module.
@@ -147,6 +181,7 @@ Collectors and adapters must minimize data before it reaches the platform module
 - Reject unknown source fields until their privacy and operational purpose are documented.
 - Do not connect a live data source merely because an offline adapter accepts its sanitized shape.
 - Do not create fixture fallback values that could be mistaken for live aggregate analytics.
+- Do not place report paths, titles, names, numbers, network addresses, route identifiers, or free-form metadata in audit events.
 
 ## Collector contract
 
@@ -173,6 +208,7 @@ python3 tests/validate_telephony_console.py
 python3 tests/validate_telephony_platform.py
 python3 tests/validate_telephony_sanitized_adapters.py
 python3 tests/validate_telephony_analytics_console_panels.py
+python3 tests/validate_telephony_report_audit.py
 node --check src/web/telephony/telephony.js
 ```
 
@@ -182,6 +218,8 @@ The adapter validation checks canonical examples, bounded aliases, conservative 
 
 The console-panel validation imports the exact proxy route map, verifies fixed loopback targets and bounded `503` behavior, blocks arbitrary proxy and write markers, verifies browser isolation from port `8099`, and checks panel, escaping, accessibility, and unavailable-state markers.
 
+The report-audit validation verifies canonical two-event append behavior, owner-only permissions, preserved prior bytes, full-chain validation, changed-content detection, incomplete-line rejection, symlink and broad-permission rejection, absolute-path enforcement, bounded schemas, and the absence of network, database, PBX, or service-control access paths.
+
 ## Controlled follow-on
 
 Completed read-only increments:
@@ -189,14 +227,15 @@ Completed read-only increments:
 1. expose aggregate analytics through loopback-only GET endpoints;
 2. add fail-closed offline sanitized CDR and SIP-event adapters;
 3. complete authenticated live acceptance of the existing analytics service and runtime-source provenance;
-4. add fixed same-origin analytics proxy routes and privacy-minimized console panels.
+4. add fixed same-origin analytics proxy routes and privacy-minimized console panels;
+5. add append-only privacy-minimized report-generation audit events.
 
 The following work can continue within a read-only implementation branch:
 
-1. add append-only audit records for report generation;
-2. add anomaly detection with conservative thresholds and no automatic enforcement;
-3. document separately reviewed Asterisk AMI/ARI, Kamailio/OpenSIPS, RTPengine, and messaging source-minimization boundaries;
-4. design live source collectors only after access, privacy, retention, and rollback review;
+1. add anomaly detection with conservative thresholds and no automatic enforcement;
+2. document separately reviewed Asterisk AMI/ARI, Kamailio/OpenSIPS, RTPengine, and messaging source-minimization boundaries;
+3. design live source collectors only after access, privacy, retention, and rollback review;
+4. design a report generator and runtime audit retention model without deploying them;
 5. prepare a bounded console deployment and live-verification runbook without executing it.
 
 Any write capability must use a separate staged control plane:
