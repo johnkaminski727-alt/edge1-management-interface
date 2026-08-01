@@ -67,35 +67,34 @@ python "$Repo\tools\messaging\reconcile_mail_provider_objects.py" `
 
 Do not use `--strict` for the partial report. Missing `ww.cx` Private Email objects and the unresolved `spiritcreekgardens.com` provider state are expected blockers. The partial report is useful for identifying shared-hosting mailboxes, exact forwarders, inactive objects, destination mismatches, unexpected addresses, catch-all behavior, and unknown routing modes.
 
-## Pending Namecheap Private Email evidence
+## Namecheap Private Email response state
 
-A read-only inventory request was sent to Namecheap Private Email Support for the existing `ww.cx` subscription. The request asks for:
+A read-only inventory request was sent to Namecheap Private Email Support for the existing `ww.cx` subscription. The request asks for subscription status and capacity, configured mailboxes, aliases and groups, catch-all behavior, quotas and forwarding, DKIM status and selector, alias sender capability, and provider-side rules or filters. The request expressly prohibits provider changes and excludes passwords, tokens, reset links, and other authentication secrets.
 
-- subscription status and mailbox capacity;
-- configured mailboxes and active state;
-- aliases and groups;
-- catch-all behavior;
-- quotas and forwarding;
-- DKIM status and selector;
-- alias sender capability;
-- provider-side rules or filters.
+Namecheap acknowledged ticket `NC-JDV-2953` automatically at `2026-08-01T07:23:54Z`. A support-agent response arrived at `2026-08-01T09:14:30Z` and requested interactive account verification using the account Support PIN before Namecheap will inspect the associated services.
 
-The request expressly prohibits provider changes and excludes passwords, tokens, reset links, and other authentication secrets.
+The response contains no subscription, mailbox, alias, group, forwarding, catch-all, quota, DKIM, sender-capability, filter, or provider-object inventory. Therefore:
 
-When the reply arrives:
+- zero new `ww.cx` provider objects can be normalized from this response;
+- no combined reconciliation can yet be completed;
+- no Support PIN or other authentication secret may be committed, posted to GitHub, or supplied by unattended automation;
+- the response is preserved in Gmail under the `WWCX/Namecheap Private Email Inventory` label;
+- the pull request remains draft and the merge gate remains closed.
 
-1. preserve the message as restricted provider evidence;
-2. verify whether the response is complete and whether a fresh Support PIN is required;
-3. normalize the `ww.cx` objects into a separate `namecheap_private_email` inventory;
-4. run the combined reconciliation with both provider inventories;
-5. update the issue and this branch with sanitized counts and conclusions only;
-6. merge only after CI passes and the provider response closes or explicitly documents every remaining unknown.
+After account verification is completed through an authorized interactive channel and a substantive inventory response arrives:
+
+1. preserve the response as restricted provider evidence;
+2. normalize the `ww.cx` objects into a separate `namecheap_private_email` inventory;
+3. run the combined reconciliation with all provider inventories;
+4. update the issue and this branch with sanitized counts and conclusions only;
+5. merge only after CI passes and the provider response closes or explicitly documents every remaining unknown.
 
 ## Remaining blockers
 
+- authorized interactive account verification with Namecheap Private Email Support;
 - current provider object types and destinations for all `ww.cx` identities;
 - existence and access classification of `john-inbox@ww.cx` and `maildesk@ww.cx`;
-- `ww.cx` catch-all, filtering, forwarding, and DKIM state;
+- `ww.cx` catch-all, filtering, forwarding, quota, sender-capability, and DKIM state;
 - separate cPanel domain-routing verification for the three shared-hosting domains;
 - authoritative provider state for `spiritcreekgardens.com`;
 - any provider mutation, pilot forwarding, sender activation, or production cutover authorization.
