@@ -1,0 +1,17 @@
+{
+  "from_address": "john@ww.cx",
+  "to": [
+    "records@example.com"
+  ],
+  "cc": [],
+  "bcc": [],
+  "subject": "Records request follow-up",
+  "body": "Hello,\n\nPlease provide the requested records.\n",
+  "message_class": "business_correspondence",
+  "signer_name": "John Kaminski",
+  "signer_title": "Authorized Representative",
+  "case_id": "MATTER-001",
+  "action_id": "ACTION-001",
+  "mailing_address": "151 2 Street South, Invermay, SK",
+  "reply_to": "john@ww.cx"
+}
