@@ -33,6 +33,7 @@ Thumbs.db
 *.sqlite3
 tmp/
 cache/
+var/outbound-mail/
 
 # Large/archive artifacts belong in the companion file archive, not git
 *.zip
