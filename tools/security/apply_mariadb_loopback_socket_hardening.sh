@@ -125,8 +125,7 @@ rollback() {
     systemctl daemon-reload || return 1
 
     verify_rc=0
-    verify_units "$EVIDENCE_DIR/systemd-verify-rollback.txt" \
-        mariadb.socket mariadb.service || verify_rc=$?
+    verify_units "$EVIDENCE_DIR/systemd-verify-rollback.txt" mariadb.socket mariadb.service || verify_rc=$?
 
     restart_mariadb_pair || return 1
     systemctl show mariadb.socket mariadb.service \
@@ -242,8 +241,7 @@ install -m 0644 -o root -g root "$SOURCE" "$DROPIN" || fail_after_mutation "coul
 sha256sum "$DROPIN" >"$EVIDENCE_DIR/dropin-installed.sha256" || fail_after_mutation "could not hash installed drop-in"
 
 systemctl daemon-reload || fail_after_mutation "systemd daemon-reload failed"
-verify_units "$EVIDENCE_DIR/systemd-verify-installed.txt" \
-    mariadb.socket mariadb.service || fail_after_mutation "systemd verification failed"
+verify_units "$EVIDENCE_DIR/systemd-verify-installed.txt" mariadb.socket mariadb.service || fail_after_mutation "systemd verification failed"
 
 log "Restarting MariaDB socket and service as one bounded maintenance action"
 restart_mariadb_pair || fail_after_mutation "MariaDB socket/service restart failed"
