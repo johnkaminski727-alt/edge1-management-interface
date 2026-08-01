@@ -1,6 +1,6 @@
 # Outbound Mail Activation State
 
-Last reconciled: 2026-08-01 09:04 UTC  
+Last reconciled: 2026-08-01 17:45 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`
 
@@ -38,10 +38,36 @@ The package separates:
 
 Repository and Edge1 Operator CI passed. The real gateway was tested with temporary CI-only material. Authentication, replay rejection, canonical sender selection, audit redaction, and delivery denial passed.
 
+## Accepted Phase B1 readiness audit
+
+The read-only readiness audit from PR #205 was executed through an authenticated SSH session on `edge1.ww.cx` by `wwadmin`, with the audit itself running as `root` through `sudo`.
+
+Accepted live evidence:
+
+- audit time: `2026-08-01T17:45:48Z`;
+- repository branch: `main`;
+- audited repository HEAD: `bf7c9186f416d69e20f289a68c7a45314baae6b8`;
+- Phase B package commit: `c55059c2d0230ea273709bbb5a4169b00bb226c1`;
+- readiness result: `ready_for_explicit_b1_authorization`;
+- unsigned preparation API status: HTTP `403`;
+- send probe: HTTP `403`;
+- production secret generated or read: no;
+- runtime files modified: no;
+- service restarted: no;
+- proxy, DNS, or firewall modified: no;
+- message sent: no;
+- evidence directory: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness/20260801T174548Z`.
+
+The audit passed all required repository, committed-policy, service, listener, endpoint, runtime-overlay, proxy-reference, and evidence checks. It changed no runtime or network state.
+
+This acceptance establishes only that the live Phase A foundation is **ready for explicit B1 authorization**. It does not authorize or activate authentication, external exposure, or delivery.
+
 ## Current activation state
 
 - Phase A live: **yes**;
 - Phase B repository package merged: **yes**;
+- B1 readiness audit executed and accepted: **yes**;
+- B1 readiness state: **ready for explicit B1 authorization**;
 - B1 runtime overlay installed: **no**;
 - production HMAC secret generated: **no**;
 - production HMAC secret installed: **no**;
@@ -58,7 +84,7 @@ Repository and Edge1 Operator CI passed. The real gateway was tested with tempor
 
 `tools/messaging/outbound_mail_phase_b1_readiness_audit.sh` measures whether the live Phase A service is ready for explicit B1 authorization without generating or reading secret material and without modifying runtime state.
 
-The audit checks:
+The accepted audit checked:
 
 - exact host and root execution;
 - clean `main` repository state;
@@ -71,8 +97,6 @@ The audit checks:
 - absent B1 runtime overlay files;
 - absence of a configured preparation API proxy path;
 - restricted evidence and SHA-256 inventory.
-
-This audit was prepared in the repository but was **not executed in this session** because no authenticated Edge1 shell was available.
 
 A passing audit means **ready for explicit B1 authorization**. It does not authorize secret generation, authentication activation, proxy exposure, or mail traffic.
 
