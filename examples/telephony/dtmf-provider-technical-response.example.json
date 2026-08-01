@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "provider_id": "provider-candidate-001",
+  "route_id": "route-candidate-001",
+  "response_state": "pending",
+  "response_evidence": {
+    "evidence_id": "provider-technical-response-v1",
+    "source_type": "provider-private-correspondence",
+    "retention": "internal-restricted",
+    "received_at": null,
+    "summary": "A direct technical response has not yet been received."
+  },
+  "questions": [
+    {
+      "question_id": "rfc4733-directionality",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting a provider answer for inbound and outbound directionality.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "rfc4733-event-range",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting advertised, accepted, and preserved event ranges.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "extended-abcd",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting an answer about extended A through D events.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "sip-info",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting SIP INFO direction, format, and service scope.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "inband-codecs",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting codec, packetization, and transcoding constraints.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "auto-fallback",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting the exact trigger and interworking behavior of automatic fallback.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "route-exceptions",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting route, server, SBC, regional, and upstream exceptions.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "diagnostic-scope",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting recognized symbols and the diagnostic path boundary.",
+      "evidence_refs": []
+    },
+    {
+      "question_id": "asterisk-pjsip-settings",
+      "answer_status": "unanswered",
+      "evidence_strength": "none",
+      "scopes": [
+        "unknown"
+      ],
+      "details": "Awaiting explicit provider-recommended PJSIP DTMF and media settings.",
+      "evidence_refs": []
+    }
+  ],
+  "privacy": {
+    "provider_name_retained": false,
+    "account_identifier_retained": false,
+    "credential_retained": false,
+    "telephone_number_retained": false,
+    "sip_uri_retained": false,
+    "personal_identifier_retained": false
+  },
+  "decision": {
+    "matrix_update_allowed": false,
+    "live_test_authorized": false,
+    "notes": "No additional matrix capability may be promoted while the direct provider response is pending."
+  }
+}
