@@ -8,6 +8,11 @@
 - [x] Verified enforcement count remained `1` before and after activation.
 - [x] DNS remains `not_staged`; DNS enforcement remains false.
 - [x] Timer state and traffic controls remained unchanged.
+- [x] Asterisk updated from `22.8.2` to `22.10.1` with zero active calls and protected rollback evidence.
+- [x] Asterisk restarted and validated; Kamailio remained active.
+- [x] Offline CAP-CP/EBS alerting laboratory installed under `/opt/wwcx-alerting-lab`.
+- [x] Installed synthetic CAP-CP structural and lifecycle smoke tests passed.
+- [x] No CAP feed, `Actual` alert handling, alert dialplan, call/page route, tone transmission, or public delivery path was enabled.
 
 ## Completed repository phases
 
@@ -17,6 +22,7 @@
 - [x] Restricted-artifact migration manifest and closeout through PRs #148-149.
 - [x] Security-boundary live inventory bundle merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
 - [x] Test-only EBS and CAP-CP compatibility foundation merged through PR #157 as `7456304d41063075be15ff894af815877dd8a554`.
+- [x] Alerting continuity state merged through PR #159 as `03d219e853bd8a373cd9d0503c45579901615017`.
 
 ## Alerting compatibility foundation
 
@@ -34,13 +40,18 @@
 - [x] Pass `Edge1 Operator Validation` run 524.
 - [x] Pass `WW.CX interconnect staging validation` run 50.
 - [x] Merge through PR #157 as `7456304d41063075be15ff894af815877dd8a554`.
-- [ ] Pull merged `main` on Edge1 and confirm a clean working tree.
-- [ ] Run the read-only Asterisk alerting readiness audit.
-- [ ] Run and review the guarded Asterisk package simulation.
-- [ ] Recheck the live Asterisk version; do not assume the interrupted update changed it.
-- [ ] Apply the Asterisk update only with zero active calls and protected rollback evidence.
-- [ ] Run the offline alerting-lab installer dry-run.
-- [ ] Optionally install the offline tools without enabling networking or delivery.
+- [x] Pull merged `main` on Edge1 and confirm the accepted continuity merge is present.
+- [x] Run the read-only Asterisk alerting readiness audit.
+- [x] Run and review the guarded Asterisk package simulation.
+- [x] Apply and validate the Asterisk `22.10.1` update with zero active calls and protected rollback evidence.
+- [x] Run the offline alerting-lab installer dry-run.
+- [x] Install the offline tools without enabling networking or delivery.
+- [x] Record protected evidence at `asterisk-security-update/20260731T233728Z` and `alerting-lab-install/20260731T233821Z`.
+- [x] Add a read-only follow-up audit for transport visibility, boot persistence, and TCP `8089` exposure.
+- [ ] Run the warning follow-up audit on Edge1 and record its evidence.
+- [ ] Reconcile why `pjsip show transports` reports no objects while Asterisk owns UDP `127.0.0.1:5061`.
+- [ ] Verify Asterisk boot persistence from SysV startup links and generated systemd behavior before any enablement change.
+- [ ] Verify TCP `8089` TLS identity, authentication, firewall reachability, and operational need before any listener change.
 - [ ] Obtain written authority and trust details before connecting any CAP-CP source.
 - [ ] Implement persistent issuer trust, signatures where required, replay state, reference lists, geographic policy, bilingual rendering, accessibility, and audit controls before any delivery adapter.
 - [ ] Keep `Actual` alert processing, Asterisk call/page delivery, tone generation, carrier routing, and public compatibility claims blocked pending separate authorization and conformance review.
@@ -81,7 +92,7 @@
 ## Hard boundaries
 
 - Never place credentials, client secrets, password hashes, tokens, cookies, private keys, or raw alert contents in Git or evidence.
-- Never modify DNS, Unbound, RPZ, nftables, firewall rules, routing, IDS rules, reputation lists, certificates, or production traffic under this program.
+- Never modify DNS, Unbound, RPZ, nftables, firewall rules, routing, IDS rules, reputation lists, certificates, or production traffic under this program without explicit authorization and validation.
 - Never connect an alert feed, accept `Actual` alerts, originate calls/pages, generate or transmit alert tones, or claim Alert Ready/NPAS/EAS/EBS certification without separate authority and conformance evidence.
 - Never delete retained status, releases, reports, incidents, history, audit, or deployment evidence.
 - Roll back immediately if authentication, route isolation, public minimization, service health, data integrity, listener equivalence, PBX restart, or package-version validation fails.
