@@ -1,0 +1,61 @@
+name: Run MariaDB UCP readiness patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Execute isolated patch payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/patch-mariadb-ucp-readiness.yml').read_text(encoding='utf-8')
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          payload = textwrap.dedent(source[start:end])
+          exec(compile(payload, 'mariadb-ucp-patch-payload.py', 'exec'), {'__name__': '__main__'})
+          PY
+
+          sh -n tools/security/apply_mariadb_loopback_socket_hardening.sh
+          python3 tests/validate_apply_mariadb_loopback_socket_hardening.py
+          python3 tests/validate_mariadb_loopback_operator_recovery.py
+          python3 tests/validate_mariadb_loopback_ucp_readiness.py
+
+      - name: Commit durable correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "John K."
+          git config user.email "johnkaminski727@gmail.com"
+          rm -f .github/workflows/patch-mariadb-ucp-readiness.yml
+          rm -f .github/workflows/run-mariadb-ucp-patch-on-pr.yml
+          git add tools/security/apply_mariadb_loopback_socket_hardening.sh \
+            tests/validate_mariadb_loopback_ucp_readiness.py \
+            docs/security/mariadb-loopback-ucp-readiness-incident-20260801.md \
+            .github/workflows/patch-mariadb-ucp-readiness.yml \
+            .github/workflows/run-mariadb-ucp-patch-on-pr.yml
+          git commit -m "Wait for FreePBX UCP readiness during MariaDB hardening"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
