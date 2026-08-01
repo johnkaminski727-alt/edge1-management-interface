@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -13,7 +14,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SERVER_ROOT = ROOT / "server"
 CONFIG_PATH = ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
 POLICY_PATH = ROOT / "config" / "messaging" / "outbound-mail-policy.json"
-PAGE_PATH = ROOT / "src" / "web" / "outbound-mail-gateway.html"
+PAGE_PATH = ROOT / "src" / "web" / "outbound-mail" / "index.html"
+SCRIPT_PATH = ROOT / "src" / "web" / "outbound-mail" / "app.js"
+STYLE_PATH = ROOT / "src" / "web" / "outbound-mail" / "styles.css"
+SERVER_PATH = ROOT / "server" / "outbound_mail_gateway_server.py"
 
 sys.path.insert(0, str(SERVER_ROOT))
 
@@ -58,35 +62,62 @@ assert preview["headers"]["X-WWCX-Tracking"] == "disclosed-action-link; no-hidde
 assert len(preview["action_token_sha256"]) == 64
 assert preview["action_token"] not in json.dumps(preview["audit_record"])
 
-assert PAGE_PATH.is_file()
+for path in (PAGE_PATH, SCRIPT_PATH, STYLE_PATH, SERVER_PATH):
+    assert path.is_file(), path
+    assert path.stat().st_size > 100, path
+
 page = PAGE_PATH.read_text(encoding="utf-8")
+script = SCRIPT_PATH.read_text(encoding="utf-8")
+server = SERVER_PATH.read_text(encoding="utf-8")
 for required in (
     "Outbound Mail Gateway",
+    'data-panel="setup"',
+    'data-panel="compose"',
+    'data-panel="controls"',
+    'data-panel="preview"',
+    'data-panel="activity"',
+    "Hidden open-tracking pixel",
+    "Device fingerprinting",
+    "Correspondence matrix",
+    'id="submit-message" disabled',
+):
+    assert required in page, required
+for required in (
     "/outbound-mail/status",
     "/outbound-mail/preview",
     "/outbound-mail/send",
     "/outbound-mail/audit",
-    "Generate controlled preview",
-    "Hidden open tracking",
-    "Device fingerprinting",
-    "Audit and action matrix",
+    "no-hidden-pixel",
+    "confirm_send",
 ):
-    assert required in page, required
-assert "send-button" in page
-assert "disabled>Send through gateway" in page
+    assert required in script, required
+for required in (
+    '"/outbound-mail/app.js"',
+    '"/outbound-mail/styles.css"',
+    '"/outbound-mail/status"',
+    '"/outbound-mail/preview"',
+    '"/outbound-mail/send"',
+):
+    assert required in server, required
 
-result = subprocess.run(
+unit_result = subprocess.run(
     [
         sys.executable,
         "-m",
         "unittest",
         "tests.test_outbound_mail_policy",
         "tests.test_outbound_mail_gateway",
+        "tests.test_outbound_mail_admin_assets",
     ],
     cwd=ROOT,
     check=False,
 )
-assert result.returncode == 0
+assert unit_result.returncode == 0
+
+node = shutil.which("node")
+if node:
+    node_result = subprocess.run([node, "--check", str(SCRIPT_PATH)], check=False)
+    assert node_result.returncode == 0
 
 print("Outbound mail gateway validation passed")
-print("Admin preview available; external delivery remains disabled")
+print("Canonical admin wizard uses the gateway API; external delivery remains disabled")
