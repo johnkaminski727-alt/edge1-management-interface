@@ -26,7 +26,7 @@ done
 HOST=$(hostname -f)
 [ "$HOST" = "$EXPECTED_HOST" ] || { echo "ERROR expected $EXPECTED_HOST, found $HOST" >&2; exit 2; }
 
-for command in awk basename date find grep hostname id nft ps readlink sed sha256sum sort ss stat systemctl tr; do
+for command in awk basename cut date find grep hostname id nft ps readlink sed sha256sum sort ss stat systemctl tr; do
     command -v "$command" >/dev/null 2>&1 || { echo "ERROR missing command: $command" >&2; exit 2; }
 done
 
@@ -40,8 +40,25 @@ listener_pids() {
     port=$1
     ss -H -ltnpe 2>/dev/null |
         grep -E ":${port}[[:space:]]" |
-        sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' |
+        grep -oE 'pid=[0-9]+' |
+        cut -d= -f2 |
         sort -n -u
+}
+
+inspect_unit_file() {
+    unit=$1
+    fragment=$(systemctl show -p FragmentPath --value "$unit" 2>/dev/null || true)
+    case "$fragment" in
+        /*)
+            echo "unit_fragment=$fragment"
+            if [ -f "$fragment" ]; then
+                stat -c 'mode=%a owner=%U group=%G bytes=%s path=%n' "$fragment" 2>&1 || true
+                sha256sum "$fragment" 2>&1 || true
+                grep -nE '^[[:space:]]*(Description|After|Before|Requires|Wants|Type|User|Group|WorkingDirectory|Restart|PIDFile|RuntimeDirectory|RuntimeDirectoryMode|ListenStream|ListenDatagram|Accept|FreeBind|Service)[[:space:]]*=' "$fragment" 2>/dev/null || true
+            fi
+            ;;
+        *) echo "unit_fragment=unresolved" ;;
+    esac
 }
 
 inspect_pid() {
@@ -64,9 +81,9 @@ inspect_pid() {
         systemctl show "$unit" \
             -p Id -p LoadState -p ActiveState -p SubState -p UnitFileState \
             -p FragmentPath -p SourcePath -p Type -p MainPID -p ControlGroup \
-            -p ExecStart -p Restart -p User -p Group 2>&1 || true
+            -p Restart -p User -p Group 2>&1 || true
         systemctl status "$unit" --no-pager --lines=0 2>&1 || true
-        systemctl cat "$unit" 2>&1 | sed -n '1,260p' || true
+        inspect_unit_file "$unit"
     fi
 
     comm=$(sed -n '1p' "/proc/$pid/comm" 2>/dev/null || true)
@@ -107,21 +124,22 @@ done
 section "MARIADB SERVICE AND SOCKET ACTIVATION"
 systemctl show mariadb.service \
     -p Id -p LoadState -p ActiveState -p SubState -p UnitFileState \
-    -p FragmentPath -p Type -p MainPID -p ControlGroup -p ExecStart \
+    -p FragmentPath -p Type -p MainPID -p ControlGroup \
     -p Restart -p User -p Group -p Requires -p Wants -p After 2>&1 || true
 systemctl status mariadb.service --no-pager --lines=0 2>&1 || true
-systemctl cat mariadb.service 2>&1 | sed -n '1,320p' || true
+inspect_unit_file mariadb.service
 
 systemctl show mariadb.socket \
     -p Id -p LoadState -p ActiveState -p SubState -p UnitFileState \
     -p FragmentPath -p Listen -p Accept -p FreeBind -p Service \
     -p ControlGroup -p Triggers -p TriggeredBy 2>&1 || true
 systemctl status mariadb.socket --no-pager --lines=0 2>&1 || true
-systemctl cat mariadb.socket 2>&1 | sed -n '1,260p' || true
+inspect_unit_file mariadb.socket
 systemctl list-dependencies --reverse mariadb.socket --no-pager 2>&1 | sed -n '1,220p' || true
 
 MARIADB_PIDS=$(listener_pids 3306 || true)
 if [ -n "$MARIADB_PIDS" ]; then
+    echo "mariadb_listener_pids=$MARIADB_PIDS"
     for pid in $MARIADB_PIDS; do
         inspect_pid "$pid"
     done
@@ -129,7 +147,7 @@ else
     warn "No userspace PID was resolved for TCP 3306; systemd socket ownership may be authoritative"
 fi
 
-echo "established_tcp_3306_count=$(ss -Htn state established 2>/dev/null | awk '$4 ~ /:3306$/ {count++} END {print count + 0}')"
+echo "established_tcp_3306_count=$(ss -Htn state established '( sport = :3306 )' 2>/dev/null | awk 'END {print NR + 0}')"
 echo "mariadb_unix_sockets:"
 ss -Hxlpn 2>&1 | grep -Ei 'maria|mysql|mysqld' || echo "none observed"
 
@@ -157,8 +175,8 @@ else
     warn "No Node listener PID was resolved for TCP 8001 or 8003"
 fi
 
-echo "established_tcp_8001_count=$(ss -Htn state established 2>/dev/null | awk '$4 ~ /:8001$/ {count++} END {print count + 0}')"
-echo "established_tcp_8003_count=$(ss -Htn state established 2>/dev/null | awk '$4 ~ /:8003$/ {count++} END {print count + 0}')"
+echo "established_tcp_8001_count=$(ss -Htn state established '( sport = :8001 )' 2>/dev/null | awk 'END {print NR + 0}')"
+echo "established_tcp_8003_count=$(ss -Htn state established '( sport = :8003 )' 2>/dev/null | awk 'END {print NR + 0}')"
 
 section "LOCAL PROXY AND UNIT REFERENCES"
 for root in /etc/apache2 /etc/haproxy /etc/nginx /etc/systemd/system /lib/systemd/system /usr/lib/systemd/system; do
