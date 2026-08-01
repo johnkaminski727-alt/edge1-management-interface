@@ -17,7 +17,13 @@ def status_payload(
     identities: dict[str, Any],
 ) -> dict[str, Any]:
     status = outbound_mail_gateway.status_payload(config, policy)
-    status["sender_selection"] = mail_identity_registry.status_payload(identities)
+    identity_status = mail_identity_registry.status_payload(identities)
+    system_sender = identity_status["system_sender"]
+    identity_status["identities"] = [
+        item for item in identity_status["identities"]
+        if item["address"] != system_sender
+    ]
+    status["sender_selection"] = identity_status
     return status
 
 
@@ -25,6 +31,22 @@ def prepare_payload(
     identities: dict[str, Any],
     payload: dict[str, Any],
 ) -> tuple[dict[str, Any], mail_identity_registry.SenderSelection]:
+    if not isinstance(payload, dict):
+        raise mail_identity_registry.IdentitySelectionError(
+            "message payload must be an object"
+        )
+    hint = str(payload.get("identity_hint", "")).strip().casefold()
+    system_sender = identities["sender_selection"]["system_sender"].casefold()
+    system_profile_keys = {
+        key.casefold()
+        for key, profile in identities["sender_profiles"].items()
+        if profile["address"].casefold() == system_sender
+    }
+    if hint and (hint == system_sender or hint in system_profile_keys):
+        raise mail_identity_registry.IdentitySelectionError(
+            "noreply identity requires system_generated=true"
+        )
+
     selection = mail_identity_registry.resolve_sender(identities, payload)
     prepared = copy.deepcopy(payload)
     prepared["from_address"] = selection.address
