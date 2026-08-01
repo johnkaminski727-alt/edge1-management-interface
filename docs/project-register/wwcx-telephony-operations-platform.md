@@ -2,7 +2,7 @@
 
 ## Project status
 
-READ-ONLY FOUNDATION AND OFFLINE SANITIZED EVENT ADAPTERS IMPLEMENTED; AUTHENTICATED DTMF, PJSIP ENDPOINT-POLICY, AND LOOPBACK ANALYTICS AUDITS ACCEPTED WITH CARRIER PATHS UNVERIFIED
+READ-ONLY FOUNDATION AND OFFLINE SANITIZED EVENT ADAPTERS IMPLEMENTED; AUTHENTICATED DTMF, PJSIP ENDPOINT-POLICY, AND LOOPBACK ANALYTICS AUDITS ACCEPTED; PARTIAL PROVIDER DTMF EVIDENCE RECORDED WITH CARRIER PATHS UNVERIFIED
 
 This register covers the consolidated Edge1 project for PBX, SIP, carrier, numbering, routing, health, analytics, and AI-assisted operational analysis.
 
@@ -26,6 +26,7 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 - read-only Asterisk DTMF capability and endpoint-policy audit;
 - offline complete 16-key DTMF generator/detector probe;
 - sanitized carrier/interconnect DTMF capability matrix;
+- privacy-safe provider evidence intake and first evidence-backed partial matrix entry;
 - authenticated Edge1 DTMF live-acceptance record with protected evidence hashes;
 - read-only PJSIP runtime-to-generated endpoint-policy reconciliation;
 - authenticated PJSIP endpoint-policy live-acceptance record with protected evidence hashes;
@@ -96,7 +97,30 @@ Accepted outcome:
 Open evidence warning:
 
 - no configured PJSIP endpoint DTMF-policy records were found;
-- carrier, endpoint, trunk, SDP-negotiation, SIP INFO, in-band, and end-to-end behavior remain `unverified`.
+- provider-public account-setting documentation now records only an automatic fallback to in-band, without codec, direction, route, or survival evidence;
+- provider RFC 4733 event range, endpoint, trunk, SDP negotiation, SIP INFO, extended-key, codec, transcoding, carrier, and end-to-end behavior remain `unknown` or `unverified` as applicable.
+
+## Provider-public DTMF evidence repository acceptance — 2026-08-01
+
+Repository merge `31fb4865f409bcf474ffd3d2c61a1727161cbe4c` accepted the first privacy-minimized provider-public capability entry.
+
+Acceptance record:
+
+```text
+docs/telephony/dtmf-provider-public-evidence-acceptance-20260801.md
+```
+
+Accepted outcome:
+
+- a validated provider-public evidence record uses sanitized provider and route identifiers only;
+- the capability matrix records `inband.status=documented` with no codec constraint;
+- the evidence states only that an account-level automatic mode can fall back to in-band;
+- RFC 4733 remains `unknown` because the public legacy RTP-event terminology does not state an event range;
+- SIP INFO, extended `A-D`, exact directionality, codec and transcoding behavior, and end-to-end interoperability remain unknown;
+- carrier interoperability is only `partially-documented`;
+- live-test authorization remains false;
+- the matrix validator now requires every entry and capability claim to match a privacy-validated evidence record and retained evidence reference;
+- no provider identity, customer identifier, credential, telephone number, SIP URI, private endpoint, call, DTMF transmission, route change, or runtime mutation was introduced.
 
 ## PJSIP endpoint-policy operational acceptance — 2026-08-01
 
@@ -233,13 +257,14 @@ These items are intentionally outside the autonomous repository foundation:
 
 ## Planned read-only increments
 
-1. populate the sanitized carrier DTMF matrix from reliable provider documentation only;
-2. leave unsupported or undocumented carrier capabilities as `unknown`;
-3. add dashboard panels for health score, failure classes, and carrier performance;
-4. add append-only report-generation audit events;
-5. add bounded anomaly indicators and investigation links;
-6. design live source-minimization collectors only after access, privacy, retention, and rollback review;
-7. publish remaining Edge1 deployment and rollback evidence.
+1. obtain provider-specific RFC 4733 event-range, SIP INFO, codec, transcoding, direction, SBC, regional, and extended-key documentation;
+2. leave every unsupported or undocumented carrier capability as `unknown`;
+3. keep carrier and end-to-end paths unverified until separately authorized controlled-test evidence exists;
+4. add dashboard panels for health score, failure classes, and carrier performance;
+5. add append-only report-generation audit events;
+6. add bounded anomaly indicators and investigation links;
+7. design live source-minimization collectors only after access, privacy, retention, and rollback review;
+8. publish remaining Edge1 deployment and rollback evidence.
 
 ## Safety statement
 
