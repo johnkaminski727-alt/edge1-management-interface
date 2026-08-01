@@ -9,7 +9,6 @@
   },
   "paths": {
     "policy": "config/messaging/outbound-mail-policy.json",
-    "identities": "config/messaging/mail-identities.json",
     "audit_jsonl": "var/outbound-mail/audit.jsonl"
   },
   "provider": {
