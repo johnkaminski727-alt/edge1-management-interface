@@ -21,6 +21,7 @@ STYLE_PATH = ROOT / "src" / "web" / "outbound-mail" / "styles.css"
 SERVER_PATH = ROOT / "server" / "outbound_mail_gateway_server.py"
 IDENTITY_PATH = ROOT / "server" / "mail_identity_registry.py"
 FACADE_PATH = ROOT / "server" / "identity_aware_outbound_gateway.py"
+AUTH_PATH = ROOT / "server" / "outbound_mail_preparation_auth.py"
 
 sys.path.insert(0, str(SERVER_ROOT))
 
@@ -45,6 +46,9 @@ assert status["hidden_open_tracking"] is False
 assert status["device_fingerprinting"] is False
 assert status["persist_message_bodies"] is False
 assert status["persist_attachment_bytes"] is False
+assert status["preparation_api"]["enabled"] is False
+assert status["preparation_api"]["authentication"] == "hmac_sha256"
+assert status["preparation_api"]["runtime_secret_configured"] is False
 selection_status = status["sender_selection"]
 assert selection_status["automatic_selection_enabled"] is True
 assert selection_status["allow_submitted_from_override"] is False
@@ -110,6 +114,7 @@ for path in (
     SERVER_PATH,
     IDENTITY_PATH,
     FACADE_PATH,
+    AUTH_PATH,
     IDENTITIES_PATH,
 ):
     assert path.is_file(), path
@@ -156,6 +161,10 @@ for required in (
     '"/outbound-mail/status"',
     '"/outbound-mail/preview"',
     '"/outbound-mail/send"',
+    '"/outbound-mail/api/v1/status"',
+    '"/outbound-mail/api/v1/prepare"',
+    "preparation_auth.verify_request",
+    "outbound_message_prepared_api",
     "DEFAULT_IDENTITIES",
     "identity_gateway.compose_preview",
     "identity_gateway.send_message",
@@ -172,6 +181,7 @@ unit_result = subprocess.run(
         "tests.test_outbound_mail_admin_assets",
         "tests.test_mail_identity_registry",
         "tests.test_identity_aware_outbound_gateway",
+        "tests.test_outbound_mail_preparation_auth",
     ],
     cwd=ROOT,
     check=False,
@@ -186,6 +196,7 @@ compile_result = subprocess.run(
         str(SERVER_PATH),
         str(IDENTITY_PATH),
         str(FACADE_PATH),
+        str(AUTH_PATH),
     ],
     cwd=ROOT,
     check=False,

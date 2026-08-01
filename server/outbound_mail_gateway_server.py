@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -26,6 +27,7 @@ import identity_aware_outbound_gateway as identity_gateway
 import mail_identity_registry
 import outbound_mail_gateway as gateway
 import outbound_mail_policy
+import outbound_mail_preparation_auth as preparation_auth
 
 
 class GatewayApplication:
@@ -33,16 +35,22 @@ class GatewayApplication:
         self.config_path = config_path.resolve()
         self.identities_path = identities_path.resolve()
 
-    def load(self) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Path]:
+    def load(
+        self,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Path, Path]:
         config = gateway.load_json(self.config_path)
         gateway.validate_gateway_config(config)
         policy_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["policy"])
         audit_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["audit_jsonl"])
+        nonce_path = gateway.resolve_repo_path(
+            REPO_ROOT,
+            config["preparation_api"]["nonce_store"],
+        )
         policy = outbound_mail_policy.load_policy(policy_path)
         outbound_mail_policy.validate_policy(policy)
         identities = gateway.load_json(self.identities_path)
         mail_identity_registry.validate_registry(identities)
-        return config, policy, identities, audit_path
+        return config, policy, identities, audit_path, nonce_path
 
 
 class GatewayHandler(BaseHTTPRequestHandler):
@@ -87,7 +95,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
         self._send_bytes(HTTPStatus.OK, path.read_bytes(), content_type)
 
-    def _read_json(self, max_bytes: int) -> dict[str, Any]:
+    def _read_body(self, max_bytes: int) -> bytes:
         raw_length = self.headers.get("Content-Length", "")
         try:
             length = int(raw_length)
@@ -95,7 +103,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             raise gateway.GatewayError("invalid Content-Length") from exc
         if length < 1 or length > max_bytes:
             raise gateway.GatewayError("request body length is invalid")
-        body = self.rfile.read(length)
+        return self.rfile.read(length)
+
+    def _decode_json(self, body: bytes) -> dict[str, Any]:
         try:
             payload = json.loads(body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -104,8 +114,41 @@ class GatewayHandler(BaseHTTPRequestHandler):
             raise gateway.GatewayError("request JSON must be an object")
         return payload
 
+    def _read_json(self, max_bytes: int) -> dict[str, Any]:
+        return self._decode_json(self._read_body(max_bytes))
+
+    def _authenticate_preparation_api(
+        self,
+        config: dict[str, Any],
+        nonce_path: Path,
+        method: str,
+        path: str,
+        body: bytes,
+    ) -> preparation_auth.VerifiedPreparationClient:
+        return preparation_auth.verify_request(
+            config["preparation_api"],
+            dict(self.headers.items()),
+            method,
+            path,
+            body,
+            nonce_path,
+        )
+
     def _handle_error(self, exc: Exception) -> None:
-        if isinstance(exc, gateway.DeliveryDisabledError):
+        if isinstance(exc, preparation_auth.PreparationApiDisabledError):
+            status = HTTPStatus.FORBIDDEN
+            code = "preparation_api_disabled"
+        elif isinstance(exc, preparation_auth.PreparationAuthUnavailableError):
+            status = HTTPStatus.SERVICE_UNAVAILABLE
+            code = "preparation_auth_unavailable"
+        elif isinstance(exc, preparation_auth.PreparationReplayError):
+            status = HTTPStatus.CONFLICT
+            code = "replay_detected"
+        elif isinstance(exc, preparation_auth.InvalidPreparationAuthError):
+            status = HTTPStatus.UNAUTHORIZED
+            code = "authentication_failed"
+            exc = RuntimeError("Preparation API authentication failed.")
+        elif isinstance(exc, gateway.DeliveryDisabledError):
             status = HTTPStatus.FORBIDDEN
             code = "delivery_disabled"
         elif isinstance(exc, gateway.ProviderUnavailableError):
@@ -116,6 +159,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             (
                 gateway.GatewayError,
                 gateway.ConfigurationError,
+                preparation_auth.PreparationAuthConfigurationError,
                 mail_identity_registry.IdentityRegistryError,
                 ValueError,
             ),
@@ -130,7 +174,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         try:
-            config, policy, identities, audit_path = self.application.load()
+            config, policy, identities, audit_path, nonce_path = self.application.load()
             if parsed.path in {"/outbound-mail", "/outbound-mail/"}:
                 self._serve_asset(WEB_ROOT / "index.html", "text/html; charset=utf-8")
                 return
@@ -151,6 +195,23 @@ class GatewayHandler(BaseHTTPRequestHandler):
                     HTTPStatus.OK,
                     identity_gateway.status_payload(config, policy, identities),
                 )
+                return
+            if parsed.path == "/outbound-mail/api/v1/status":
+                client = self._authenticate_preparation_api(
+                    config,
+                    nonce_path,
+                    "GET",
+                    parsed.path,
+                    b"",
+                )
+                status_payload = identity_gateway.status_payload(config, policy, identities)
+                status_payload["preparation_api"]["contract"] = (
+                    "wwcx.outbound-mail-preparation-api.v1"
+                )
+                status_payload["preparation_api"]["authenticated_client_id"] = (
+                    client.client_id
+                )
+                self._send_json(HTTPStatus.OK, status_payload)
                 return
             if parsed.path == "/outbound-mail/audit":
                 query = parse_qs(parsed.query)
@@ -173,7 +234,47 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         try:
-            config, policy, identities, audit_path = self.application.load()
+            config, policy, identities, audit_path, nonce_path = self.application.load()
+            if parsed.path == "/outbound-mail/api/v1/prepare":
+                body = self._read_body(config["preparation_api"]["max_request_bytes"])
+                client = self._authenticate_preparation_api(
+                    config,
+                    nonce_path,
+                    "POST",
+                    parsed.path,
+                    body,
+                )
+                payload = self._decode_json(body)
+                preview = identity_gateway.compose_preview(
+                    config,
+                    policy,
+                    identities,
+                    payload,
+                )
+                preview.pop("action_token", None)
+                audit_event = dict(preview["audit_record"])
+                audit_event.update(
+                    {
+                        "event": "outbound_message_prepared_api",
+                        "occurred_at": datetime.now(timezone.utc).isoformat(
+                            timespec="seconds"
+                        ),
+                        "client_id": client.client_id,
+                        "sender_address": preview["request"]["from_address"],
+                        "sender_selection_reason": preview["sender_selection"]["reason"],
+                        "sender_identity_key": preview["sender_selection"]["identity_key"],
+                        "delivery_status": "prepared_not_sent",
+                    }
+                )
+                gateway.append_audit_event(audit_path, audit_event)
+                preview["preparation_api"] = {
+                    "contract": "wwcx.outbound-mail-preparation-api.v1",
+                    "authenticated_client_id": client.client_id,
+                    "delivery_status": "prepared_not_sent",
+                }
+                self._send_json(HTTPStatus.OK, preview)
+                return
+
             max_bytes = config["admin"]["max_body_bytes"] + 65536
             payload = self._read_json(max_bytes)
             if parsed.path == "/outbound-mail/preview":
@@ -216,7 +317,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     application = GatewayApplication(args.config, args.identities)
-    config, policy, identities, _ = application.load()
+    config, policy, identities, _, _ = application.load()
     status = identity_gateway.status_payload(config, policy, identities)
     host = args.host or config["listen"]["host"]
     port = args.port or config["listen"]["port"]

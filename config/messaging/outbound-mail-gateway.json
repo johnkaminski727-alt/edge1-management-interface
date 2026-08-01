@@ -49,6 +49,18 @@
     "max_body_bytes": 262144,
     "audit_view_limit": 200
   },
+  "preparation_api": {
+    "enabled": false,
+    "authentication": "hmac_sha256",
+    "secret_env": "WWCX_MAIL_GATEWAY_TOKEN",
+    "allowed_clients": [
+      "wwcx-website-admin"
+    ],
+    "clock_skew_seconds": 300,
+    "nonce_ttl_seconds": 900,
+    "nonce_store": "var/outbound-mail/preparation-nonces.sqlite3",
+    "max_request_bytes": 327680
+  },
   "content": {
     "persist_message_bodies": false,
     "persist_attachment_bytes": false,
