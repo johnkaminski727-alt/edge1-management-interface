@@ -1,0 +1,60 @@
+{
+  "contract": "wwcx.freepbx-ucp-apache-override-audit-policy.v1",
+  "status": "ready_for_read_only_execution",
+  "execution_authorized": true,
+  "expected_hostnames": [
+    "edge1",
+    "edge1.ww.cx"
+  ],
+  "repository_root": "/opt/edge1-management-interface",
+  "evidence_root": "/var/lib/wwcx-deployment-evidence/freepbx-ucp-apache-override-audit",
+  "apache_config_roots": [
+    "/etc/apache2",
+    "/etc/httpd"
+  ],
+  "web_root_candidates": [
+    "/var/www/html",
+    "/var/www/freepbx",
+    "/usr/share/freepbx"
+  ],
+  "apache_command_candidates": [
+    "/usr/sbin/apache2ctl",
+    "/usr/sbin/apachectl",
+    "/usr/sbin/httpd"
+  ],
+  "limits": {
+    "command_timeout_seconds": 20,
+    "maximum_command_output_bytes": 1048576,
+    "maximum_config_files": 2500,
+    "maximum_config_file_bytes": 2097152,
+    "maximum_htaccess_files": 500,
+    "maximum_htaccess_file_bytes": 1048576,
+    "maximum_walk_depth": 8
+  },
+  "guardrails": {
+    "read_only_host_inspection": true,
+    "evidence_writes_only": true,
+    "follow_symlinks": false,
+    "record_htaccess_values": false,
+    "record_secret_directive_values": false,
+    "record_authentication_material": false,
+    "record_cookie_values": false,
+    "record_environment": false,
+    "apache_configuration_change": false,
+    "service_reload_or_restart": false,
+    "module_or_site_enablement": false,
+    "route_or_authentication_change": false,
+    "listener_or_firewall_change": false,
+    "production_traffic_change": false
+  },
+  "acceptance": {
+    "apache_config_test_captured": true,
+    "apache_vhost_map_captured": true,
+    "apache_runtime_config_dump_captured": true,
+    "allowoverride_occurrences_classified": true,
+    "htaccess_metadata_and_directive_names_only": true,
+    "sha256_manifest_required": true,
+    "manual_effective_policy_review_required": true,
+    "mutation_performed": false
+  }
+}
