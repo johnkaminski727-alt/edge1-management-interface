@@ -22,6 +22,28 @@
       <button id="refresh" type="button">Refresh snapshot</button>
     </section>
     <section class="metrics" id="metrics" aria-label="Telephony summary metrics"></section>
+
+    <section class="analytics-section" aria-labelledby="analytics-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Aggregate analytics</p><h2 id="analytics-title">Health, failures, and interconnect performance</h2></div>
+        <p class="analytics-boundary">Privacy-minimized summaries from the loopback analytics API.</p>
+      </div>
+      <div class="analytics-grid">
+        <article id="analytics-health" class="analytics-card" aria-live="polite">
+          <h3>Platform health score</h3>
+          <p class="analytics-loading">Loading aggregate health…</p>
+        </article>
+        <article id="analytics-failures" class="analytics-card" aria-live="polite">
+          <h3>Call and SIP outcomes</h3>
+          <p class="analytics-loading">Loading failure classes…</p>
+        </article>
+        <article id="analytics-carriers" class="analytics-card" aria-live="polite">
+          <h3>Carrier and interconnect posture</h3>
+          <p class="analytics-loading">Loading aggregate performance…</p>
+        </article>
+      </div>
+    </section>
+
     <section class="workspace">
       <div>
         <div class="section-heading"><div><p class="eyebrow">Services</p><h2>Platform health</h2></div></div>
