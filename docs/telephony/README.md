@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md). Provider claims must pass the privacy-safe [DTMF Provider Evidence Intake](dtmf-provider-evidence-intake.md) before promotion into the capability matrix. Aggregate analytics repository acceptance is recorded in [Telephony Analytics Acceptance Record](analytics-acceptance-record.md), with the authenticated Edge1 result in [Telephony Analytics Live Acceptance — 2026-08-01](telephony-analytics-live-acceptance-20260801.md). Offline sanitized CDR and SIP outcome normalization is documented in [Sanitized Telephony Event Adapters](sanitized-event-adapters.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md). Provider claims must pass the privacy-safe [DTMF Provider Evidence Intake](dtmf-provider-evidence-intake.md) before promotion into the capability matrix. Aggregate analytics repository acceptance is recorded in [Telephony Analytics Acceptance Record](analytics-acceptance-record.md), with the authenticated Edge1 result in [Telephony Analytics Live Acceptance — 2026-08-01](telephony-analytics-live-acceptance-20260801.md). Offline sanitized CDR and SIP outcome normalization is documented in [Sanitized Telephony Event Adapters](sanitized-event-adapters.md). The read-only aggregate console presentation is documented in [Telephony Analytics Console Panels](analytics-console-panels.md).
 
 ## Preview
 
@@ -27,6 +27,8 @@ Open `http://127.0.0.1:8088/telephony/` through an approved local or private con
 - sanitized offline fixture fallback
 - normalized health scoring and privacy-minimized aggregate analytics foundation
 - loopback-only aggregate health, call-summary, and interconnect-summary GET endpoints on port `8099`
+- fixed same-origin read routes for aggregate analytics through the loopback console
+- console panels for health score, call and SIP outcomes, failure classes, sanitized carrier utilization, and aggregate interconnect posture
 - SIP failure classification and interconnect summaries
 - fail-closed offline adapters for already-sanitized CDR and SIP outcome records
 - read-only Asterisk DTMF policy inventory and offline complete 16-key signal validation
@@ -65,6 +67,8 @@ The telephony analytics live-acceptance audit does not install, enable, start, s
 
 The sanitized event adapters do not activate a collector or read any live source. They only normalize synthetic or independently sanitized mappings supplied by an approved caller.
 
+The analytics console panels use only three exact same-origin paths. The console server maps them to three fixed loopback analytics endpoints. There is no arbitrary proxy, direct browser access to port `8099`, write method, or fixture fallback that fabricates aggregate analytics.
+
 ## Validation
 
 From the repository root:
@@ -75,6 +79,7 @@ python3 tests/validate_telephony_platform.py
 python3 tests/validate_telephony_analytics_api.py
 python3 tests/validate_telephony_analytics_live_acceptance_audit.py
 python3 tests/validate_telephony_sanitized_adapters.py
+python3 tests/validate_telephony_analytics_console_panels.py
 python3 tests/validate_asterisk_dtmf_readiness_audit.py
 python3 tests/validate_asterisk_pjsip_endpoint_policy_reconciliation.py
 python3 tests/test_validate_dtmf_provider_evidence.py
@@ -92,16 +97,17 @@ The authenticated DTMF audit completed on `edge1.ww.cx` with exit code `0`, one 
 
 The aggregate analytics service is accepted on Edge1 as a loopback-only read-only surface. The authenticated audit confirmed active and enabled service state, port `8099`, GET payload and privacy contracts, POST rejection, matching runtime and canonical source hashes, zero warnings, zero failures, preserved repository-index ownership, and no runtime mutation. This acceptance does not authorize live collectors, database access, carrier integrations, routing, calls, DTMF, or public exposure.
 
+The aggregate console panels are repository-complete but are not yet deployed to the running console service. Deployment requires a separate bounded operator action and live verification of the console source, same-origin routes, listener scope, and rendered unavailable-state behavior.
+
 ## Next implementation slice
 
-1. use the sanitized adapter contracts for synthetic and independently minimized fixture generation only
-2. keep live CDR, AMI/ARI, SIP-edge, log, and carrier source connections blocked pending separate design and access review
-3. add health-score, failure-class, and carrier-performance console panels
-4. add append-only report-generation audit events
-5. add bounded anomaly indicators without automatic enforcement
-6. use the sanitized evidence-intake record for each genuine provider and route candidate
-7. obtain provider-specific RFC 4733, event-range, SIP INFO, in-band, codec, and extended-key documentation
-8. populate the carrier capability matrix only from records that pass evidence validation
-9. leave unsupported or undocumented carrier capabilities as `unknown`
-10. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
-11. complete remaining Edge1 validation, evidence capture, and deployment runbook updates
+1. keep live CDR, AMI/ARI, SIP-edge, log, and carrier source connections blocked pending separate design and access review
+2. add append-only report-generation audit events
+3. add bounded anomaly indicators without automatic enforcement
+4. use the sanitized evidence-intake record for each genuine provider and route candidate
+5. obtain provider-specific RFC 4733, event-range, SIP INFO, in-band, codec, and extended-key documentation
+6. populate the carrier capability matrix only from records that pass evidence validation
+7. leave unsupported or undocumented carrier capabilities as `unknown`
+8. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
+9. perform a separately authorized bounded console deployment and capture protected live evidence
+10. complete remaining Edge1 validation, evidence capture, and deployment runbook updates
