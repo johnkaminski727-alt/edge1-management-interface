@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/anomaly-indicators.schema.json",
+  "title": "WW.CX Telephony Aggregate Anomaly Indicators",
+  "description": "Deterministic informational indicators over privacy-minimized aggregate telephony summaries. The output authorizes no notification, enforcement, routing, service control, or automatic remediation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "overall_state", "indicators", "safety"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "mode": {"const": "informational_no_enforcement"},
+    "overall_state": {
+      "enum": ["insufficient_data", "ok", "watch", "critical"]
+    },
+    "indicators": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id", "state", "observed_value", "unit", "minimum_sample",
+          "sample_size", "thresholds", "reason_code", "investigation_target",
+          "automatic_action"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "platform_health_score",
+              "answer_rate",
+              "failure_ratio",
+              "dominant_failure_concentration",
+              "interconnect_attention_ratio",
+              "interconnect_latency"
+            ]
+          },
+          "state": {
+            "enum": ["insufficient_data", "ok", "watch", "critical"]
+          },
+          "observed_value": {"type": ["number", "null"]},
+          "unit": {
+            "enum": ["score", "percent", "milliseconds_average"]
+          },
+          "minimum_sample": {"type": "integer", "minimum": 1},
+          "sample_size": {"type": "integer", "minimum": 0},
+          "thresholds": {
+            "type": "object",
+            "minProperties": 2,
+            "additionalProperties": {"type": "number"}
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,95}$"
+          },
+          "investigation_target": {
+            "enum": ["#analytics-health", "#analytics-failures", "#analytics-carriers"]
+          },
+          "automatic_action": {"const": false}
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automatic_action", "notification_dispatch", "traffic_enforcement",
+        "route_change", "service_control"
+      ],
+      "properties": {
+        "automatic_action": {"const": false},
+        "notification_dispatch": {"const": false},
+        "traffic_enforcement": {"const": false},
+        "route_change": {"const": false},
+        "service_control": {"const": false}
+      }
+    }
+  }
+}
