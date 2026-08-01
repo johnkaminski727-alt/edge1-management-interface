@@ -16,6 +16,7 @@ import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config/messaging/outbound-mail-gateway.json"
+POLICY = ROOT / "config/messaging/outbound-mail-policy.json"
 SERVER = ROOT / "server/outbound_mail_gateway_server.py"
 DROPIN = ROOT / "deploy/messaging/wwcx-outbound-mail-preparation-api.conf"
 INSTALLER = ROOT / "deploy/messaging/install-outbound-mail-preparation-api.sh"
@@ -24,17 +25,23 @@ PROXY = ROOT / "deploy/messaging/outbound-mail-preparation-api-nginx.conf.exampl
 RUNBOOK = ROOT / "docs/messaging-operations/outbound-mail-phase-b-preparation-20260801.md"
 PORT = 8104
 SECRET = "phaseB_test_secret_ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789"
+CANARY_RECIPIENT = "phase-b-preparation-canary@example.invalid"
 
 for path in (DROPIN, INSTALLER, CANARY, PROXY, RUNBOOK):
     assert path.is_file(), path
 
 config = json.loads(CONFIG.read_text(encoding="utf-8"))
+policy = json.loads(POLICY.read_text(encoding="utf-8"))
 assert config["preparation_api"]["enabled"] is False
 assert config["enabled"] is False
 assert config["external_delivery_authorized"] is False
 assert config["admin"]["send_endpoint_enabled"] is False
 assert config["provider"]["selected"] == "none"
 assert not any(profile["enabled"] for profile in config["provider"]["profiles"].values())
+assert policy["audit"]["record_recipient_addresses"] is True
+assert policy["audit"]["record_body"] is False
+assert policy["audit"]["record_action_token"] is False
+assert policy["audit"]["record_action_token_hash"] is True
 
 dropin = DROPIN.read_text(encoding="utf-8")
 assert "EnvironmentFile=/etc/wwcx/outbound-mail-gateway.env" in dropin
@@ -84,6 +91,7 @@ for required in (
     "B1 — loopback authenticated preparation",
     "B2 — TLS reverse proxy",
     "never copied into evidence",
+    "record_recipient_addresses=true",
     "prepared_not_sent",
     "409 replay_detected",
     "403 delivery_disabled",
@@ -172,12 +180,12 @@ with tempfile.TemporaryDirectory(prefix="wwcx-phase-b-") as temporary:
         audit_text = json.dumps(audit, sort_keys=True)
         assert audit["event"] == "outbound_message_prepared_api"
         assert audit["delivery_status"] == "prepared_not_sent"
+        assert audit["recipients"] == [CANARY_RECIPIENT]
         assert re.fullmatch(r"[0-9a-f]{64}", audit["action_token_sha256"])
         assert "action_token" not in audit
         assert "action_url" not in audit
         assert SECRET not in audit_text
         assert "This synthetic canary must be prepared but never sent." not in audit_text
-        assert "phase-b-preparation-canary@example.invalid" not in audit_text
     finally:
         process.terminate()
         try:
@@ -193,4 +201,5 @@ with tempfile.TemporaryDirectory(prefix="wwcx-phase-b-") as temporary:
 
 print("Outbound mail Phase B preparation package validation passed")
 print("Runtime overlay, HMAC canary, replay rejection, audit redaction, and no-send state verified")
+print("Recipient addresses remain governed by the explicit audit policy")
 print("TLS proxy remains a staged exact-route template with placeholders")
