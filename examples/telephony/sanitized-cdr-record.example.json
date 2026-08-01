@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "source_record_id": "cdr-fixture-alpha",
+  "observed_at": "2026-08-01T19:00:00Z",
+  "direction": "outbound",
+  "disposition": "answered",
+  "sip_code": 200,
+  "carrier_id": "carrier-fixture-a",
+  "destination_country": "CA",
+  "duration_seconds": 42
+}
