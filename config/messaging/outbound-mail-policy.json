@@ -35,5 +35,17 @@
     "record_body": false,
     "record_action_token": false,
     "record_action_token_hash": true
+  },
+  "delivery": {
+    "provider": "disabled",
+    "allow_prepare": true,
+    "allow_external_submission": false,
+    "allow_live_delivery": false,
+    "allowed_from_domains": [
+      "ww.cx",
+      "creekco.ca"
+    ],
+    "max_recipients": 25,
+    "message_size_limit_bytes": 524288
   }
 }
