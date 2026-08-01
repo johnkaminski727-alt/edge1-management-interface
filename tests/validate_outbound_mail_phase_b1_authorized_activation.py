@@ -123,7 +123,7 @@ assert "production HMAC secret currently installed: **no**" in state
 assert "approved activation baseline commit must be supplied explicitly" in state
 assert "B2 certificate or reverse proxy installed: **no**" in state
 assert "production mail delivery: **no**" in state
-assert "2026-08-01 18:38 UTC" in state
+assert "2026-08-01 18:46 UTC" in state
 assert "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T183528Z" in state
 
 print("Authorized outbound mail Phase B1 activation wrapper validation passed")
