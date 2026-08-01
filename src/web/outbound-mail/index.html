@@ -13,7 +13,7 @@
       <div>
         <p class="eyebrow">WW.CX Operations</p>
         <h1>Outbound Mail Gateway</h1>
-        <p class="subtitle">Compose, control, preview, submit, and reconcile correspondence from one workspace.</p>
+        <p class="subtitle">Compose, select the correct identity automatically, preview, submit, and reconcile correspondence from one workspace.</p>
       </div>
       <div class="mode-pill"><span aria-hidden="true"></span>Preview only</div>
     </header>
@@ -25,14 +25,14 @@
     </nav>
 
     <section class="notice" aria-label="Deployment status">
-      <strong>Safe default:</strong> live delivery is disabled. This workspace previews the final message and audit controls without changing SMTP, DNS, or mailbox settings.
+      <strong>Safe default:</strong> live delivery is disabled. Submitted From and Reply-To values are not trusted; the gateway replaces them with the registered identity selected from the original inbound recipient, an approved identity hint, or the default sender.
     </section>
 
     <section class="summary-grid" aria-label="Gateway summary">
       <article><span>Provider</span><strong id="summary-provider">Not configured</strong></article>
-      <article><span>Sender</span><strong id="summary-sender">john@ww.cx</strong></article>
-      <article><span>Policy</span><strong>Transparent tracking</strong></article>
-      <article><span>Delivery</span><strong>Disabled</strong></article>
+      <article><span>Selected sender</span><strong id="summary-sender">Automatic</strong></article>
+      <article><span>Private mailbox</span><strong id="summary-private-mailbox">john-inbox@ww.cx</strong></article>
+      <article><span>Shared mailbox</span><strong id="summary-shared-mailbox">maildesk@ww.cx</strong></article>
     </section>
 
     <div class="workspace">
@@ -50,11 +50,14 @@
           <label>Legal name<input id="legal-name" value="Christmas Island Worldwide"></label>
           <label>Operating name<input id="operating-name" value="WW.CX"></label>
           <label>Mailing address<input id="mailing-address" placeholder="Configure the verified business mailing address"></label>
-          <label>Contact email<input id="contact-email" type="email" value="john@ww.cx"></label>
+          <label>Public contact email<input id="contact-email" type="email" value="john@ww.cx"></label>
           <label>Website<input id="website" type="url" value="https://ww.cx"></label>
           <label>Privacy page<input id="privacy-url" type="url" value="https://ww.cx/privacy"></label>
-          <label>Delivery adapter<select id="provider"><option value="">Choose later</option><option>Gmail API</option><option>Provider API</option><option>Authenticated SMTP smarthost</option></select></label>
-          <label>Default sender profile<select id="sender-profile"><option>John Kaminski — john@ww.cx</option><option>WW.CX Records — records@ww.cx</option><option>Spirit Creek Communications</option></select></label>
+          <label>Delivery adapter<select id="provider"><option value="">Choose later</option></select></label>
+          <label>Sender fallback<select id="sender-profile"><option value="">Automatic — use original recipient, then john@ww.cx</option></select></label>
+          <label>Private John delivery mailbox<input id="private-mailbox" value="john-inbox@ww.cx" readonly></label>
+          <label>Shared role delivery mailbox<input id="shared-mailbox" value="maildesk@ww.cx" readonly></label>
+          <label>System no-reply identity<input id="system-sender" value="noreply@ww.cx" readonly></label>
         </div>
         <div class="checklist" id="setup-checklist" aria-live="polite"></div>
         <div class="panel-actions"><button type="button" data-next="compose">Continue to compose</button></div>
@@ -64,6 +67,7 @@
         <div class="panel-heading"><div><p class="eyebrow">Step 2</p><h2>Compose correspondence</h2></div><button type="button" class="secondary" id="load-example">Load records-request example</button></div>
         <div class="form-grid">
           <label>Message class<select id="message-class"><option value="business_correspondence">Business correspondence</option><option value="legal_notice">Legal notice</option><option value="commercial">Commercial message</option></select></label>
+          <label>Original inbound recipient<input id="original-recipient" type="email" placeholder="john@spiritcreekgardens.com"></label>
           <label>Sender name<input id="signer-name" value="John Kaminski"></label>
           <label>Sender title<input id="signer-title" value="Authorized Representative"></label>
           <label>To<input id="to" placeholder="recipient@example.com"></label>
@@ -71,10 +75,12 @@
           <label>BCC<input id="bcc" placeholder="Optional; visible in audit controls"></label>
           <label>Case ID<input id="case-id" placeholder="ENT-184366738"></label>
           <label>Action ID<input id="action-id" placeholder="ENT-ACT-014"></label>
+          <label class="wide"><input id="system-generated" type="checkbox"> System-generated message — use noreply@ww.cx and do not set Reply-To</label>
           <label class="wide">Subject<input id="subject" placeholder="Clear, specific subject"></label>
           <label class="wide">Message body<textarea id="body" rows="14" placeholder="Write the message body here. The gateway adds the approved signature and footer during preview."></textarea></label>
-          <label class="wide hidden" id="unsubscribe-wrap">Unsubscribe or preference URL<input id="unsubscribe-url" type="url" placeholder="https://ww.cx/preferences/... "></label>
+          <label class="wide hidden" id="unsubscribe-wrap">Unsubscribe or preference URL<input id="unsubscribe-url" type="url" placeholder="https://ww.cx/preferences/..."></label>
         </div>
+        <section class="explain"><h3>How the sender is selected</h3><p>Replies use the address that originally received the message. Manual messages can use an approved sender fallback. Any arbitrary From or Reply-To supplied by another client is replaced by the gateway.</p></section>
         <div class="panel-actions"><button type="button" class="secondary" data-back="setup">Back</button><button type="button" data-next="controls">Continue to controls</button></div>
       </section>
 
@@ -104,7 +110,7 @@
           <section><h3>Control metadata</h3><dl id="metadata-preview" class="metadata"></dl><h3>Headers</h3><pre id="headers-preview">No headers generated.</pre></section>
         </div>
         <div class="panel-actions"><button type="button" class="secondary" data-back="controls">Back</button><button type="button" class="secondary" id="copy-preview">Copy final message</button><button type="button" id="submit-message" disabled>Submit message</button></div>
-        <p class="fine-print">Submission remains disabled until a delivery adapter, credentials, sender verification, mailing address, DNS authentication, and explicit production authorization are configured.</p>
+        <p class="fine-print">Submission remains disabled until a delivery adapter, credentials, sender verification, mailing address, DNS authentication, identity allowlist, and explicit production authorization are configured.</p>
       </section>
 
       <section class="panel" data-panel="activity">

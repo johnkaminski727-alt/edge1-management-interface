@@ -11,7 +11,10 @@ JS = ROOT / "src" / "web" / "outbound-mail" / "app.js"
 CSS = ROOT / "src" / "web" / "outbound-mail" / "styles.css"
 DOC = ROOT / "docs" / "messaging" / "outbound-mail-compliance-gateway.md"
 POLICY = ROOT / "config" / "messaging" / "outbound-mail-policy.json"
+IDENTITIES = ROOT / "config" / "messaging" / "mail-identities.json"
 ENGINE = ROOT / "server" / "outbound_mail_policy.py"
+IDENTITY_ENGINE = ROOT / "server" / "mail_identity_registry.py"
+IDENTITY_FACADE = ROOT / "server" / "identity_aware_outbound_gateway.py"
 
 
 class OutboundMailAdminAssetsTests(unittest.TestCase):
@@ -22,10 +25,23 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
         cls.css = CSS.read_text(encoding="utf-8")
         cls.doc = DOC.read_text(encoding="utf-8")
         cls.policy = POLICY.read_text(encoding="utf-8")
+        cls.identities = IDENTITIES.read_text(encoding="utf-8")
         cls.engine = ENGINE.read_text(encoding="utf-8")
+        cls.identity_engine = IDENTITY_ENGINE.read_text(encoding="utf-8")
+        cls.identity_facade = IDENTITY_FACADE.read_text(encoding="utf-8")
 
     def test_required_assets_exist_and_are_nonempty(self) -> None:
-        for path in (HTML, JS, CSS, DOC, POLICY, ENGINE):
+        for path in (
+            HTML,
+            JS,
+            CSS,
+            DOC,
+            POLICY,
+            IDENTITIES,
+            ENGINE,
+            IDENTITY_ENGINE,
+            IDENTITY_FACADE,
+        ):
             with self.subTest(path=path):
                 self.assertTrue(path.is_file())
                 self.assertGreater(path.stat().st_size, 100)
@@ -49,6 +65,31 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
         self.assertIn("Store full IP addresses", self.html)
         self.assertIn("does not create legal rights", self.html)
         self.assertIn("no-hidden-pixel", self.js)
+
+    def test_automatic_sender_selection_is_visible_and_enforced(self) -> None:
+        for token in (
+            'id="original-recipient"',
+            'id="system-generated"',
+            "Submitted From and Reply-To values are not trusted",
+            "john-inbox@ww.cx",
+            "maildesk@ww.cx",
+            "noreply@ww.cx",
+        ):
+            self.assertIn(token, self.html)
+        for token in (
+            "original_recipient",
+            "identity_hint",
+            "system_generated",
+            "sender_selection",
+            "from_address_replaced",
+        ):
+            self.assertIn(token, self.js)
+        self.assertIn('"allow_submitted_from_override": false', self.identities)
+        self.assertIn('"private_john_delivery_mailbox": "john-inbox@ww.cx"', self.identities)
+        self.assertIn('"shared_role_delivery_mailbox": "maildesk@ww.cx"', self.identities)
+        self.assertIn('"system_sender": "noreply@ww.cx"', self.identities)
+        self.assertIn("submitted From override must remain disabled", self.identity_engine)
+        self.assertIn('prepared["from_address"] = selection.address', self.identity_facade)
 
     def test_chatgpt_and_provider_abstraction_are_documented(self) -> None:
         self.assertIn("ChatGPT and automation path", self.doc)

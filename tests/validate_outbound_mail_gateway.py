@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repository validation for the disabled WW.CX outbound-mail gateway."""
+"""Repository validation for the disabled identity-aware outbound-mail gateway."""
 
 from __future__ import annotations
 
@@ -14,23 +14,30 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SERVER_ROOT = ROOT / "server"
 CONFIG_PATH = ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
 POLICY_PATH = ROOT / "config" / "messaging" / "outbound-mail-policy.json"
+IDENTITIES_PATH = ROOT / "config" / "messaging" / "mail-identities.json"
 PAGE_PATH = ROOT / "src" / "web" / "outbound-mail" / "index.html"
 SCRIPT_PATH = ROOT / "src" / "web" / "outbound-mail" / "app.js"
 STYLE_PATH = ROOT / "src" / "web" / "outbound-mail" / "styles.css"
 SERVER_PATH = ROOT / "server" / "outbound_mail_gateway_server.py"
+IDENTITY_PATH = ROOT / "server" / "mail_identity_registry.py"
+FACADE_PATH = ROOT / "server" / "identity_aware_outbound_gateway.py"
 
 sys.path.insert(0, str(SERVER_ROOT))
 
+import identity_aware_outbound_gateway
+import mail_identity_registry
 import outbound_mail_gateway
 import outbound_mail_policy
 
 
 config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+identities = json.loads(IDENTITIES_PATH.read_text(encoding="utf-8"))
 outbound_mail_gateway.validate_gateway_config(config)
 outbound_mail_policy.validate_policy(policy)
+mail_identity_registry.validate_registry(identities)
 
-status = outbound_mail_gateway.status_payload(config, policy)
+status = identity_aware_outbound_gateway.status_payload(config, policy, identities)
 assert status["gateway"] == "wwcx-outbound-mail-gateway"
 assert status["preview_enabled"] is True
 assert status["external_delivery_enabled"] is False
@@ -38,12 +45,23 @@ assert status["hidden_open_tracking"] is False
 assert status["device_fingerprinting"] is False
 assert status["persist_message_bodies"] is False
 assert status["persist_attachment_bytes"] is False
+selection_status = status["sender_selection"]
+assert selection_status["automatic_selection_enabled"] is True
+assert selection_status["allow_submitted_from_override"] is False
+assert selection_status["private_delivery_mailbox"] == "john-inbox@ww.cx"
+assert selection_status["shared_delivery_mailbox"] == "maildesk@ww.cx"
+assert selection_status["system_sender"] == "noreply@ww.cx"
+assert selection_status["outbound_activation_authorized"] is False
+assert selection_status["live_sender_count"] == 0
 
-preview = outbound_mail_gateway.compose_preview(
+preview = identity_aware_outbound_gateway.compose_preview(
     config,
     policy,
+    identities,
     {
-        "from_address": "john@ww.cx",
+        "from_address": "untrusted@example.com",
+        "reply_to": "untrusted@example.com",
+        "original_recipient": "john@spiritcreekgardens.com",
         "to": "recipient@example.com",
         "subject": "Controlled preview validation",
         "body": "This is a repository validation message. No external delivery occurs.",
@@ -61,8 +79,39 @@ assert "does not create confidentiality, privilege" in preview["body"]
 assert preview["headers"]["X-WWCX-Tracking"] == "disclosed-action-link; no-hidden-pixel"
 assert len(preview["action_token_sha256"]) == 64
 assert preview["action_token"] not in json.dumps(preview["audit_record"])
+assert preview["request"]["from_address"] == "john@spiritcreekgardens.com"
+assert preview["request"]["reply_to"] == "john@spiritcreekgardens.com"
+assert preview["sender_selection"]["reason"] == "original_recipient"
+assert preview["sender_selection"]["from_address_replaced"] is True
+assert "untrusted@example.com" not in json.dumps(preview)
 
-for path in (PAGE_PATH, SCRIPT_PATH, STYLE_PATH, SERVER_PATH):
+system_preview = identity_aware_outbound_gateway.compose_preview(
+    config,
+    policy,
+    identities,
+    {
+        "system_generated": True,
+        "to": "recipient@example.com",
+        "subject": "System preview validation",
+        "body": "This system message is previewed but not sent.",
+        "message_class": "business_correspondence",
+        "mailing_address": "151 2 Street South, Invermay, SK",
+    },
+)
+assert system_preview["request"]["from_address"] == "noreply@ww.cx"
+assert system_preview["request"]["reply_to"] is None
+assert system_preview["sender_selection"]["reason"] == "system_generated"
+assert system_preview["sender_selection"]["live_enabled"] is False
+
+for path in (
+    PAGE_PATH,
+    SCRIPT_PATH,
+    STYLE_PATH,
+    SERVER_PATH,
+    IDENTITY_PATH,
+    FACADE_PATH,
+    IDENTITIES_PATH,
+):
     assert path.is_file(), path
     assert path.stat().st_size > 100, path
 
@@ -80,6 +129,11 @@ for required in (
     "Device fingerprinting",
     "Correspondence matrix",
     'id="submit-message" disabled',
+    'id="original-recipient"',
+    'id="system-generated"',
+    "john-inbox@ww.cx",
+    "maildesk@ww.cx",
+    "noreply@ww.cx",
 ):
     assert required in page, required
 for required in (
@@ -89,6 +143,11 @@ for required in (
     "/outbound-mail/audit",
     "no-hidden-pixel",
     "confirm_send",
+    "original_recipient",
+    "identity_hint",
+    "system_generated",
+    "sender_selection",
+    "noreply@ww.cx",
 ):
     assert required in script, required
 for required in (
@@ -97,6 +156,9 @@ for required in (
     '"/outbound-mail/status"',
     '"/outbound-mail/preview"',
     '"/outbound-mail/send"',
+    "DEFAULT_IDENTITIES",
+    "identity_gateway.compose_preview",
+    "identity_gateway.send_message",
 ):
     assert required in server, required
 
@@ -108,16 +170,36 @@ unit_result = subprocess.run(
         "tests.test_outbound_mail_policy",
         "tests.test_outbound_mail_gateway",
         "tests.test_outbound_mail_admin_assets",
+        "tests.test_mail_identity_registry",
+        "tests.test_identity_aware_outbound_gateway",
     ],
     cwd=ROOT,
     check=False,
 )
 assert unit_result.returncode == 0
 
+compile_result = subprocess.run(
+    [
+        sys.executable,
+        "-m",
+        "py_compile",
+        str(SERVER_PATH),
+        str(IDENTITY_PATH),
+        str(FACADE_PATH),
+    ],
+    cwd=ROOT,
+    check=False,
+)
+assert compile_result.returncode == 0
+
 node = shutil.which("node")
 if node:
     node_result = subprocess.run([node, "--check", str(SCRIPT_PATH)], check=False)
     assert node_result.returncode == 0
 
-print("Outbound mail gateway validation passed")
-print("Canonical admin wizard uses the gateway API; external delivery remains disabled")
+print("Identity-aware outbound mail gateway validation passed")
+print("Private delivery mailbox: john-inbox@ww.cx")
+print("Shared role delivery mailbox: maildesk@ww.cx")
+print("System sender: noreply@ww.cx")
+print("Submitted From and Reply-To values are replaced by registered identities")
+print("External delivery and every live sender remain disabled")

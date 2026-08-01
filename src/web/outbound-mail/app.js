@@ -24,7 +24,9 @@
 
   function formPayload() {
     return {
-      from_address: $('#contact-email').value.trim(),
+      original_recipient: $('#original-recipient').value.trim(),
+      identity_hint: $('#sender-profile').value,
+      system_generated: $('#system-generated').checked,
       to: $('#to').value,
       cc: $('#cc').value,
       bcc: $('#bcc').value,
@@ -40,18 +42,35 @@
     };
   }
 
+  function selectedIdentityAddress() {
+    if (state.preview && state.preview.sender_selection) return state.preview.sender_selection.address;
+    const selection = state.status && state.status.sender_selection;
+    if (!selection) return 'Automatic';
+    const hint = $('#sender-profile').value;
+    if (hint) {
+      const identity = selection.identities.find((item) => item.key === hint || item.address === hint);
+      if (identity) return identity.address;
+    }
+    const original = $('#original-recipient').value.trim().toLowerCase();
+    if (original && selection.identities.some((item) => item.address === original)) return original;
+    return selection.default_sender;
+  }
+
   function updateSetup() {
     const selected = state.status && state.status.providers.find((item) => item.selected);
+    const senderSelection = state.status && state.status.sender_selection;
     const checks = [
       ['Mailing address configured', Boolean($('#mailing-address').value.trim())],
+      ['Automatic sender selection active', Boolean(senderSelection && senderSelection.automatic_selection_enabled)],
+      ['Submitted From override disabled', Boolean(senderSelection && !senderSelection.allow_submitted_from_override)],
+      ['At least one live sender authorized', Boolean(senderSelection && senderSelection.live_sender_count > 0)],
       ['Delivery adapter enabled', Boolean(selected && selected.enabled)],
       ['Runtime provider settings available', Boolean(selected && selected.configured)],
-      ['Privacy page configured', Boolean($('#privacy-url').value.trim())],
       ['Live delivery authorized', Boolean(state.status && state.status.external_delivery_enabled)],
     ];
     $('#setup-checklist').innerHTML = checks.map(([label, ok]) => `<p class="${ok ? 'pass' : 'pending'}"><span>${ok ? '✓' : '○'}</span>${escapeHtml(label)}</p>`).join('');
     $('#summary-provider').textContent = selected ? selected.name : 'Not configured';
-    $('#summary-sender').textContent = $('#contact-email').value.trim() || 'Not configured';
+    $('#summary-sender').textContent = selectedIdentityAddress();
   }
 
   function renderProviderOptions(status) {
@@ -64,9 +83,26 @@
     select.title = 'Provider selection is controlled by the server configuration and activation process.';
   }
 
+  function renderSenderOptions(status) {
+    const selection = status.sender_selection;
+    const select = $('#sender-profile');
+    const options = selection.identities.map((identity) => {
+      const value = identity.key || identity.address;
+      const label = `${identity.display_name} — ${identity.address}${identity.live_enabled ? ' — live' : ' — preview only'}`;
+      return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+    });
+    select.innerHTML = `<option value="">Automatic — original recipient, then ${escapeHtml(selection.default_sender)}</option>${options.join('')}`;
+    $('#private-mailbox').value = selection.private_delivery_mailbox;
+    $('#shared-mailbox').value = selection.shared_delivery_mailbox;
+    $('#system-sender').value = selection.system_sender;
+    $('#summary-private-mailbox').textContent = selection.private_delivery_mailbox;
+    $('#summary-shared-mailbox').textContent = selection.shared_delivery_mailbox;
+  }
+
   function renderStatus(status) {
     state.status = status;
     renderProviderOptions(status);
+    renderSenderOptions(status);
     const pill = $('.mode-pill');
     pill.innerHTML = `<span aria-hidden="true"></span>${status.external_delivery_enabled ? 'Gateway ready' : 'Preview only'}`;
     pill.classList.toggle('ready', status.external_delivery_enabled);
@@ -89,6 +125,11 @@
     if (!$('#body').value.trim()) errors.push('Add a message body.');
     if (!$('#mailing-address').value.trim()) warnings.push('Mailing address is not configured; live submission remains blocked.');
     if ($('#message-class').value === 'commercial' && !$('#unsubscribe-url').value.trim()) errors.push('Commercial messages require an unsubscribe or preference URL.');
+    const original = $('#original-recipient').value.trim().toLowerCase();
+    if (original && state.status && !state.status.sender_selection.identities.some((item) => item.address === original)) {
+      errors.push('Original inbound recipient is not a registered sender identity.');
+    }
+    if ($('#system-generated').checked) warnings.push('System-generated mode selects noreply@ww.cx and intentionally omits Reply-To.');
     if (!state.status || !state.status.external_delivery_enabled) warnings.push('External delivery remains disabled; this preview does not send mail.');
     return { errors, warnings, recipients };
   }
@@ -108,7 +149,7 @@
       controlId: preview.control_id,
       caseId: request.case_id || '—',
       recipient: request.recipients[0] || '—',
-      subject: request.subject || 'Untitled',
+      subject: `${request.subject || 'Untitled'} [${request.from_address}]`,
       status: 'Composed',
       event: new Date().toISOString(),
       confidence: 'Confirmed',
@@ -148,21 +189,26 @@
     $('#headers-preview').textContent = Object.entries(result.headers).map(([key, value]) => `${key}: ${value}`).join('\n');
     $('#metadata-preview').innerHTML = [
       ['Control ID', result.control_id],
+      ['Selected sender', result.request.from_address],
+      ['Reply-To', result.request.reply_to || 'None'],
+      ['Selection reason', result.sender_selection.reason],
+      ['Submitted From replaced', result.sender_selection.from_address_replaced ? 'Yes' : 'No'],
       ['Class', result.request.message_class],
       ['Recipients', String(result.request.recipients.length)],
       ['Action URL', result.action_url],
       ['Provider', state.status.providers.find((item) => item.selected)?.name || 'none'],
       ['Tracking', 'disclosed-action-link; no-hidden-pixel'],
     ].map(([term, value]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('');
+    $('#summary-sender').textContent = result.request.from_address;
     $('#preview-status').textContent = 'Preview ready';
     $('#preview-status').className = 'badge safe';
-    $('#submit-message').disabled = !(state.status && state.status.external_delivery_enabled);
+    $('#submit-message').disabled = !(state.status && state.status.external_delivery_enabled && result.sender_selection.live_enabled);
     addComposedActivity(result);
     showStep('preview');
   }
 
   async function submitMessage() {
-    if (!state.status || !state.status.external_delivery_enabled || !state.preview) return;
+    if (!state.status || !state.status.external_delivery_enabled || !state.preview || !state.preview.sender_selection.live_enabled) return;
     if (!window.confirm('Submit this correspondence through the configured external provider?')) return;
     const payload = formPayload();
     payload.confirm_send = true;
@@ -176,7 +222,7 @@
       window.alert(`${result.error || 'send_failed'}: ${result.message || 'Unknown error'}`);
       return;
     }
-    window.alert(`Message submitted. Control ID: ${result.control_id}`);
+    window.alert(`Message submitted from ${result.sender_selection.address}. Control ID: ${result.control_id}`);
     await loadActivity();
   }
 
@@ -185,7 +231,7 @@
       controlId: event.control_id || '—',
       caseId: event.case_id || '—',
       recipient: event.recipient_count ? `${event.recipient_count} recipient(s)` : '—',
-      subject: 'Restricted in audit view',
+      subject: event.sender_address ? `Restricted [${event.sender_address}]` : 'Restricted in audit view',
       status: event.event === 'outbound_message_submitted' ? 'Submitted' : (event.event || 'Event'),
       event: event.occurred_at || '—',
       confidence: 'Confirmed',
@@ -223,7 +269,8 @@
   $$('.step-nav button').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.step)));
   $$('[data-next]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.next)));
   $$('[data-back]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.back)));
-  ['mailing-address', 'privacy-url', 'contact-email'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
+  ['mailing-address', 'privacy-url', 'contact-email', 'original-recipient', 'sender-profile'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
+  $('#system-generated').addEventListener('change', updateSetup);
   $('#message-class').addEventListener('change', () => $('#unsubscribe-wrap').classList.toggle('hidden', $('#message-class').value !== 'commercial'));
   $('#generate-preview').addEventListener('click', generatePreview);
   $('#submit-message').addEventListener('click', submitMessage);
@@ -232,11 +279,13 @@
   $('#activity-status').addEventListener('change', renderActivity);
   $('#export-activity').addEventListener('click', exportCsv);
   $('#load-example').addEventListener('click', () => {
+    $('#original-recipient').value = 'john@spiritcreekgardens.com';
     $('#to').value = 'records@example.com';
     $('#case-id').value = 'ENT-184366738';
     $('#action-id').value = 'ENT-ACT-014';
     $('#subject').value = 'Request for transfer, custody, and billing records';
     $('#body').value = 'Hello,\n\nPlease provide the complete chronology and supporting records identified in our correspondence.\n\nThank you.';
+    updateSetup();
   });
 
   Promise.all([loadStatus(), loadActivity()]).catch((error) => {

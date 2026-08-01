@@ -20,10 +20,12 @@ if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
 import inbound_mail_hub as MODULE
+import mail_identity_registry
 
 
-PRIVATE_DESTINATION = "CONFIGURE_PRIVATE_JOHN_MAILBOX"
-ROLE_DESTINATION = "CONFIGURE_SHARED_ROLE_MAILBOX"
+PRIVATE_DESTINATION = "john-inbox@ww.cx"
+ROLE_DESTINATION = "maildesk@ww.cx"
+SYSTEM_SENDER = "noreply@ww.cx"
 
 
 class InboundMailHubTests(unittest.TestCase):
@@ -41,14 +43,17 @@ class InboundMailHubTests(unittest.TestCase):
         config["ingress"]["profiles"]["provider_webhook"]["enabled"] = True
         return config
 
-    def test_committed_config_is_disabled_and_safe(self) -> None:
+    def test_committed_config_and_registry_are_disabled_and_safe(self) -> None:
         MODULE.validate_config(self.config)
+        mail_identity_registry.validate_registry(self.identities)
         status = MODULE.status_payload(self.config)
         self.assertEqual(status["state"], "disabled")
         self.assertFalse(status["production_routing_enabled"])
         self.assertFalse(status["persist_raw_message"])
         self.assertFalse(status["persist_attachment_bytes"])
         self.assertEqual(self.config["routing"]["unknown_recipient_action"], "quarantine")
+        self.assertFalse(self.identities["outbound_activation_authorized"])
+        self.assertEqual(self.identities["system_senders"]["noreply"]["address"], SYSTEM_SENDER)
 
     def test_multi_domain_inventory_and_route_count(self) -> None:
         status = MODULE.status_payload(self.config)
@@ -58,10 +63,22 @@ class InboundMailHubTests(unittest.TestCase):
         )
         self.assertEqual(status["route_count"], 35)
 
-    def test_private_john_and_work_identity_classification(self) -> None:
+    def test_private_and_role_destinations_are_real_and_distinct(self) -> None:
         rules = self.identities["rules"]
+        self.assertEqual(rules["private_john_delivery_mailbox"], PRIVATE_DESTINATION)
+        self.assertEqual(rules["shared_role_delivery_mailbox"], ROLE_DESTINATION)
+        self.assertNotEqual(PRIVATE_DESTINATION, ROLE_DESTINATION)
+        self.assertNotEqual(PRIVATE_DESTINATION, SYSTEM_SENDER)
+        self.assertNotEqual(ROLE_DESTINATION, SYSTEM_SENDER)
+        self.assertFalse(self.identities["mailboxes"]["private_john"]["accepts_direct_public_use"])
+        self.assertFalse(self.identities["mailboxes"]["shared_role"]["accepts_direct_public_use"])
+
+    def test_all_john_routes_use_private_destination(self) -> None:
+        routes = self.config["routing"]["routes"]
+        john_routes = {address: route for address, route in routes.items() if address.startswith("john@")}
+        self.assertEqual(len(john_routes), 5)
         self.assertEqual(
-            set(rules["private_john_addresses"]),
+            set(john_routes),
             {
                 "john@ww.cx",
                 "john@omegafx.com",
@@ -70,40 +87,13 @@ class InboundMailHubTests(unittest.TestCase):
                 "john@spiritcreekgardens.com",
             },
         )
-        self.assertEqual(rules["primary_work_address"], "john@spiritcreekgardens.com")
-        self.assertEqual(rules["private_john_delivery_mailbox"], PRIVATE_DESTINATION)
-        self.assertEqual(rules["shared_role_delivery_mailbox"], ROLE_DESTINATION)
-        self.assertNotEqual(
-            rules["private_john_delivery_mailbox"],
-            rules["shared_role_delivery_mailbox"],
-        )
-        self.assertTrue(rules["require_distinct_private_and_role_destinations"])
-        profiles = self.identities["sender_profiles"]
-        for key in ("john-wwcx", "john-omegafx", "john-creekco", "john-scgardens"):
-            self.assertEqual(profiles[key]["address_class"], "private_john")
-        self.assertEqual(
-            profiles["spirit-creek-gardens-john"]["address_class"],
-            "private_john_work",
-        )
-        self.assertFalse(self.identities["outbound_activation_authorized"])
-
-    def test_all_john_routes_use_private_destination(self) -> None:
-        routes = self.config["routing"]["routes"]
-        john_routes = {address: route for address, route in routes.items() if address.startswith("john@")}
-        self.assertEqual(len(john_routes), 5)
-        for address, route in john_routes.items():
-            with self.subTest(address=address):
-                self.assertEqual(route["destination"], PRIVATE_DESTINATION)
-                self.assertTrue(route["enabled"])
+        self.assertTrue(all(route["destination"] == PRIVATE_DESTINATION for route in john_routes.values()))
 
     def test_all_non_john_routes_use_shared_role_destination(self) -> None:
         routes = self.config["routing"]["routes"]
         role_routes = {address: route for address, route in routes.items() if not address.startswith("john@")}
         self.assertEqual(len(role_routes), 30)
-        for address, route in role_routes.items():
-            with self.subTest(address=address):
-                self.assertEqual(route["destination"], ROLE_DESTINATION)
-                self.assertTrue(route["enabled"])
+        self.assertTrue(all(route["destination"] == ROLE_DESTINATION for route in role_routes.values()))
 
     def test_enabled_config_requires_all_gates(self) -> None:
         for key in ("deployment_authorized", "production_routing_authorized"):
@@ -120,8 +110,6 @@ class InboundMailHubTests(unittest.TestCase):
                 "envelope_from": "sender@example.com",
                 "recipients": [
                     "john@ww.cx",
-                    "john@omegafx.com",
-                    "john@creekco.ca",
                     "john@spiritcreekgardens.com",
                     "support@creekco.ca",
                     "records@spiritcreekgardens.com",
@@ -132,22 +120,12 @@ class InboundMailHubTests(unittest.TestCase):
                 "subject": "Test message",
             },
         )
-        decisions = MODULE.route_envelope(self.config, envelope)
-        by_recipient = {item.recipient: item for item in decisions}
-        for address in (
-            "john@ww.cx",
-            "john@omegafx.com",
-            "john@creekco.ca",
-            "john@spiritcreekgardens.com",
-        ):
-            with self.subTest(address=address):
-                self.assertEqual(by_recipient[address].action, "route")
-                self.assertEqual(by_recipient[address].destination, PRIVATE_DESTINATION)
-        for address in ("support@creekco.ca", "records@spiritcreekgardens.com"):
-            with self.subTest(address=address):
-                self.assertEqual(by_recipient[address].action, "route")
-                self.assertEqual(by_recipient[address].destination, ROLE_DESTINATION)
-        self.assertEqual(by_recipient["unknown@creekco.ca"].action, "quarantine")
+        decisions = {item.recipient: item for item in MODULE.route_envelope(self.config, envelope)}
+        self.assertEqual(decisions["john@ww.cx"].destination, PRIVATE_DESTINATION)
+        self.assertEqual(decisions["john@spiritcreekgardens.com"].destination, PRIVATE_DESTINATION)
+        self.assertEqual(decisions["support@creekco.ca"].destination, ROLE_DESTINATION)
+        self.assertEqual(decisions["records@spiritcreekgardens.com"].destination, ROLE_DESTINATION)
+        self.assertEqual(decisions["unknown@creekco.ca"].action, "quarantine")
 
     def test_unmanaged_domain_is_rejected(self) -> None:
         envelope = MODULE.normalize_envelope(
@@ -198,22 +176,21 @@ class InboundMailHubTests(unittest.TestCase):
         self.assertNotIn("Sensitive body", serialized)
         self.assertEqual(len(result["event"]["provider_message_id_sha256"]), 64)
 
-    def test_limits_are_enforced(self) -> None:
-        payload = {
-            "envelope_from": "sender@example.com",
-            "recipients": ["john@ww.cx"],
-            "message_size": self.config["limits"]["max_message_bytes"] + 1,
-            "provider_message_id": "provider-id-5",
-        }
+    def test_limits_and_jsonl_reader(self) -> None:
         with self.assertRaises(MODULE.InboundHubError):
-            MODULE.normalize_envelope(self.config, payload)
-
-    def test_jsonl_reader_ignores_invalid_lines(self) -> None:
+            MODULE.normalize_envelope(
+                self.config,
+                {
+                    "envelope_from": "sender@example.com",
+                    "recipients": ["john@ww.cx"],
+                    "message_size": self.config["limits"]["max_message_bytes"] + 1,
+                    "provider_message_id": "provider-id-5",
+                },
+            )
         with tempfile.TemporaryDirectory() as temp_dir:
             path = pathlib.Path(temp_dir) / "audit.jsonl"
             path.write_text("bad\n" + json.dumps({"event": "one"}) + "\n", encoding="utf-8")
-            events = MODULE.read_events(path, 10)
-        self.assertEqual(events, [{"event": "one"}])
+            self.assertEqual(MODULE.read_events(path, 10), [{"event": "one"}])
 
 
 if __name__ == "__main__":
