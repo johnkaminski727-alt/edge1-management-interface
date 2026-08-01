@@ -66,18 +66,23 @@ HOST=$(hostname -f)
 }
 [ -d "$REPO_ROOT/.git" ] || { echo "ERROR repository not found: $REPO_ROOT" >&2; exit 2; }
 
-for command in awk cat curl date dirname find git grep hostname id install python3 sed sha256sum sort ss stat systemctl tr wc xargs; do
+for command in awk cat curl date dirname find git grep hostname id install python3 runuser sed sha256sum sort ss stat systemctl tr wc xargs; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "ERROR missing command: $command" >&2
         exit 2
     }
 done
 
+REPO_OWNER=$(stat -c '%U' "$REPO_ROOT")
+REPO_GROUP=$(stat -c '%G' "$REPO_ROOT")
+[ -n "$REPO_OWNER" ] || { echo "ERROR repository owner is empty" >&2; exit 2; }
+
 install -d -m 0700 "$EVIDENCE_DIR"
 warnings=0
 failures=0
 runtime_api_source_match=unknown
 runtime_platform_source_match=unknown
+index_owner_preserved=unknown
 
 warn() {
     warnings=$((warnings + 1))
@@ -94,7 +99,11 @@ section() {
 }
 
 git_repo() {
-    git -c safe.directory="$REPO_ROOT" "$@"
+    if [ "$REPO_OWNER" = "root" ]; then
+        git -C "$REPO_ROOT" "$@"
+    else
+        runuser -u "$REPO_OWNER" -- git -C "$REPO_ROOT" "$@"
+    fi
 }
 
 capture_json() {
@@ -117,16 +126,42 @@ printf 'Host: %s\n' "$HOST"
 printf 'Time: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf 'Mode: read-only service, listener, endpoint, source-provenance, privacy, and method-boundary inspection; no install, enable, start, stop, restart, reload, route, call, message, database, carrier, firewall, certificate, DNS, or configuration change\n'
 printf 'Repository: %s\n' "$REPO_ROOT"
+printf 'Repository owner: %s:%s\n' "$REPO_OWNER" "$REPO_GROUP"
 printf 'Evidence directory: %s\n' "$EVIDENCE_DIR"
 
 section "REPOSITORY STATE"
-cd "$REPO_ROOT"
+if [ ! -f "$REPO_ROOT/.git/index" ]; then
+    fail "repository index is missing"
+else
+    stat -c 'mode=%a owner=%U group=%G bytes=%s path=%n' "$REPO_ROOT/.git/index" \
+        | tee "$EVIDENCE_DIR/index-before.txt"
+    INDEX_OWNER_BEFORE=$(stat -c '%U' "$REPO_ROOT/.git/index")
+    INDEX_GROUP_BEFORE=$(stat -c '%G' "$REPO_ROOT/.git/index")
+    if [ "$INDEX_OWNER_BEFORE" != "$REPO_OWNER" ] || [ "$INDEX_GROUP_BEFORE" != "$REPO_GROUP" ]; then
+        fail "repository index owner does not match repository owner"
+    fi
+fi
+
 git_repo rev-parse HEAD | tee "$EVIDENCE_DIR/repository-head.txt"
 git_repo branch --show-current | tee "$EVIDENCE_DIR/repository-branch.txt"
 git_repo status --porcelain >"$EVIDENCE_DIR/repository-status.txt"
 if [ -s "$EVIDENCE_DIR/repository-status.txt" ]; then
     fail "repository working tree is not clean"
 fi
+
+if [ -f "$REPO_ROOT/.git/index" ]; then
+    stat -c 'mode=%a owner=%U group=%G bytes=%s path=%n' "$REPO_ROOT/.git/index" \
+        | tee "$EVIDENCE_DIR/index-after.txt"
+    INDEX_OWNER_AFTER=$(stat -c '%U' "$REPO_ROOT/.git/index")
+    INDEX_GROUP_AFTER=$(stat -c '%G' "$REPO_ROOT/.git/index")
+    if [ "$INDEX_OWNER_AFTER" = "$REPO_OWNER" ] && [ "$INDEX_GROUP_AFTER" = "$REPO_GROUP" ]; then
+        index_owner_preserved=yes
+    else
+        index_owner_preserved=no
+        fail "repository index ownership changed during the audit"
+    fi
+fi
+printf 'index_owner_preserved=%s\n' "$index_owner_preserved"
 
 section "SERVICE AND UNIT STATE"
 systemctl is-active "$SERVICE" >"$EVIDENCE_DIR/service-active.txt" 2>&1 || true
@@ -267,6 +302,7 @@ cat "$EVIDENCE_DIR/repository-assets.txt"
 section "DECISION"
 printf 'warnings=%s\n' "$warnings"
 printf 'failures=%s\n' "$failures"
+printf 'index_owner_preserved=%s\n' "$index_owner_preserved"
 printf 'runtime_api_source_match=%s\n' "$runtime_api_source_match"
 printf 'runtime_platform_source_match=%s\n' "$runtime_platform_source_match"
 echo "listener_scope=loopback-only"
