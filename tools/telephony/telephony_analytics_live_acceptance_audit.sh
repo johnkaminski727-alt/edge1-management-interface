@@ -91,6 +91,10 @@ section() {
     printf '\n=== %s ===\n' "$*"
 }
 
+git_repo() {
+    git -c safe.directory="$REPO_ROOT" "$@"
+}
+
 capture_json() {
     name=$1
     path=$2
@@ -115,9 +119,9 @@ printf 'Evidence directory: %s\n' "$EVIDENCE_DIR"
 
 section "REPOSITORY STATE"
 cd "$REPO_ROOT"
-git rev-parse HEAD | tee "$EVIDENCE_DIR/repository-head.txt"
-git branch --show-current | tee "$EVIDENCE_DIR/repository-branch.txt"
-git status --porcelain >"$EVIDENCE_DIR/repository-status.txt"
+git_repo rev-parse HEAD | tee "$EVIDENCE_DIR/repository-head.txt"
+git_repo branch --show-current | tee "$EVIDENCE_DIR/repository-branch.txt"
+git_repo status --porcelain >"$EVIDENCE_DIR/repository-status.txt"
 if [ -s "$EVIDENCE_DIR/repository-status.txt" ]; then
     fail "repository working tree is not clean"
 fi
