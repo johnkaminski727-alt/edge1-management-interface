@@ -1,0 +1,67 @@
+{
+  "contract": "wwcx.inbound-mail-hub.v1",
+  "enabled": false,
+  "deployment_authorized": false,
+  "production_routing_authorized": false,
+  "listen": {
+    "host": "127.0.0.1",
+    "port": 8095
+  },
+  "paths": {
+    "audit_jsonl": "var/inbound-mail/audit.jsonl",
+    "quarantine_jsonl": "var/inbound-mail/quarantine.jsonl"
+  },
+  "ingress": {
+    "selected": "disabled",
+    "profiles": {
+      "disabled": {
+        "type": "disabled",
+        "enabled": false
+      },
+      "provider_webhook": {
+        "type": "webhook",
+        "enabled": false,
+        "secret_env": "WWCX_INBOUND_WEBHOOK_SECRET"
+      },
+      "local_mta": {
+        "type": "local_mta",
+        "enabled": false,
+        "trusted_token_env": "WWCX_INBOUND_MTA_TOKEN"
+      }
+    }
+  },
+  "domains": [
+    "ww.cx"
+  ],
+  "routing": {
+    "unknown_recipient_action": "quarantine",
+    "routes": {
+      "john@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "postmaster@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "abuse@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      }
+    }
+  },
+  "limits": {
+    "max_message_bytes": 26214400,
+    "max_recipient_count": 100,
+    "audit_view_limit": 200
+  },
+  "content": {
+    "persist_raw_message": false,
+    "persist_attachment_bytes": false,
+    "persist_body_preview": false,
+    "retention_days": 30
+  }
+}
