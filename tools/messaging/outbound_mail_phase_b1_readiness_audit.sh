@@ -7,6 +7,7 @@ REPO_ROOT=${REPO_ROOT:-/opt/edge1-management-interface}
 SERVICE_NAME=${SERVICE_NAME:-wwcx-outbound-mail-gateway.service}
 EXPECTED_HOST=${EXPECTED_HOST:-edge1.ww.cx}
 PHASE_B_PACKAGE_COMMIT=${PHASE_B_PACKAGE_COMMIT:-c55059c2d0230ea273709bbb5a4169b00bb226c1}
+EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -25,11 +26,7 @@ if [ "$host_fqdn" != "$EXPECTED_HOST" ]; then
   exit 1
 fi
 
-if [ -n "${EVIDENCE_DIR:-}" ]; then
-  output_dir=$EVIDENCE_DIR
-else
-  output_dir="/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness/$TIMESTAMP"
-fi
+output_dir="$EVIDENCE_ROOT/$TIMESTAMP"
 install -d -m 0700 "$output_dir"
 
 summary="$output_dir/summary.txt"
@@ -59,12 +56,16 @@ record repository "$REPO_ROOT"
 record branch "${branch:-detached}"
 record head_commit "$head_commit"
 record phase_b_package_commit "$PHASE_B_PACKAGE_COMMIT"
+record evidence_root "$EVIDENCE_ROOT"
 
 if [ "$branch" != main ]; then
   fail "repository branch is not main"
 fi
 if ! git -C "$REPO_ROOT" diff --quiet || ! git -C "$REPO_ROOT" diff --cached --quiet; then
   fail "tracked repository state is dirty"
+fi
+if [ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all 2>/dev/null || true)" ]; then
+  fail "repository contains tracked or untracked changes"
 fi
 if ! git -C "$REPO_ROOT" merge-base --is-ancestor "$PHASE_B_PACKAGE_COMMIT" HEAD; then
   fail "Phase B package commit is not an ancestor of HEAD"
@@ -91,7 +92,7 @@ else
   : > "$output_dir/protected-path-changes.txt"
 fi
 
-git -C "$REPO_ROOT" status --short --branch > "$output_dir/git-status.txt" 2>&1 || \
+git -C "$REPO_ROOT" status --short --branch --untracked-files=all > "$output_dir/git-status.txt" 2>&1 || \
   fail "git status capture failed"
 git -C "$REPO_ROOT" log -1 --format='commit=%H%nauthor_date=%aI%ncommitter_date=%cI%nsubject=%s' \
   > "$output_dir/git-head.txt" 2>&1 || fail "git HEAD metadata capture failed"
@@ -152,7 +153,8 @@ fi
 if ! systemctl is-enabled --quiet "$SERVICE_NAME"; then
   fail "$SERVICE_NAME is not enabled"
 fi
-systemctl status "$SERVICE_NAME" --no-pager -l > "$output_dir/service-status.txt" 2>&1 || true
+systemctl status "$SERVICE_NAME" --no-pager --lines=0 -l \
+  > "$output_dir/service-status.txt" 2>&1 || true
 systemctl show "$SERVICE_NAME" \
   -p ActiveState -p SubState -p UnitFileState -p FragmentPath -p DropInPaths \
   -p User -p Group -p ExecStart -p MainPID -p EnvironmentFiles \
