@@ -32,6 +32,15 @@ The operator now uses a bounded 60-second post-change readiness gate. Each attem
 
 Rollback also waits for UCP listeners and its loopback database relationship after restoring and restarting the prior MariaDB contract. Failure of dependent runtime recovery remains fail-closed, but MariaDB restoration is attempted first.
 
+## Targeted validation
+
+The durable branch passed:
+
+- POSIX shell syntax validation for the operator;
+- the existing atomic activation safety validator;
+- the rollback recovery regression validator;
+- the new bounded UCP readiness regression validator.
+
 ## Current decision
 
 The baseline was restored and the loopback-only drop-in is absent. No further live activation attempt is permitted until this readiness correction is merged, pulled to Edge1, and both hosted validation workflows pass.
