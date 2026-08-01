@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "provider_id": "provider-candidate-001",
+  "route_id": "route-candidate-001",
+  "direction": "bidirectional",
+  "review_state": "unverified",
+  "evidence": [
+    {
+      "evidence_id": "general-pbx-compatibility-001",
+      "source_type": "provider-private-correspondence",
+      "reviewed_at": "2026-08-01T09:03:00Z",
+      "retention": "external-private",
+      "summary": "General Asterisk and FreePBX compatibility was described, but no DTMF transport mode, event range, codec constraint, or extended-key behavior was documented."
+    }
+  ],
+  "capabilities": {
+    "rfc4733": {
+      "status": "unknown",
+      "event_range": "unknown",
+      "evidence_refs": []
+    },
+    "sip_info": {
+      "status": "unknown",
+      "evidence_refs": []
+    },
+    "inband": {
+      "status": "unknown",
+      "codec_constraints": [],
+      "evidence_refs": []
+    },
+    "extended_abcd": {
+      "status": "unknown",
+      "evidence_refs": []
+    }
+  },
+  "privacy": {
+    "provider_name_retained": false,
+    "account_identifier_retained": false,
+    "credential_retained": false,
+    "telephone_number_retained": false,
+    "sip_uri_retained": false,
+    "personal_identifier_retained": false
+  },
+  "decision": {
+    "matrix_eligible": false,
+    "carrier_interoperability": "unverified",
+    "live_test_authorized": false,
+    "notes": "Do not populate the operational capability matrix until provider-specific DTMF documentation or separately authorized controlled-test evidence exists."
+  }
+}
