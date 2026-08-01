@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -165,12 +166,18 @@ with tempfile.TemporaryDirectory(prefix="wwcx-phase-b-") as temporary:
         assert "Nonce replay: rejected" in result.stdout
         assert "External delivery: rejected" in result.stdout
 
-        audit_text = audit_path.read_text(encoding="utf-8")
-        assert "outbound_message_prepared_api" in audit_text
-        assert "prepared_not_sent" in audit_text
+        audit_lines = audit_path.read_text(encoding="utf-8").splitlines()
+        assert len(audit_lines) == 1
+        audit = json.loads(audit_lines[0])
+        audit_text = json.dumps(audit, sort_keys=True)
+        assert audit["event"] == "outbound_message_prepared_api"
+        assert audit["delivery_status"] == "prepared_not_sent"
+        assert re.fullmatch(r"[0-9a-f]{64}", audit["action_token_sha256"])
+        assert "action_token" not in audit
+        assert "action_url" not in audit
         assert SECRET not in audit_text
         assert "This synthetic canary must be prepared but never sent." not in audit_text
-        assert "action_token" not in audit_text
+        assert "phase-b-preparation-canary@example.invalid" not in audit_text
     finally:
         process.terminate()
         try:
