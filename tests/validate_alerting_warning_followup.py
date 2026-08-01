@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Static safety validation for the Asterisk warning follow-up audit."""
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,26 +22,18 @@ for token in required:
     if token not in text:
         raise SystemExit(f"missing required audit behavior: {token}")
 
-prohibited = (
-    "apt-get install",
-    "apt-get upgrade",
-    "systemctl restart",
-    "systemctl start",
-    "systemctl stop",
-    "systemctl enable",
-    "systemctl disable",
-    "update-rc.d",
-    "nft add",
-    "nft delete",
-    "nft insert",
-    "nft replace",
-    "nft flush",
-    "sed -i",
-    "fwconsole restart",
-    "asterisk -rx 'dialplan reload'",
+prohibited_patterns = (
+    r"\bapt-get[ \t]+(install|upgrade|dist-upgrade|full-upgrade)\b",
+    r"\bsystemctl[ \t]+(start|stop|restart|enable|disable|mask|unmask)\b",
+    r"\bservice[ \t]+\S+[ \t]+(start|stop|restart)\b",
+    r"\bupdate-rc\.d\b",
+    r"\bnft[ \t]+(add|delete|insert|replace|flush)\b",
+    r"\bsed[ \t]+-i\b",
+    r"\bfwconsole[ \t]+restart\b",
+    r"asterisk[ \t]+-rx[ \t]+['\"]dialplan reload['\"]",
 )
-for token in prohibited:
-    if token in text:
-        raise SystemExit(f"prohibited mutation command present: {token}")
+for pattern in prohibited_patterns:
+    if re.search(pattern, text):
+        raise SystemExit(f"prohibited mutation command present: {pattern}")
 
 print("Asterisk warning follow-up audit safety validation passed")
