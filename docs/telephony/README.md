@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md). Provider claims must pass the privacy-safe [DTMF Provider Evidence Intake](dtmf-provider-evidence-intake.md) before promotion into the capability matrix. Aggregate analytics repository acceptance is recorded in [Telephony Analytics Acceptance Record](analytics-acceptance-record.md), with the authenticated Edge1 result in [Telephony Analytics Live Acceptance — 2026-08-01](telephony-analytics-live-acceptance-20260801.md). Offline sanitized CDR and SIP outcome normalization is documented in [Sanitized Telephony Event Adapters](sanitized-event-adapters.md). The read-only aggregate console presentation is documented in [Telephony Analytics Console Panels](analytics-console-panels.md). Hash-chained report-generation evidence is documented in [Telephony Analytics Report Audit Events](analytics-report-audit-events.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md). Provider claims must pass the privacy-safe [DTMF Provider Evidence Intake](dtmf-provider-evidence-intake.md) before promotion into the capability matrix. Aggregate analytics repository acceptance is recorded in [Telephony Analytics Acceptance Record](analytics-acceptance-record.md), with the authenticated Edge1 result in [Telephony Analytics Live Acceptance — 2026-08-01](telephony-analytics-live-acceptance-20260801.md). Offline sanitized CDR and SIP outcome normalization is documented in [Sanitized Telephony Event Adapters](sanitized-event-adapters.md). The read-only aggregate console presentation is documented in [Telephony Analytics Console Panels](analytics-console-panels.md). Hash-chained report-generation evidence is documented in [Telephony Analytics Report Audit Events](analytics-report-audit-events.md). Conservative aggregate review signals are documented in [Telephony Aggregate Anomaly Indicators](anomaly-indicators.md).
 
 ## Preview
 
@@ -31,6 +31,7 @@ Open `http://127.0.0.1:8088/telephony/` through an approved local or private con
 - console panels for health score, call and SIP outcomes, failure classes, sanitized carrier utilization, and aggregate interconnect posture
 - fail-closed offline adapters for already-sanitized CDR and SIP outcome records
 - append-only, owner-only, hash-chained JSONL audit events for aggregate report generation
+- deterministic aggregate-only anomaly indicators with fixed sample gates and no automatic action
 - SIP failure classification and interconnect summaries
 - read-only Asterisk DTMF policy inventory and offline complete 16-key signal validation
 - sanitized reconciliation of runtime PJSIP object counts against generated endpoint-policy records
@@ -72,6 +73,8 @@ The analytics console panels use only three exact same-origin paths. The console
 
 The report-audit module records only opaque identifiers, timestamps, repository and artifact hashes, aggregate count, a fixed privacy profile, and hash-chain fields. It does not generate reports, read telephony sources, create runtime directories, or activate a job or service.
 
+The anomaly evaluator consumes only exact aggregate health, call, and interconnect summaries. It emits fixed thresholds, static console anchors, and safety flags that prohibit notification, enforcement, route changes, service control, or automatic remediation. No endpoint, panel, timer, or live evaluation is included yet.
+
 ## Validation
 
 From the repository root:
@@ -84,6 +87,7 @@ python3 tests/validate_telephony_analytics_live_acceptance_audit.py
 python3 tests/validate_telephony_sanitized_adapters.py
 python3 tests/validate_telephony_analytics_console_panels.py
 python3 tests/validate_telephony_report_audit.py
+python3 tests/validate_telephony_anomaly_indicators.py
 python3 tests/validate_asterisk_dtmf_readiness_audit.py
 python3 tests/validate_asterisk_pjsip_endpoint_policy_reconciliation.py
 python3 tests/test_validate_dtmf_provider_evidence.py
@@ -105,15 +109,17 @@ The aggregate console panels are repository-complete but are not yet deployed to
 
 The report-audit foundation is repository-only. No live audit path, report generator, service, timer, event append, retention policy, or runtime deployment is accepted yet.
 
+The anomaly-indicator foundation is repository-only. No analytics endpoint, console panel, notification, enforcement action, scheduler, or live evaluation is accepted yet.
+
 ## Next implementation slice
 
 1. keep live CDR, AMI/ARI, SIP-edge, log, and carrier source connections blocked pending separate design and access review
-2. add bounded anomaly indicators without automatic enforcement
-3. use the sanitized evidence-intake record for each genuine provider and route candidate
-4. obtain provider-specific RFC 4733, event-range, SIP INFO, in-band, codec, and extended-key documentation
-5. populate the carrier capability matrix only from records that pass evidence validation
-6. leave unsupported or undocumented carrier capabilities as `unknown`
-7. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
-8. design a separately reviewed report generator, protected audit directory, retention policy, and deployment plan
+2. use the sanitized evidence-intake record for each genuine provider and route candidate
+3. obtain provider-specific RFC 4733, event-range, SIP INFO, in-band, codec, and extended-key documentation
+4. populate the carrier capability matrix only from records that pass evidence validation
+5. leave unsupported or undocumented carrier capabilities as `unknown`
+6. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
+7. design a separately reviewed report generator, protected audit directory, retention policy, and deployment plan
+8. design a read-only anomaly endpoint and console presentation without notification or enforcement
 9. perform a separately authorized bounded console deployment and capture protected live evidence
 10. complete remaining Edge1 validation, evidence capture, and deployment runbook updates
