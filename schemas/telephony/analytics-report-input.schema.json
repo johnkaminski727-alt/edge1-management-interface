@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/analytics-report-input.schema.json",
+  "title": "WW.CX Telephony Aggregate Report Input",
+  "description": "Already-aggregated, privacy-minimized summaries accepted by the offline report generator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "generated_at",
+    "repository_revision",
+    "report_kind",
+    "health_summary",
+    "call_summary",
+    "interconnect_summary"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "report_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,47}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "repository_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "report_kind": {"const": "combined_summary"},
+    "health_summary": {"$ref": "#/$defs/health_summary"},
+    "call_summary": {"$ref": "#/$defs/call_summary"},
+    "interconnect_summary": {"$ref": "#/$defs/interconnect_summary"}
+  },
+  "$defs": {
+    "count_map": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "health_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "overall_status", "components"],
+      "properties": {
+        "score": {"type": "number", "minimum": 0, "maximum": 100},
+        "overall_status": {"enum": ["healthy", "degraded", "critical"]},
+        "components": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pbx", "sip", "routing", "registry", "analytics"],
+          "properties": {
+            "pbx": {"$ref": "#/$defs/health_state"},
+            "sip": {"$ref": "#/$defs/health_state"},
+            "routing": {"$ref": "#/$defs/health_state"},
+            "registry": {"$ref": "#/$defs/health_state"},
+            "analytics": {"$ref": "#/$defs/health_state"}
+          }
+        }
+      }
+    },
+    "health_state": {
+      "enum": [
+        "healthy", "pass", "ready", "degraded", "warn", "unknown",
+        "critical", "fail"
+      ]
+    },
+    "call_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calls_total",
+        "calls_answered",
+        "answer_rate_percent",
+        "duration_seconds_total",
+        "duration_seconds_average",
+        "directions",
+        "dispositions",
+        "carriers",
+        "destination_countries",
+        "sip_codes",
+        "failure_classes"
+      ],
+      "properties": {
+        "calls_total": {"type": "integer", "minimum": 0},
+        "calls_answered": {"type": "integer", "minimum": 0},
+        "answer_rate_percent": {"type": "number", "minimum": 0, "maximum": 100},
+        "duration_seconds_total": {"type": "integer", "minimum": 0},
+        "duration_seconds_average": {"type": "number", "minimum": 0},
+        "directions": {"$ref": "#/$defs/count_map"},
+        "dispositions": {"$ref": "#/$defs/count_map"},
+        "carriers": {"$ref": "#/$defs/count_map"},
+        "destination_countries": {"$ref": "#/$defs/count_map"},
+        "sip_codes": {"$ref": "#/$defs/count_map"},
+        "failure_classes": {"$ref": "#/$defs/count_map"}
+      }
+    },
+    "interconnect_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "interconnects_total",
+        "states",
+        "latency_ms_average",
+        "latency_ms_max",
+        "attention_required"
+      ],
+      "properties": {
+        "interconnects_total": {"type": "integer", "minimum": 0},
+        "states": {"$ref": "#/$defs/count_map"},
+        "latency_ms_average": {"type": ["number", "null"], "minimum": 0},
+        "latency_ms_max": {"type": ["number", "null"], "minimum": 0},
+        "attention_required": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "report_id": "report-fixture-alpha",
+  "generated_at": "2026-08-01T22:05:00Z",
+  "repository_revision": "9bfc9d0c494da11a4fb47fe38e7390f0b12d1444",
+  "report_kind": "combined_summary",
+  "health_summary": {
+    "score": 85,
+    "overall_status": "degraded",
+    "components": {
+      "pbx": "unknown",
+      "sip": "healthy",
+      "routing": "unknown",
+      "registry": "ready",
+      "analytics": "healthy"
+    }
+  },
+  "call_summary": {
+    "calls_total": 20,
+    "calls_answered": 15,
+    "answer_rate_percent": 75.0,
+    "duration_seconds_total": 600,
+    "duration_seconds_average": 30.0,
+    "directions": {"inbound": 10, "outbound": 10},
+    "dispositions": {"answered": 15, "failed": 5},
+    "carriers": {"carrier-a": 12, "carrier-b": 8},
+    "destination_countries": {"ca": 12, "us": 8},
+    "sip_codes": {"200": 15, "486": 3, "503": 2},
+    "failure_classes": {"busy": 3, "service_unavailable": 2}
+  },
+  "interconnect_summary": {
+    "interconnects_total": 2,
+    "states": {"degraded": 1, "healthy": 1},
+    "latency_ms_average": 120.0,
+    "latency_ms_max": 180.0,
+    "attention_required": 1
+  }
+}
