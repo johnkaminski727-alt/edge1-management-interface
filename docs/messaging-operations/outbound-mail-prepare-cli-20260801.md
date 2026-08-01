@@ -4,7 +4,7 @@
 
 `tools/outbound_mail_prepare.py` provides a stable no-send integration point for the WW.CX admin console, authenticated operator workflows, approved applications, and future ChatGPT-assisted correspondence workflows.
 
-It accepts structured JSON, applies the canonical outbound-mail policy, appends the controlled signature and records footer, creates an opaque action URL, emits control headers, and produces a metadata-only audit event.
+It accepts structured JSON, applies the canonical outbound-mail policy and identity registry, appends the controlled signature and records footer, creates an opaque action URL, emits control headers, and produces a metadata-only audit event.
 
 It does **not** connect to SMTP, Gmail, Microsoft Graph, a webhook, or any other external delivery provider.
 
@@ -24,6 +24,7 @@ The JSON artifact contains:
 - `network_activity: false`;
 - `external_delivery_attempted: false`;
 - normalized request metadata without the original body copy;
+- the canonical `sender_selection` result;
 - the control ID;
 - visible action URL;
 - action-token SHA-256;
@@ -60,18 +61,34 @@ python3 tools/outbound_mail_prepare.py \
   --output prepared.json
 ```
 
-The audit record excludes the complete message body and raw action token. It includes hashes, control references, message classification, sender identity, recipient count, and the `prepared_not_sent` delivery state.
+The audit record excludes the complete message body and raw action token. It includes hashes, control references, message classification, resolved sender identity, selection reason, recipient count, and the `prepared_not_sent` delivery state.
 
-## Sender controls
+## Canonical sender selection
 
-The requested `from_address` must belong to a domain allowed by the canonical policy. The validated sender address is also used in the visible footer and audit identity so the envelope, message body, and evidence do not disagree.
+The adapter loads `config/messaging/mail-identities.json` and uses the same automatic sender-selection rules as the gateway service. Selection precedence is:
 
-The initial committed allow-list is:
+1. `system_generated: true` selects the reserved `noreply@ww.cx` identity;
+2. `original_recipient` selects the matching managed address for a reply;
+3. `identity_hint` selects a canonical sender-profile key or registered sender address;
+4. otherwise the registry default `john@ww.cx` is used.
+
+A submitted `from_address` is metadata only and cannot override the registry. The result records whether it was present and whether it was replaced. Manual hints cannot select `noreply@ww.cx`; that identity requires `system_generated: true`.
+
+The resolved sender is used consistently in the normalized request, visible footer, audit record, and eventual email envelope. The artifact includes the selected address, identity key, reason, replacement status, reply-to value, and live-delivery status.
+
+## Managed preparation domains
+
+The preparation policy recognizes these managed domains:
 
 - `ww.cx`
 - `creekco.ca`
+- `spiritcreekgardens.com`
+- `scgardens.ca`
+- `omegafx.com`
 
-Changes to sender domains require policy review. Domain inclusion does not prove SPF, DKIM, DMARC, mailbox, or provider readiness.
+A domain being recognized for preparation does not prove mailbox existence, SPF, DKIM, DMARC, provider readiness, or authorization to send. The canonical identity registry remains the source of truth for which addresses may be selected.
+
+All sender profiles, the live-sender allow-list, and the global outbound activation flag remain disabled in the committed configuration. This feature chooses a preparation identity; it does not authorize or attempt delivery.
 
 ## Commercial messages
 
@@ -101,11 +118,13 @@ python3 tests/validate_outbound_mail_prepare_cli.py
 The validator confirms:
 
 - example generation;
-- allowed sender-domain enforcement;
-- sender/footer/audit alignment;
+- canonical sender selection by profile, original recipient, and system flag;
+- submitted-From replacement;
+- request, footer, audit, and envelope identity alignment;
 - controlled footer and headers;
 - no raw action-token or message-body copy in the JSONL audit event;
 - optional body and audit outputs;
+- rejection of unknown identities and original recipients;
 - commercial unsubscribe enforcement;
 - absence of network and SMTP client code in the CLI.
 
@@ -120,16 +139,3 @@ The following remain outside this adapter and require separate authorization and
 - bounce and complaint ingestion;
 - automatic delivery from ChatGPT;
 - production traffic cutover.
-
-
-## Canonical sender selection
-
-The preparation adapter now loads `config/messaging/mail-identities.json` and uses the same automatic sender-selection rules as the gateway service. A request can provide:
-
-- `original_recipient` when replying to mail received at a managed identity;
-- `identity_hint` as a canonical sender-profile key or registered sender address;
-- `system_generated: true` for the reserved `noreply@ww.cx` identity.
-
-A submitted `from_address` is treated as metadata only and cannot override the registry. The prepared request, footer, audit record, and eventual email envelope use the resolved sender consistently. The result includes `sender_selection` with the selected address, reason, identity key, replacement status, and live-delivery status.
-
-All sender profiles and the global outbound activation flag remain disabled in the committed configuration. This feature chooses a preparation identity; it does not authorize or attempt delivery.
