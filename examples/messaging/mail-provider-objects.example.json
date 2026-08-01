@@ -1,0 +1,82 @@
+{
+  "contract": "wwcx.provider-mail-objects.v1",
+  "provider_id": "example-namecheap-shared-hosting",
+  "provider_family": "namecheap_shared_hosting",
+  "captured_at": "2026-08-01T00:00:00+00:00",
+  "source": {
+    "method": "manual_export",
+    "read_only": true,
+    "evidence_files": [
+      "restricted-example/list-pops.json",
+      "restricted-example/list-forwarders-creekco.ca.json"
+    ],
+    "account_reference": null
+  },
+  "objects": [
+    {
+      "address": "contact@creekco.ca",
+      "domain": "creekco.ca",
+      "object_type": "mailbox",
+      "destinations": [],
+      "receives_mail": true,
+      "can_send": true,
+      "active": true,
+      "access_class": "shared_role",
+      "quota_bytes": 1073741824,
+      "notes": "Illustrative object only; not provider evidence."
+    },
+    {
+      "address": "accessibility@creekco.ca",
+      "domain": "creekco.ca",
+      "object_type": "forwarder",
+      "destinations": [
+        "maildesk@ww.cx"
+      ],
+      "receives_mail": true,
+      "can_send": false,
+      "active": true,
+      "access_class": "shared_role",
+      "quota_bytes": null,
+      "notes": "Illustrates an exact forwarder to the canonical shared destination."
+    },
+    {
+      "address": "noc@creekco.ca",
+      "domain": "creekco.ca",
+      "object_type": "alias",
+      "destinations": [
+        "maildesk@ww.cx"
+      ],
+      "receives_mail": true,
+      "can_send": false,
+      "active": true,
+      "access_class": "shared_role",
+      "quota_bytes": null,
+      "notes": "Illustrates a provider alias that preserves the public identity."
+    },
+    {
+      "address": "legacy@creekco.ca",
+      "domain": "creekco.ca",
+      "object_type": "mailbox",
+      "destinations": [],
+      "receives_mail": true,
+      "can_send": true,
+      "active": true,
+      "access_class": "unknown",
+      "quota_bytes": null,
+      "notes": "Illustrates an unexpected managed-domain object that requires a retention decision."
+    }
+  ],
+  "default_addresses": [
+    {
+      "domain": "creekco.ca",
+      "behavior": "reject",
+      "destination": null
+    }
+  ],
+  "domain_routing": [
+    {
+      "domain": "creekco.ca",
+      "mode": "local"
+    }
+  ]
+}
