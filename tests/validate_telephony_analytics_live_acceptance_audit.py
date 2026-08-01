@@ -26,6 +26,7 @@ for marker in (
     "POST method boundary",
     "unsafe wildcard listener",
     "validate_telephony_analytics_evidence.py",
+    "safe.directory=",
     "database_query_performed=no",
     "call_origination_performed=no",
     "service_mutation=none",
@@ -38,7 +39,7 @@ for marker in (
 for forbidden in (
     "systemctl start", "systemctl restart", "systemctl stop", "systemctl enable",
     "systemctl disable", "systemctl daemon-reload", "apt install", "dnf install",
-    "asterisk -rx", "mysql ", "psql ",
+    "asterisk -rx", "mysql ", "psql ", "git config --global",
 ):
     if forbidden in source:
         raise SystemExit(f"analytics live acceptance audit contains forbidden mutation: {forbidden}")
