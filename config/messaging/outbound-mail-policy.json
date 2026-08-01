@@ -1,0 +1,39 @@
+{
+  "contract": "wwcx.outbound-mail-policy.v1",
+  "enabled": false,
+  "deployment_authorized": false,
+  "smtp_cutover_authorized": false,
+  "organization": {
+    "legal_name": "Christmas Island Worldwide",
+    "operating_name": "WW.CX",
+    "website": "https://ww.cx",
+    "privacy_url": "https://ww.cx/privacy",
+    "contact_email": "john@ww.cx",
+    "mailing_address": "CONFIGURE_AT_DEPLOYMENT"
+  },
+  "footer": {
+    "append_to_plain_text": true,
+    "append_to_html": true,
+    "include_confidentiality_notice": true,
+    "include_non_creation_caveat": true,
+    "include_action_link": true,
+    "include_tracking_disclosure": true,
+    "require_unsubscribe_for_commercial": true
+  },
+  "tracking": {
+    "action_base_url": "https://ww.cx/correspondence/r",
+    "transparent_action_links": true,
+    "hidden_open_tracking": false,
+    "device_fingerprinting": false,
+    "collect_full_ip": false,
+    "ip_storage_mode": "keyed_hash",
+    "retention_days": 180
+  },
+  "audit": {
+    "write_jsonl": true,
+    "record_recipient_addresses": true,
+    "record_body": false,
+    "record_action_token": false,
+    "record_action_token_hash": true
+  }
+}
