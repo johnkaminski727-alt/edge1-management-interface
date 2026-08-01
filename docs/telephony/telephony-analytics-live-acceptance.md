@@ -17,6 +17,8 @@ If the service is absent or inactive, the audit fails without changing it. Insta
 
 The service may execute from the canonical checkout or another worktree, but acceptance requires the runtime `telephony_analytics_api.py` and `telephony_platform.py` SHA-256 hashes to match the canonical `main` checkout. A path difference alone is informational; a source-content difference prevents acceptance.
 
+Although the audit itself runs as root for protected evidence, service metadata, and listener inspection, every Git command runs as the repository owner through `runuser`. The audit records `.git/index` ownership before and after Git inspection and fails if ownership no longer matches the repository owner. Root must not refresh or rewrite the repository index.
+
 ## Run
 
 ```bash
@@ -35,6 +37,7 @@ An accepted run ends with:
 ```text
 warnings=0
 failures=0
+index_owner_preserved=yes
 runtime_api_source_match=yes
 runtime_platform_source_match=yes
 listener_scope=loopback-only
@@ -44,13 +47,14 @@ runtime_mutation=none
 telephony_analytics_live_acceptance=passed
 ```
 
-Warnings about hardening properties require review but do not themselves prove public exposure. Any failure, runtime-source hash mismatch, wildcard listener, non-405 POST response, malformed payload, privacy-scan finding, dirty repository, or unexpected service command prevents acceptance.
+Warnings about hardening properties require review but do not themselves prove public exposure. Any failure, repository-index ownership mismatch, runtime-source hash mismatch, wildcard listener, non-405 POST response, malformed payload, privacy-scan finding, dirty repository, or unexpected service command prevents acceptance.
 
 ## Evidence
 
 The protected directory contains:
 
 - repository head, branch, and clean-tree status;
+- repository and `.git/index` ownership before and after Git inspection;
 - service state and selected hardening properties;
 - parsed runtime analytics source paths, metadata, and SHA-256 hashes;
 - runtime-to-canonical API and platform source comparison results;
