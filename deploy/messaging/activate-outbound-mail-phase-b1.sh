@@ -6,6 +6,7 @@ umask 077
 REPO_ROOT=${REPO_ROOT:-/opt/edge1-management-interface}
 EXPECTED_HOST=${EXPECTED_HOST:-edge1.ww.cx}
 EXPECTED_COMMIT=${EXPECTED_COMMIT:-}
+APPROVED_ACTIVATION_COMMIT=${APPROVED_ACTIVATION_COMMIT:-}
 PHASE_B_PACKAGE_COMMIT=${PHASE_B_PACKAGE_COMMIT:-c55059c2d0230ea273709bbb5a4169b00bb226c1}
 READINESS_EVIDENCE=${READINESS_EVIDENCE:-/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness/20260801T174548Z}
 SERVICE_NAME=wwcx-outbound-mail-gateway.service
@@ -59,14 +60,19 @@ trap on_signal HUP INT TERM
 [ "$(id -u)" -eq 0 ] || fail "run as root"
 [ "$(hostname -f 2>/dev/null || hostname)" = "$EXPECTED_HOST" ] || fail "unexpected host"
 [ -n "$EXPECTED_COMMIT" ] || fail "EXPECTED_COMMIT is required"
+[ -n "$APPROVED_ACTIVATION_COMMIT" ] || fail "APPROVED_ACTIVATION_COMMIT is required"
+printf '%s\n' "$APPROVED_ACTIVATION_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail "APPROVED_ACTIVATION_COMMIT must be a full lowercase commit SHA"
 [ -d "$REPO_ROOT/.git" ] || fail "repository not found at $REPO_ROOT"
 [ -f "$INSTALLER" ] || fail "Phase B1 installer is missing"
 [ "$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)" = main ] || fail "repository branch is not main"
 [ "$(git -C "$REPO_ROOT" rev-parse HEAD)" = "$EXPECTED_COMMIT" ] || fail "repository HEAD does not match EXPECTED_COMMIT"
 [ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ] || fail "repository is not clean"
 git -C "$REPO_ROOT" merge-base --is-ancestor "$PHASE_B_PACKAGE_COMMIT" HEAD || fail "Phase B package commit is not an ancestor of HEAD"
+git -C "$REPO_ROOT" cat-file -e "${APPROVED_ACTIVATION_COMMIT}^{commit}" || fail "approved activation commit is not present in the repository"
+git -C "$REPO_ROOT" merge-base --is-ancestor "$APPROVED_ACTIVATION_COMMIT" HEAD || fail "approved activation commit is not an ancestor of HEAD"
 
-protected_paths='deploy/messaging/install-outbound-mail-preparation-api.sh
+protected_paths='deploy/messaging/activate-outbound-mail-phase-b1.sh
+deploy/messaging/install-outbound-mail-preparation-api.sh
 deploy/messaging/outbound-mail-preparation-api-nginx.conf.example
 deploy/messaging/wwcx-outbound-mail-preparation-api.conf
 docs/messaging-operations/outbound-mail-phase-b-preparation-20260801.md
@@ -77,9 +83,9 @@ tools/outbound_mail_preparation_canary.py
 config/messaging/outbound-mail-gateway.json
 config/messaging/outbound-mail-policy.json
 config/messaging/mail-identities.json'
-if ! git -C "$REPO_ROOT" diff --quiet "$PHASE_B_PACKAGE_COMMIT"..HEAD -- $protected_paths; then
-  git -C "$REPO_ROOT" diff --name-only "$PHASE_B_PACKAGE_COMMIT"..HEAD -- $protected_paths >&2 || true
-  fail "protected Phase B files changed after the approved package"
+if ! git -C "$REPO_ROOT" diff --quiet "$APPROVED_ACTIVATION_COMMIT"..HEAD -- $protected_paths; then
+  git -C "$REPO_ROOT" diff --name-only "$APPROVED_ACTIVATION_COMMIT"..HEAD -- $protected_paths >&2 || true
+  fail "protected Phase B files changed after the approved activation baseline"
 fi
 
 [ -d "$READINESS_EVIDENCE" ] || fail "accepted readiness evidence directory is missing"
