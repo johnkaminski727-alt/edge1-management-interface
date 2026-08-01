@@ -82,7 +82,7 @@ runbook = RUNBOOK.read_text(encoding="utf-8")
 for required in (
     "B1 — loopback authenticated preparation",
     "B2 — TLS reverse proxy",
-    "never copies the secret",
+    "never copied into evidence",
     "prepared_not_sent",
     "409 replay_detected",
     "403 delivery_disabled",
