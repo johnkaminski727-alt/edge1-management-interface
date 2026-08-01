@@ -17,6 +17,7 @@ Allowed behavior:
 - aggregate CDR-style call events;
 - classify SIP response outcomes;
 - summarize interconnect state and latency;
+- evaluate conservative aggregate review indicators;
 - generate operator-facing recommendations from already-authorized data;
 - record privacy-minimized evidence that an aggregate report was generated.
 
@@ -45,6 +46,8 @@ Asterisk / SIP edge / registries / approved CDR source
                  |                 |
           health analysis      call analysis
                  |                 |
+ server/telephony_anomaly_indicators.py
+                 |
        loopback analytics API on 127.0.0.1:8099
                          |
        three fixed same-origin console routes
@@ -63,6 +66,8 @@ separately reviewed report generator
 The browser must continue to use the localhost-only server boundary. It must never connect directly to PBX, carrier, SBC, media, database administration interfaces, or the separate analytics port.
 
 The sanitized adapter library is not a live collector. It performs no file, network, database, credential, service-control, PBX, carrier, route, or configuration access.
+
+The anomaly evaluator consumes aggregate summaries only and has no notification, enforcement, service-control, routing, or automatic-remediation path.
 
 The report-audit module does not generate reports or read source data. It accepts only a pre-minimized event describing an already-generated aggregate report.
 
@@ -125,6 +130,33 @@ Passing an adapter validates only the input shape and minimization boundary. It 
 
 `analyze_interconnects()` summarizes normalized peer records without performing a network probe. It reports total peers, states, average and maximum observed latency, and the number requiring attention.
 
+### Aggregate anomaly indicators
+
+`server/telephony_anomaly_indicators.py` evaluates the exact aggregate outputs from `health_score()`, `summarize_calls()`, and `analyze_interconnects()`.
+
+It produces six deterministic indicators:
+
+- platform health score;
+- answer rate;
+- failure ratio;
+- dominant failure concentration;
+- interconnect attention ratio;
+- interconnect latency.
+
+Every indicator uses one of `ok`, `watch`, `critical`, or `insufficient_data`. Calls and interconnect indicators have fixed minimum sample gates. The evaluator rejects unknown fields, unsafe aggregate labels, customer-like identifiers, inconsistent totals, inconsistent score/state combinations, and invalid latency relationships.
+
+The output deliberately omits carrier identifiers, countries, SIP codes, failure labels, component detail, and source maps. It contains only derived numeric values, fixed thresholds, static reason codes, and static same-page investigation anchors.
+
+All safety fields are fixed false:
+
+- automatic action;
+- notification dispatch;
+- traffic enforcement;
+- route change;
+- service control.
+
+The thresholds are operational review defaults, not carrier SLAs, fraud findings, forecasts, root-cause diagnoses, or authority to act.
+
 ### Aggregate analytics console panels
 
 The console renders three privacy-minimized panels:
@@ -182,6 +214,7 @@ Collectors and adapters must minimize data before it reaches the platform module
 - Do not connect a live data source merely because an offline adapter accepts its sanitized shape.
 - Do not create fixture fallback values that could be mistaken for live aggregate analytics.
 - Do not place report paths, titles, names, numbers, network addresses, route identifiers, or free-form metadata in audit events.
+- Do not expose aggregate category labels through anomaly output when a bounded derived value is sufficient.
 
 ## Collector contract
 
@@ -209,6 +242,7 @@ python3 tests/validate_telephony_platform.py
 python3 tests/validate_telephony_sanitized_adapters.py
 python3 tests/validate_telephony_analytics_console_panels.py
 python3 tests/validate_telephony_report_audit.py
+python3 tests/validate_telephony_anomaly_indicators.py
 node --check src/web/telephony/telephony.js
 ```
 
@@ -220,6 +254,8 @@ The console-panel validation imports the exact proxy route map, verifies fixed l
 
 The report-audit validation verifies canonical two-event append behavior, owner-only permissions, preserved prior bytes, full-chain validation, changed-content detection, incomplete-line rejection, symlink and broad-permission rejection, absolute-path enforcement, bounded schemas, and the absence of network, database, PBX, or service-control access paths.
 
+The anomaly validation covers exact threshold boundaries, minimum sample gates, privacy leakage, aggregate consistency, fixed investigation anchors, and the absence of notification, network, database, service-control, or enforcement paths.
+
 ## Controlled follow-on
 
 Completed read-only increments:
@@ -228,14 +264,15 @@ Completed read-only increments:
 2. add fail-closed offline sanitized CDR and SIP-event adapters;
 3. complete authenticated live acceptance of the existing analytics service and runtime-source provenance;
 4. add fixed same-origin analytics proxy routes and privacy-minimized console panels;
-5. add append-only privacy-minimized report-generation audit events.
+5. add append-only privacy-minimized report-generation audit events;
+6. add conservative aggregate anomaly indicators with no automatic enforcement.
 
 The following work can continue within a read-only implementation branch:
 
-1. add anomaly detection with conservative thresholds and no automatic enforcement;
-2. document separately reviewed Asterisk AMI/ARI, Kamailio/OpenSIPS, RTPengine, and messaging source-minimization boundaries;
-3. design live source collectors only after access, privacy, retention, and rollback review;
-4. design a report generator and runtime audit retention model without deploying them;
+1. document separately reviewed Asterisk AMI/ARI, Kamailio/OpenSIPS, RTPengine, and messaging source-minimization boundaries;
+2. design live source collectors only after access, privacy, retention, and rollback review;
+3. design a report generator and runtime audit retention model without deploying them;
+4. design a read-only anomaly API and console presentation without deploying them;
 5. prepare a bounded console deployment and live-verification runbook without executing it.
 
 Any write capability must use a separate staged control plane:
