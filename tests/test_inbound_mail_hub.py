@@ -61,7 +61,7 @@ class InboundMailHubTests(unittest.TestCase):
             set(status["domains"]),
             {"ww.cx", "creekco.ca", "spiritcreekgardens.com", "scgardens.ca", "omegafx.com"},
         )
-        self.assertEqual(status["route_count"], 35)
+        self.assertEqual(status["route_count"], 37)
 
     def test_private_and_role_destinations_are_real_and_distinct(self) -> None:
         rules = self.identities["rules"]
@@ -92,8 +92,24 @@ class InboundMailHubTests(unittest.TestCase):
     def test_all_non_john_routes_use_shared_role_destination(self) -> None:
         routes = self.config["routing"]["routes"]
         role_routes = {address: route for address, route in routes.items() if not address.startswith("john@")}
-        self.assertEqual(len(role_routes), 30)
+        self.assertEqual(len(role_routes), 32)
         self.assertTrue(all(route["destination"] == ROLE_DESTINATION for route in role_routes.values()))
+
+    def test_verified_creekco_operational_identities_are_registered(self) -> None:
+        routes = self.config["routing"]["routes"]
+        mapping = self.identities["sender_selection"]["recipient_to_sender"]
+        profiles = self.identities["sender_profiles"]
+        expected = {
+            "accessibility@creekco.ca": "creekco-accessibility",
+            "noc@creekco.ca": "creekco-noc",
+        }
+        for address, profile_key in expected.items():
+            with self.subTest(address=address):
+                self.assertEqual(routes[address]["destination"], ROLE_DESTINATION)
+                self.assertEqual(mapping[address], address)
+                self.assertEqual(profiles[profile_key]["address"], address)
+                self.assertEqual(profiles[profile_key]["status"], "verified_operational")
+                self.assertFalse(profiles[profile_key]["outbound_enabled"])
 
     def test_enabled_config_requires_all_gates(self) -> None:
         for key in ("deployment_authorized", "production_routing_authorized"):
@@ -112,6 +128,8 @@ class InboundMailHubTests(unittest.TestCase):
                     "john@ww.cx",
                     "john@spiritcreekgardens.com",
                     "support@creekco.ca",
+                    "accessibility@creekco.ca",
+                    "noc@creekco.ca",
                     "records@spiritcreekgardens.com",
                     "unknown@creekco.ca",
                 ],
@@ -124,6 +142,8 @@ class InboundMailHubTests(unittest.TestCase):
         self.assertEqual(decisions["john@ww.cx"].destination, PRIVATE_DESTINATION)
         self.assertEqual(decisions["john@spiritcreekgardens.com"].destination, PRIVATE_DESTINATION)
         self.assertEqual(decisions["support@creekco.ca"].destination, ROLE_DESTINATION)
+        self.assertEqual(decisions["accessibility@creekco.ca"].destination, ROLE_DESTINATION)
+        self.assertEqual(decisions["noc@creekco.ca"].destination, ROLE_DESTINATION)
         self.assertEqual(decisions["records@spiritcreekgardens.com"].destination, ROLE_DESTINATION)
         self.assertEqual(decisions["unknown@creekco.ca"].action, "quarantine")
 
