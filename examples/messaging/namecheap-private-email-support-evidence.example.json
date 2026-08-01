@@ -1,0 +1,40 @@
+{
+  "contract": "wwcx.namecheap-private-email-support-evidence.v1",
+  "captured_at": "2026-08-01T00:00:00Z",
+  "read_only": true,
+  "provider_family": "namecheap_private_email",
+  "domain": "ww.cx",
+  "ticket_reference": "EXAMPLE-TICKET",
+  "subscription": {
+    "status": "unknown",
+    "plan": null,
+    "expiry_date": null,
+    "mailbox_slots": null
+  },
+  "objects": [],
+  "catch_all": {
+    "behavior": "unknown",
+    "destination": null
+  },
+  "dkim": {
+    "status": "unknown",
+    "selector": null
+  },
+  "provider_rules": {
+    "forwarding_reviewed": null,
+    "filters_reviewed": null,
+    "rules_present": null,
+    "notes": "Illustrative structure only. Replace from restricted provider evidence outside Git."
+  },
+  "completeness": {
+    "subscription": false,
+    "mailboxes": false,
+    "aliases_and_groups": false,
+    "catch_all": false,
+    "quotas": false,
+    "forwarding": false,
+    "dkim": false,
+    "sender_capability": false,
+    "filters_and_rules": false
+  }
+}
