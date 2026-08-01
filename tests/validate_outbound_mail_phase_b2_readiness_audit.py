@@ -151,8 +151,6 @@ for value in (
 state = STATE.read_text(encoding="utf-8")
 for value in (
     "Phase B1 is accepted live",
-    "B2 audit execution: **not yet executed**",
-    "certificate/private-key access authorized: **no**",
     "proxy installation or reload authorized: **no**",
     "DNS change authorized: **no**",
     "firewall change authorized: **no**",
@@ -160,6 +158,21 @@ for value in (
     "A generic `Continue` does not authorize those privileged actions",
 ):
     assert value in state, value
+
+historical_state = "B2 audit execution: **not yet executed**" in state
+accepted_state = all(
+    value in state
+    for value in (
+        "B2 baseline audit execution: **accepted**",
+        "readiness state: `awaiting_explicit_b2_parameters`",
+        "certificate/private-key content access authorized: **no**",
+        "hmac_secret_read=no",
+        "certificate_private_key_read=no",
+        "proxy_config_installed=no",
+        "message_sent=no",
+    )
+)
+assert historical_state or accepted_state
 
 print("Outbound mail Phase B2 read-only readiness audit validation passed")
 print("Baseline and proposal modes remain non-mutating")
