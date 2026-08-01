@@ -78,6 +78,12 @@ hash_file() {
     [ -f "$file" ] && sha256sum "$file" || true
 }
 
+verify_units() {
+    output=$1
+    shift
+    systemd-analyze verify --man=no "$@" >"$output" 2>&1
+}
+
 capture_before() {
     systemctl show mariadb.socket mariadb.service >"$EVIDENCE_DIR/systemd-before.txt" 2>&1
     ss -H -ltnpe >"$EVIDENCE_DIR/tcp-listeners-before.txt" 2>&1
@@ -116,9 +122,11 @@ rollback() {
     log "ROLLBACK: restoring the prior MariaDB socket contract"
     systemctl stop mariadb.service mariadb.socket >/dev/null 2>&1 || true
     restore_previous_dropin || return 1
-    systemctl daemon-reload
-    systemd-analyze verify mariadb.socket mariadb.service \
-        >"$EVIDENCE_DIR/systemd-verify-rollback.txt" 2>&1 || return 1
+    systemctl daemon-reload || return 1
+
+    verify_rc=0
+    verify_units "$EVIDENCE_DIR/systemd-verify-rollback.txt" mariadb.socket mariadb.service || verify_rc=$?
+
     restart_mariadb_pair || return 1
     systemctl show mariadb.socket mariadb.service \
         >"$EVIDENCE_DIR/systemd-after-rollback.txt" 2>&1 || true
@@ -127,6 +135,10 @@ rollback() {
     journalctl -u mariadb.socket -u mariadb.service -u freepbx.service \
         --since '-10 minutes' --no-pager \
         >"$EVIDENCE_DIR/journal-after-rollback.txt" 2>&1 || true
+
+    if [ "$verify_rc" -ne 0 ]; then
+        log "ROLLBACK WARNING: static systemd verification failed after restoring the prior contract; the MariaDB socket and service were nevertheless restarted and verified active"
+    fi
     log "ROLLBACK COMPLETE"
 }
 
@@ -229,8 +241,7 @@ install -m 0644 -o root -g root "$SOURCE" "$DROPIN" || fail_after_mutation "coul
 sha256sum "$DROPIN" >"$EVIDENCE_DIR/dropin-installed.sha256" || fail_after_mutation "could not hash installed drop-in"
 
 systemctl daemon-reload || fail_after_mutation "systemd daemon-reload failed"
-systemd-analyze verify mariadb.socket mariadb.service \
-    >"$EVIDENCE_DIR/systemd-verify-installed.txt" 2>&1 || fail_after_mutation "systemd verification failed"
+verify_units "$EVIDENCE_DIR/systemd-verify-installed.txt" mariadb.socket mariadb.service || fail_after_mutation "systemd verification failed"
 
 log "Restarting MariaDB socket and service as one bounded maintenance action"
 restart_mariadb_pair || fail_after_mutation "MariaDB socket/service restart failed"

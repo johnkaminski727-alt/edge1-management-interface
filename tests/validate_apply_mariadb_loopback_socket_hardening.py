@@ -24,7 +24,10 @@ required = (
     "ROLLBACK_ARMED=1",
     "restore_previous_dropin",
     "systemctl daemon-reload",
-    "systemd-analyze verify mariadb.socket mariadb.service",
+    "systemd-analyze verify --man=no",
+    "verify_rc=0",
+    "|| verify_rc=$?",
+    "ROLLBACK WARNING: static systemd verification failed",
     "systemctl stop mariadb.service mariadb.socket",
     "systemctl start mariadb.socket",
     "systemctl start mariadb.service",
@@ -42,6 +45,19 @@ required = (
 for token in required:
     if token not in text:
         raise SystemExit(f"missing required activation safety behavior: {token}")
+
+if "systemd-analyze verify mariadb.socket mariadb.service" in text:
+    raise SystemExit("manual-page-sensitive systemd verification remains")
+
+rollback_start = text.index("rollback() {")
+rollback_end = text.index("\nfail_after_mutation() {", rollback_start)
+rollback = text[rollback_start:rollback_end]
+if rollback.index("verify_units") > rollback.index("restart_mariadb_pair"):
+    raise SystemExit("rollback verification evidence must be captured before restart")
+if "verify_units" in rollback and "|| return 1" in rollback.split("verify_units", 1)[1].split("restart_mariadb_pair", 1)[0]:
+    raise SystemExit("rollback static verification must not prevent service restoration")
+if "restart_mariadb_pair || return 1" not in rollback:
+    raise SystemExit("rollback must attempt and verify MariaDB runtime restoration")
 
 prohibited_patterns = (
     r"(?m)^\s*(?:sudo\s+)?(?:mysql|mariadb)\b",
