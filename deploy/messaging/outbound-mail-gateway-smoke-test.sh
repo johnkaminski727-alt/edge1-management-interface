@@ -3,11 +3,43 @@ set -eu
 
 HOST=${HOST:-127.0.0.1}
 PORT=${PORT:-8104}
+READY_ATTEMPTS=${READY_ATTEMPTS:-20}
+READY_DELAY_SECONDS=${READY_DELAY_SECONDS:-1}
 BASE_URL="http://$HOST:$PORT"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT HUP INT TERM
 
-curl -fsS "$BASE_URL/outbound-mail/healthz" > "$TMP_DIR/health.json"
+case "$READY_ATTEMPTS" in
+  ''|*[!0-9]*)
+    echo "READY_ATTEMPTS must be a positive integer" >&2
+    exit 2
+    ;;
+esac
+if [ "$READY_ATTEMPTS" -lt 1 ]; then
+  echo "READY_ATTEMPTS must be at least 1" >&2
+  exit 2
+fi
+
+ready=false
+attempt=1
+while [ "$attempt" -le "$READY_ATTEMPTS" ]; do
+  if curl -fsS "$BASE_URL/outbound-mail/healthz" \
+      > "$TMP_DIR/health.json" 2> "$TMP_DIR/health-error.txt"; then
+    ready=true
+    break
+  fi
+  if [ "$attempt" -lt "$READY_ATTEMPTS" ]; then
+    sleep "$READY_DELAY_SECONDS"
+  fi
+  attempt=$((attempt + 1))
+done
+
+if [ "$ready" != true ]; then
+  echo "Gateway did not become ready at $BASE_URL after $READY_ATTEMPTS attempts" >&2
+  cat "$TMP_DIR/health-error.txt" >&2 || true
+  exit 1
+fi
+
 curl -fsS "$BASE_URL/outbound-mail/status" > "$TMP_DIR/status.json"
 
 python3 - "$TMP_DIR/health.json" "$TMP_DIR/status.json" <<'PY'
@@ -77,5 +109,6 @@ fi
 
 printf '%s\n' "Outbound mail gateway disabled-state smoke test passed"
 printf '%s\n' "Listener: $HOST:$PORT"
+printf '%s\n' "Readiness attempts used: $attempt"
 printf '%s\n' "Preparation API: disabled"
 printf '%s\n' "External delivery: rejected"
