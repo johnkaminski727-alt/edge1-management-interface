@@ -132,6 +132,9 @@ cat "$EVIDENCE_DIR/service-active.txt"
 cat "$EVIDENCE_DIR/service-enabled.txt"
 cat "$EVIDENCE_DIR/service-properties.txt"
 
+if ! grep -Fxq enabled "$EVIDENCE_DIR/service-enabled.txt"; then
+    warn "$SERVICE is active but not confirmed enabled at boot"
+fi
 if ! grep -Fxq active "$EVIDENCE_DIR/service-active.txt"; then
     fail "$SERVICE is not active"
 fi
@@ -175,105 +178,7 @@ if [ "$post_code" != "405" ]; then
 fi
 
 section "PAYLOAD CONTRACT AND PRIVACY"
-python3 - "$EVIDENCE_DIR" <<'PY'
-import json
-import re
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-errors = []
-
-
-def load(name):
-    try:
-        value = json.loads((root / name).read_text(encoding="utf-8"))
-    except Exception as exc:
-        errors.append(f"{name}: {exc}")
-        return {}
-    if not isinstance(value, dict):
-        errors.append(f"{name}: root must be an object")
-        return {}
-    return value
-
-
-def require(condition, message):
-    if not condition:
-        errors.append(message)
-
-
-def walk(value, location="payload"):
-    prohibited_keys = {
-        "caller", "caller_id", "callerid", "callee", "called_number", "calling_number",
-        "did", "phone", "phone_number", "telephone_number", "extension", "account",
-        "account_id", "account_number", "username", "password", "secret", "token",
-        "api_key", "credential", "credentials", "sip_uri", "email", "email_address",
-        "message_body", "audio", "recording", "recording_path", "source_ip", "destination_ip",
-    }
-    email = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-    sip_uri = re.compile(r"(?i)\bsips?:[^\s]+")
-    long_number = re.compile(r"(?<![A-Za-z0-9])\+?[0-9][0-9 ()-]{6,}[0-9](?![A-Za-z0-9])")
-    ipv4 = re.compile(r"(?<![0-9])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9])")
-    if isinstance(value, dict):
-        for key, child in value.items():
-            normalized = key.lower().replace("-", "_")
-            if normalized in prohibited_keys:
-                errors.append(f"{location}: prohibited key {key}")
-            walk(child, f"{location}.{key}")
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            walk(child, f"{location}[{index}]")
-    elif isinstance(value, str):
-        if email.search(value):
-            errors.append(f"{location}: email-like value")
-        if sip_uri.search(value):
-            errors.append(f"{location}: SIP URI-like value")
-        if ipv4.search(value) and value not in {"127.0.0.1"}:
-            errors.append(f"{location}: IP-like value")
-        masked = re.sub(r"\b[0-9]{4}-[0-9]{2}-[0-9]{2}(?:T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?\b", "", value)
-        if long_number.search(masked):
-            errors.append(f"{location}: long number-like value")
-
-healthz = load("healthz.json")
-require(healthz.get("status") == "ok", "healthz.status must be ok")
-require(healthz.get("mode") == "read_only", "healthz.mode must be read_only")
-
-health = load("platform-health.json")
-require(isinstance(health.get("score"), int) and 0 <= health.get("score", -1) <= 100, "health score must be 0..100")
-require(health.get("overall_status") in {"healthy", "degraded", "critical"}, "health overall_status is invalid")
-require(isinstance(health.get("components"), dict), "health components must be an object")
-
-calls = load("calls-summary.json")
-for key in ("calls_total", "calls_answered", "answer_rate_percent", "duration_seconds_total", "duration_seconds_average"):
-    require(isinstance(calls.get(key), (int, float)), f"calls summary missing numeric {key}")
-for key in ("directions", "dispositions", "carriers", "destination_countries", "sip_codes", "failure_classes"):
-    require(isinstance(calls.get(key), dict), f"calls summary missing object {key}")
-
-interconnects = load("interconnects-summary.json")
-require(isinstance(interconnects.get("interconnects_total"), int), "interconnects_total must be an integer")
-require(isinstance(interconnects.get("states"), dict), "interconnect states must be an object")
-require(isinstance(interconnects.get("attention_required"), int), "attention_required must be an integer")
-
-for filename in ("healthz.json", "platform-health.json", "calls-summary.json", "interconnects-summary.json", "post-response.json"):
-    path = root / filename
-    if path.is_file():
-        try:
-            walk(json.loads(path.read_text(encoding="utf-8")), filename)
-        except Exception as exc:
-            errors.append(f"{filename}: privacy scan failed: {exc}")
-
-(root / "payload-validation.txt").write_text(
-    "payload_validation=passed\nprivacy_scan=passed\n" if not errors else "\n".join(errors) + "\n",
-    encoding="utf-8",
-)
-if errors:
-    for error in errors:
-        print(f"FAIL: {error}")
-    raise SystemExit(1)
-print("payload_validation=passed")
-print("privacy_scan=passed")
-PY
-if [ "$?" -ne 0 ]; then
+if ! python3 "$REPO_ROOT/tools/telephony/validate_telephony_analytics_evidence.py" "$EVIDENCE_DIR"; then
     fail "payload contract or privacy validation failed"
 fi
 
@@ -281,6 +186,7 @@ section "FILE METADATA"
 for path in \
     "$REPO_ROOT/server/telephony_analytics_api.py" \
     "$REPO_ROOT/server/telephony_platform.py" \
+    "$REPO_ROOT/tools/telephony/validate_telephony_analytics_evidence.py" \
     "$REPO_ROOT/deploy/telephony/wwcx-telephony-analytics.service"; do
     if [ -f "$path" ]; then
         stat -c 'mode=%a owner=%U group=%G bytes=%s path=%n' "$path"
