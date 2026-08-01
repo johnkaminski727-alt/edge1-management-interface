@@ -150,7 +150,7 @@ Do not infer `A-D` support merely because a provider supports ordinary `0-9`, `*
 
 ## Controlled live test gate
 
-A live test is a separate production-traffic action. It requires explicit authorization for:
+A controlled live test is a separate production-traffic action. It requires explicit authorization for:
 
 1. the exact test endpoint and route;
 2. the permitted digits and direction;
