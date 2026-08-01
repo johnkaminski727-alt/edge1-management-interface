@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVER_ROOT = REPO_ROOT / "server"
-WEB_ROOT = REPO_ROOT / "src" / "web"
+WEB_ROOT = REPO_ROOT / "src" / "web" / "outbound-mail"
 DEFAULT_CONFIG = REPO_ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
 
 if str(SERVER_ROOT) not in sys.path:
@@ -59,27 +59,27 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
-            "img-src 'self' data:; frame-ancestors 'none'",
+            "default-src 'self'; style-src 'self'; script-src 'self'; "
+            "connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
         )
+
+    def _send_bytes(self, status: int, body: bytes, content_type: str) -> None:
+        self.send_response(status)
+        self._security_headers()
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
-        self.send_response(status)
-        self._security_headers()
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self._send_bytes(status, body, "application/json; charset=utf-8")
 
-    def _send_html(self, status: int, body: bytes) -> None:
-        self.send_response(status)
-        self._security_headers()
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+    def _serve_asset(self, path: Path, content_type: str) -> None:
+        if not path.is_file() or WEB_ROOT.resolve() not in path.resolve().parents:
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "asset_not_found"})
+            return
+        self._send_bytes(HTTPStatus.OK, path.read_bytes(), content_type)
 
     def _read_json(self, max_bytes: int) -> dict[str, Any]:
         raw_length = self.headers.get("Content-Length", "")
@@ -118,11 +118,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
         try:
             config, policy, audit_path = self.application.load()
             if parsed.path in {"/outbound-mail", "/outbound-mail/"}:
-                page = WEB_ROOT / "outbound-mail-gateway.html"
-                if not page.is_file():
-                    self._send_json(HTTPStatus.NOT_FOUND, {"error": "console_not_found"})
-                    return
-                self._send_html(HTTPStatus.OK, page.read_bytes())
+                self._serve_asset(WEB_ROOT / "index.html", "text/html; charset=utf-8")
+                return
+            if parsed.path == "/outbound-mail/app.js":
+                self._serve_asset(WEB_ROOT / "app.js", "text/javascript; charset=utf-8")
+                return
+            if parsed.path == "/outbound-mail/styles.css":
+                self._serve_asset(WEB_ROOT / "styles.css", "text/css; charset=utf-8")
                 return
             if parsed.path == "/outbound-mail/healthz":
                 self._send_json(
