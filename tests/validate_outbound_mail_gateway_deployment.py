@@ -49,8 +49,8 @@ assert policy["enabled"] is False
 assert policy["smtp_cutover_authorized"] is False
 assert policy["delivery"]["allow_external_submission"] is False
 assert policy["delivery"]["allow_live_delivery"] is False
-assert identities["sender_selection"]["outbound_activation_authorized"] is False
-assert not any(profile["live_enabled"] for profile in identities["sender_profiles"].values())
+assert identities["outbound_activation_authorized"] is False
+assert not any(profile["outbound_enabled"] for profile in identities["sender_profiles"].values())
 
 assert "--port 8094" in electrum_unit, "Electrum service reservation changed unexpectedly"
 assert f"--port {PORT}" in unit
@@ -70,6 +70,8 @@ for required in (
     'config["deployment_authorized"] is False',
     'config["external_delivery_authorized"] is False',
     'config["preparation_api"]["enabled"] is False',
+    'identities["outbound_activation_authorized"] is False',
+    'profile["outbound_enabled"]',
     "groupadd --system",
     "useradd --system --gid",
     "systemctl daemon-reload",
