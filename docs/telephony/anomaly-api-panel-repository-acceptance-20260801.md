@@ -56,6 +56,24 @@ node --check src/web/telephony/telephony-anomalies.js
 
 The general repository workflow must also pass Python compilation, JSON parsing, shell and JavaScript syntax checks, and legacy compatibility validation.
 
+## Edge1 repository validation
+
+Authenticated synchronization and repository validation completed on `edge1.ww.cx` as `wwadmin` at repository head:
+
+```text
+92cdccd4c7bda627bd7c5e8986bd0ed301c0ccb7
+```
+
+The operator confirmed all required assets, all four focused telephony validations, a clean repository, and `.git/index` owned by `wwadmin:wwadmin` with mode `0600`.
+
+The detailed record is:
+
+```text
+docs/telephony/anomaly-api-panel-edge1-repository-validation-20260801.md
+```
+
+This validates repository presence and behavior only. It does not establish that the running analytics or console service has loaded these files.
+
 ## Runtime state
 
-At repository acceptance time, runtime deployment remains **not executed**. The running analytics and console services may continue to load older accepted worktrees and must not be described as exposing the anomaly route or panel until a separate bounded deployment and live evidence pass.
+Runtime deployment remains **not executed**. The running analytics and console services may continue to load older accepted worktrees and must not be described as exposing the anomaly route or panel until a separate bounded deployment and live evidence pass.
