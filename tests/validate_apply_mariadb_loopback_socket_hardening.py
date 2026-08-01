@@ -53,7 +53,14 @@ prohibited_patterns = (
     r"(?m)^\s*(?:sudo\s+)?systemctl\s+(?:start|stop|restart|reload)\s+(?:freepbx|asterisk)(?:\.service)?\b",
     r"(?m)^\s*(?:sudo\s+)?sed\s+-i\b",
     r"(?m)^\s*(?:sudo\s+)?(?:vi|vim|nano|ed)\b",
-    r"(?i)\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|GRANT|REVOKE|TRUNCATE)\b",
+    r"(?i)\bSELECT\s+.+\s+FROM\b",
+    r"(?i)\bINSERT\s+INTO\b",
+    r"(?i)\bUPDATE\s+\S+\s+SET\b",
+    r"(?i)\bDELETE\s+FROM\b",
+    r"(?i)\bDROP\s+(?:TABLE|DATABASE|USER)\b",
+    r"(?i)\bALTER\s+(?:TABLE|DATABASE|USER)\b",
+    r"(?i)\b(?:GRANT|REVOKE)\s+.+\s+(?:TO|FROM)\b",
+    r"(?i)\bTRUNCATE\s+TABLE\b",
 )
 for pattern in prohibited_patterns:
     if re.search(pattern, text):
