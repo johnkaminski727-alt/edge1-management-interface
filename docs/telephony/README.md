@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). The remaining endpoint-policy evidence gap is handled by [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md).
 
 ## Preview
 
@@ -28,6 +28,7 @@ Open `http://127.0.0.1:8088/telephony/` through an approved local or private con
 - normalized health scoring and privacy-minimized aggregate analytics foundation
 - SIP failure classification and interconnect summaries
 - read-only Asterisk DTMF policy inventory and offline complete 16-key signal validation
+- sanitized reconciliation of runtime PJSIP object counts against generated endpoint-policy records
 
 ## Adapter boundary
 
@@ -47,7 +48,7 @@ propose -> inspect -> validate -> approve/reject -> operator-controlled apply ->
 
 The browser must never connect directly to PBX, carrier, or gateway administrative interfaces. A localhost-only API wrapper will normalize and redact approved data sources.
 
-The DTMF readiness audit performs no call or channel creation, no tone or SIP request transmission, and no endpoint, route, carrier, or emergency-calling change. Carrier interoperability remains unknown until supported by provider documentation or a separately authorized controlled test.
+The DTMF readiness and endpoint-policy reconciliation audits perform no call or channel creation, no tone or SIP request transmission, no database query, and no endpoint, trunk, route, carrier, or emergency-calling change. Carrier interoperability remains unknown until supported by provider documentation or a separately authorized controlled test.
 
 ## Validation
 
@@ -57,6 +58,7 @@ From the repository root:
 python3 tests/validate_telephony_console.py
 python3 tests/validate_telephony_platform.py
 python3 tests/validate_asterisk_dtmf_readiness_audit.py
+python3 tests/validate_asterisk_pjsip_endpoint_policy_reconciliation.py
 ```
 
 ## Operator acceptance
@@ -69,12 +71,13 @@ The authenticated DTMF audit completed on `edge1.ww.cx` with exit code `0`, one 
 
 ## Next implementation slice
 
-1. reconcile runtime PJSIP endpoint visibility and authoritative FreePBX/generated endpoint-policy sources without changing configuration
-2. populate the sanitized carrier capability matrix from provider documentation only
-3. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
-4. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
-5. add sanitized CDR and SIP-event collectors
-6. add health-score, failure-class, and carrier-performance console panels
-7. add append-only report-generation audit events
-8. add bounded anomaly indicators without automatic enforcement
-9. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
+1. run and review the merged read-only PJSIP endpoint-policy reconciliation on Edge1
+2. decide whether the generated/runtime evidence is sufficient or whether a separately designed metadata-only database count is needed
+3. populate the sanitized carrier capability matrix from provider documentation only
+4. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
+5. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
+6. add sanitized CDR and SIP-event collectors
+7. add health-score, failure-class, and carrier-performance console panels
+8. add append-only report-generation audit events
+9. add bounded anomaly indicators without automatic enforcement
+10. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
