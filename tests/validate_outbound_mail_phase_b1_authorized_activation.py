@@ -128,7 +128,8 @@ for value in (
     "PR #215 merged as `f1f65571902c7f377c6a7ca9c52f634973a7635a`",
     "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T183528Z",
     "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T190027Z",
-    "failed startup race; automatic rollback complete",
+    "## First activation attempt and rollback",
+    "Root cause: `systemctl restart` completed before the Python HTTP listener was ready",
     "The final operator validation returned `PHASE_B1_VALIDATION=PASS`",
 ):
     assert value in state, value
