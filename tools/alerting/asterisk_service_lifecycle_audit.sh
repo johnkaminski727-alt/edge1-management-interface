@@ -120,7 +120,7 @@ systemctl show asterisk \
     -p ExecMainStatus \
     -p Result \
     -p InvocationID 2>&1 || true
-systemctl status asterisk --no-pager --lines=30 2>&1 || true
+systemctl status asterisk --no-pager --lines=0 2>&1 || true
 
 echo "--- unit definition ---"
 systemctl cat asterisk 2>&1 | sed -n '1,240p' || true
@@ -200,7 +200,6 @@ for file in /etc/systemd/logind.conf /etc/systemd/logind.conf.d/*.conf; do
     echo "source=$file"
     grep -E '^[[:space:]]*(KillUserProcesses|KillOnlyUsers|KillExcludeUsers|RemoveIPC)[[:space:]]*=' "$file" 2>/dev/null || true
 done
-loginctl show-logind -p KillUserProcesses -p KillOnlyUsers -p KillExcludeUsers -p RemoveIPC 2>&1 || true
 
 section "BOOT REGISTRATION"
 systemctl list-unit-files 'asterisk.service' --no-pager 2>&1 || true
