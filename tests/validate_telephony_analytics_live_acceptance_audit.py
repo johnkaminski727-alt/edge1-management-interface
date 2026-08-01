@@ -27,6 +27,13 @@ for marker in (
     "unsafe wildcard listener",
     "validate_telephony_analytics_evidence.py",
     "safe.directory=",
+    "RUNTIME SOURCE PROVENANCE",
+    "runtime-api-path.txt",
+    "runtime-platform-path.txt",
+    "runtime_api_source_match",
+    "runtime_platform_source_match",
+    "runtime analytics API source hash differs from the canonical repository",
+    "runtime telephony platform source hash differs from the canonical repository",
     "database_query_performed=no",
     "call_origination_performed=no",
     "service_mutation=none",
@@ -43,6 +50,15 @@ for forbidden in (
 ):
     if forbidden in source:
         raise SystemExit(f"analytics live acceptance audit contains forbidden mutation: {forbidden}")
+
+if 'sha256sum "$RUNTIME_API_PATH"' not in source:
+    raise SystemExit("analytics live acceptance audit does not hash runtime API source")
+if 'sha256sum "$RUNTIME_PLATFORM_PATH"' not in source:
+    raise SystemExit("analytics live acceptance audit does not hash runtime platform source")
+if 'sha256sum "$REPO_ROOT/server/telephony_analytics_api.py"' not in source:
+    raise SystemExit("analytics live acceptance audit does not hash canonical API source")
+if 'sha256sum "$REPO_ROOT/server/telephony_platform.py"' not in source:
+    raise SystemExit("analytics live acceptance audit does not hash canonical platform source")
 
 validator_source = PAYLOAD_VALIDATOR.read_text(encoding="utf-8")
 for marker in (
