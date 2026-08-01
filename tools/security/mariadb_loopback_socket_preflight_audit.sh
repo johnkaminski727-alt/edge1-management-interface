@@ -51,9 +51,10 @@ scope_connections() {
         }
         function first_name(line, token) {
             token = line;
-            sub(/^.*users:\(\(\"/, "", token);
+            sub(/^.*users:\(\(/, "", token);
             if (token == line) return "unknown";
-            sub(/\".*$/, "", token);
+            sub(/^"/, "", token);
+            sub(/".*$/, "", token);
             return token;
         }
         $3 ~ /:3306$/ || $4 ~ /:3306$/ {
