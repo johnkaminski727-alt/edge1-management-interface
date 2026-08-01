@@ -18,6 +18,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = REPO_ROOT / "src" / "web" / "telephony"
 FIXTURE = WEB_ROOT / "telephony.fixture.json"
 LOOPBACK_HOST = "127.0.0.1"
+ANALYTICS_BASE_URL = "http://127.0.0.1:8099"
+ANALYTICS_ROUTE_MAP = {
+    "/api/telephony/analytics/health": "/api/telephony/platform/health",
+    "/api/telephony/analytics/calls": "/api/telephony/platform/calls/summary",
+    "/api/telephony/analytics/interconnects": "/api/telephony/platform/interconnects/summary",
+}
 
 INTERCONNECT_REGISTRY = REPO_ROOT / "data/registry/interconnect/interconnect-registry.json"
 PEER_STATUS = REPO_ROOT / "data/registry/interconnect/status/peer-status.json"
@@ -260,6 +266,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
+        analytics_path = ANALYTICS_ROUTE_MAP.get(path)
+        if analytics_path is not None:
+            payload = http_json(ANALYTICS_BASE_URL + analytics_path)
+            if payload is None:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "analytics_unavailable"})
+            else:
+                self.send_json(HTTPStatus.OK, payload)
+            return
         if path == "/api/telephony/status":
             self.send_json(HTTPStatus.OK, status_payload())
             return

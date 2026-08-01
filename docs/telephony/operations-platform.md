@@ -44,10 +44,14 @@ Asterisk / SIP edge / registries / approved CDR source
                  |                 |
           health analysis      call analysis
                  |                 |
-          loopback API / console / reports
+       loopback analytics API on 127.0.0.1:8099
+                         |
+       three fixed same-origin console routes
+                         |
+      privacy-minimized console panels on 8096
 ```
 
-The browser must continue to use the localhost-only server boundary. It must never connect directly to PBX, carrier, SBC, media, or database administration interfaces.
+The browser must continue to use the localhost-only server boundary. It must never connect directly to PBX, carrier, SBC, media, database administration interfaces, or the separate analytics port.
 
 The sanitized adapter library is not a live collector. It performs no file, network, database, credential, service-control, PBX, carrier, route, or configuration access.
 
@@ -110,6 +114,26 @@ Passing an adapter validates only the input shape and minimization boundary. It 
 
 `analyze_interconnects()` summarizes normalized peer records without performing a network probe. It reports total peers, states, average and maximum observed latency, and the number requiring attention.
 
+### Aggregate analytics console panels
+
+The console renders three privacy-minimized panels:
+
+- weighted platform health and normalized component states;
+- aggregate call totals, answer rate, duration, and SIP failure classes;
+- sanitized carrier utilization and aggregate interconnect states and latency.
+
+The browser calls only:
+
+```text
+/api/telephony/analytics/health
+/api/telephony/analytics/calls
+/api/telephony/analytics/interconnects
+```
+
+`server/telephony_status_server.py` maps those exact same-origin routes to fixed loopback analytics API targets. It has no wildcard proxy, user-controlled target, browser access to port `8099`, or write method. Missing or invalid upstream data produces a bounded HTTP `503` response and an unavailable panel without breaking the existing console snapshot.
+
+Template values are HTML-escaped before rendering. The carrier panel shows opaque sanitized identifiers and aggregate counts only; it does not assert carrier SLA, route readiness, or end-to-end interoperability.
+
 ## Privacy and evidence
 
 Collectors and adapters must minimize data before it reaches the platform module.
@@ -122,6 +146,7 @@ Collectors and adapters must minimize data before it reaches the platform module
 - Treat CDR and signaling metadata as potentially sensitive even when content is absent.
 - Reject unknown source fields until their privacy and operational purpose are documented.
 - Do not connect a live data source merely because an offline adapter accepts its sanitized shape.
+- Do not create fixture fallback values that could be mistaken for live aggregate analytics.
 
 ## Collector contract
 
@@ -147,11 +172,15 @@ From the repository root:
 python3 tests/validate_telephony_console.py
 python3 tests/validate_telephony_platform.py
 python3 tests/validate_telephony_sanitized_adapters.py
+python3 tests/validate_telephony_analytics_console_panels.py
+node --check src/web/telephony/telephony.js
 ```
 
 The platform validation checks syntax, health scoring, SIP classification, call aggregation, interconnect aggregation, and required operational documentation.
 
 The adapter validation checks canonical examples, bounded aliases, conservative SIP outcome derivation, batch failure behavior, schema markers, and negative cases for prohibited or privacy-bearing data. Repository CI also compiles the module and parses both JSON schemas and synthetic examples.
+
+The console-panel validation imports the exact proxy route map, verifies fixed loopback targets and bounded `503` behavior, blocks arbitrary proxy and write markers, verifies browser isolation from port `8099`, and checks panel, escaping, accessibility, and unavailable-state markers.
 
 ## Controlled follow-on
 
@@ -159,15 +188,16 @@ Completed read-only increments:
 
 1. expose aggregate analytics through loopback-only GET endpoints;
 2. add fail-closed offline sanitized CDR and SIP-event adapters;
-3. complete authenticated live acceptance of the existing analytics service and runtime-source provenance.
+3. complete authenticated live acceptance of the existing analytics service and runtime-source provenance;
+4. add fixed same-origin analytics proxy routes and privacy-minimized console panels.
 
 The following work can continue within a read-only implementation branch:
 
-1. add console panels for health score, failure classes, and carrier performance;
-2. add append-only audit records for report generation;
-3. add anomaly detection with conservative thresholds and no automatic enforcement;
-4. document separately reviewed Asterisk AMI/ARI, Kamailio/OpenSIPS, RTPengine, and messaging source-minimization boundaries;
-5. design live source collectors only after access, privacy, retention, and rollback review.
+1. add append-only audit records for report generation;
+2. add anomaly detection with conservative thresholds and no automatic enforcement;
+3. document separately reviewed Asterisk AMI/ARI, Kamailio/OpenSIPS, RTPengine, and messaging source-minimization boundaries;
+4. design live source collectors only after access, privacy, retention, and rollback review;
+5. prepare a bounded console deployment and live-verification runbook without executing it.
 
 Any write capability must use a separate staged control plane:
 
