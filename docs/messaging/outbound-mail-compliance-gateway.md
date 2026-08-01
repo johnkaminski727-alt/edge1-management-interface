@@ -2,111 +2,121 @@
 
 ## Status
 
-Feature-branch foundation only. The committed policy is disabled. No SMTP relay, mailbox setting, DNS record, signing key, production route, or live outbound-message flow has been changed.
+The gateway is implemented as a disabled, loopback-only preview and policy service. No SMTP relay, provider credential, mailbox setting, DNS record, signing key, production route, or live outbound-message flow is enabled by the committed configuration.
 
-Production cutover requires an approved sender identity, a configured mailing address, credentials stored outside the repository, SPF/DKIM/DMARC review, rollback instructions, and explicit authorization at execution time.
+The gateway now shares the multi-domain identity registry with the inbound hub and automatically replaces untrusted sender fields before preview or submission.
+
+## Canonical mail addresses
+
+The identity registry defines three different functions:
+
+- **`john-inbox@ww.cx`** — private inbound delivery mailbox for every `john@...` identity;
+- **`maildesk@ww.cx`** — separate inbound delivery mailbox for company and role identities;
+- **`noreply@ww.cx`** — outbound-only system identity for messages that intentionally do not invite replies.
+
+The two delivery mailboxes are internal plumbing and are not public sender identities. `noreply@ww.cx` is not an inbound mailbox destination.
+
+## Automatic sender replacement
+
+The gateway does not trust a submitted `From:` or `Reply-To:` value. The identity-aware facade selects the sender in this order:
+
+1. `system_generated=true` selects `noreply@ww.cx` and removes `Reply-To`;
+2. a registered `original_recipient` selects the same identity that received the inbound message;
+3. an approved identity hint selects a registered non-system identity;
+4. otherwise the gateway uses `john@ww.cx` as the default sender.
+
+An unknown original recipient is rejected. A submitted `From:` address cannot override the selected identity. A submitted `Reply-To:` is replaced with the selected sender for ordinary correspondence.
+
+`noreply@ww.cx` is not included in the manual identity list and cannot be selected through an identity hint. It requires the explicit system-generated flag.
+
+Examples:
+
+```text
+original_recipient = john@spiritcreekgardens.com
+selected From       = john@spiritcreekgardens.com
+selected Reply-To   = john@spiritcreekgardens.com
+
+original_recipient = support@creekco.ca
+selected From       = support@creekco.ca
+selected Reply-To   = support@creekco.ca
+
+system_generated = true
+selected From    = noreply@ww.cx
+Reply-To         = omitted
+```
+
+## Sender activation boundary
+
+Automatic selection does not authorize sending. The committed identity registry has:
+
+```text
+outbound_activation_authorized = false
+live_sender_allowlist = []
+```
+
+A preview can show the selected identity, but a live send is blocked unless that exact address has been provider-verified, added to the live sender allowlist, and all gateway and policy activation gates are satisfied.
+
+This prevents the gateway from selecting an identity that the provider would rewrite, reject, or treat as spoofed.
 
 ## Product goal
 
-Provide one approachable admin workspace for outbound correspondence sent from the WW.CX site, ChatGPT-assisted workflows, internal tools, forms, and later approved SMTP or provider-API clients.
+Provide one approachable admin workspace for correspondence sent from the WW.CX site, ChatGPT-assisted workflows, internal tools, forms, and later approved SMTP or provider-API clients.
 
-The gateway should make safe defaults easy:
+The gateway provides:
 
-- choose a sender profile and message class;
-- enter or import recipients, subject, body, case ID, and action ID;
-- preview plain-text and HTML output before sending;
-- append a consistent signature and correspondence-control footer;
-- generate a visible action or acknowledgment link;
-- assign a unique control ID;
-- write a minimal audit event without copying the message body;
-- show compliance checks and blocked conditions before submission;
-- preserve provider message IDs, bounces, acknowledgments, and later responses;
-- export a correspondence matrix by case, recipient, status, and action.
+- automatic identity selection;
+- recipient, subject, message-class, case-ID, and action-ID validation;
+- plain-text preview with approved footer and correlation headers;
+- a visible correspondence or acknowledgment link;
+- minimal append-only auditing without message-body storage;
+- clear blocked conditions before submission;
+- later reconciliation of provider events, bounces, acknowledgments, and replies.
 
 ## Admin experience
 
-The first admin page is located at `src/web/outbound-mail/index.html`. It is intentionally usable without live credentials and operates in preview mode until a deployment adapter is explicitly enabled.
+The admin page is at `src/web/outbound-mail/index.html`. It works without live credentials and remains in preview mode until activation.
 
-The workspace is organized into five steps:
+The workspace shows:
 
-1. **Setup** — organization identity, mailing address, privacy URL, delivery provider, and safe defaults.
-2. **Compose** — sender, recipients, subject, message class, case ID, action ID, and body.
-3. **Controls** — footer components, action-link behavior, retention, and recipient-address logging.
-4. **Preview** — final rendered message, headers, control ID, and policy warnings.
-5. **Activity** — message matrix covering composed, submitted, delivered, bounced, acknowledged, accessed, replied, and closed events.
+1. **Setup** — provider state, canonical internal mailboxes, system sender, and available identity profiles.
+2. **Compose** — original inbound recipient, optional approved fallback, recipients, subject, body, and system-generated mode.
+3. **Controls** — footer, visible action-link, retention, and privacy settings.
+4. **Preview** — selected sender, Reply-To, selection reason, replacement status, final message, and headers.
+5. **Activity** — correspondence events and selected sender identity.
+
+The browser does not submit a free-form `from_address`. The server remains the authority for sender selection.
 
 ## Gateway architecture
 
 ```text
-WW.CX admin / ChatGPT workflow / internal application / future SMTP client
+WW.CX admin / ChatGPT workflow / internal application
         |
         v
-Authenticated WW.CX submission API
-        |-- validate sender, recipient, class, and policy
+Authenticated submission API
+        |-- load shared identity registry
+        |-- reject or replace arbitrary From and Reply-To
+        |-- select identity from system flag, original recipient, or approved hint
+        |-- validate recipients, message class, and policy
         |-- assign control ID and opaque action token
-        |-- render plain-text and HTML footers
-        |-- add X-WWCX correlation headers
-        |-- create append-only audit event
-        |-- create provider idempotency key
-        `-- submit through selected adapter
+        |-- render footer and correlation headers
+        |-- verify selected identity is live-authorized
+        |-- create minimal audit event
+        `-- submit through approved adapter
                  |-- provider API
                  `-- authenticated SMTP smarthost
-
-Visible action link -> https://ww.cx/correspondence/r/<opaque-token>
-                         |-- clear logging disclosure
-                         |-- correspondence metadata
-                         |-- optional verified acknowledgment
-                         |-- records upload or response link
-                         `-- privacy and retention information
 ```
 
-The provider boundary remains abstract so the gateway can support a Gmail/API workflow initially and later use a dedicated outbound provider or authenticated smarthost without changing message-policy behavior.
+The provider boundary remains abstract so message-policy and identity behavior do not depend on one vendor.
 
 ## Transparency rules
 
 The product may record submission, provider delivery events, bounces, explicit acknowledgments, replies, and disclosed action-link access. It must not claim that an email was read merely because a resource was requested.
 
-The policy rejects:
-
-- hidden open-tracking pixels;
-- device fingerprinting;
-- full-IP storage;
-- raw action-token logging;
-- message-body copying into the audit ledger;
-- silent footer injection after DKIM signing;
-- assertions that a footer creates privilege, confidentiality, service, or contractual rights by itself.
-
-Action-link events must be confidence-qualified because corporate link scanners, previews, proxies, VPNs, shared devices, and forwarded messages can produce access events.
-
-## Default footer
-
-```text
---
-John Kaminski
-Authorized Representative
-WW.CX | Christmas Island Worldwide
-<configured mailing address>
-Email: john@ww.cx | Web: https://ww.cx
-
-[WWCX-CORRESPONDENCE-CONTROL]
-Correspondence control: <CONTROL-ID>
-View the correspondence record or acknowledge receipt: <VISIBLE-ACTION-URL>
-Access to the linked correspondence record may be logged for security,
-delivery verification, records management, and dispute resolution.
-Privacy information: https://ww.cx/privacy
-
-CONFIDENTIALITY AND RECORDS NOTICE: This message and any attachments may
-contain confidential information intended for the addressed recipient. If
-received in error, notify the sender and delete the material.
-This notice does not create confidentiality, privilege, a contractual duty,
-or other legal rights where they do not otherwise exist.
-```
-
-Commercial messages additionally require a configured unsubscribe or preference-management link.
+The policy rejects hidden open-tracking pixels, device fingerprinting, full-IP storage, raw action-token logging, message-body copying into the audit ledger, silent footer injection after signing, and claims that a footer creates legal rights by itself.
 
 ## Correlation model
 
-Each message may carry these pre-signing headers:
+Each message may carry pre-signing headers such as:
 
 ```text
 X-WWCX-Control-ID: WWCX-20260801T032400Z-0123456789AB
@@ -116,27 +126,38 @@ X-WWCX-Policy: wwcx.outbound-mail-policy.v1
 X-WWCX-Tracking: disclosed-action-link; no-hidden-pixel
 ```
 
-Headers can assist internal reconciliation when preserved but do not prove reading or forwarding. The action matrix should keep evidence types separate and assign confidence explicitly.
+The restricted audit event records the selected sender address and the selection reason, but not the message body or raw action token.
 
 ## ChatGPT and automation path
 
-ChatGPT-assisted sending should use the same submission API as the admin interface. A future connector call should provide structured fields rather than raw SMTP access:
+ChatGPT-assisted sending uses the same submission API as the admin interface. Structured requests should provide the original inbound identity when replying:
 
 ```json
 {
-  "sender_profile": "john-wwcx",
+  "original_recipient": "john@spiritcreekgardens.com",
   "message_class": "business_correspondence",
   "to": ["records@example.com"],
   "cc": [],
   "subject": "Records request",
-  "plain_text_body": "...",
+  "body": "...",
   "case_id": "ENT-184366738",
   "action_id": "ENT-ACT-014",
   "idempotency_key": "provider-independent-request-id"
 }
 ```
 
-The service returns a preview first unless the caller has an explicit send scope. A send response should include the WW.CX control ID, provider message ID, submission timestamp, recipient disposition, and authoritative audit-record location.
+For an automated notification that must not invite a reply:
+
+```json
+{
+  "system_generated": true,
+  "to": ["recipient@example.com"],
+  "subject": "Automated status notice",
+  "body": "..."
+}
+```
+
+Callers do not need permission to choose arbitrary RFC sender headers. The gateway returns a preview containing its authoritative sender decision.
 
 ## Delivery adapters
 
@@ -155,13 +176,16 @@ The first adapter can wrap an approved Gmail or provider API. A future SMTP adap
 
 Before enabling delivery:
 
-1. Confirm the legal and operating identity displayed in the footer.
-2. Configure the correct mailing address and privacy page.
-3. Choose and verify the sending domain and sender profiles.
-4. Review SPF, DKIM, DMARC, bounce handling, complaints, and unsubscribe behavior.
-5. Store provider credentials outside Git and test key rotation.
-6. Validate multipart text/HTML rendering and attachment preservation.
-7. Confirm idempotency and duplicate-send prevention.
-8. Validate audit retention, access control, export, and deletion routines.
-9. Run a controlled test to internal addresses.
-10. Obtain explicit authorization for live SMTP/API cutover.
+1. provision and protect `john-inbox@ww.cx` and `maildesk@ww.cx` at the selected provider;
+2. verify each intended sender identity with the outbound provider;
+3. configure aligned envelope senders and review SPF, DKIM, and DMARC for every sending domain;
+4. add only verified addresses to the live sender allowlist;
+5. keep `noreply@ww.cx` restricted to system-generated mail and define bounce handling;
+6. configure the correct mailing address and privacy page;
+7. store provider credentials outside Git and test key rotation;
+8. validate multipart rendering, attachments, idempotency, and duplicate prevention;
+9. test audit retention, access controls, export, and deletion routines;
+10. run controlled sends only to organization-owned addresses;
+11. obtain explicit authorization for live provider and DNS cutover.
+
+Until those gates are completed, previews are permitted but live delivery remains blocked.
