@@ -28,14 +28,16 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import textwrap
 
           source = Path('.github/workflows/patch-mariadb-ucp-readiness.yml').read_text(encoding='utf-8')
           start_marker = "          python3 - <<'PY'\n"
           end_marker = "\n          PY\n"
           start = source.index(start_marker) + len(start_marker)
           end = source.index(end_marker, start)
-          payload = textwrap.dedent(source[start:end])
+          lines = source[start:end].splitlines()
+          if not all(not line or line.startswith('          ') for line in lines):
+              raise SystemExit('patch payload contains an unexpected YAML indentation level')
+          payload = '\n'.join(line[10:] if line else '' for line in lines) + '\n'
           exec(compile(payload, 'mariadb-ucp-patch-payload.py', 'exec'), {'__name__': '__main__'})
           PY
 
