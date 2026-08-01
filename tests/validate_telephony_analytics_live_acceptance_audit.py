@@ -5,13 +5,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "tools" / "telephony" / "telephony_analytics_live_acceptance_audit.sh"
+PAYLOAD_VALIDATOR = ROOT / "tools" / "telephony" / "validate_telephony_analytics_evidence.py"
 
-if not AUDIT.is_file():
-    raise SystemExit(f"missing analytics live acceptance audit: {AUDIT.relative_to(ROOT)}")
+for path in (AUDIT, PAYLOAD_VALIDATOR):
+    if not path.is_file():
+        raise SystemExit(f"missing analytics live acceptance asset: {path.relative_to(ROOT)}")
 
-result = subprocess.run(["sh", "-n", str(AUDIT)], check=False)
-if result.returncode != 0:
+if subprocess.run(["sh", "-n", str(AUDIT)], check=False).returncode != 0:
     raise SystemExit("analytics live acceptance audit shell syntax failed")
+ast.parse(PAYLOAD_VALIDATOR.read_text(encoding="utf-8"), filename=str(PAYLOAD_VALIDATOR))
 
 source = AUDIT.read_text(encoding="utf-8")
 for marker in (
@@ -23,8 +25,7 @@ for marker in (
     "/api/telephony/platform/interconnects/summary",
     "POST method boundary",
     "unsafe wildcard listener",
-    "payload_validation=passed",
-    "privacy_scan=passed",
+    "validate_telephony_analytics_evidence.py",
     "database_query_performed=no",
     "call_origination_performed=no",
     "service_mutation=none",
@@ -35,22 +36,19 @@ for marker in (
         raise SystemExit(f"analytics live acceptance audit missing marker: {marker}")
 
 for forbidden in (
-    "systemctl start",
-    "systemctl restart",
-    "systemctl stop",
-    "systemctl enable",
-    "systemctl disable",
-    "systemctl daemon-reload",
-    "apt install",
-    "dnf install",
-    "asterisk -rx",
-    "mysql ",
-    "psql ",
+    "systemctl start", "systemctl restart", "systemctl stop", "systemctl enable",
+    "systemctl disable", "systemctl daemon-reload", "apt install", "dnf install",
+    "asterisk -rx", "mysql ", "psql ",
 ):
     if forbidden in source:
         raise SystemExit(f"analytics live acceptance audit contains forbidden mutation: {forbidden}")
 
-heredoc = source.split("<<'PY'", 1)[1].split("\nPY\n", 1)[0]
-ast.parse(heredoc, filename="embedded-analytics-payload-validation.py")
+validator_source = PAYLOAD_VALIDATOR.read_text(encoding="utf-8")
+for marker in (
+    "payload_validation=passed", "privacy_scan=passed", "PROHIBITED_KEYS",
+    "calls-summary.json", "interconnects-summary.json", "post-response.json",
+):
+    if marker not in validator_source:
+        raise SystemExit(f"analytics evidence validator missing marker: {marker}")
 
 print("telephony analytics live acceptance audit validation passed")
