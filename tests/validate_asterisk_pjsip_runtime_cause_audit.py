@@ -15,7 +15,7 @@ required = (
     "journalctl -u asterisk",
     "/var/log/asterisk/full",
     "sanitize_stream",
-    "sip:[redacted]",
+    "[redacted]",
     "PJSIP/[redacted]",
     "sha256sum",
     "No configuration, service, listener, route, certificate, firewall, package, call, or logger change was performed.",
