@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/outbound-mail-prepare-request.schema.json",
+  "title": "WW.CX Outbound Mail Preparation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "from_address",
+    "to",
+    "subject",
+    "body",
+    "message_class",
+    "signer_name",
+    "signer_title",
+    "mailing_address"
+  ],
+  "properties": {
+    "from_address": {
+      "type": "string",
+      "format": "email",
+      "description": "Validated sender address from a policy-approved domain."
+    },
+    "to": {
+      "$ref": "#/$defs/addressList"
+    },
+    "cc": {
+      "$ref": "#/$defs/addressList"
+    },
+    "bcc": {
+      "$ref": "#/$defs/addressList"
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 998
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1
+    },
+    "message_class": {
+      "enum": [
+        "business_correspondence",
+        "support",
+        "legal_notice",
+        "commercial"
+      ]
+    },
+    "signer_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "signer_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9._:-]{5,127}$"
+    },
+    "action_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9._:-]{5,127}$"
+    },
+    "control_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9._:-]{5,127}$"
+    },
+    "unsubscribe_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "mailing_address": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "reply_to": {
+      "type": "string",
+      "format": "email"
+    }
+  },
+  "$defs": {
+    "addressList": {
+      "type": "array",
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "email"
+      }
+    }
+  }
+}
