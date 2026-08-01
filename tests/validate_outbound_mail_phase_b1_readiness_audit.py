@@ -97,15 +97,19 @@ for path in (STATE, RUNBOOK, ACCEPTANCE):
     assert "mail delivery" in content
 
 state_text = STATE.read_text(encoding="utf-8")
-assert "production HMAC secret currently installed: **no**" in state_text
-assert "temporary activation secret generated during failed attempt: **yes; removed**" in state_text
-assert "B1 runtime overlay currently installed: **no**" in state_text
-assert "latest Phase B1 attempt outcome: **failed startup race; automatic rollback complete**" in state_text
-assert "B1 readiness audit executed and accepted: **yes**" in state_text
-assert "B1 readiness state: **ready for explicit B1 authorization**" in state_text
-assert "2026-08-01T17:45:48Z" in state_text
-assert "bf7c9186f416d69e20f289a68c7a45314baae6b8" in state_text
-assert "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness/20260801T174548Z" in state_text
+for value in (
+    "## Accepted Phase B1 readiness audit",
+    "B1 readiness audit executed and accepted: **yes**",
+    "audit time: `2026-08-01T17:45:48Z`",
+    "audited repository HEAD: `bf7c9186f416d69e20f289a68c7a45314baae6b8`",
+    "production secret generated or read: no",
+    "runtime files modified: no",
+    "service restarted: no",
+    "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness/20260801T174548Z",
+    "Phase B1 activation completed successfully: **yes**",
+    "production HMAC secret currently installed: **yes; root-owned and not disclosed**",
+):
+    assert value in state_text, value
 
 runbook_text = RUNBOOK.read_text(encoding="utf-8")
 assert "No production secret exists" in runbook_text
@@ -138,5 +142,5 @@ for value in (
     assert value in acceptance_text, value
 
 print("Outbound mail Phase B1 read-only readiness audit validation passed")
-print("Live readiness acceptance remains valid after the rolled-back activation attempt")
-print("No B1 credential or runtime overlay is currently installed")
+print("The historical no-mutation readiness acceptance remains preserved")
+print("The later live Phase B1 activation is recorded separately")
