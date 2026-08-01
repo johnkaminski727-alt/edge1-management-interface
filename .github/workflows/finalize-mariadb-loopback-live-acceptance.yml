@@ -1,20 +1,25 @@
 name: Finalize MariaDB loopback live acceptance
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/mariadb-loopback-live-acceptance-20260801
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   finalize:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/mariadb-loopback-live-acceptance-20260801
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Apply warning cleanup and acceptance record
@@ -96,4 +101,4 @@ The successful run emitted a GNU `awk` warning because the UCP client regular ex
             docs/security/mariadb-loopback-live-acceptance-20260801.md \
             .github/workflows/finalize-mariadb-loopback-live-acceptance.yml
           git commit -m "Record MariaDB loopback live acceptance"
-          git push origin HEAD:agent/mariadb-loopback-live-acceptance-20260801
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
