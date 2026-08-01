@@ -66,7 +66,7 @@ HOST=$(hostname -f)
 }
 [ -d "$REPO_ROOT/.git" ] || { echo "ERROR repository not found: $REPO_ROOT" >&2; exit 2; }
 
-for command in awk cat curl date find git grep hostname id install python3 sed sha256sum sort ss stat systemctl tr wc xargs; do
+for command in awk cat curl date dirname find git grep hostname id install python3 sed sha256sum sort ss stat systemctl tr wc xargs; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "ERROR missing command: $command" >&2
         exit 2
@@ -76,6 +76,8 @@ done
 install -d -m 0700 "$EVIDENCE_DIR"
 warnings=0
 failures=0
+runtime_api_source_match=unknown
+runtime_platform_source_match=unknown
 
 warn() {
     warnings=$((warnings + 1))
@@ -113,7 +115,7 @@ capture_json() {
 printf 'WW.CX TELEPHONY ANALYTICS LIVE ACCEPTANCE AUDIT\n'
 printf 'Host: %s\n' "$HOST"
 printf 'Time: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-printf 'Mode: read-only service, listener, endpoint, privacy, and method-boundary inspection; no install, enable, start, stop, restart, reload, route, call, message, database, carrier, firewall, certificate, DNS, or configuration change\n'
+printf 'Mode: read-only service, listener, endpoint, source-provenance, privacy, and method-boundary inspection; no install, enable, start, stop, restart, reload, route, call, message, database, carrier, firewall, certificate, DNS, or configuration change\n'
 printf 'Repository: %s\n' "$REPO_ROOT"
 printf 'Evidence directory: %s\n' "$EVIDENCE_DIR"
 
@@ -153,6 +155,67 @@ for property in 'NoNewPrivileges=yes' 'ProtectSystem=strict' 'ProtectHome=yes' '
         warn "$SERVICE property not confirmed: $property"
     fi
 done
+
+section "RUNTIME SOURCE PROVENANCE"
+RUNTIME_API_PATH=$(awk '
+    /^ExecStart=/ {
+        for (field = 1; field <= NF; field++) {
+            if ($field ~ /^\/.*\/server\/telephony_analytics_api\.py$/) {
+                print $field
+                exit
+            }
+        }
+    }
+' "$EVIDENCE_DIR/service-properties.txt")
+
+if [ -z "$RUNTIME_API_PATH" ]; then
+    fail "runtime analytics API source path could not be parsed from ExecStart"
+else
+    printf '%s\n' "$RUNTIME_API_PATH" | tee "$EVIDENCE_DIR/runtime-api-path.txt"
+    RUNTIME_SERVER_DIR=$(dirname "$RUNTIME_API_PATH")
+    RUNTIME_PLATFORM_PATH="$RUNTIME_SERVER_DIR/telephony_platform.py"
+    printf '%s\n' "$RUNTIME_PLATFORM_PATH" | tee "$EVIDENCE_DIR/runtime-platform-path.txt"
+
+    if [ ! -f "$RUNTIME_API_PATH" ]; then
+        fail "runtime analytics API source file is missing: $RUNTIME_API_PATH"
+    fi
+    if [ ! -f "$RUNTIME_PLATFORM_PATH" ]; then
+        fail "runtime telephony platform source file is missing: $RUNTIME_PLATFORM_PATH"
+    fi
+
+    if [ -f "$RUNTIME_API_PATH" ]; then
+        stat -c 'mode=%a owner=%U group=%G bytes=%s path=%n' "$RUNTIME_API_PATH" >"$EVIDENCE_DIR/runtime-api-metadata.txt"
+        sha256sum "$RUNTIME_API_PATH" >"$EVIDENCE_DIR/runtime-api.sha256"
+        cat "$EVIDENCE_DIR/runtime-api-metadata.txt"
+        cat "$EVIDENCE_DIR/runtime-api.sha256"
+        runtime_api_hash=$(awk '{print $1}' "$EVIDENCE_DIR/runtime-api.sha256")
+        repository_api_hash=$(sha256sum "$REPO_ROOT/server/telephony_analytics_api.py" | awk '{print $1}')
+        if [ "$runtime_api_hash" = "$repository_api_hash" ]; then
+            runtime_api_source_match=yes
+        else
+            runtime_api_source_match=no
+            fail "runtime analytics API source hash differs from the canonical repository"
+        fi
+    fi
+
+    if [ -f "$RUNTIME_PLATFORM_PATH" ]; then
+        stat -c 'mode=%a owner=%U group=%G bytes=%s path=%n' "$RUNTIME_PLATFORM_PATH" >"$EVIDENCE_DIR/runtime-platform-metadata.txt"
+        sha256sum "$RUNTIME_PLATFORM_PATH" >"$EVIDENCE_DIR/runtime-platform.sha256"
+        cat "$EVIDENCE_DIR/runtime-platform-metadata.txt"
+        cat "$EVIDENCE_DIR/runtime-platform.sha256"
+        runtime_platform_hash=$(awk '{print $1}' "$EVIDENCE_DIR/runtime-platform.sha256")
+        repository_platform_hash=$(sha256sum "$REPO_ROOT/server/telephony_platform.py" | awk '{print $1}')
+        if [ "$runtime_platform_hash" = "$repository_platform_hash" ]; then
+            runtime_platform_source_match=yes
+        else
+            runtime_platform_source_match=no
+            fail "runtime telephony platform source hash differs from the canonical repository"
+        fi
+    fi
+fi
+
+printf 'runtime_api_source_match=%s\n' "$runtime_api_source_match"
+printf 'runtime_platform_source_match=%s\n' "$runtime_platform_source_match"
 
 section "LISTENER BOUNDARY"
 ss -lntp >"$EVIDENCE_DIR/tcp-listeners.txt"
@@ -204,6 +267,8 @@ cat "$EVIDENCE_DIR/repository-assets.txt"
 section "DECISION"
 printf 'warnings=%s\n' "$warnings"
 printf 'failures=%s\n' "$failures"
+printf 'runtime_api_source_match=%s\n' "$runtime_api_source_match"
+printf 'runtime_platform_source_match=%s\n' "$runtime_platform_source_match"
 echo "listener_scope=loopback-only"
 echo "api_mode=read-only"
 echo "write_methods=not-authorized"
