@@ -93,7 +93,7 @@ It backs up pre-existing runtime files, installs the runtime overlay, restarts t
 - `/outbound-mail/send` remains `403 delivery_disabled`;
 - no provider is ready and no live sender exists.
 
-The repository validator also confirms that neither the secret nor the synthetic body appears in the audit record and that no raw action token is stored.
+The repository validator also confirms that neither the secret nor the synthetic body appears in the audit record and that no raw action token is stored. The permitted `action_token_sha256` value must be a 64-character lowercase SHA-256 digest.
 
 ## B1 rollback or disable
 
@@ -125,6 +125,8 @@ Evidence includes:
 - SHA-256 inventory.
 
 The secret file and installed environment file are never copied into evidence.
+
+The current committed audit policy explicitly sets `record_recipient_addresses=true`. Accordingly, the preparation audit JSONL retains recipient addresses as correspondence metadata. It does not retain message bodies or raw action tokens; the action token is represented only by its SHA-256 digest. Changing recipient-address retention is a separate records-policy decision and is not bundled into Phase B activation.
 
 ## B2 staged TLS proxy contract
 
