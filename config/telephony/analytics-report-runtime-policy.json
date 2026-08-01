@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "mode": "design_only",
+  "enabled": false,
+  "deployment_authorized": false,
+  "owner": "wwadmin",
+  "group": "wwadmin",
+  "paths": {
+    "runtime_root": "/var/lib/wwcx-telephony-analytics-reports",
+    "incoming_dir": "/var/lib/wwcx-telephony-analytics-reports/incoming",
+    "incoming_file": "/var/lib/wwcx-telephony-analytics-reports/incoming/current.json",
+    "reports_dir": "/var/lib/wwcx-telephony-analytics-reports/reports",
+    "audit_dir": "/var/lib/wwcx-telephony-analytics-reports/audit",
+    "audit_log": "/var/lib/wwcx-telephony-analytics-reports/audit/report-events.jsonl",
+    "activation_sentinel": "/etc/wwcx-telephony/analytics-report-runtime-enabled",
+    "evidence_root": "/var/lib/wwcx-deployment-evidence/telephony-analytics-report-runtime"
+  },
+  "permissions": {
+    "runtime_root_mode": "0700",
+    "directory_mode": "0700",
+    "file_mode": "0600",
+    "umask": "0077"
+  },
+  "input": {
+    "source_contract": "already_aggregated_summaries_only",
+    "filename": "current.json",
+    "max_bytes": 2097152,
+    "live_collection_enabled": false
+  },
+  "output": {
+    "bundle_prefix": "report-",
+    "no_overwrite": true,
+    "sha256_manifest": true,
+    "audit_event_candidate": true
+  },
+  "audit": {
+    "append_enabled": false,
+    "automatic_append": false,
+    "chain_verification_required": true,
+    "prune_events": false,
+    "retention_policy": "retain_until_separately_authorized_checkpoint"
+  },
+  "retention": {
+    "enabled": false,
+    "dry_run_required": true,
+    "input_days": 7,
+    "report_days": 90,
+    "minimum_free_bytes": 1073741824,
+    "delete_unmanifested": false
+  },
+  "scheduler": {
+    "enabled": false,
+    "timezone": "UTC",
+    "on_calendar": "*-*-* 02:15:00",
+    "randomized_delay_seconds": 900,
+    "persistent": false
+  },
+  "execution": {
+    "runner_implemented": false,
+    "service_name": "wwcx-telephony-aggregate-report.service",
+    "timer_name": "wwcx-telephony-aggregate-report.timer",
+    "command_template": [
+      "/usr/bin/python3",
+      "/opt/edge1-management-interface/tools/telephony/generate_telephony_analytics_report.py",
+      "--input",
+      "{incoming_file}",
+      "--output-dir",
+      "{new_output_dir}"
+    ],
+    "network_access": false
+  },
+  "safety": {
+    "host_mutation": false,
+    "service_install": false,
+    "service_enable": false,
+    "service_start": false,
+    "timer_enable": false,
+    "live_source_access": false,
+    "audit_log_append": false,
+    "retention_delete": false,
+    "notification_dispatch": false,
+    "traffic_enforcement": false,
+    "route_change": false,
+    "call_origination": false,
+    "dtmf_transmission": false
+  }
+}
