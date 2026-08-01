@@ -126,16 +126,16 @@ def main() -> int:
                     assert response["preparation_api"]["authenticated_client_id"] == CLIENT_ID
                     assert response["preparation_api"]["delivery_status"] == "prepared_not_sent"
                     assert response["sender_selection"]["address"] == "john@ww.cx"
+                    assert response["sender_selection"]["live_enabled"] is False
                     assert response["request"]["from_address"] == "john@ww.cx"
                     assert response["audit_record"]["from_address"] == "john@ww.cx"
+                    assert response["audit_record"]["live_delivery_authorized"] is False
                     assert response["headers"]["X-WWCX-Tracking"] == (
                         "disclosed-action-link; no-hidden-pixel"
                     )
                     assert "action_token" not in response
                     assert response["body"].count("[WWCX-CORRESPONDENCE-CONTROL]") == 1
                     assert "Email: john@ww.cx" in response["body"]
-                    assert response["delivery"]["status"] == "prepared_not_sent"
-                    assert response["delivery"]["live_delivery_authorized"] is False
 
                     replay_status, replay = request_json(port, API_PATH, body, headers)
                     assert replay_status == 409, replay
