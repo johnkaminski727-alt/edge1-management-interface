@@ -1,14 +1,14 @@
 [Unit]
 Description=WW.CX protected Suricata sanitized-alert retention
 After=local-fs.target
-ConditionPathExists=/opt/edge1-management-interface/config/security/suricata-protected-retention-policy.json
+ConditionPathExists=/etc/wwcx-security/suricata-protected-retention-policy.json
 
 [Service]
 Type=oneshot
 User=root
 Group=root
 UMask=0077
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/suricata_protected_retention.py ingest
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/suricata_protected_retention.py --policy /etc/wwcx-security/suricata-protected-retention-policy.json ingest
 NoNewPrivileges=yes
 PrivateTmp=yes
 PrivateDevices=yes
@@ -24,7 +24,7 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
 RestrictAddressFamilies=AF_UNIX
-ReadOnlyPaths=/opt/edge1-management-interface /var/lib/bigbird/operations-center
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/bigbird/operations-center /etc/wwcx-security/suricata-protected-retention-policy.json
 ReadWritePaths=/var/lib/bigbird-security/suricata-history
 CapabilityBoundingSet=
 AmbientCapabilities=
