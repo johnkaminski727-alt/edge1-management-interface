@@ -114,21 +114,28 @@ assert "readiness-after-restart.txt" in installer
 assert installer.index("health-after-restart.json") < installer.index('python3 "$CANARY"')
 
 state = STATE.read_text(encoding="utf-8")
-assert "Phase B1 activation authorized: **yes**" in state
-assert "Phase B1 activation attempts: **1**" in state
-assert "latest Phase B1 attempt outcome: **failed startup race; automatic rollback complete**" in state
-assert "Phase B1 activation completed successfully: **no**" in state
-assert "temporary activation secret generated during failed attempt: **yes; removed**" in state
-assert "production HMAC secret currently installed: **no**" in state
-assert "approved activation baseline commit must be supplied explicitly" in state
-assert "B2 certificate or reverse proxy installed: **no**" in state
-assert "production mail delivery: **no**" in state
-assert "2026-08-01 18:46 UTC" in state
-assert "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T183528Z" in state
+for value in (
+    "Phase B1 activation authorized: **yes**",
+    "Phase B1 activation attempts: **2**",
+    "latest Phase B1 attempt outcome: **successful**",
+    "Phase B1 activation completed successfully: **yes**",
+    "B1 runtime overlay currently installed: **yes**",
+    "production HMAC secret currently installed: **yes; root-owned and not disclosed**",
+    "preparation API enabled: **yes; loopback only**",
+    "B2 certificate or reverse proxy installed: **no**",
+    "production mail delivery: **no**",
+    "Last reconciled: 2026-08-01 19:00 UTC",
+    "PR #215 merged as `f1f65571902c7f377c6a7ca9c52f634973a7635a`",
+    "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T183528Z",
+    "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T190027Z",
+    "## First activation attempt and rollback",
+    "Root cause: `systemctl restart` completed before the Python HTTP listener was ready",
+    "The final operator validation returned `PHASE_B1_VALIDATION=PASS`",
+):
+    assert value in state, value
 
 print("Authorized outbound mail Phase B1 activation wrapper validation passed")
 print("An explicit approved activation baseline is required before secret generation")
-print("Secret generation is temporary, non-disclosing, loopback-only, and rollback-backed")
-print("Failed startup race and clean Phase A rollback are recorded")
-print("Startup readiness wait precedes the signed canary")
+print("The failed startup race and clean rollback remain recorded")
+print("The remediated second activation is recorded as accepted on loopback")
 print("B2, DNS, firewall, provider, sender, and delivery activation remain absent")
