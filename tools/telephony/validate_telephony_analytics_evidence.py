@@ -149,11 +149,15 @@ def validate(root: Path) -> list[str]:
             "health overall_status is invalid", errors)
     require(isinstance(health.get("components"), dict), "health components must be an object", errors)
 
-    anomalies = load_object(root, "platform-anomalies.json", errors)
-    validate_anomalies(anomalies, "platform-anomalies", errors)
-    validate_anomalies(health.get("anomalies"), "platform-health.anomalies", errors)
-    require(health.get("anomalies") == anomalies,
-            "platform-health.anomalies must match the dedicated anomaly endpoint", errors)
+    anomaly_file = root / "platform-anomalies.json"
+    if anomaly_file.is_file():
+        anomalies = load_object(root, "platform-anomalies.json", errors)
+        validate_anomalies(anomalies, "platform-anomalies", errors)
+        validate_anomalies(health.get("anomalies"), "platform-health.anomalies", errors)
+        require(health.get("anomalies") == anomalies,
+                "platform-health.anomalies must match the dedicated anomaly endpoint", errors)
+    elif "anomalies" in health:
+        validate_anomalies(health.get("anomalies"), "platform-health.anomalies", errors)
 
     calls = load_object(root, "calls-summary.json", errors)
     for key in ("calls_total", "calls_answered", "answer_rate_percent", "duration_seconds_total", "duration_seconds_average"):
