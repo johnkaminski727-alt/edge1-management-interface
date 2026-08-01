@@ -61,6 +61,11 @@ for required in (
     "Refusing to store provider evidence inside Git working tree",
     "restricted operational metadata",
     "sha256sum",
+    "CURRENT_UID=$(id -u)",
+    "CURRENT_USER=$(id -un)",
+    "only root may specify the CLI --user option",
+    'uapi --output=jsonpretty "$@"',
+    'uapi --output=jsonpretty "--user=$CPANEL_USER" "$@"',
 ):
     assert required in capture_text, required
 for prohibited in (
@@ -79,7 +84,13 @@ shell_result = subprocess.run(["sh", "-n", str(CAPTURE)], check=False)
 assert shell_result.returncode == 0
 
 unit_result = subprocess.run(
-    [sys.executable, "-m", "unittest", "tests.test_reconcile_mail_provider_objects"],
+    [
+        sys.executable,
+        "-m",
+        "unittest",
+        "tests.test_reconcile_mail_provider_objects",
+        "tests.test_capture_cpanel_mail_inventory",
+    ],
     cwd=ROOT,
     check=False,
 )
@@ -125,5 +136,6 @@ with tempfile.TemporaryDirectory() as temp_dir:
 
 print("Provider mail-object reconciliation validation passed")
 print("cPanel capture script uses read-only UAPI operations only")
+print("Normal cPanel account shells omit the root-only UAPI --user option")
 print("Normalized inventories are checked against all 37 canonical routes")
 print("No provider, mailbox, forwarding, DNS, or delivery change is performed")
