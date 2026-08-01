@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "source_record_id": "sip-fixture-beta",
+  "observed_at": "2026-08-01T19:01:00Z",
+  "event_type": "invite_final",
+  "direction": "inbound",
+  "sip_code": 503,
+  "carrier_id": "carrier-fixture-b",
+  "destination_country": "US",
+  "duration_seconds": 0
+}
