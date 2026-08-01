@@ -35,6 +35,11 @@ class OutboundMailGatewayTests(unittest.TestCase):
         self.assertFalse(self.config["enabled"])
         self.assertFalse(self.config["external_delivery_authorized"])
         self.assertFalse(self.config["admin"]["send_endpoint_enabled"])
+        self.assertFalse(self.config["preparation_api"]["enabled"])
+        self.assertEqual(
+            self.config["preparation_api"]["authentication"],
+            "hmac_sha256",
+        )
         self.assertEqual(self.config["provider"]["selected"], "none")
         self.assertIn("smtp_submission", self.config["provider"]["profiles"])
         self.assertIn("gmail_api", self.config["provider"]["profiles"])
@@ -50,6 +55,8 @@ class OutboundMailGatewayTests(unittest.TestCase):
         self.assertFalse(status["external_delivery_enabled"])
         self.assertFalse(status["hidden_open_tracking"])
         self.assertFalse(status["device_fingerprinting"])
+        self.assertFalse(status["preparation_api"]["enabled"])
+        self.assertFalse(status["preparation_api"]["runtime_secret_configured"])
 
     def test_preview_builds_footer_headers_and_disclosed_action_link(self) -> None:
         preview = MODULE.compose_preview(

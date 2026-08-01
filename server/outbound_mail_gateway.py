@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import outbound_mail_policy
+import outbound_mail_preparation_auth
 
 
 CONTRACT = "wwcx.outbound-mail-gateway.v1"
@@ -110,6 +111,7 @@ def validate_gateway_config(config: dict[str, Any]) -> None:
             "paths",
             "provider",
             "admin",
+            "preparation_api",
             "content",
         },
         "gateway",
@@ -197,6 +199,11 @@ def validate_gateway_config(config: dict[str, Any]) -> None:
     _require_int(admin["max_recipient_count"], "admin.max_recipient_count", 1, 500)
     _require_int(admin["max_body_bytes"], "admin.max_body_bytes", 1024, 10 * 1024 * 1024)
     _require_int(admin["audit_view_limit"], "admin.audit_view_limit", 1, 5000)
+
+    try:
+        outbound_mail_preparation_auth.validate_config(config["preparation_api"])
+    except outbound_mail_preparation_auth.PreparationAuthConfigurationError as exc:
+        raise ConfigurationError(str(exc)) from exc
 
     content = config["content"]
     _require_exact_keys(
@@ -305,6 +312,9 @@ def status_payload(config: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
         "device_fingerprinting": policy["tracking"]["device_fingerprinting"],
         "persist_message_bodies": config["content"]["persist_message_bodies"],
         "persist_attachment_bytes": config["content"]["persist_attachment_bytes"],
+        "preparation_api": outbound_mail_preparation_auth.status_payload(
+            config["preparation_api"]
+        ),
         "providers": [item.to_dict() for item in statuses],
         "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
