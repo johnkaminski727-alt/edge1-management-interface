@@ -78,7 +78,10 @@ prohibited = (
 for value in prohibited:
     assert value not in text, value
 
-assert 'trap cleanup EXIT HUP INT TERM' in text
+assert "trap cleanup EXIT" in text
+assert "trap on_signal HUP INT TERM" in text
+assert "trap - EXIT HUP INT TERM" in text
+assert "exit 130" in text
 assert text.count('rm -f -- "$SECRET_SOURCE"') >= 2
 assert 'The production secret will not be displayed, hashed, or copied into deployment evidence.' in text
 
