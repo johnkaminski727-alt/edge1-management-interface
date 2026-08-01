@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "title": "WW.CX DTMF Capability Matrix",
+  "scope": "read-only capability and evidence tracking",
+  "standards_reference": {
+    "rfc": "RFC 4733",
+    "media_type": "audio/telephone-event",
+    "event_range": "0-15",
+    "event_mapping": {
+      "0-9": "0-9",
+      "*": 10,
+      "#": 11,
+      "A": 12,
+      "B": 13,
+      "C": 14,
+      "D": 15
+    }
+  },
+  "asterisk_endpoint_modes": [
+    "rfc4733",
+    "inband",
+    "info",
+    "auto",
+    "auto_info"
+  ],
+  "local_platform": {
+    "component": "Asterisk",
+    "version": "observed-at-audit-time",
+    "send_application": {
+      "name": "SendDTMF",
+      "expected_digits": "0-9,*#,A-D",
+      "runtime_help_required": true
+    },
+    "offline_probe": {
+      "script": "tools/telephony/dtmf_offline_probe.py",
+      "expected_digits_tested": 16,
+      "network_access": false,
+      "channel_creation": false,
+      "call_origination": false
+    },
+    "live_path_status": "unverified-until-a-separately-authorized-controlled-call-test"
+  },
+  "interconnect_capability_template": {
+    "provider_id": "sanitized-internal-id",
+    "route_id": "sanitized-internal-id",
+    "direction": "inbound|outbound|bidirectional",
+    "rfc4733": {
+      "status": "unknown|documented|controlled-test-passed|controlled-test-failed",
+      "event_range": "unknown|0-11|0-15|other",
+      "evidence_reference": null
+    },
+    "sip_info": {
+      "status": "unknown|documented|controlled-test-passed|controlled-test-failed",
+      "evidence_reference": null
+    },
+    "inband": {
+      "status": "unknown|documented|controlled-test-passed|controlled-test-failed",
+      "codec_constraints": [],
+      "evidence_reference": null
+    },
+    "extended_abcd": {
+      "status": "unknown|documented|controlled-test-passed|controlled-test-failed",
+      "evidence_reference": null
+    },
+    "last_reviewed_at": null,
+    "notes": "Do not record credentials, telephone numbers, SIP URIs, or customer identifiers."
+  },
+  "interconnects": [],
+  "approval_boundaries": [
+    "No call or channel may be originated by the audit.",
+    "No DTMF event, SIP INFO request, or in-band tone may be transmitted by the audit.",
+    "Carrier capability remains unknown until supported by provider documentation or a separately authorized controlled test.",
+    "Emergency-calling paths and production routing require separate explicit authorization."
+  ]
+}
