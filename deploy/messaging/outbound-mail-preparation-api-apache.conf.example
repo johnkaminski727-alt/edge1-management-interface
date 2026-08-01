@@ -1,0 +1,35 @@
+# WW.CX outbound-mail preparation API — Apache include fragment
+#
+# Include this file only inside the existing TLS VirtualHost for
+# PREPARATION_API_HOSTNAME. The existing virtual host retains these TLS files:
+#   CERTIFICATE_FULLCHAIN_PATH
+#   CERTIFICATE_PRIVATE_KEY_PATH
+#
+# This fragment exposes exactly two source-restricted, HMAC-authenticated
+# preparation routes. It does not expose a send route.
+
+ProxyPreserveHost On
+
+<LocationMatch "^/outbound-mail/api/v1/status$">
+    <Limit GET>
+        Require ip PREPARATION_CLIENT_CIDR
+    </Limit>
+    <LimitExcept GET>
+        Require all denied
+    </LimitExcept>
+
+    ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30
+    ProxyPassReverse "http://127.0.0.1:8104/outbound-mail/api/v1/status"
+</LocationMatch>
+
+<LocationMatch "^/outbound-mail/api/v1/prepare$">
+    <Limit POST>
+        Require ip PREPARATION_CLIENT_CIDR
+    </Limit>
+    <LimitExcept POST>
+        Require all denied
+    </LimitExcept>
+
+    ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30
+    ProxyPassReverse "http://127.0.0.1:8104/outbound-mail/api/v1/prepare"
+</LocationMatch>
