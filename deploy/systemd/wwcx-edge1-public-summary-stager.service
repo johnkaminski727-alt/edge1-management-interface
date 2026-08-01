@@ -1,14 +1,14 @@
 [Unit]
 Description=WW.CX minimized Edge1 public-summary release stager
 After=local-fs.target wwcx-security-operations.service wwcx-network-defense.service wwcx-operations-health.service
-ConditionPathExists=/opt/edge1-management-interface/config/security/edge1-public-summary-staging-policy.json
+ConditionPathExists=/etc/wwcx-security/edge1-public-summary-staging-policy.json
 
 [Service]
 Type=oneshot
 User=root
 Group=root
 UMask=0022
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_public_summary_stager.py
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_public_summary_stager.py --policy /etc/wwcx-security/edge1-public-summary-staging-policy.json
 NoNewPrivileges=yes
 PrivateTmp=yes
 PrivateDevices=yes
@@ -29,6 +29,7 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 RestrictAddressFamilies=AF_UNIX
 ReadOnlyPaths=/opt/edge1-management-interface
+ReadOnlyPaths=/etc/wwcx-security/edge1-public-summary-staging-policy.json
 ReadOnlyPaths=/var/www/edge1-status/security-operations.json
 ReadOnlyPaths=/var/www/edge1-status/network-defense/data/network-defense.json
 ReadOnlyPaths=/var/www/edge1-status/operations-health.json
