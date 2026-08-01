@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/analytics-report-runtime-policy.schema.json",
+  "title": "WW.CX Telephony Aggregate Report Runtime Design Policy",
+  "description": "Disabled-by-default design policy for a future protected aggregate report runtime. This schema does not authorize deployment, scheduling, audit append, retention deletion, or live source access.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "mode", "enabled", "deployment_authorized", "owner", "group",
+    "paths", "permissions", "input", "output", "audit", "retention", "scheduler",
+    "execution", "safety"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "mode": {"const": "design_only"},
+    "enabled": {"const": false},
+    "deployment_authorized": {"const": false},
+    "owner": {"const": "wwadmin"},
+    "group": {"const": "wwadmin"},
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_root", "incoming_dir", "incoming_file", "reports_dir", "audit_dir",
+        "audit_log", "activation_sentinel", "evidence_root"
+      ],
+      "properties": {
+        "runtime_root": {"const": "/var/lib/wwcx-telephony-analytics-reports"},
+        "incoming_dir": {"const": "/var/lib/wwcx-telephony-analytics-reports/incoming"},
+        "incoming_file": {"const": "/var/lib/wwcx-telephony-analytics-reports/incoming/current.json"},
+        "reports_dir": {"const": "/var/lib/wwcx-telephony-analytics-reports/reports"},
+        "audit_dir": {"const": "/var/lib/wwcx-telephony-analytics-reports/audit"},
+        "audit_log": {"const": "/var/lib/wwcx-telephony-analytics-reports/audit/report-events.jsonl"},
+        "activation_sentinel": {"const": "/etc/wwcx-telephony/analytics-report-runtime-enabled"},
+        "evidence_root": {"const": "/var/lib/wwcx-deployment-evidence/telephony-analytics-report-runtime"}
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_root_mode", "directory_mode", "file_mode", "umask"],
+      "properties": {
+        "runtime_root_mode": {"const": "0700"},
+        "directory_mode": {"const": "0700"},
+        "file_mode": {"const": "0600"},
+        "umask": {"const": "0077"}
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_contract", "filename", "max_bytes", "live_collection_enabled"],
+      "properties": {
+        "source_contract": {"const": "already_aggregated_summaries_only"},
+        "filename": {"const": "current.json"},
+        "max_bytes": {"const": 2097152},
+        "live_collection_enabled": {"const": false}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle_prefix", "no_overwrite", "sha256_manifest", "audit_event_candidate"],
+      "properties": {
+        "bundle_prefix": {"const": "report-"},
+        "no_overwrite": {"const": true},
+        "sha256_manifest": {"const": true},
+        "audit_event_candidate": {"const": true}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "append_enabled", "automatic_append", "chain_verification_required", "prune_events",
+        "retention_policy"
+      ],
+      "properties": {
+        "append_enabled": {"const": false},
+        "automatic_append": {"const": false},
+        "chain_verification_required": {"const": true},
+        "prune_events": {"const": false},
+        "retention_policy": {"const": "retain_until_separately_authorized_checkpoint"}
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled", "dry_run_required", "input_days", "report_days", "minimum_free_bytes",
+        "delete_unmanifested"
+      ],
+      "properties": {
+        "enabled": {"const": false},
+        "dry_run_required": {"const": true},
+        "input_days": {"type": "integer", "minimum": 1, "maximum": 30},
+        "report_days": {"type": "integer", "minimum": 30, "maximum": 3650},
+        "minimum_free_bytes": {"type": "integer", "minimum": 1048576},
+        "delete_unmanifested": {"const": false}
+      }
+    },
+    "scheduler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "timezone", "on_calendar", "randomized_delay_seconds", "persistent"],
+      "properties": {
+        "enabled": {"const": false},
+        "timezone": {"const": "UTC"},
+        "on_calendar": {"const": "*-*-* 02:15:00"},
+        "randomized_delay_seconds": {"type": "integer", "minimum": 0, "maximum": 3600},
+        "persistent": {"const": false}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runner_implemented", "service_name", "timer_name", "command_template", "network_access"],
+      "properties": {
+        "runner_implemented": {"const": false},
+        "service_name": {"const": "wwcx-telephony-aggregate-report.service"},
+        "timer_name": {"const": "wwcx-telephony-aggregate-report.timer"},
+        "command_template": {
+          "const": [
+            "/usr/bin/python3",
+            "/opt/edge1-management-interface/tools/telephony/generate_telephony_analytics_report.py",
+            "--input",
+            "{incoming_file}",
+            "--output-dir",
+            "{new_output_dir}"
+          ]
+        },
+        "network_access": {"const": false}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_mutation", "service_install", "service_enable", "service_start", "timer_enable",
+        "live_source_access", "audit_log_append", "retention_delete", "notification_dispatch",
+        "traffic_enforcement", "route_change", "call_origination", "dtmf_transmission"
+      ],
+      "properties": {
+        "host_mutation": {"const": false},
+        "service_install": {"const": false},
+        "service_enable": {"const": false},
+        "service_start": {"const": false},
+        "timer_enable": {"const": false},
+        "live_source_access": {"const": false},
+        "audit_log_append": {"const": false},
+        "retention_delete": {"const": false},
+        "notification_dispatch": {"const": false},
+        "traffic_enforcement": {"const": false},
+        "route_change": {"const": false},
+        "call_origination": {"const": false},
+        "dtmf_transmission": {"const": false}
+      }
+    }
+  }
+}
