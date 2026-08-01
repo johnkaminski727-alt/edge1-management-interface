@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "event_type": "telephony_analytics_report_generated",
+  "event_id": "report-event-alpha",
+  "occurred_at": "2026-08-01T19:45:00Z",
+  "report_id": "report-fixture-alpha",
+  "report_kind": "combined_summary",
+  "generator_id": "telephony-report-fixture",
+  "repository_revision": "1111111111111111111111111111111111111111",
+  "input_manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "output_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "aggregate_record_count": 12,
+  "privacy_profile": "aggregate_no_customer_identifiers"
+}
