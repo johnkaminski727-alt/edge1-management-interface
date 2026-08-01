@@ -35,4 +35,7 @@ rollback = text[rollback_start:rollback_end]
 if rollback.index("restart_mariadb_pair") > rollback.index("wait_for_ucp_runtime"):
     raise SystemExit("rollback UCP wait must follow MariaDB restoration")
 
+if '\\"node' in text:
+    raise SystemExit("awk UCP regex contains an unnecessary escaped quote")
+
 print("MariaDB loopback UCP readiness contract: PASS")

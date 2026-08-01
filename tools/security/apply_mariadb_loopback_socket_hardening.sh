@@ -188,7 +188,7 @@ ucp_loopback_connection_reestablished() {
         $3 ~ /:3306$/ || $4 ~ /:3306$/ {
             found++;
             if (!loopback($3) || !loopback($4)) bad++;
-            if ($4 ~ /:3306$/ && loopback($3) && loopback($4) && $0 ~ /users:\(\(\"node/) ucp_client++;
+            if ($4 ~ /:3306$/ && loopback($3) && loopback($4) && $0 ~ /users:\(\("node/) ucp_client++;
         }
         END { exit !(found > 0 && bad == 0 && ucp_client > 0); }
         '
