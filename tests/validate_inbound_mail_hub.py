@@ -20,6 +20,9 @@ sys.path.insert(0, str(SERVER_ROOT))
 
 import inbound_mail_hub
 
+PRIVATE_DESTINATION = "CONFIGURE_PRIVATE_JOHN_MAILBOX"
+ROLE_DESTINATION = "CONFIGURE_SHARED_ROLE_MAILBOX"
+
 config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 identities = json.loads(IDENTITIES_PATH.read_text(encoding="utf-8"))
 inbound_mail_hub.validate_config(config)
@@ -39,13 +42,27 @@ assert set(status["domains"]) == {
 }
 assert status["route_count"] == 35
 assert identities["outbound_activation_authorized"] is False
-assert identities["rules"]["primary_work_address"] == "john@spiritcreekgardens.com"
-assert set(identities["rules"]["personal_aliases"]) == {
+rules = identities["rules"]
+assert rules["primary_work_address"] == "john@spiritcreekgardens.com"
+assert set(rules["private_john_addresses"]) == {
     "john@ww.cx",
     "john@omegafx.com",
     "john@creekco.ca",
     "john@scgardens.ca",
+    "john@spiritcreekgardens.com",
 }
+assert rules["private_john_delivery_mailbox"] == PRIVATE_DESTINATION
+assert rules["shared_role_delivery_mailbox"] == ROLE_DESTINATION
+assert rules["private_john_delivery_mailbox"] != rules["shared_role_delivery_mailbox"]
+assert rules["require_distinct_private_and_role_destinations"] is True
+
+routes = config["routing"]["routes"]
+john_routes = {address: route for address, route in routes.items() if address.startswith("john@")}
+role_routes = {address: route for address, route in routes.items() if not address.startswith("john@")}
+assert len(john_routes) == 5
+assert len(role_routes) == 30
+assert all(route["destination"] == PRIVATE_DESTINATION for route in john_routes.values())
+assert all(route["destination"] == ROLE_DESTINATION for route in role_routes.values())
 
 for path in (CORE_PATH, SERVER_PATH, DOC_PATH, IDENTITIES_PATH):
     assert path.is_file(), path
@@ -79,5 +96,6 @@ assert compile_result.returncode == 0
 
 print("Inbound mail hub validation passed")
 print("Five managed domains and 35 named routes validated")
-print("Personal John aliases and Spirit Creek Gardens work identity validated")
+print("Five private John routes are separated from 30 shared role routes")
+print("Private and shared destination placeholders are distinct")
 print("Production routing, MX changes, SMTP listeners, and outbound activation remain disabled")
