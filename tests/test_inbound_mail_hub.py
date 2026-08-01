@@ -14,6 +14,7 @@ from unittest import mock
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SERVER_ROOT = ROOT / "server"
 CONFIG_PATH = ROOT / "config" / "messaging" / "inbound-mail-hub.json"
+IDENTITIES_PATH = ROOT / "config" / "messaging" / "mail-identities.json"
 
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
@@ -25,6 +26,7 @@ class InboundMailHubTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        cls.identities = json.loads(IDENTITIES_PATH.read_text(encoding="utf-8"))
 
     def active_config(self) -> dict:
         config = copy.deepcopy(self.config)
@@ -44,6 +46,29 @@ class InboundMailHubTests(unittest.TestCase):
         self.assertFalse(status["persist_attachment_bytes"])
         self.assertEqual(self.config["routing"]["unknown_recipient_action"], "quarantine")
 
+    def test_multi_domain_inventory_and_route_count(self) -> None:
+        status = MODULE.status_payload(self.config)
+        self.assertEqual(
+            set(status["domains"]),
+            {"ww.cx", "creekco.ca", "spiritcreekgardens.com", "scgardens.ca", "omegafx.com"},
+        )
+        self.assertEqual(status["route_count"], 35)
+
+    def test_personal_and_work_identity_classification(self) -> None:
+        rules = self.identities["rules"]
+        self.assertEqual(
+            set(rules["personal_aliases"]),
+            {"john@ww.cx", "john@omegafx.com", "john@creekco.ca", "john@scgardens.ca"},
+        )
+        self.assertEqual(rules["primary_work_address"], "john@spiritcreekgardens.com")
+        profiles = self.identities["sender_profiles"]
+        self.assertEqual(profiles["john-wwcx"]["address_class"], "personal")
+        self.assertEqual(profiles["john-omegafx"]["address_class"], "personal")
+        self.assertEqual(profiles["john-creekco"]["address_class"], "personal")
+        self.assertEqual(profiles["john-scgardens"]["address_class"], "personal")
+        self.assertEqual(profiles["spirit-creek-gardens-john"]["address_class"], "work")
+        self.assertFalse(self.identities["outbound_activation_authorized"])
+
     def test_enabled_config_requires_all_gates(self) -> None:
         for key in ("deployment_authorized", "production_routing_authorized"):
             candidate = self.active_config()
@@ -52,12 +77,18 @@ class InboundMailHubTests(unittest.TestCase):
                 with self.assertRaises(MODULE.ConfigurationError):
                     MODULE.validate_config(candidate)
 
-    def test_known_recipient_routes_and_unknown_quarantines(self) -> None:
+    def test_known_recipients_route_across_domains_and_unknown_quarantines(self) -> None:
         envelope = MODULE.normalize_envelope(
             self.config,
             {
                 "envelope_from": "sender@example.com",
-                "recipients": ["john@ww.cx", "unknown@ww.cx"],
+                "recipients": [
+                    "john@ww.cx",
+                    "john@omegafx.com",
+                    "john@creekco.ca",
+                    "john@spiritcreekgardens.com",
+                    "unknown@creekco.ca",
+                ],
                 "message_size": 4096,
                 "provider_message_id": "provider-id-1",
                 "subject": "Test message",
@@ -65,9 +96,16 @@ class InboundMailHubTests(unittest.TestCase):
         )
         decisions = MODULE.route_envelope(self.config, envelope)
         by_recipient = {item.recipient: item for item in decisions}
-        self.assertEqual(by_recipient["john@ww.cx"].action, "route")
-        self.assertEqual(by_recipient["john@ww.cx"].destination, "john@ww.cx")
-        self.assertEqual(by_recipient["unknown@ww.cx"].action, "quarantine")
+        for address in (
+            "john@ww.cx",
+            "john@omegafx.com",
+            "john@creekco.ca",
+            "john@spiritcreekgardens.com",
+        ):
+            with self.subTest(address=address):
+                self.assertEqual(by_recipient[address].action, "route")
+                self.assertEqual(by_recipient[address].destination, "john@ww.cx")
+        self.assertEqual(by_recipient["unknown@creekco.ca"].action, "quarantine")
 
     def test_unmanaged_domain_is_rejected(self) -> None:
         envelope = MODULE.normalize_envelope(
@@ -101,7 +139,7 @@ class InboundMailHubTests(unittest.TestCase):
         secret_env = config["ingress"]["profiles"]["provider_webhook"]["secret_env"]
         payload = {
             "envelope_from": "sender@example.com",
-            "recipients": ["john@ww.cx"],
+            "recipients": ["john@spiritcreekgardens.com"],
             "message_size": 100,
             "provider_message_id": "provider-id-4",
             "subject": "Sensitive subject",
