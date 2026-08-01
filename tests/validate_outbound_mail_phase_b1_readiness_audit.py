@@ -88,15 +88,17 @@ for path in (STATE, RUNBOOK):
     content = path.read_text(encoding="utf-8")
     assert "c55059c2d0230ea273709bbb5a4169b00bb226c1" in content
     assert "20260801T064714Z" in content
-    assert "no production secret" in content.lower()
     assert "B2" in content
     assert "mail delivery" in content
 
 state_text = STATE.read_text(encoding="utf-8")
+assert "production HMAC secret generated: **no**" in state_text
+assert "production HMAC secret installed: **no**" in state_text
 assert "ready for explicit B1 authorization" in state_text
 assert "not executed in this session" in state_text
 
 runbook_text = RUNBOOK.read_text(encoding="utf-8")
+assert "No production secret exists" in runbook_text
 assert "sudo sh tools/messaging/outbound_mail_phase_b1_readiness_audit.sh" in runbook_text
 assert "Authorize generation of a new production HMAC secret" in runbook_text
 assert "Do not install B2" in runbook_text
