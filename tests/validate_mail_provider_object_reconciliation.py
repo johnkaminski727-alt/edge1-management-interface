@@ -13,6 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools" / "messaging"
 RECONCILER = TOOLS / "reconcile_mail_provider_objects.py"
 CAPTURE = TOOLS / "capture_cpanel_mail_inventory.sh"
+NORMALIZER = TOOLS / "normalize_cpanel_mail_inventory.py"
 SCHEMA = ROOT / "schemas" / "messaging" / "mail-provider-objects.schema.json"
 EXAMPLE = ROOT / "examples" / "messaging" / "mail-provider-objects.example.json"
 DOC = ROOT / "docs" / "messaging" / "provider-object-reconciliation.md"
@@ -23,7 +24,16 @@ sys.path.insert(0, str(TOOLS))
 
 import reconcile_mail_provider_objects
 
-for path in (RECONCILER, CAPTURE, SCHEMA, EXAMPLE, DOC, INBOUND, IDENTITIES):
+for path in (
+    RECONCILER,
+    CAPTURE,
+    NORMALIZER,
+    SCHEMA,
+    EXAMPLE,
+    DOC,
+    INBOUND,
+    IDENTITIES,
+):
     assert path.is_file(), path
     assert path.stat().st_size > 100, path
 
@@ -80,6 +90,30 @@ for prohibited in (
 ):
     assert prohibited not in capture_text, prohibited
 
+normalizer_text = NORMALIZER.read_text(encoding="utf-8")
+for required in (
+    "offline and read-only",
+    "SHA-256 mismatch",
+    "refusing to normalize provider evidence inside a Git working tree",
+    "manual restricted review is required",
+    '"method": "cpanel_uapi"',
+    '"provider_family": "namecheap_shared_hosting"',
+    '"mode": "unknown"',
+):
+    assert required in normalizer_text, required
+for prohibited in (
+    "requests.",
+    "urllib.request",
+    "http.client",
+    "socket.",
+    "subprocess.",
+    "add_forwarder",
+    "delete_forwarder",
+    "set_default_address",
+    "passwd_pop",
+):
+    assert prohibited not in normalizer_text, prohibited
+
 shell_result = subprocess.run(["sh", "-n", str(CAPTURE)], check=False)
 assert shell_result.returncode == 0
 
@@ -90,6 +124,7 @@ unit_result = subprocess.run(
         "unittest",
         "tests.test_reconcile_mail_provider_objects",
         "tests.test_capture_cpanel_mail_inventory",
+        "tests.test_normalize_cpanel_mail_inventory",
     ],
     cwd=ROOT,
     check=False,
@@ -97,7 +132,7 @@ unit_result = subprocess.run(
 assert unit_result.returncode == 0
 
 compile_result = subprocess.run(
-    [sys.executable, "-m", "py_compile", str(RECONCILER)],
+    [sys.executable, "-m", "py_compile", str(RECONCILER), str(NORMALIZER)],
     cwd=ROOT,
     check=False,
 )
@@ -137,5 +172,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
 print("Provider mail-object reconciliation validation passed")
 print("cPanel capture script uses read-only UAPI operations only")
 print("Normal cPanel account shells omit the root-only UAPI --user option")
+print("Restricted captures can be normalized offline after checksum verification")
+print("Non-empty provider filters, autoresponders, or domain forwarders fail closed")
 print("Normalized inventories are checked against all 37 canonical routes")
 print("No provider, mailbox, forwarding, DNS, or delivery change is performed")
