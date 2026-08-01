@@ -122,9 +122,12 @@ def prepare_artifact(
     requested_from = str(
         request.get("from_address") or policy["organization"]["contact_email"]
     )
-    outbound_mail_policy.validate_from_address(policy, requested_from)
+    validated_from = outbound_mail_policy.validate_from_address(policy, requested_from)
+    effective_policy = copy.deepcopy(policy)
+    effective_policy["organization"]["contact_email"] = validated_from
+    outbound_mail_policy.validate_policy(effective_policy)
 
-    preview = outbound_mail_gateway.compose_preview(config, policy, request)
+    preview = outbound_mail_gateway.compose_preview(config, effective_policy, request)
     public_request = {
         key: value
         for key, value in preview["request"].items()
