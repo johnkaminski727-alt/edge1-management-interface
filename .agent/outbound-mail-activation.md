@@ -1,6 +1,6 @@
 # Outbound Mail Activation State
 
-Last reconciled: 2026-08-01 18:06 UTC  
+Last reconciled: 2026-08-01 18:38 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`
 
@@ -80,6 +80,30 @@ It requires the exact approved repository commit, revalidates the accepted readi
 
 This authorization does **not** include B2, certificates, DNS, firewall, website bridge, public correspondence records, retention apply or scheduling, provider credentials, sender activation, or mail delivery.
 
+## First activation attempt and rollback
+
+The authorized wrapper was executed on `edge1.ww.cx` at 2026-08-01 18:35 UTC from clean `main` commit `73204c37558ea054dfd6cdd2a66221637dd9e9cd`.
+
+Verified evidence:
+
+- evidence directory: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T183528Z`;
+- a 64-character temporary HMAC token was generated locally without being displayed;
+- the runtime overlay was installed and the service restart was requested;
+- the canary immediately received `ConnectionRefusedError` before the gateway listener was ready;
+- the gateway startup event appeared in the journal approximately one second later;
+- the installer automatically restored the prior Phase A files and restarted the service;
+- the service returned to active/running on `127.0.0.1:8104`;
+- unsigned preparation status returned HTTP `403`;
+- send returned HTTP `403`;
+- the runtime environment file, runtime configuration, and systemd drop-in were absent after rollback;
+- no temporary secret source remained under `/run`;
+- no proxy, certificate, DNS, firewall, provider, sender, or delivery change occurred;
+- no message was sent.
+
+Root cause: `systemctl restart` completed before the Python HTTP listener was ready, and the installer launched the canary without a bounded readiness wait.
+
+Remediation: the installer now waits for both an active systemd unit and HTTP 200 from the loopback health endpoint before running the B1 canary, the Phase A disable smoke test, or rollback verification. Readiness attempts and failure diagnostics are written into the restricted evidence directory.
+
 ## Current activation state
 
 - Phase A live: **yes**;
@@ -87,10 +111,12 @@ This authorization does **not** include B2, certificates, DNS, firewall, website
 - B1 readiness audit executed and accepted: **yes**;
 - B1 readiness state: **ready for explicit B1 authorization**;
 - Phase B1 activation authorized: **yes**;
-- Phase B1 activation executed: **no**;
-- B1 runtime overlay installed: **no**;
-- production HMAC secret generated: **no**;
-- production HMAC secret installed: **no**;
+- Phase B1 activation attempts: **1**;
+- latest Phase B1 attempt outcome: **failed startup race; automatic rollback complete**;
+- Phase B1 activation completed successfully: **no**;
+- B1 runtime overlay currently installed: **no**;
+- temporary activation secret generated during failed attempt: **yes; removed**;
+- production HMAC secret currently installed: **no**;
 - B2 certificate or reverse proxy installed: **no**;
 - DNS or firewall changed: **no**;
 - website bridge activated: **no**;
@@ -102,7 +128,7 @@ This authorization does **not** include B2, certificates, DNS, firewall, website
 
 ## Active execution boundary
 
-Phase B1 may now be executed only through the reviewed one-shot wrapper at the exact approved commit. The operator must stop and report rather than bypassing any preflight, evidence, loopback, credential-permission, canary, rollback, or no-send check.
+Phase B1 remains authorized, but it may be retried only after the startup-readiness remediation is merged, synchronized to Edge1, and verified as an ancestor of the current clean `main`. The operator must stop and report rather than bypassing any preflight, evidence, loopback, credential-permission, readiness, canary, rollback, or no-send check.
 
 ## Remaining stop conditions
 

@@ -96,15 +96,26 @@ assert text.index("INSTALLER_SUCCEEDED=true") < text.index("ACTIVATION_ACCEPTED=
 syntax = subprocess.run(["sh", "-n", str(SCRIPT)], cwd=ROOT, check=False)
 assert syntax.returncode == 0
 
+installer = INSTALLER.read_text(encoding="utf-8")
+assert "wait_for_gateway()" in installer
+assert "health-after-restart.json" in installer
+assert "readiness-after-restart.txt" in installer
+assert installer.index("health-after-restart.json") < installer.index('python3 "$CANARY"')
+
 state = STATE.read_text(encoding="utf-8")
 assert "Phase B1 activation authorized: **yes**" in state
-assert "Phase B1 activation executed: **no**" in state
-assert "production HMAC secret generated: **no**" in state
+assert "Phase B1 activation attempts: **1**" in state
+assert "latest Phase B1 attempt outcome: **failed startup race; automatic rollback complete**" in state
+assert "Phase B1 activation completed successfully: **no**" in state
+assert "temporary activation secret generated during failed attempt: **yes; removed**" in state
+assert "production HMAC secret currently installed: **no**" in state
 assert "B2 certificate or reverse proxy installed: **no**" in state
 assert "production mail delivery: **no**" in state
-assert "2026-08-01 18:06 UTC" in state
+assert "2026-08-01 18:38 UTC" in state
+assert "/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1/20260801T183528Z" in state
 
 print("Authorized outbound mail Phase B1 activation wrapper validation passed")
 print("Secret generation is temporary, non-disclosing, loopback-only, and rollback-backed")
-print("Post-install failures restore Phase A through the documented disable path")
+print("Failed startup race and clean Phase A rollback are recorded")
+print("Startup readiness wait precedes the signed canary")
 print("B2, DNS, firewall, provider, sender, and delivery activation remain absent")

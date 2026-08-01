@@ -63,6 +63,17 @@ for required in (
     "External delivery: disabled",
     "rollback_dir=$(mktemp -d)",
     "rm -rf \"$rollback_dir\"",
+    "STARTUP_WAIT_ATTEMPTS=${STARTUP_WAIT_ATTEMPTS:-30}",
+    "STARTUP_WAIT_SECONDS=${STARTUP_WAIT_SECONDS:-1}",
+    "HEALTH_URL=http://127.0.0.1:8104/outbound-mail/healthz",
+    "wait_for_gateway()",
+    "Gateway readiness deadline exceeded.",
+    "health-after-restart.json",
+    "readiness-after-restart.txt",
+    "health-after-disable.json",
+    "readiness-after-disable.txt",
+    "health-after-rollback.json",
+    "readiness-after-rollback.txt",
 ):
     assert required in installer, required
 for prohibited in (
@@ -73,6 +84,13 @@ for prohibited in (
     'backup_dir="$EVIDENCE_DIR/rollback"',
 ):
     assert prohibited not in installer, prohibited
+
+restart_marker = 'systemctl restart "$SERVICE_NAME"\nwait_for_gateway \\\n  "$EVIDENCE_DIR/health-after-restart.json"'
+assert restart_marker in installer
+assert installer.index(restart_marker) < installer.index('python3 "$CANARY"')
+disable_restart_marker = 'systemctl restart "$SERVICE_NAME"\n  wait_for_gateway \\\n    "$EVIDENCE_DIR/health-after-disable.json"'
+assert disable_restart_marker in installer
+assert installer.index(disable_restart_marker) < installer.index("outbound-mail-gateway-smoke-test.sh")
 
 proxy = PROXY.read_text(encoding="utf-8")
 assert proxy.count("proxy_pass http://127.0.0.1:8104;") == 2
@@ -200,6 +218,6 @@ with tempfile.TemporaryDirectory(prefix="wwcx-phase-b-") as temporary:
                 pass
 
 print("Outbound mail Phase B preparation package validation passed")
-print("Runtime overlay, HMAC canary, replay rejection, audit redaction, and no-send state verified")
+print("Runtime overlay, readiness wait, HMAC canary, replay rejection, audit redaction, and no-send state verified")
 print("Recipient addresses remain governed by the explicit audit policy")
 print("TLS proxy remains a staged exact-route template with placeholders")

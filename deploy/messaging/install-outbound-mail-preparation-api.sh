@@ -14,6 +14,9 @@ RUNTIME_CONFIG="$RUNTIME_DIR/outbound-mail-gateway.json"
 ENV_FILE="$RUNTIME_DIR/outbound-mail-gateway.env"
 CANARY="$REPO_ROOT/tools/outbound_mail_preparation_canary.py"
 EVIDENCE_ROOT=${EVIDENCE_ROOT:-/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1}
+STARTUP_WAIT_ATTEMPTS=${STARTUP_WAIT_ATTEMPTS:-30}
+STARTUP_WAIT_SECONDS=${STARTUP_WAIT_SECONDS:-1}
+HEALTH_URL=http://127.0.0.1:8104/outbound-mail/healthz
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$TIMESTAMP"
 
@@ -25,6 +28,12 @@ fi
 case "$ACTION" in
   install|disable) ;;
   *) echo "ACTION must be install or disable" >&2; exit 64 ;;
+esac
+case "$STARTUP_WAIT_ATTEMPTS" in
+  ''|*[!0-9]*|0) echo "STARTUP_WAIT_ATTEMPTS must be a positive integer" >&2; exit 64 ;;
+esac
+case "$STARTUP_WAIT_SECONDS" in
+  ''|*[!0-9]*|0) echo "STARTUP_WAIT_SECONDS must be a positive integer" >&2; exit 64 ;;
 esac
 
 if [ ! -d "$REPO_ROOT/.git" ]; then
@@ -74,6 +83,8 @@ install -d -m 0700 "$EVIDENCE_DIR"
   printf 'branch=%s\n' "$branch"
   printf 'commit=%s\n' "$head_commit"
   printf 'action=%s\n' "$ACTION"
+  printf 'startup_wait_attempts=%s\n' "$STARTUP_WAIT_ATTEMPTS"
+  printf 'startup_wait_seconds=%s\n' "$STARTUP_WAIT_SECONDS"
   git -C "$REPO_ROOT" status --short --branch
 } > "$EVIDENCE_DIR/preflight.txt" 2>&1
 systemctl status "$SERVICE_NAME" --no-pager -l > "$EVIDENCE_DIR/service-before.txt" 2>&1 || true
@@ -130,6 +141,38 @@ cleanup_temporaries() {
   unset secret 2>/dev/null || true
 }
 
+wait_for_gateway() {
+  health_output=$1
+  readiness_output=$2
+  health_tmp="$health_output.tmp"
+  attempt=1
+  : > "$readiness_output"
+  rm -f "$health_tmp"
+
+  while [ "$attempt" -le "$STARTUP_WAIT_ATTEMPTS" ]; do
+    active=no
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+      active=yes
+    fi
+    http_code=$(curl -sS --connect-timeout 1 --max-time 2 -o "$health_tmp" -w '%{http_code}' "$HEALTH_URL" 2>> "$readiness_output" || true)
+    printf 'attempt=%s active=%s http=%s\n' "$attempt" "$active" "${http_code:-none}" >> "$readiness_output"
+    if [ "$active" = yes ] && [ "$http_code" = 200 ]; then
+      mv "$health_tmp" "$health_output"
+      return 0
+    fi
+    rm -f "$health_tmp"
+    sleep "$STARTUP_WAIT_SECONDS"
+    attempt=$((attempt + 1))
+  done
+
+  {
+    echo "Gateway readiness deadline exceeded."
+    systemctl status "$SERVICE_NAME" --no-pager --lines=50 -l || true
+    journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
+  } >> "$readiness_output" 2>&1
+  return 1
+}
+
 restore_prior() {
   echo "Phase B1 operation failed; restoring prior runtime files and service state." >&2
   install -d -m 0755 "$RUNTIME_DIR" "$DROPIN_DIR"
@@ -144,6 +187,9 @@ restore_prior() {
   rmdir "$DROPIN_DIR" 2>/dev/null || true
   systemctl daemon-reload || true
   systemctl restart "$SERVICE_NAME" || true
+  wait_for_gateway \
+    "$EVIDENCE_DIR/health-after-rollback.json" \
+    "$EVIDENCE_DIR/readiness-after-rollback.txt" || true
   systemctl status "$SERVICE_NAME" --no-pager -l > "$EVIDENCE_DIR/service-after-rollback.txt" 2>&1 || true
 }
 
@@ -173,6 +219,9 @@ if [ "$ACTION" = disable ]; then
   rmdir "$DROPIN_DIR" 2>/dev/null || true
   systemctl daemon-reload
   systemctl restart "$SERVICE_NAME"
+  wait_for_gateway \
+    "$EVIDENCE_DIR/health-after-disable.json" \
+    "$EVIDENCE_DIR/readiness-after-disable.txt"
   HOST=127.0.0.1 PORT=8104 sh "$REPO_ROOT/deploy/messaging/outbound-mail-gateway-smoke-test.sh" > "$EVIDENCE_DIR/disabled-smoke.txt" 2>&1
   systemctl status "$SERVICE_NAME" --no-pager -l > "$EVIDENCE_DIR/service-after.txt" 2>&1
   systemctl show "$SERVICE_NAME" -p ActiveState -p SubState -p FragmentPath -p DropInPaths -p EnvironmentFiles > "$EVIDENCE_DIR/service-properties-after.txt"
@@ -259,6 +308,9 @@ sha256sum "$RUNTIME_CONFIG" "$DROPIN_TARGET" > "$EVIDENCE_DIR/runtime-sha256.txt
 cp "$RUNTIME_CONFIG" "$EVIDENCE_DIR/runtime-config.json"
 systemctl daemon-reload
 systemctl restart "$SERVICE_NAME"
+wait_for_gateway \
+  "$EVIDENCE_DIR/health-after-restart.json" \
+  "$EVIDENCE_DIR/readiness-after-restart.txt"
 
 python3 "$CANARY" --secret-file "$SECRET_SOURCE_FILE" > "$EVIDENCE_DIR/canary.txt" 2>&1
 systemctl status "$SERVICE_NAME" --no-pager -l > "$EVIDENCE_DIR/service-after.txt" 2>&1
