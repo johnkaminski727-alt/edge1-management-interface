@@ -115,7 +115,7 @@ for value in prohibited:
 
 assert text.count('record message_sent no') == 1
 assert text.index("protected B2 files changed after the approved baseline") < text.index("supplied_count=0")
-assert text.index("runtime_secret_configured"] is True") < text.index("supplied_count=0")
+assert text.index('status["preparation_api"]["runtime_secret_configured"] is True') < text.index("supplied_count=0")
 assert text.index("certificate_private_key_read no") > text.index("candidate-nginx.conf")
 
 syntax = subprocess.run(["sh", "-n", str(SCRIPT)], cwd=ROOT, check=False)
