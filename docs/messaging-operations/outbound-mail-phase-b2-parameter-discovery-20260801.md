@@ -67,6 +67,8 @@ Evidence is written to:
 /var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-parameter-discovery/<UTC timestamp>/
 ```
 
+The generated `candidate-parameters.env` contains the four proposal inputs, using an explicit unresolved marker for any value that has not passed validation.
+
 When the enabled vhost resolves to one valid full-chain path and one existing mode-`0400` or mode-`0600` private-key path, and one exact client `/32` or `/128` is supplied, the expected state is:
 
 ```text
