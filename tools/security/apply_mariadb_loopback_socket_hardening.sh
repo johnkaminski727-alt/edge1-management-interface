@@ -52,7 +52,7 @@ esac
 HOST=$(hostname -f)
 [ "$HOST" = "$EXPECTED_HOST" ] || { echo "ERROR expected $EXPECTED_HOST, found $HOST" >&2; exit 2; }
 
-for command in asterisk awk cp date grep hostname id install journalctl mkdir readlink rm sha256sum sleep ss stat systemctl systemd-analyze; do
+for command in asterisk awk chmod cp date dirname find grep hostname id install journalctl mkdir readlink rm sha256sum sleep sort ss stat systemctl systemd-analyze xargs; do
     command -v "$command" >/dev/null 2>&1 || { echo "ERROR missing command: $command" >&2; exit 2; }
 done
 
@@ -164,7 +164,7 @@ ucp_contract_ok() {
     grep -Eq ':8001[[:space:]]' "$listeners" && grep -Eq ':8003[[:space:]]' "$listeners"
 }
 
-loopback_connection_reestablished() {
+ucp_loopback_connection_reestablished() {
     ss -Htnpe state established 2>/dev/null |
         awk '
         function loopback(endpoint) {
@@ -173,8 +173,9 @@ loopback_connection_reestablished() {
         $3 ~ /:3306$/ || $4 ~ /:3306$/ {
             found++;
             if (!loopback($3) || !loopback($4)) bad++;
+            if ($4 ~ /:3306$/ && loopback($3) && loopback($4) && $0 ~ /users:\(\(\"node/) ucp_client++;
         }
-        END { exit !(found > 0 && bad == 0); }
+        END { exit !(found > 0 && bad == 0 && ucp_client > 0); }
         '
 }
 
@@ -246,14 +247,14 @@ log "Waiting for the local FreePBX/UCP database relationship to re-establish"
 reconnected=0
 attempt=1
 while [ "$attempt" -le 30 ]; do
-    if loopback_connection_reestablished; then
+    if ucp_loopback_connection_reestablished; then
         reconnected=1
         break
     fi
     sleep 1
     attempt=$((attempt + 1))
 done
-[ "$reconnected" -eq 1 ] || fail_after_mutation "no fully loopback MariaDB TCP relationship re-established within 30 seconds"
+[ "$reconnected" -eq 1 ] || fail_after_mutation "the local UCP Node MariaDB TCP relationship did not re-establish within 30 seconds"
 
 ss -Htnpe state established 2>/dev/null |
     awk '
@@ -277,7 +278,7 @@ journalctl -u mariadb.socket -u mariadb.service -u freepbx.service \
     --since '-10 minutes' --no-pager \
     >"$EVIDENCE_DIR/journal-after.txt" 2>&1 || true
 
-find "$EVIDENCE_DIR" -maxdepth 1 -type f -print0 2>/dev/null |
+find "$EVIDENCE_DIR" -maxdepth 1 -type f ! -name 'evidence-files.sha256' -print0 2>/dev/null |
     sort -z |
     xargs -0 sha256sum >"$EVIDENCE_DIR/evidence-files.sha256" 2>/dev/null || true
 
