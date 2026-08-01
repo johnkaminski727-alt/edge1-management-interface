@@ -10,8 +10,12 @@ set -eu
 usage() {
   cat <<'EOF'
 Usage:
-  capture_cpanel_mail_inventory.sh --output DIR --user CPANEL_USER \
+  capture_cpanel_mail_inventory.sh --output DIR [--user CPANEL_USER] \
     [--domain DOMAIN ...]
+
+When run as a normal cPanel account user, --user defaults to the current user
+and the UAPI CLI is invoked without its root-only --user option. When run as
+root, --user is required and is passed to UAPI.
 
 Default domains when --domain is omitted:
   creekco.ca scgardens.ca omegafx.com
@@ -54,12 +58,22 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$OUTPUT_DIR" ] || { echo "--output is required" >&2; exit 64; }
-[ -n "$CPANEL_USER" ] || { echo "--user is required" >&2; exit 64; }
 [ -n "$DOMAINS" ] || DOMAINS="creekco.ca scgardens.ca omegafx.com"
 
 command -v uapi >/dev/null 2>&1 || { echo "uapi is required" >&2; exit 69; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 69; }
 command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum is required" >&2; exit 69; }
+
+CURRENT_UID=$(id -u)
+CURRENT_USER=$(id -un)
+
+if [ -z "$CPANEL_USER" ]; then
+  if [ "$CURRENT_UID" -eq 0 ]; then
+    echo "--user is required when run as root" >&2
+    exit 64
+  fi
+  CPANEL_USER=$CURRENT_USER
+fi
 
 case "$CPANEL_USER" in
   *[!A-Za-z0-9_-]*|'')
@@ -67,6 +81,11 @@ case "$CPANEL_USER" in
     exit 64
     ;;
 esac
+
+if [ "$CURRENT_UID" -ne 0 ] && [ "$CPANEL_USER" != "$CURRENT_USER" ]; then
+  echo "A normal cPanel shell may only inspect its own account: $CURRENT_USER" >&2
+  exit 77
+fi
 
 for domain in $DOMAINS; do
   case "$domain" in
@@ -109,13 +128,27 @@ if not isinstance(result, dict) or result.get("status") != 1:
 PY
 }
 
+run_uapi() {
+  if [ "$CURRENT_UID" -eq 0 ]; then
+    uapi --output=jsonpretty "--user=$CPANEL_USER" "$@"
+  else
+    # cPanel permits account users to invoke UAPI for their own account, but
+    # only root may specify the CLI --user option. Supplying it as an account
+    # user causes: setuids failed: Attempting to setuid as a normal user.
+    uapi --output=jsonpretty "$@"
+  fi
+}
+
 capture() {
   name=$1
   shift
   final="$OUTPUT_DIR/$name.json"
   temporary="$final.tmp"
   rm -f "$temporary"
-  uapi --output=jsonpretty "--user=$CPANEL_USER" "$@" >"$temporary"
+  if ! run_uapi "$@" >"$temporary"; then
+    rm -f "$temporary"
+    return 1
+  fi
   chmod 0600 "$temporary"
   validate_uapi_json "$temporary"
   mv "$temporary" "$final"
@@ -140,7 +173,7 @@ USER_HASH=$(printf '%s' "$CPANEL_USER" | sha256sum | awk '{print $1}')
 DOMAINS_JSON=$(printf '%s\n' $DOMAINS | python3 -c \
   'import json,sys; print(json.dumps([line.strip() for line in sys.stdin if line.strip()]))')
 
-python3 - "$OUTPUT_DIR/metadata.json" "$CAPTURED_AT" "$USER_HASH" "$DOMAINS_JSON" <<'PY'
+python3 - "$OUTPUT_DIR/metadata.json" "$CAPTURED_AT" "$USER_HASH" "$DOMAINS_JSON" "$CURRENT_UID" <<'PY'
 import json
 import pathlib
 import sys
@@ -152,6 +185,7 @@ value = {
     "read_only": True,
     "cpanel_user_sha256": sys.argv[3],
     "domains": json.loads(sys.argv[4]),
+    "uapi_execution_mode": "root-delegated" if sys.argv[5] == "0" else "current-account-user",
     "sensitivity": "restricted-operational-metadata",
 }
 path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -168,6 +202,7 @@ cat <<EOF
 Read-only cPanel mail inventory captured.
 Evidence directory: $OUTPUT_DIR
 Files: $(find "$OUTPUT_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')
+UAPI execution mode: $(if [ "$CURRENT_UID" -eq 0 ]; then printf '%s' root-delegated; else printf '%s' current-account-user; fi)
 Sensitivity: restricted operational metadata
 Next step: normalize the evidence into wwcx.provider-mail-objects.v1 and run reconciliation.
 EOF
