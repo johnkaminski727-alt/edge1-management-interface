@@ -50,7 +50,7 @@ At the time of that baseline:
 
 A generic `Continue` does not authorize those privileged actions. This historical statement remains preserved even though later authorization expanded the bounded project scope.
 
-## Later authorization received
+## Authorization received
 
 At approximately 2026-08-01 19:40 UTC, after the remaining B2/C work and privileged boundaries were stated, the user wrote: `I am authorizing all work.`
 
