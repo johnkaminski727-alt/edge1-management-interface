@@ -89,17 +89,8 @@ current = root / "current"
 assert current.is_symlink()
 release = current.resolve(strict=True)
 assert release.parent == (root / "releases").resolve()
-expected = {
-    "index.html",
-    "app.js",
-    "style.css",
-    "public/status.json",
-}
-actual = {
-    str(path.relative_to(release))
-    for path in release.rglob("*")
-    if path.is_file()
-}
+expected = {"index.html", "app.js", "style.css", "public/status.json"}
+actual = {str(path.relative_to(release)) for path in release.rglob("*") if path.is_file()}
 assert actual == expected, (actual, expected)
 for relative in expected:
     path = release / relative
@@ -109,11 +100,7 @@ status = json.loads((release / "public/status.json").read_text(encoding="utf-8")
 assert status["contract"] == "wwcx.edge1-public-status.v1"
 assert "source_paths" not in status
 assert "internal" not in status
-print(json.dumps({
-    "release": str(release),
-    "assets": sorted(actual),
-    "overall_state": status.get("overall_state"),
-}, indent=2, sort_keys=True))
+print(json.dumps({"release": str(release), "assets": sorted(actual), "overall_state": status.get("overall_state")}, indent=2, sort_keys=True))
 PY
 
 systemctl enable --now wwcx-edge1-public-summary-stager.timer
@@ -145,7 +132,7 @@ result = {
     "public_route_changed": False,
     "network_listener_added": False,
     "traffic_controls_changed": False,
-    "rollback_performed": False,
+    "rollback_performed": False
 }
 (root / "acceptance.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
