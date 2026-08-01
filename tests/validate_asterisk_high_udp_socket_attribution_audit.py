@@ -10,6 +10,13 @@ text = SCRIPT.read_text(encoding="utf-8")
 required = (
     "#!/bin/sh",
     "Mode: read-only",
+    "valid_asterisk_pid",
+    "systemctl show -p MainPID --value asterisk",
+    "/run/asterisk/asterisk.pid",
+    "/var/run/asterisk/asterisk.pid",
+    "process_table",
+    "pid_source=",
+    "/proc/$candidate/comm",
     "ss -H -lunpe",
     "/proc/net/udp",
     "/proc/net/udp6",
@@ -30,7 +37,7 @@ prohibited_patterns = (
     r"(?m)^\s*(?:sudo\s+)?nft\s+(?:add|delete|insert|replace|flush)\b",
     r"(?m)^\s*(?:sudo\s+)?iptables(?:-restore)?(?:\s|$)",
     r"(?m)^\s*(?:sudo\s+)?sed\s+-i\b",
-    r"(?m)^\s*(?:sudo\s+)?(?:cp|mv|rm|install)\b",
+    r"(?m)^\s*(?:sudo\s+)?(?:cp|mv|rm|install|kill|pkill|killall)\b",
     r"(?m)^\s*(?:sudo\s+)?fwconsole\s+(?:restart|reload)\b",
     r"asterisk\s+-rx\s+['\"](?:core reload|dialplan reload|module reload|logger rotate)",
     r"(?m)^\s*(?:sudo\s+)?(?:strace|gdb|tcpdump|tshark|dumpcap|nmap|masscan|nc|netcat)\b",
@@ -54,5 +61,10 @@ for token in sensitive_patterns:
 
 if "safe_config_lines" not in text or "sha256sum" not in text:
     raise SystemExit("sanitized configuration metadata and hashes are required")
+
+if text.index("systemctl show -p MainPID") > text.index("/run/asterisk/asterisk.pid"):
+    raise SystemExit("systemd MainPID must remain the first PID source")
+if text.index("/run/asterisk/asterisk.pid") > text.index("process_table"):
+    raise SystemExit("PID files must be checked before the process-table fallback")
 
 print("Asterisk high UDP socket attribution audit safety validation passed")
