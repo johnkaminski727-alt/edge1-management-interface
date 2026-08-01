@@ -1,6 +1,6 @@
 # Outbound Mail Activation State
 
-Last reconciled: 2026-08-01 17:45 UTC  
+Last reconciled: 2026-08-01 18:06 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`
 
@@ -60,7 +60,25 @@ Accepted live evidence:
 
 The audit passed all required repository, committed-policy, service, listener, endpoint, runtime-overlay, proxy-reference, and evidence checks. It changed no runtime or network state.
 
-This acceptance establishes only that the live Phase A foundation is **ready for explicit B1 authorization**. It does not authorize or activate authentication, external exposure, or delivery.
+## Phase B1 activation authorization
+
+At 2026-08-01 18:06 UTC, the user instructed `Continue` immediately after being presented with the exact Phase B1 approval boundary. That instruction is accepted as authorization for the following bounded action only:
+
+- generate a new production HMAC secret locally on Edge1 without displaying or transmitting it;
+- install the root-owned Phase B1 runtime configuration, environment file, and systemd drop-in;
+- restart `wwcx-outbound-mail-gateway.service`;
+- validate signed status, `prepared_not_sent`, replay rejection, and continued delivery denial;
+- preserve restricted evidence and automatically restore the prior Phase A state if activation fails.
+
+The authorized execution wrapper is:
+
+```text
+deploy/messaging/activate-outbound-mail-phase-b1.sh
+```
+
+It requires the exact approved repository commit, revalidates the accepted readiness evidence, refuses pre-existing B1 runtime files or any preparation-API proxy reference, creates the source token only in root-owned `/run` tmpfs, and removes that source file on every exit path. The installed environment file remains root-owned mode `0600` as the runtime credential.
+
+This authorization does **not** include B2, certificates, DNS, firewall, website bridge, public correspondence records, retention apply or scheduling, provider credentials, sender activation, or mail delivery.
 
 ## Current activation state
 
@@ -68,6 +86,8 @@ This acceptance establishes only that the live Phase A foundation is **ready for
 - Phase B repository package merged: **yes**;
 - B1 readiness audit executed and accepted: **yes**;
 - B1 readiness state: **ready for explicit B1 authorization**;
+- Phase B1 activation authorized: **yes**;
+- Phase B1 activation executed: **no**;
 - B1 runtime overlay installed: **no**;
 - production HMAC secret generated: **no**;
 - production HMAC secret installed: **no**;
@@ -80,42 +100,16 @@ This acceptance establishes only that the live Phase A foundation is **ready for
 - sender identity activated: **no**;
 - production mail delivery: **no**.
 
-## Read-only readiness gate
+## Active execution boundary
 
-`tools/messaging/outbound_mail_phase_b1_readiness_audit.sh` measures whether the live Phase A service is ready for explicit B1 authorization without generating or reading secret material and without modifying runtime state.
+Phase B1 may now be executed only through the reviewed one-shot wrapper at the exact approved commit. The operator must stop and report rather than bypassing any preflight, evidence, loopback, credential-permission, canary, rollback, or no-send check.
 
-The accepted audit checked:
-
-- exact host and root execution;
-- clean `main` repository state;
-- Phase B package ancestry and unchanged protected files;
-- committed disabled-state configuration;
-- active/enabled service and expected service principal;
-- loopback-only port 8104 listener;
-- health/status success;
-- preparation and send denial;
-- absent B1 runtime overlay files;
-- absence of a configured preparation API proxy path;
-- restricted evidence and SHA-256 inventory.
-
-A passing audit means **ready for explicit B1 authorization**. It does not authorize secret generation, authentication activation, proxy exposure, or mail traffic.
-
-## Explicit approval boundary
-
-The next privileged step requires exact user authorization for production secret generation and B1 installation. The authorization should be materially equivalent to:
-
-> Authorize generation of a new production HMAC secret on Edge1 and installation of Phase B1 loopback preparation authentication only. Do not install B2, a certificate, DNS or firewall changes, the website bridge, public records, retention, provider credentials, sender activation, or mail delivery.
-
-Until that authorization is given, permitted work is limited to read-only live inspection, documentation, CI, and reversible repository changes that do not create or install credentials.
-
-## Stop conditions
+## Remaining stop conditions
 
 Stop before:
 
-- generating, displaying, transmitting, rotating, or installing secret material;
-- installing the B1 runtime overlay;
-- restarting the production service for B1 activation;
+- displaying, transmitting, exporting, or committing the production secret;
 - installing B2 proxy or certificate configuration;
-- changing DNS, firewall, authentication, or public routes;
+- changing DNS, firewall, or public routes;
 - activating the website bridge, public record, retention apply, provider, sender, or mail delivery;
 - sending any production message.
