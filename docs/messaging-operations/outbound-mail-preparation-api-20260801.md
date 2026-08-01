@@ -17,6 +17,8 @@ POST /outbound-mail/api/v1/prepare
 
 The API is disabled in committed configuration. A reverse proxy, runtime secret, and explicit preparation-API activation are all deferred.
 
+The service continues to refuse a non-loopback bind. Enabling the preparation API flag alone would therefore not expose these routes to another host; authenticated TLS proxying and its network boundary require a separate production change.
+
 ## Authentication
 
 Requests use HMAC-SHA256 with these headers:
@@ -45,7 +47,7 @@ The secret is loaded only from the environment variable named by configuration. 
 
 A successful authentication claims the `(client_id, nonce)` pair in a restricted SQLite store. Reuse within the configured nonce lifetime is rejected. Timestamp skew is bounded independently.
 
-Signature and content validation occur before the nonce is claimed, so malformed requests do not consume valid nonces.
+Header, timestamp, content-digest, and signature validation occur before the nonce is claimed, so authentication failures do not consume valid nonces.
 
 ## Audit boundary
 
