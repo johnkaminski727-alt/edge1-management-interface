@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md).
 
 ## Preview
 
@@ -27,6 +27,7 @@ Open `http://127.0.0.1:8088/telephony/` through an approved local or private con
 - sanitized offline fixture fallback
 - normalized health scoring and privacy-minimized aggregate analytics foundation
 - SIP failure classification and interconnect summaries
+- read-only Asterisk DTMF policy inventory and offline complete 16-key signal validation
 
 ## Adapter boundary
 
@@ -46,6 +47,8 @@ propose -> inspect -> validate -> approve/reject -> operator-controlled apply ->
 
 The browser must never connect directly to PBX, carrier, or gateway administrative interfaces. A localhost-only API wrapper will normalize and redact approved data sources.
 
+The DTMF readiness audit performs no call or channel creation, no tone or SIP request transmission, and no endpoint, route, carrier, or emergency-calling change. Carrier interoperability remains unknown until supported by provider documentation or a separately authorized controlled test.
+
 ## Validation
 
 From the repository root:
@@ -53,6 +56,7 @@ From the repository root:
 ```bash
 python3 tests/validate_telephony_console.py
 python3 tests/validate_telephony_platform.py
+python3 tests/validate_asterisk_dtmf_readiness_audit.py
 ```
 
 ## Operator acceptance
@@ -61,11 +65,16 @@ Before treating the console as accepted for operational use, complete the [Telep
 
 Checklist completion does not authorize production routing, public exposure, emergency-calling changes, carrier administration, or write controls.
 
+The DTMF repository foundation is not live acceptance. Run the authenticated read-only audit on Edge1, review its protected evidence, and keep every live carrier path marked `unverified` until a separate approval and evidence record exist.
+
 ## Next implementation slice
 
-1. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
-2. add sanitized CDR and SIP-event collectors
-3. add health-score, failure-class, and carrier-performance console panels
-4. add append-only report-generation audit events
-5. add bounded anomaly indicators without automatic enforcement
-6. complete Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
+1. run and review the merged read-only DTMF audit on Edge1
+2. reconcile endpoint `dtmf_mode` policy and module/runtime evidence without changing configuration
+3. populate the sanitized carrier capability matrix from documentation only
+4. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
+5. add sanitized CDR and SIP-event collectors
+6. add health-score, failure-class, and carrier-performance console panels
+7. add append-only report-generation audit events
+8. add bounded anomaly indicators without automatic enforcement
+9. complete Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
