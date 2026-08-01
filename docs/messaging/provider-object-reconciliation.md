@@ -23,17 +23,51 @@ Raw provider exports can disclose addresses, forwarding destinations, quotas, ac
 
 ## cPanel shared-hosting capture
 
-The Namecheap shared-hosting domains currently include `creekco.ca`, `scgardens.ca`, and `omegafx.com`. Run the capture script from a shell where the cPanel `uapi` command is available:
+The Namecheap shared-hosting domains currently include `creekco.ca`, `scgardens.ca`, and `omegafx.com`. Run the capture from a shell where the cPanel `uapi` command is available.
+
+The script lives in the `edge1-management-interface` repository. Do not assume the current directory is the repository root. The following block locates a known clone, fetches current `main`, extracts the script without switching branches or modifying the working tree, and uses the logged-in cPanel username automatically:
 
 ```sh
+set -eu
 umask 077
 
-./tools/messaging/capture_cpanel_mail_inventory.sh \
+REPO=
+for candidate in \
+  "$HOME/apps/edge1-management-interface" \
+  "$HOME/repos/edge1-management-interface" \
+  "$HOME/repositories/edge1-management-interface" \
+  "$HOME/edge1-management-interface"
+do
+  if [ -d "$candidate/.git" ]; then
+    REPO=$candidate
+    break
+  fi
+done
+
+if [ -z "$REPO" ]; then
+  echo "edge1-management-interface clone not found under the expected paths" >&2
+  exit 1
+fi
+
+git -C "$REPO" fetch origin main
+mkdir -p "$HOME/.local/libexec/wwcx"
+git -C "$REPO" show origin/main:tools/messaging/capture_cpanel_mail_inventory.sh \
+  > "$HOME/.local/libexec/wwcx/capture_cpanel_mail_inventory.sh"
+chmod 0700 "$HOME/.local/libexec/wwcx/capture_cpanel_mail_inventory.sh"
+
+sh "$HOME/.local/libexec/wwcx/capture_cpanel_mail_inventory.sh" \
   --output "$HOME/private-mail-evidence/$(date -u +%Y%m%dT%H%M%SZ)" \
-  --user YOUR_CPANEL_USER \
+  --user "$(id -un)" \
   --domain creekco.ca \
   --domain scgardens.ca \
   --domain omegafx.com
+```
+
+If no repository clone exists, clone it first using the account's configured GitHub authentication, then rerun the block:
+
+```sh
+git clone git@github.com:johnkaminski727-alt/edge1-management-interface.git \
+  "$HOME/apps/edge1-management-interface"
 ```
 
 The script invokes only these read operations:
