@@ -2,7 +2,7 @@
 
 ## Project status
 
-READ-ONLY FOUNDATION IMPLEMENTED; AUTHENTICATED DTMF AND PJSIP ENDPOINT-POLICY AUDITS ACCEPTED WITH CARRIER PATHS UNVERIFIED
+READ-ONLY FOUNDATION IMPLEMENTED; AUTHENTICATED DTMF, PJSIP ENDPOINT-POLICY, AND LOOPBACK ANALYTICS AUDITS ACCEPTED WITH CARRIER PATHS UNVERIFIED
 
 This register covers the consolidated Edge1 project for PBX, SIP, carrier, numbering, routing, health, analytics, and AI-assisted operational analysis.
 
@@ -25,7 +25,10 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 - sanitized carrier/interconnect DTMF capability matrix;
 - authenticated Edge1 DTMF live-acceptance record with protected evidence hashes;
 - read-only PJSIP runtime-to-generated endpoint-policy reconciliation;
-- authenticated PJSIP endpoint-policy live-acceptance record with protected evidence hashes.
+- authenticated PJSIP endpoint-policy live-acceptance record with protected evidence hashes;
+- loopback-only read-only analytics API on port `8099`;
+- protected analytics live-acceptance audit with payload privacy, method-boundary, runtime source-provenance, and Git-index ownership checks;
+- authenticated analytics live-acceptance record with protected evidence hashes.
 
 ## Existing platform dependencies
 
@@ -41,7 +44,7 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 
 The foundation is accepted at repository level when:
 
-- telephony, DTMF, and endpoint-policy validation scripts pass;
+- telephony, DTMF, endpoint-policy, and analytics validation scripts pass;
 - the branch diff contains no credentials or production customer data;
 - existing console validation remains green;
 - analytics produce only aggregate output from sanitized records;
@@ -55,6 +58,7 @@ Operational acceptance additionally requires Edge1 execution evidence:
 - loopback-only service verification where applicable;
 - API and browser smoke tests where applicable;
 - audit and file-permission inspection;
+- runtime source-provenance verification when a service executes from a separate worktree;
 - explicit confirmation that no production routing or customer traffic changed.
 
 ## DTMF operational acceptance — 2026-08-01
@@ -126,6 +130,61 @@ Decision:
 - database inspection is deferred unless a narrower operational need is established and separately reviewed;
 - carrier and end-to-end behavior remain `unverified`.
 
+## Telephony analytics operational acceptance — 2026-08-01
+
+Authenticated execution on `edge1.ww.cx` as `wwadmin` completed against clean repository head `cb7c5174fa17e9c145ec549e8a8b7d29ac3cc628`.
+
+Acceptance record:
+
+```text
+docs/telephony/telephony-analytics-live-acceptance-20260801.md
+```
+
+Protected analytics evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/telephony-analytics-live-acceptance/20260801T191636Z
+```
+
+Analytics evidence-manifest SHA-256:
+
+```text
+31a21acfe7888bfcab971af6de8b7aa4c23ff22fe31ae56fdc99ad9a54e1b336
+```
+
+Protected repository-metadata evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/repository-metadata-repair/20260801T191636Z
+```
+
+Repository-metadata evidence-manifest SHA-256:
+
+```text
+ba5c949567b7dd8655dd7dbe76d75bc69dcb96f988cf46517148bd9b9abfc4cf
+```
+
+Accepted outcome:
+
+- audit exit code `0`;
+- zero warnings and zero failures;
+- `wwcx-telephony-analytics.service` active and enabled under `wwadmin`;
+- hardening properties confirmed;
+- loopback-only listener on `127.0.0.1:8099`;
+- health, platform-health, call-summary, and interconnect-summary endpoints validated;
+- POST rejected with HTTP `405`;
+- payload-contract and privacy validation passed;
+- runtime analytics API and platform files matched canonical repository SHA-256 hashes;
+- root-run audit preserved `.git/index` ownership as `wwadmin:wwadmin`;
+- repository clean before and after;
+- no service restart, runtime mutation, call, DTMF, database query, credential read, carrier route change, firewall change, DNS change, certificate change, or public exposure.
+
+Decision:
+
+- the loopback-only read-only aggregate analytics service is operationally accepted;
+- the alternate runtime worktree is accepted for the measured source hashes only;
+- production CDR/SIP collectors, carrier integrations, database access, write operations, and public exposure remain outside acceptance.
+
 ## Controlled blockers
 
 These items are intentionally outside the autonomous repository foundation:
@@ -145,12 +204,11 @@ These items are intentionally outside the autonomous repository foundation:
 
 1. populate the sanitized carrier DTMF matrix from reliable provider documentation only;
 2. leave unsupported or undocumented carrier capabilities as `unknown`;
-3. wire aggregate platform outputs into loopback-only API endpoints;
-4. add sanitized CDR and SIP-event adapters;
-5. add dashboard panels for health score, failure classes, and carrier performance;
-6. add append-only report-generation audit events;
-7. add bounded anomaly indicators and investigation links;
-8. publish remaining Edge1 deployment and rollback evidence.
+3. add sanitized CDR and SIP-event adapters without production credentials or database access;
+4. add dashboard panels for health score, failure classes, and carrier performance;
+5. add append-only report-generation audit events;
+6. add bounded anomaly indicators and investigation links;
+7. publish remaining Edge1 deployment and rollback evidence.
 
 ## Safety statement
 
