@@ -69,6 +69,7 @@ assert inventory["domains"]["spiritcreekgardens.com"]["dmarc"] == []
 assert inventory["domains"]["spiritcreekgardens.com"]["delivery_status"] == "not_ready_no_mx"
 
 routes = inbound["routing"]["routes"]
+assert len(routes) == 37
 for domain in expected_domains:
     configured_count = sum(1 for address in routes if address.endswith("@" + domain))
     assert configured_count == inventory["domains"][domain]["configured_route_count"]
@@ -95,19 +96,31 @@ creekco = inventory["domains"]["creekco.ca"]
 verified = set(creekco["verified_round_trip_addresses"])
 observed_unregistered = set(creekco["observed_but_unregistered_addresses"])
 configured_unverified = set(creekco["configured_but_unverified_addresses"])
+assert creekco["configured_route_count"] == 13
+assert creekco["registry_reconciliation_date"] == "2026-08-01"
 assert verified == {
     "abuse@creekco.ca",
+    "accessibility@creekco.ca",
     "contact@creekco.ca",
+    "noc@creekco.ca",
     "privacy@creekco.ca",
     "regulatory@creekco.ca",
 }
-assert observed_unregistered == {
-    "accessibility@creekco.ca",
-    "noc@creekco.ca",
-}
+assert observed_unregistered == set()
 assert verified.issubset(routes)
-assert observed_unregistered.isdisjoint(routes)
 assert configured_unverified.issubset(routes)
+
+mapping = identities["sender_selection"]["recipient_to_sender"]
+profiles = identities["sender_profiles"]
+for address, profile_key in {
+    "accessibility@creekco.ca": "creekco-accessibility",
+    "noc@creekco.ca": "creekco-noc",
+}.items():
+    assert routes[address]["destination"] == shared_destination
+    assert mapping[address] == address
+    assert profiles[profile_key]["address"] == address
+    assert profiles[profile_key]["status"] == "verified_operational"
+    assert profiles[profile_key]["outbound_enabled"] is False
 
 assert inbound["enabled"] is False
 assert inbound["deployment_authorized"] is False
@@ -123,7 +136,7 @@ activation = inventory["activation_boundary"]
 assert activation
 assert all(value is False for value in activation.values())
 assert inventory["gaps"]
-assert any("accessibility@creekco.ca" in gap and "noc@creekco.ca" in gap for gap in inventory["gaps"])
+assert not any("not yet registered" in gap for gap in inventory["gaps"])
 
 assert DOC_PATH.is_file()
 document = DOC_PATH.read_text(encoding="utf-8")
@@ -136,10 +149,12 @@ for token in (
     "spiritcreekgardens.com",
     "accessibility@creekco.ca",
     "noc@creekco.ca",
+    "reconciled into the 37-route registry",
     "No DMARC policy should be tightened",
 ):
     assert token in document, token
 
 print("Mail provider inventory validation passed")
-print("Five domains reconciled against canonical inbound and identity configuration")
+print("Five domains reconciled against the 37-route inbound and identity configuration")
+print("CreekCo accessibility and NOC evidence now matches the canonical registry")
 print("All mailbox, DNS, routing, and outbound activation gates remain disabled")
