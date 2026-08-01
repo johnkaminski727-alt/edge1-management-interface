@@ -1,0 +1,38 @@
+[Unit]
+Description=WW.CX Outbound Mail Gateway disabled foundation
+Documentation=https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/messaging-operations
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/edge1-management-interface/config/messaging/outbound-mail-gateway.json
+ConditionPathExists=/opt/edge1-management-interface/config/messaging/outbound-mail-policy.json
+ConditionPathExists=/opt/edge1-management-interface/config/messaging/mail-identities.json
+
+[Service]
+Type=simple
+User=wwcx-mail-gateway
+Group=wwcx-mail-gateway
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/outbound_mail_gateway_server.py --config /opt/edge1-management-interface/config/messaging/outbound-mail-gateway.json --identities /opt/edge1-management-interface/config/messaging/mail-identities.json --host 127.0.0.1 --port 8104
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=15
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/edge1-management-interface/var/outbound-mail
+
+[Install]
+WantedBy=multi-user.target
