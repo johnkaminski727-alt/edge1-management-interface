@@ -2,7 +2,7 @@
 
 ## Project status
 
-READ-ONLY FOUNDATION IMPLEMENTED; AUTHENTICATED DTMF LIVE AUDIT ACCEPTED WITH ONE OPEN EVIDENCE WARNING
+READ-ONLY FOUNDATION IMPLEMENTED; AUTHENTICATED DTMF AND PJSIP ENDPOINT-POLICY AUDITS ACCEPTED WITH CARRIER PATHS UNVERIFIED
 
 This register covers the consolidated Edge1 project for PBX, SIP, carrier, numbering, routing, health, analytics, and AI-assisted operational analysis.
 
@@ -23,7 +23,9 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 - read-only Asterisk DTMF capability and endpoint-policy audit;
 - offline complete 16-key DTMF generator/detector probe;
 - sanitized carrier/interconnect DTMF capability matrix;
-- authenticated Edge1 DTMF live-acceptance record with protected evidence hashes.
+- authenticated Edge1 DTMF live-acceptance record with protected evidence hashes;
+- read-only PJSIP runtime-to-generated endpoint-policy reconciliation;
+- authenticated PJSIP endpoint-policy live-acceptance record with protected evidence hashes.
 
 ## Existing platform dependencies
 
@@ -39,11 +41,11 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 
 The foundation is accepted at repository level when:
 
-- telephony and DTMF validation scripts pass;
+- telephony, DTMF, and endpoint-policy validation scripts pass;
 - the branch diff contains no credentials or production customer data;
 - existing console validation remains green;
 - analytics produce only aggregate output from sanitized records;
-- no configuration, service-control, call-origination, routing, number-management, emergency-calling, or carrier write endpoint exists;
+- no configuration, service-control, call-origination, routing, number-management, emergency-calling, database-query, or carrier write endpoint exists;
 - review confirms documentation accurately distinguishes local readiness from carrier interoperability and production authorization.
 
 Operational acceptance additionally requires Edge1 execution evidence:
@@ -88,6 +90,42 @@ Open evidence warning:
 - no configured PJSIP endpoint DTMF-policy records were found;
 - carrier, endpoint, trunk, SDP-negotiation, SIP INFO, in-band, and end-to-end behavior remain `unverified`.
 
+## PJSIP endpoint-policy operational acceptance — 2026-08-01
+
+Authenticated execution on `edge1.ww.cx` as `wwadmin` completed against clean repository head `6906d1bb7f5aa517c249bf893ab23675b63f062f`.
+
+Acceptance record:
+
+```text
+docs/telephony/asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md
+```
+
+Protected evidence:
+
+```text
+/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z
+```
+
+Accepted outcome:
+
+- audit exit code `0`;
+- two informational warnings and zero failures;
+- Asterisk `22.10.1` running with zero active channels, calls, and processed calls;
+- zero runtime endpoints, AORs, contacts, and transports;
+- 23 generated PJSIP configuration files inspected;
+- zero explicit generated endpoint-policy records;
+- runtime and generated endpoint counts matched at zero;
+- FreePBX CLI `17.0.30` present;
+- FreePBX source metadata and hashes recorded without reading source contents;
+- no database query, credential read, endpoint identifier retention, call, channel, DTMF transmission, or runtime mutation.
+
+Decision:
+
+- the active runtime/generated configuration conclusion is complete without a database query;
+- dormant, historical, backup, module-private, or externally provisioned data remains outside the acceptance;
+- database inspection is deferred unless a narrower operational need is established and separately reviewed;
+- carrier and end-to-end behavior remain `unverified`.
+
 ## Controlled blockers
 
 These items are intentionally outside the autonomous repository foundation:
@@ -100,12 +138,13 @@ These items are intentionally outside the autonomous repository foundation:
 - STIR/SHAKEN signing or identity-policy changes;
 - firewall, DNS, certificate, authentication, or public listener changes;
 - automated fraud blocking or traffic enforcement;
-- any live DTMF transmission, carrier-path test, or emergency-route test without separate explicit authorization.
+- any live DTMF transmission, carrier-path test, or emergency-route test without separate explicit authorization;
+- FreePBX database inspection without a separately reviewed metadata-only design and demonstrated need.
 
 ## Planned read-only increments
 
-1. reconcile runtime PJSIP endpoint visibility with authoritative FreePBX and generated endpoint-policy sources;
-2. populate the sanitized carrier DTMF matrix from provider documentation only;
+1. populate the sanitized carrier DTMF matrix from reliable provider documentation only;
+2. leave unsupported or undocumented carrier capabilities as `unknown`;
 3. wire aggregate platform outputs into loopback-only API endpoints;
 4. add sanitized CDR and SIP-event adapters;
 5. add dashboard panels for health score, failure classes, and carrier performance;
@@ -115,4 +154,4 @@ These items are intentionally outside the autonomous repository foundation:
 
 ## Safety statement
 
-Documentation, registries, tests, health scores, offline signal probes, and readiness reports do not prove carrier acceptance, regulatory approval, number-allocation authority, portability authority, emergency-services readiness, production certification, NPAS certification, EAS compliance, or Alert Ready conformance.
+Documentation, registries, tests, health scores, offline signal probes, endpoint-policy reconciliation, and readiness reports do not prove carrier acceptance, regulatory approval, number-allocation authority, portability authority, emergency-services readiness, production certification, NPAS certification, EAS compliance, or Alert Ready conformance.
