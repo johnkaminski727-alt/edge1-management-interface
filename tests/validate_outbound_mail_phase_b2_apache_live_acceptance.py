@@ -67,7 +67,7 @@ assert "website bridge enabled: no" in state
 assert "provider or sender enabled: no" in state
 assert "No rollback was required" in doc
 assert "credential-free canary from business159" in doc
-assert "Production delivery and any actual message remain out of scope" in doc
+assert "production delivery and any actual message remain out of scope" in doc
 
 for forbidden in (
     "website bridge enabled: yes",
