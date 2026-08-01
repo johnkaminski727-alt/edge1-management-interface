@@ -1,34 +1,51 @@
 #!/usr/bin/env python3
-"""Static safety validation for the compact MariaDB/UCP endpoint summary audit."""
+"""Static safety validation for the MariaDB loopback socket preflight."""
 from pathlib import Path
 import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "tools/security/mariadb_ucp_endpoint_summary_audit.sh"
+SCRIPT = ROOT / "tools/security/mariadb_loopback_socket_preflight_audit.sh"
+CANDIDATE = ROOT / "templates/systemd/mariadb.socket.d/10-loopback-only.conf"
+
 text = SCRIPT.read_text(encoding="utf-8")
+candidate = CANDIDATE.read_text(encoding="utf-8")
 
 required = (
     "#!/bin/sh",
-    "Mode: compact read-only summary",
-    "ss -Htnpe state established",
-    "$3 ~ port_re || $4 ~ port_re",
-    "connection_total=",
+    "WW.CX MARIADB LOOPBACK SOCKET HARDENING PREFLIGHT",
+    "Mode: read-only",
+    "CANDIDATE CONTRACT",
+    "CURRENT SYSTEMD CONTRACT",
+    "CURRENT TCP AND UNIX LISTENERS",
+    "CORRECTED CONNECTION SCOPE",
+    "non_loopback_count=",
     "mariadb_connection_pids=",
-    "ucp_8001_connection_pids=",
-    "ucp_8003_connection_pids=",
-    "summarize_listener 3306",
-    "summarize_listener 8001",
-    "summarize_listener 8003",
-    "UCP BIND AND PUBLICATION CONTRACT",
-    "endpoint addresses are reduced to scope labels",
+    "TRANSPORT CANDIDATES",
+    "ucp_change_authorized=no",
+    "READ-ONLY PREFLIGHT PASSED",
     'sub(/^"/, "", token);',
     'sub(/".*$/, "", token);',
-    "No database query, grant inspection, service, process, PM2, unit, listener, firewall, WireGuard, configuration, package, client-address, logger, packet capture, external scan, container, or traffic change was performed.",
 )
 for token in required:
     if token not in text:
-        raise SystemExit(f"missing required summary behavior: {token}")
+        raise SystemExit(f"missing required preflight behavior: {token}")
+
+expected_listeners = [
+    "ListenStream=",
+    "ListenStream=@mariadb",
+    "ListenStream=/run/mysqld/mysqld.sock",
+    "ListenStream=127.0.0.1:3306",
+    "ListenStream=[::1]:3306",
+]
+actual_listeners = [line.strip() for line in candidate.splitlines() if line.startswith("ListenStream=")]
+if actual_listeners != expected_listeners:
+    raise SystemExit(f"unexpected candidate listener contract: {actual_listeners!r}")
+
+if "[Socket]" not in candidate:
+    raise SystemExit("candidate drop-in has no [Socket] section")
+if "DO NOT INSTALL" not in candidate:
+    raise SystemExit("candidate lacks design-only warning")
 
 prohibited_patterns = (
     r"(?m)^\s*(?:sudo\s+)?(?:mysql|mariadb)\b",
@@ -37,7 +54,7 @@ prohibited_patterns = (
     r"(?m)^\s*(?:sudo\s+)?nft\s+(?:add|delete|insert|replace|flush)\b",
     r"(?m)^\s*(?:sudo\s+)?iptables(?:-restore)?(?:\s|$)",
     r"(?m)^\s*(?:sudo\s+)?sed\s+-i\b",
-    r"(?m)^\s*(?:sudo\s+)?(?:cp|mv|rm|install|ln|chmod|chown|mkdir)\b",
+    r"(?m)^\s*(?:sudo\s+)?(?:cp|mv|rm|install|ln|chmod|chown|mkdir|touch)\b",
     r"(?m)^\s*(?:sudo\s+)?(?:pm2|fwconsole)\s+(?:start|stop|restart|reload|delete|save|resurrect)\b",
     r"(?m)^\s*(?:sudo\s+)?(?:strace|gdb|tcpdump|tshark|dumpcap|nmap|masscan|nc|netcat)\b",
 )
@@ -57,7 +74,7 @@ for token in (
     if token in text:
         raise SystemExit(f"sensitive or query behavior present: {token}")
 
-if "$4 ~ port_re || $5 ~ port_re" in text:
+if "$4 ~ /:3306$/ || $5 ~ /:3306$/" in text:
     raise SystemExit("stale ss endpoint columns detected")
 if r'\"' in text:
     raise SystemExit("escaped quote remains in AWK regular expression")
@@ -72,4 +89,4 @@ result = subprocess.run(
 if result.returncode != 0:
     raise SystemExit(f"shell syntax validation failed: {result.stderr.strip()}")
 
-print("MariaDB/UCP endpoint summary audit safety validation passed")
+print("MariaDB loopback socket preflight safety validation passed")

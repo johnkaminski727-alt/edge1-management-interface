@@ -53,13 +53,12 @@ sanitize_connections() {
             return "none";
         }
         function first_name(line, token) {
-            if (match(line, /users:\(\(\"[^\"]+\"/)) {
-                token = substr(line, RSTART, RLENGTH);
-                sub(/^users:\(\(\"/, "", token);
-                sub(/\"$/, "", token);
-                return token;
-            }
-            return "unknown";
+            token = line;
+            sub(/^.*users:\(\(/, "", token);
+            if (token == line) return "unknown";
+            sub(/^"/, "", token);
+            sub(/".*$/, "", token);
+            return token;
         }
         $3 ~ port_re || $4 ~ port_re {
             n++;
