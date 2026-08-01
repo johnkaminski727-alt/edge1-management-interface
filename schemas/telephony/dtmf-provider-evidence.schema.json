@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/dtmf-provider-evidence.schema.json",
+  "title": "WW.CX DTMF Provider Evidence Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider_id",
+    "route_id",
+    "direction",
+    "review_state",
+    "evidence",
+    "capabilities",
+    "privacy",
+    "decision"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provider_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"
+    },
+    "route_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"
+    },
+    "direction": {
+      "enum": ["inbound", "outbound", "bidirectional"]
+    },
+    "review_state": {
+      "enum": ["unverified", "provider-documented", "controlled-test-reviewed"]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id", "source_type", "reviewed_at", "retention", "summary"],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"
+          },
+          "source_type": {
+            "enum": [
+              "provider-public-documentation",
+              "provider-private-correspondence",
+              "provider-portal-record",
+              "executed-agreement",
+              "controlled-test-record"
+            ]
+          },
+          "reviewed_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "retention": {
+            "enum": ["external-private", "internal-restricted", "repository-public"]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rfc4733", "sip_info", "inband", "extended_abcd"],
+      "properties": {
+        "rfc4733": {
+          "$ref": "#/$defs/rfc4733Capability"
+        },
+        "sip_info": {
+          "$ref": "#/$defs/basicCapability"
+        },
+        "inband": {
+          "$ref": "#/$defs/inbandCapability"
+        },
+        "extended_abcd": {
+          "$ref": "#/$defs/basicCapability"
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_name_retained",
+        "account_identifier_retained",
+        "credential_retained",
+        "telephone_number_retained",
+        "sip_uri_retained",
+        "personal_identifier_retained"
+      ],
+      "properties": {
+        "provider_name_retained": {"const": false},
+        "account_identifier_retained": {"const": false},
+        "credential_retained": {"const": false},
+        "telephone_number_retained": {"const": false},
+        "sip_uri_retained": {"const": false},
+        "personal_identifier_retained": {"const": false}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matrix_eligible", "carrier_interoperability", "live_test_authorized", "notes"],
+      "properties": {
+        "matrix_eligible": {"type": "boolean"},
+        "carrier_interoperability": {
+          "enum": ["unverified", "partially-documented", "documented", "controlled-test-passed", "controlled-test-failed"]
+        },
+        "live_test_authorized": {"const": false},
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    }
+  },
+  "$defs": {
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"
+      },
+      "uniqueItems": true
+    },
+    "basicCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidence_refs"],
+      "properties": {
+        "status": {
+          "enum": ["unknown", "documented", "controlled-test-passed", "controlled-test-failed"]
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    },
+    "rfc4733Capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "event_range", "evidence_refs"],
+      "properties": {
+        "status": {
+          "enum": ["unknown", "documented", "controlled-test-passed", "controlled-test-failed"]
+        },
+        "event_range": {
+          "enum": ["unknown", "0-11", "0-15", "other"]
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    },
+    "inbandCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "codec_constraints", "evidence_refs"],
+      "properties": {
+        "status": {
+          "enum": ["unknown", "documented", "controlled-test-passed", "controlled-test-failed"]
+        },
+        "codec_constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._+-]{1,32}$"
+          },
+          "uniqueItems": true
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    }
+  }
+}
