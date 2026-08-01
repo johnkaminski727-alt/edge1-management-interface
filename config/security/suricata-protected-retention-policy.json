@@ -1,7 +1,7 @@
 {
   "contract": "wwcx.suricata-protected-retention-policy.v1",
-  "status": "design_only",
-  "enabled": false,
+  "status": "live_authorized",
+  "enabled": true,
   "activation_requires_explicit_authorization": true,
   "ingest": {
     "source": "/var/lib/bigbird/operations-center/latest.json",
@@ -101,7 +101,7 @@
     "data_destruction_requires_separate_authorization": true
   },
   "acceptance": {
-    "deployment_authorized": false,
+    "deployment_authorized": true,
     "suricata_configuration_changed": false,
     "suricata_service_changed": false,
     "traffic_controls_changed": false,
