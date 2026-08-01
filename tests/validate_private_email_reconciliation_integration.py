@@ -6,12 +6,15 @@ from __future__ import annotations
 import hashlib
 import json
 import pathlib
+import sys
 import tempfile
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from tools.messaging import normalize_namecheap_private_email_support as private_normalizer
 from tools.messaging import reconcile_mail_provider_objects as reconciler
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
 HUB_PATH = ROOT / "config" / "messaging" / "inbound-mail-hub.json"
 IDENTITIES_PATH = ROOT / "config" / "messaging" / "mail-identities.json"
 
