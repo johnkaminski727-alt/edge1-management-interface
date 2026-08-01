@@ -1,5 +1,5 @@
 {
-  "from_address": "john@ww.cx",
+  "identity_hint": "john-wwcx",
   "to": [
     "records@example.com"
   ],

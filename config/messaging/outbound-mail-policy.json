@@ -43,7 +43,10 @@
     "allow_live_delivery": false,
     "allowed_from_domains": [
       "ww.cx",
-      "creekco.ca"
+      "creekco.ca",
+      "spiritcreekgardens.com",
+      "scgardens.ca",
+      "omegafx.com"
     ],
     "max_recipients": 25,
     "message_size_limit_bytes": 524288

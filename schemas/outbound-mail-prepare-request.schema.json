@@ -5,7 +5,6 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "from_address",
     "to",
     "subject",
     "body",
@@ -18,7 +17,7 @@
     "from_address": {
       "type": "string",
       "format": "email",
-      "description": "Validated sender address from a policy-approved domain."
+      "description": "Optional submitted sender metadata. The canonical identity registry may replace it; it cannot override automatic sender selection."
     },
     "to": {
       "$ref": "#/$defs/addressList"
@@ -81,6 +80,22 @@
     "reply_to": {
       "type": "string",
       "format": "email"
+    },
+    "identity_hint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Canonical sender-profile key or registered sender address."
+    },
+    "original_recipient": {
+      "type": "string",
+      "format": "email",
+      "description": "Original managed address that received the correspondence being answered."
+    },
+    "system_generated": {
+      "type": "boolean",
+      "default": false,
+      "description": "Selects the reserved noreply identity; manual hints cannot select noreply."
     }
   },
   "$defs": {

@@ -120,3 +120,16 @@ The following remain outside this adapter and require separate authorization and
 - bounce and complaint ingestion;
 - automatic delivery from ChatGPT;
 - production traffic cutover.
+
+
+## Canonical sender selection
+
+The preparation adapter now loads `config/messaging/mail-identities.json` and uses the same automatic sender-selection rules as the gateway service. A request can provide:
+
+- `original_recipient` when replying to mail received at a managed identity;
+- `identity_hint` as a canonical sender-profile key or registered sender address;
+- `system_generated: true` for the reserved `noreply@ww.cx` identity.
+
+A submitted `from_address` is treated as metadata only and cannot override the registry. The prepared request, footer, audit record, and eventual email envelope use the resolved sender consistently. The result includes `sender_selection` with the selected address, reason, identity key, replacement status, and live-delivery status.
+
+All sender profiles and the global outbound activation flag remain disabled in the committed configuration. This feature chooses a preparation identity; it does not authorize or attempt delivery.
