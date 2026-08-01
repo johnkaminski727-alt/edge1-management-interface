@@ -24,7 +24,7 @@ RUNBOOK = ROOT / "docs/messaging-operations/outbound-mail-phase-b-preparation-20
 PORT = 8104
 SECRET = "phaseB_test_secret_ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789"
 
-for path in (DROPIN, INSTALLER, CANARY, PROXY):
+for path in (DROPIN, INSTALLER, CANARY, PROXY, RUNBOOK):
     assert path.is_file(), path
 
 config = json.loads(CONFIG.read_text(encoding="utf-8"))
@@ -46,13 +46,15 @@ for required in (
     "SECRET_SOURCE_FILE is required",
     "must be owned by root",
     "mode must be 0400 or 0600",
-    "preparation_api\"][\"enabled\"] = True",
+    'config["preparation_api"]["enabled"] = True',
     "systemctl restart",
     "outbound_mail_preparation_canary.py",
-    "Phase B1 activation failed; restoring",
+    "Phase B1 operation failed; restoring",
     "ACTION must be install or disable",
     "TLS reverse proxy: not installed",
     "External delivery: disabled",
+    "rollback_dir=$(mktemp -d)",
+    "rm -rf \"$rollback_dir\"",
 ):
     assert required in installer, required
 for prohibited in (
@@ -60,6 +62,7 @@ for prohibited in (
     "secrets.token_urlsafe",
     "uuidgen",
     "WWCX_MAIL_GATEWAY_TOKEN=changeme",
+    'backup_dir="$EVIDENCE_DIR/rollback"',
 ):
     assert prohibited not in installer, prohibited
 
@@ -75,9 +78,21 @@ assert "proxy_redirect off;" in proxy
 assert "X-Forwarded-For \"\"" in proxy
 assert "location /outbound-mail/" not in proxy
 
-for script in (INSTALLER,):
-    result = subprocess.run(["sh", "-n", str(script)], cwd=ROOT, check=False)
-    assert result.returncode == 0, script
+runbook = RUNBOOK.read_text(encoding="utf-8")
+for required in (
+    "B1 — loopback authenticated preparation",
+    "B2 — TLS reverse proxy",
+    "never copies the secret",
+    "prepared_not_sent",
+    "409 replay_detected",
+    "403 delivery_disabled",
+    "ACTION=disable",
+    "must not be installed as-is",
+):
+    assert required in runbook, required
+
+result = subprocess.run(["sh", "-n", str(INSTALLER)], cwd=ROOT, check=False)
+assert result.returncode == 0, INSTALLER
 
 with tempfile.TemporaryDirectory(prefix="wwcx-phase-b-") as temporary:
     temp = pathlib.Path(temporary)
@@ -85,7 +100,6 @@ with tempfile.TemporaryDirectory(prefix="wwcx-phase-b-") as temporary:
     secret_file.write_text(SECRET + "\n", encoding="utf-8")
     secret_file.chmod(0o600)
 
-    runtime_config = dict(config)
     runtime_config = json.loads(json.dumps(config))
     runtime_config["preparation_api"]["enabled"] = True
     audit_name = f"phase-b-audit-{os.getpid()}.jsonl"
