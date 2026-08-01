@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Big Bird Telephony Operations</title>
   <link rel="stylesheet" href="./telephony.css">
+  <link rel="stylesheet" href="./telephony-anomalies.css">
 </head>
 <body>
   <a class="skip-link" href="#service-grid">Skip to service status</a>
@@ -40,6 +41,10 @@
         <article id="analytics-carriers" class="analytics-card" aria-live="polite">
           <h3>Carrier and interconnect posture</h3>
           <p class="analytics-loading">Loading aggregate performance…</p>
+        </article>
+        <article id="analytics-anomalies" class="analytics-card analytics-anomaly-card" aria-live="polite">
+          <h3>Informational anomaly indicators</h3>
+          <p class="analytics-loading">Loading bounded indicators…</p>
         </article>
       </div>
     </section>
@@ -89,5 +94,6 @@
     </section>
   </main>
   <script src="./telephony.js"></script>
+  <script src="./telephony-anomalies.js"></script>
 </body>
 </html>
