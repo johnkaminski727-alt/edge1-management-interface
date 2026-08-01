@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import os
 import pathlib
@@ -21,13 +20,7 @@ POLICY_PATH = ROOT / "config" / "messaging" / "outbound-mail-policy.json"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-SPEC = importlib.util.spec_from_file_location(
-    "outbound_mail_gateway", SERVER_ROOT / "outbound_mail_gateway.py"
-)
-MODULE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(MODULE)
-
+import outbound_mail_gateway as MODULE
 import outbound_mail_policy
 
 
