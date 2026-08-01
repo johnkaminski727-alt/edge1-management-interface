@@ -45,7 +45,7 @@ HOST=$(hostname -f)
     exit 2
 }
 
-for command in asterisk awk date find grep hostname id install sed sha256sum sort stat tail tr wc xargs; do
+for command in asterisk awk cat date find grep hostname id install sed sha256sum sort stat tail tr wc xargs; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "ERROR missing command: $command" >&2
         exit 2
@@ -73,10 +73,7 @@ section() {
 
 sanitize_stream() {
     sed -E \
-        -e 's#^([[:space:]]*Endpoint:)[[:space:]]+[^[:space:]]+#\1 [redacted]#g' \
-        -e 's#^([[:space:]]*Aor:)[[:space:]]+[^[:space:]]+#\1 [redacted]#g' \
-        -e 's#^([[:space:]]*Contact:)[[:space:]]+[^[:space:]]+#\1 [redacted]#g' \
-        -e 's#^([[:space:]]*Transport:)[[:space:]]+[^[:space:]]+#\1 [redacted]#g' \
+        -e 's#^([[:space:]]*(Endpoint|Aor|Contact|Transport|InAuth|OutAuth|Identify|Channel):)[[:space:]]+[^[:space:]]+#\1 [redacted]#g' \
         -e 's#([sS][iI][pP][sS]?:)[^[:space:]>;,]+#\1[redacted]#g' \
         -e 's#PJSIP/[^[:space:]]+#PJSIP/[redacted]#g' \
         -e 's#[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}#[email]#g' \
@@ -90,11 +87,13 @@ capture_asterisk() {
     name=$1
     command_text=$2
     output="$EVIDENCE_DIR/$name.txt"
-    if asterisk -rx "$command_text" 2>&1 | sanitize_stream >"$output"; then
-        return 0
+    rc=0
+    raw_output=$(asterisk -rx "$command_text" 2>&1) || rc=$?
+    printf '%s\n' "$raw_output" | sanitize_stream >"$output"
+    raw_output=""
+    if [ "$rc" -ne 0 ]; then
+        warn "Asterisk command did not return success: $command_text"
     fi
-    warn "Asterisk command did not return success: $command_text"
-    return 0
 }
 
 object_count() {
