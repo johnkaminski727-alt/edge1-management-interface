@@ -1,44 +1,106 @@
-# WW.CX Inbound Mail Hub
+# WW.CX Multi-Domain Mail Hub
 
 ## Status
 
-Implemented as a disabled, loopback-only routing foundation. No MX record, mailbox rule, SMTP listener, firewall rule, reverse-proxy route, credential, provider setting, or production mail flow is changed by this branch.
+Implemented as a disabled, loopback-only routing and identity foundation. No MX record, mailbox rule, SMTP listener, firewall rule, reverse-proxy route, credential, provider setting, sender authorization, or production mail flow is changed by this branch.
 
-The hub complements the outbound-mail compliance gateway. Together they form a provider-neutral correspondence control plane:
+The hub complements the outbound-mail compliance gateway. Together they form a provider-neutral correspondence control plane for WW.CX, CreekCo, Spirit Creek Gardens, the short gardens domain, and OmegaFX.
 
 ```text
 Internet sender
   -> current or future MX/provider
   -> authenticated provider webhook or trusted local-MTA adapter
-  -> WW.CX inbound mail hub
+  -> WW.CX multi-domain inbound hub
        -> explicit recipient route
        -> quarantine for unknown managed-domain recipients
        -> reject unmanaged domains
        -> minimal append-only audit event
 
 WW.CX admin / workflow
-  -> outbound compliance gateway
+  -> identity-selected outbound compliance gateway
   -> approved provider
   -> recipient
 ```
+
+## Managed domains
+
+The disabled configuration contains five managed domains:
+
+- `ww.cx`;
+- `creekco.ca`;
+- `spiritcreekgardens.com`;
+- `scgardens.ca`;
+- `omegafx.com`.
+
+There are 35 named routes. Every route currently delivers to the existing `john@ww.cx` mailbox during the pilot. This provides separate public identities without forcing separate inboxes immediately.
+
+Unknown addresses at a managed domain are quarantined rather than silently discarded. Recipients outside managed domains are rejected. Catch-all delivery is intentionally not enabled because it increases spam load and can conceal address mistakes.
+
+## Personal and work identity model
+
+The shared identity registry classifies these as personal John aliases:
+
+- `john@ww.cx`;
+- `john@omegafx.com`;
+- `john@creekco.ca`;
+- `john@scgardens.ca`.
+
+The primary Spirit Creek Gardens work identity is:
+
+- `john@spiritcreekgardens.com`.
+
+That address should be used for Spirit Creek Gardens corporate, gardens, accounting, privacy, claims, records, vendor, banking, insurance, and government correspondence issued personally by John.
+
+Role addresses remain separate from personal aliases. Examples include:
+
+- `contact@creekco.ca`, `support@creekco.ca`, `regulatory@creekco.ca`, and `complaints@creekco.ca` for telecommunications matters;
+- `records@spiritcreekgardens.com` and `accounts@spiritcreekgardens.com` for company records and financial correspondence;
+- `contact@omegafx.com` and `records@omegafx.com` for OmegaFX business matters;
+- `privacy@...`, `postmaster@...`, and `abuse@...` where configured.
+
+The short `scgardens.ca` domain is treated as a legacy or compatibility identity. Its `john@` address is personal, but the domain is not the preferred outbound work identity.
+
+## Reply and sender behavior
+
+The intended user experience is one inbox with identity-aware replies:
+
+1. inbound mail retains the original recipient address;
+2. the hub assigns the matching identity profile;
+3. replies default to the same domain and role that received the message;
+4. a personal alias replies as John;
+5. Spirit Creek Gardens work correspondence defaults to `john@spiritcreekgardens.com`;
+6. role addresses reply using their role identity when authorized;
+7. outbound delivery remains blocked until SPF, DKIM, DMARC, provider authorization, and sender verification are complete.
+
+The registry currently marks every outbound profile disabled. It describes intended identity behavior but does not authorize spoofing or sending from an unverified domain.
 
 ## Why the first adapter is not a public SMTP listener
 
 Running a direct MX requires a production MTA, public TCP 25 reachability, reverse DNS, TLS, queue management, spam and malware controls, abuse handling, bounce behavior, monitoring, patching, backup MX decisions, and a tested rollback. The current foundation therefore accepts normalized envelopes only from an authenticated provider webhook or a trusted local MTA on the private boundary.
 
-This lets WW.CX centralize routing and audit behavior without turning the operations API into an Internet-facing mail server.
+This lets the organization centralize routing and audit behavior without turning the operations API into an Internet-facing mail server.
 
-## Current routing behavior
+## Current routes
 
-The committed configuration manages `ww.cx` and defines explicit routes for:
+### WW.CX
 
-- `john@ww.cx`;
-- `postmaster@ww.cx`;
-- `abuse@ww.cx`.
+`john`, `records`, `privacy`, `security`, `postmaster`, and `abuse`.
 
-All three currently target the existing `john@ww.cx` mailbox. Unknown addresses at `ww.cx` are quarantined rather than silently discarded. Recipients outside configured domains are rejected by the routing engine.
+### CreekCo
 
-The configuration is data-driven, so additional domains and aliases can be added without changing the routing code. Catch-all routing is intentionally not enabled because it increases spam load and can hide address mistakes.
+`john`, `contact`, `support`, `billing`, `sales`, `regulatory`, `complaints`, `porting`, `privacy`, `postmaster`, and `abuse`.
+
+### Spirit Creek Gardens
+
+`john`, `contact`, `records`, `accounts`, `privacy`, `postmaster`, and `abuse` at `spiritcreekgardens.com`.
+
+### Short gardens domain
+
+`john`, `contact`, `records`, `postmaster`, and `abuse` at `scgardens.ca`.
+
+### OmegaFX
+
+`john`, `contact`, `records`, `privacy`, `postmaster`, and `abuse` at `omegafx.com`.
 
 ## API
 
@@ -54,12 +116,10 @@ The service binds only to loopback. Production access must be provided through a
 
 `POST /mail-hub/ingest` expects a normalized JSON envelope and the `X-WWCX-Inbound-Token` header. A provider-specific adapter should verify the provider's native signature first, then translate the event into this contract.
 
-Example normalized request:
-
 ```json
 {
   "envelope_from": "sender@example.com",
-  "recipients": ["john@ww.cx"],
+  "recipients": ["john@spiritcreekgardens.com"],
   "message_size": 4096,
   "provider_message_id": "provider-specific-id",
   "subject": "Example subject"
@@ -70,69 +130,56 @@ The current contract deliberately does not accept raw MIME content. That prevent
 
 ## Data minimization
 
-Audit records include:
+Audit records include event time, hashes of the provider message ID, envelope sender and subject, message size, recipient count, and routing decisions.
 
-- event timestamp;
-- SHA-256 of provider message ID;
-- SHA-256 of envelope sender;
-- SHA-256 of subject;
-- message size and recipient count;
-- per-recipient routing decisions.
-
-They do not include:
-
-- raw provider message IDs;
-- message bodies;
-- attachment bytes;
-- raw MIME content;
-- authentication tokens.
+They do not include raw provider message IDs, message bodies, attachment bytes, raw MIME content, or authentication tokens.
 
 Quarantine records contain routing metadata only. A later content quarantine needs encrypted storage, malware scanning, access control, retention, deletion, and export procedures.
 
 ## Activation gates
 
-Production routing requires all of the following:
+Production routing requires:
 
-1. hub `enabled`;
-2. deployment authorization;
-3. production-routing authorization;
-4. an enabled non-disabled ingress profile;
-5. a runtime ingress secret;
-6. authenticated operations routing;
-7. a selected MX or inbound provider;
-8. verified recipient and alias inventory;
-9. spam, malware, bounce, abuse, and queue procedures;
-10. controlled delivery tests to WW.CX-owned mailboxes;
-11. documented rollback;
-12. explicit authorization for the MX or provider-routing cutover.
+1. hub enablement;
+2. deployment and production-routing authorization;
+3. an enabled ingress profile and runtime secret;
+4. authenticated operations routing;
+5. a selected MX or inbound provider;
+6. verified mailbox, alias, and forwarding inventory for all five domains;
+7. spam, malware, bounce, abuse, and queue procedures;
+8. controlled tests to organization-owned mailboxes;
+9. duplicate, loop, quarantine, and rollback verification;
+10. explicit provider-routing or MX cutover authorization.
 
-The committed configuration fails these gates by design.
+Outbound use of any sender identity separately requires provider sender verification, aligned envelope sender, SPF, DKIM, DMARC review, and explicit outbound activation.
+
+The committed configuration fails all production gates by design.
 
 ## Recommended first production topology
 
-The lowest-risk initial topology is:
-
 ```text
-Existing hosted mail provider remains MX
-  -> provider route/journal/webhook for selected addresses
-  -> authenticated WW.CX inbound hub
-  -> existing mailbox destination
+Existing hosted providers remain authoritative MX
+  -> copied, journaled, forwarded, or webhook flow for selected addresses
+  -> authenticated multi-domain hub
+  -> john@ww.cx central delivery mailbox
+  -> identity-aware reply selection
 ```
 
-This supports a shadow or pilot mode before any full-domain cutover. A dedicated MTA on Edge1 can be evaluated later, but it should not be the first production dependency unless TCP 25, PTR, reputation, filtering, queue operations, and redundancy are already proven.
+Start with copied or journaled traffic where possible. That permits route verification without making the hub the sole delivery dependency.
 
 ## Cutover sequence
 
-1. Inventory all current WW.CX domains, mailboxes, aliases, forwarders, mailing lists, and catch-all behavior.
-2. Confirm the current authoritative MX and provider account.
-3. Add inbound hub routes for every known recipient while the hub remains disabled.
+1. Inventory current MX records, providers, mailboxes, aliases, forwarders, mailing lists, and catch-all behavior for all five domains.
+2. Verify which listed addresses already exist and which must be created.
+3. Keep all current providers authoritative while the hub remains disabled.
 4. Deploy the loopback service and authenticated internal route.
 5. Configure one provider webhook or local-MTA adapter with runtime secrets.
-6. Replay synthetic envelopes and verify route, quarantine, and audit behavior.
-7. Pilot one non-critical alias or copied/journaled flow.
-8. Verify delivery, duplicates, loops, bounces, and rollback.
-9. Authorize and execute the provider-routing or MX change separately.
+6. Replay synthetic envelopes for each domain and identity class.
+7. Pilot one non-critical copied or forwarded address per provider.
+8. Verify delivery, original-recipient preservation, identity-aware replies, duplicates, loops, bounces, quarantine, and rollback.
+9. Configure and verify outbound identities separately.
+10. Authorize each provider-routing or MX change explicitly.
 
 ## Relationship to the outbound gateway
 
-The inbound and outbound services should eventually share a single correspondence matrix keyed by WW.CX control ID, provider message ID hashes, RFC Message-ID hashes, case ID, sender, recipients, delivery status, replies, and quarantine state. Message content should remain in the authoritative mailbox or encrypted records store rather than the audit ledger.
+The inbound and outbound services should share the mail identity registry and one correspondence matrix keyed by WW.CX control ID, provider message-ID hashes, RFC Message-ID hashes, case ID, sender identity, recipients, delivery status, replies, and quarantine state. Message content should remain in the authoritative mailbox or an encrypted records store rather than the audit ledger.
