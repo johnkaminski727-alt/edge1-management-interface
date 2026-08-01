@@ -82,7 +82,7 @@
       "inband": {
         "status": "documented",
         "codec_constraints": [],
-        "evidence_reference": "account-dtmf-mode-public-doc-20260801"
+        "evidence_reference": "account-dtmf-mode-public-doc-v1"
       },
       "extended_abcd": {
         "status": "unknown",
