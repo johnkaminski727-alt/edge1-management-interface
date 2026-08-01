@@ -49,8 +49,8 @@ valid_asterisk_pid() {
 resolve_asterisk_pid() {
     candidate=$(systemctl show -p MainPID --value asterisk 2>/dev/null || true)
     if valid_asterisk_pid "$candidate"; then
+        PID_RESOLVED=$candidate
         PID_SOURCE="systemd:MainPID"
-        printf '%s\n' "$candidate"
         return 0
     fi
 
@@ -58,8 +58,8 @@ resolve_asterisk_pid() {
         [ -r "$pidfile" ] || continue
         candidate=$(awk 'NR == 1 {print $1; exit}' "$pidfile" 2>/dev/null || true)
         if valid_asterisk_pid "$candidate"; then
+            PID_RESOLVED=$candidate
             PID_SOURCE="pidfile:$pidfile"
-            printf '%s\n' "$candidate"
             return 0
         fi
     done
@@ -70,8 +70,8 @@ resolve_asterisk_pid() {
     if [ "$count" -eq 1 ]; then
         candidate=$(printf '%s\n' "$matches" | awk 'NF {print; exit}')
         if valid_asterisk_pid "$candidate"; then
+            PID_RESOLVED=$candidate
             PID_SOURCE="process-table:unique-asterisk-f"
-            printf '%s\n' "$candidate"
             return 0
         fi
     fi
@@ -89,7 +89,9 @@ asterisk -rx 'core show uptime' 2>&1 || true
 asterisk -rx 'core show channels count' 2>&1 || true
 echo "service_active=$(systemctl is-active asterisk 2>&1 || true)"
 PID_SOURCE=""
-if PID=$(resolve_asterisk_pid); then
+PID_RESOLVED=""
+if resolve_asterisk_pid; then
+    PID=$PID_RESOLVED
     echo "asterisk_pid=$PID"
     echo "pid_source=$PID_SOURCE"
     ps -p "$PID" -o pid=,lstart=,etime=,args= 2>/dev/null || true
