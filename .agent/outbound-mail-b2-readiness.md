@@ -124,7 +124,7 @@ The expected proposal state is `ready_for_explicit_b2_apache_authorization`.
 - active proxy service: **Apache 2**;
 - active certificate paths: **identified by enabled-vhost references and pathname metadata**;
 - certificate/private-key content disclosure: **prohibited**;
-- proxy installation or reload: **not yet executed**;
+- proxy installation or reload: **authorized only after exact proposal validation and rollback review**;
 - DNS change: **not currently indicated**;
 - firewall change: **not currently indicated**;
 - public preparation route: **not yet activated**;
