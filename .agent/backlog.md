@@ -24,6 +24,47 @@
 - [x] Test-only EBS and CAP-CP compatibility foundation merged through PR #157 as `7456304d41063075be15ff894af815877dd8a554`.
 - [x] Alerting continuity state merged through PR #159 as `03d219e853bd8a373cd9d0503c45579901615017`.
 
+## DTMF provider evidence and response tracking
+
+Tracker:
+
+```text
+.agent/dtmf-provider-response-tracker.md
+```
+
+- [x] Accept local Asterisk DTMF readiness and the offline 16-key probe.
+- [x] Create the sanitized provider-public evidence intake and capability matrix gate.
+- [x] Record only the documented account-level in-band fallback; keep unsupported capabilities `unknown`.
+- [x] Send the nine-question provider technical escalation.
+- [x] Exhaust provider-controlled public documentation without promoting unsupported claims.
+- [x] Add the technical-response schema, pending example, validator, tests, and response-classification procedure through PR #250 as `faaf7b04c5fd3648b42b9266eb2cf5fea0f2a5a7`.
+- [x] Synchronize and validate the response-intake package on Edge1.
+- [x] Preserve protected evidence at `/var/lib/wwcx-deployment-evidence/repository-metadata-repair/20260801T180347Z/dtmf-provider-response-intake-sync-20260801T210156Z`.
+- [x] Verify final evidence manifest `fe414802b5e52089673e3231693fbc1cb89c615c65e1450d670d77bcb03d7db4`.
+- [x] Merge the durable Edge1 acceptance record through PR #251 as `d89cbb06d5ecd171e67c1a281beb58ef16a1f24c`.
+- [x] Keep `response_state=pending`, `matrix_update_allowed=false`, and `live_test_authorized=false`.
+- [ ] Receive a direct provider technical response.
+- [ ] Retain the original response in the restricted mailbox and create only a sanitized response worksheet.
+- [ ] Classify all nine answers by exact service scope and evidence strength.
+- [ ] Leave ambiguous, indirect, best-effort, configuration-only, and test-required claims out of the carrier matrix.
+- [ ] Run the response, privacy, provider-evidence, cross-record matrix, and repository validators before any matrix update.
+- [ ] Require separate explicit authorization before any controlled call or DTMF transmission.
+
+Current provider capability state:
+
+```text
+inband=documented
+rfc4733=unknown
+rfc4733_event_range=unknown
+sip_info=unknown
+extended_abcd=unknown
+carrier_interoperability=partially-documented
+response_state=pending
+provider_reply_received=false
+matrix_update_allowed=false
+live_test_authorized=false
+```
+
 ## Alerting compatibility foundation
 
 - [x] Add bounded CAP 1.2 and CAP-CP structural validation.
