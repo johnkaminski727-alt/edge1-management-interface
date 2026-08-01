@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md).
 
 ## Preview
 
@@ -65,16 +65,16 @@ Before treating the console as accepted for operational use, complete the [Telep
 
 Checklist completion does not authorize production routing, public exposure, emergency-calling changes, carrier administration, or write controls.
 
-The DTMF repository foundation is not live acceptance. Run the authenticated read-only audit on Edge1, review its protected evidence, and keep every live carrier path marked `unverified` until a separate approval and evidence record exist.
+The authenticated DTMF audit completed on `edge1.ww.cx` with exit code `0`, one warning, zero failures, all sixteen offline keypad symbols passing, and no runtime mutation. Local Asterisk capability is accepted. Carrier, endpoint, trunk, SIP INFO, in-band, SDP-negotiation, and end-to-end behavior remain `unverified`.
 
 ## Next implementation slice
 
-1. run and review the merged read-only DTMF audit on Edge1
-2. reconcile endpoint `dtmf_mode` policy and module/runtime evidence without changing configuration
-3. populate the sanitized carrier capability matrix from documentation only
+1. reconcile runtime PJSIP endpoint visibility and authoritative FreePBX/generated endpoint-policy sources without changing configuration
+2. populate the sanitized carrier capability matrix from provider documentation only
+3. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
 4. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
 5. add sanitized CDR and SIP-event collectors
 6. add health-score, failure-class, and carrier-performance console panels
 7. add append-only report-generation audit events
 8. add bounded anomaly indicators without automatic enforcement
-9. complete Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
+9. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
