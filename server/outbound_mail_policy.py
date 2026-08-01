@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Policy and composition helpers for the WW.CX outbound-mail gateway.
 
-This module deliberately does not deliver mail. It prepares a controlled message
-body, non-sensitive audit headers, an opaque action token, and an audit record for
-an approved SMTP submission layer. Hidden open tracking and device fingerprinting
-are outside this contract.
+The module prepares controlled outbound messages. It does not deliver mail.
+Live delivery is a separate provider action and remains disabled unless the
+policy explicitly authorizes it.
 """
 
 from __future__ import annotations
@@ -15,10 +14,10 @@ import json
 import re
 import secrets
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import quote
-
 
 CONTRACT = "wwcx.outbound-mail-policy.v1"
 FOOTER_MARKER = "[WWCX-CORRESPONDENCE-CONTROL]"
@@ -27,9 +26,18 @@ ALLOWED_MESSAGE_CLASSES = {
     "business_correspondence",
     "commercial",
     "legal_notice",
+    "support",
+}
+ALLOWED_PROVIDERS = {
+    "disabled",
+    "smtp_submission",
+    "gmail_api",
+    "microsoft_graph",
+    "manual_export",
 }
 CONTROL_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9._:-]{5,127}$")
 HEADER_VALUE_RE = re.compile(r"^[\x20-\x7e]{1,998}$")
+EMAIL_RE = re.compile(r"^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$")
 
 
 def load_policy(path: str | Path) -> dict[str, Any]:
@@ -37,6 +45,8 @@ def load_policy(path: str | Path) -> dict[str, Any]:
 
 
 def _require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
     actual = set(value)
     if actual != expected:
         missing = sorted(expected - actual)
@@ -48,6 +58,12 @@ def _require_text(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} must be non-empty text")
     return value.strip()
+
+
+def _require_bool(value: Any, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{label} must be boolean")
+    return value
 
 
 def validate_policy(policy: dict[str, Any]) -> None:
@@ -62,6 +78,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
             "footer",
             "tracking",
             "audit",
+            "delivery",
         },
         "policy",
     )
@@ -69,8 +86,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         raise ValueError("unsupported policy contract")
 
     for key in ("enabled", "deployment_authorized", "smtp_cutover_authorized"):
-        if not isinstance(policy[key], bool):
-            raise ValueError(f"{key} must be boolean")
+        _require_bool(policy[key], key)
 
     organization = policy["organization"]
     _require_exact_keys(
@@ -87,6 +103,8 @@ def validate_policy(policy: dict[str, Any]) -> None:
     )
     for key in organization:
         _require_text(organization[key], f"organization.{key}")
+    if not EMAIL_RE.fullmatch(organization["contact_email"]):
+        raise ValueError("organization.contact_email is invalid")
 
     footer = policy["footer"]
     _require_exact_keys(
@@ -103,8 +121,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         "footer",
     )
     for key, value in footer.items():
-        if not isinstance(value, bool):
-            raise ValueError(f"footer.{key} must be boolean")
+        _require_bool(value, f"footer.{key}")
 
     tracking = policy["tracking"]
     _require_exact_keys(
@@ -127,8 +144,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         "device_fingerprinting",
         "collect_full_ip",
     ):
-        if not isinstance(tracking[key], bool):
-            raise ValueError(f"tracking.{key} must be boolean")
+        _require_bool(tracking[key], f"tracking.{key}")
     if tracking["hidden_open_tracking"]:
         raise ValueError("hidden open tracking is prohibited")
     if tracking["device_fingerprinting"]:
@@ -153,8 +169,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
         "audit",
     )
     for key, value in audit.items():
-        if not isinstance(value, bool):
-            raise ValueError(f"audit.{key} must be boolean")
+        _require_bool(value, f"audit.{key}")
     if audit["record_body"]:
         raise ValueError("message bodies must not be copied into the audit event")
     if audit["record_action_token"]:
@@ -162,17 +177,81 @@ def validate_policy(policy: dict[str, Any]) -> None:
     if not audit["record_action_token_hash"]:
         raise ValueError("the action-token hash is required for correlation and revocation")
 
-    if policy["enabled"]:
-        if not policy["deployment_authorized"]:
-            raise ValueError("enabled policy requires deployment authorization")
+    delivery = policy["delivery"]
+    _require_exact_keys(
+        delivery,
+        {
+            "provider",
+            "allow_prepare",
+            "allow_external_submission",
+            "allow_live_delivery",
+            "allowed_from_domains",
+            "max_recipients",
+            "message_size_limit_bytes",
+        },
+        "delivery",
+    )
+    if delivery["provider"] not in ALLOWED_PROVIDERS:
+        raise ValueError("delivery.provider is unsupported")
+    for key in ("allow_prepare", "allow_external_submission", "allow_live_delivery"):
+        _require_bool(delivery[key], f"delivery.{key}")
+    if not isinstance(delivery["allowed_from_domains"], list) or not delivery["allowed_from_domains"]:
+        raise ValueError("delivery.allowed_from_domains must be a non-empty list")
+    for domain in delivery["allowed_from_domains"]:
+        domain_text = _require_text(domain, "delivery.allowed_from_domains item").casefold()
+        if "." not in domain_text or "@" in domain_text:
+            raise ValueError("delivery.allowed_from_domains contains an invalid domain")
+    if not isinstance(delivery["max_recipients"], int) or not 1 <= delivery["max_recipients"] <= 500:
+        raise ValueError("delivery.max_recipients must be between 1 and 500")
+    if not isinstance(delivery["message_size_limit_bytes"], int) or not 1024 <= delivery["message_size_limit_bytes"] <= 10_485_760:
+        raise ValueError("delivery.message_size_limit_bytes is outside the supported range")
+
+    if policy["enabled"] and not policy["deployment_authorized"]:
+        raise ValueError("enabled policy requires deployment authorization")
+    if delivery["allow_external_submission"] and not policy["enabled"]:
+        raise ValueError("external submission requires an enabled policy")
+    if delivery["allow_live_delivery"]:
+        if not policy["enabled"] or not policy["deployment_authorized"]:
+            raise ValueError("live delivery requires an enabled, deployment-authorized policy")
         if not policy["smtp_cutover_authorized"]:
-            raise ValueError("enabled policy requires explicit SMTP cutover authorization")
+            raise ValueError("live delivery requires explicit SMTP/API cutover authorization")
+        if delivery["provider"] in {"disabled", "manual_export"}:
+            raise ValueError("live delivery requires a delivery-capable provider")
         if organization["mailing_address"] == PLACEHOLDER_ADDRESS:
-            raise ValueError("enabled policy requires a configured mailing address")
-        if footer["include_action_link"] and not tracking["transparent_action_links"]:
+            raise ValueError("live delivery requires a configured mailing address")
+
+    if footer["include_action_link"]:
+        if not tracking["transparent_action_links"]:
             raise ValueError("action links must be transparent")
-        if footer["include_tracking_disclosure"] is not True:
-            raise ValueError("enabled policy requires a tracking disclosure")
+        if not footer["include_tracking_disclosure"]:
+            raise ValueError("action links require a tracking disclosure")
+
+
+def normalize_recipients(recipients: Iterable[str], *, max_count: int = 500) -> list[str]:
+    normalized: list[str] = []
+    for recipient in recipients:
+        value = _require_text(recipient, "recipient").casefold()
+        if "\r" in value or "\n" in value or not EMAIL_RE.fullmatch(value):
+            raise ValueError("recipient address is invalid")
+        normalized.append(value)
+    normalized = sorted(set(normalized))
+    if not normalized:
+        raise ValueError("at least one recipient is required")
+    if len(normalized) > max_count:
+        raise ValueError("recipient count exceeds the configured maximum")
+    return normalized
+
+
+def validate_from_address(policy: dict[str, Any], from_address: str) -> str:
+    validate_policy(policy)
+    address = _require_text(from_address, "from_address").casefold()
+    if not EMAIL_RE.fullmatch(address):
+        raise ValueError("from_address is invalid")
+    domain = address.rsplit("@", 1)[1]
+    allowed = {str(item).casefold() for item in policy["delivery"]["allowed_from_domains"]}
+    if domain not in allowed:
+        raise ValueError("from_address domain is not allowed")
+    return address
 
 
 def generate_action_token(byte_count: int = 32) -> tuple[str, str]:
@@ -187,18 +266,6 @@ def build_action_url(base_url: str, token: str) -> str:
     base = _require_text(base_url, "base_url").rstrip("/")
     opaque = _require_text(token, "token")
     return f"{base}/{quote(opaque, safe='')}"
-
-
-def normalize_recipients(recipients: Iterable[str]) -> list[str]:
-    normalized = []
-    for recipient in recipients:
-        value = _require_text(recipient, "recipient").casefold()
-        if "\r" in value or "\n" in value or "@" not in value:
-            raise ValueError("recipient address is invalid")
-        normalized.append(value)
-    if not normalized:
-        raise ValueError("at least one recipient is required")
-    return sorted(set(normalized))
 
 
 def derive_control_id(
@@ -252,7 +319,7 @@ def build_control_headers(
     return headers
 
 
-def render_footer(
+def render_plain_text_footer(
     policy: dict[str, Any],
     *,
     message_class: str,
@@ -267,7 +334,6 @@ def render_footer(
         raise ValueError("unsupported message class")
     organization = policy["organization"]
     footer = policy["footer"]
-
     if message_class == "commercial" and footer["require_unsubscribe_for_commercial"]:
         _require_text(unsubscribe_url, "unsubscribe_url")
 
@@ -282,9 +348,11 @@ def render_footer(
         FOOTER_MARKER,
         f"Correspondence control: {_validate_control_id(control_id, 'control_id')}",
     ]
-
     if footer["include_action_link"]:
-        lines.append(f"View the correspondence record or acknowledge receipt: {_require_text(action_url, 'action_url')}")
+        lines.append(
+            "View the correspondence record or acknowledge receipt: "
+            + _require_text(action_url, "action_url")
+        )
     if footer["include_tracking_disclosure"]:
         lines.append(
             "Access to the linked correspondence record may be logged for security, "
@@ -307,8 +375,36 @@ def render_footer(
         )
     if message_class == "commercial" and unsubscribe_url:
         lines.extend(["", f"Commercial-message preferences or unsubscribe: {unsubscribe_url}"])
-
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_html_footer(
+    policy: dict[str, Any],
+    *,
+    message_class: str,
+    signer_name: str,
+    signer_title: str,
+    control_id: str,
+    action_url: str | None,
+    unsubscribe_url: str | None = None,
+) -> str:
+    plain = render_plain_text_footer(
+        policy,
+        message_class=message_class,
+        signer_name=signer_name,
+        signer_title=signer_title,
+        control_id=control_id,
+        action_url=action_url,
+        unsubscribe_url=unsubscribe_url,
+    )
+    paragraphs = [escape(line) for line in plain.rstrip().split("\n")]
+    return (
+        '<div data-wwcx-correspondence-control="1" '
+        'style="margin-top:24px;border-top:1px solid #bbb;padding-top:14px;'
+        'font-family:Arial,sans-serif;font-size:12px;line-height:1.45;color:#444">'
+        + "<br>".join(paragraphs)
+        + "</div>"
+    )
 
 
 def append_plain_text_footer(body: str, footer: str) -> str:
@@ -318,14 +414,22 @@ def append_plain_text_footer(body: str, footer: str) -> str:
     return f"{message_body}\n\n{footer}" if message_body else footer
 
 
+def append_html_footer(body_html: str, footer_html: str) -> str:
+    if 'data-wwcx-correspondence-control="1"' in body_html:
+        return body_html
+    return body_html.rstrip() + footer_html
+
+
 def build_audit_record(
     policy: dict[str, Any],
     *,
     control_id: str,
     message_class: str,
     subject: str,
+    body: str,
     recipients: Iterable[str],
     token_hash: str,
+    from_address: str,
     case_id: str | None = None,
     action_id: str | None = None,
     timestamp: datetime | None = None,
@@ -334,16 +438,23 @@ def build_audit_record(
     if message_class not in ALLOWED_MESSAGE_CLASSES:
         raise ValueError("unsupported message class")
     event_time = timestamp or datetime.now(timezone.utc)
-    normalized_recipients = normalize_recipients(recipients)
+    normalized_recipients = normalize_recipients(
+        recipients,
+        max_count=policy["delivery"]["max_recipients"],
+    )
     record: dict[str, Any] = {
-        "event": "outbound_message_composed",
+        "event": "outbound_message_prepared",
         "occurred_at": event_time.isoformat(timespec="seconds"),
         "control_id": _validate_control_id(control_id, "control_id"),
         "message_class": message_class,
         "subject_sha256": hashlib.sha256(_require_text(subject, "subject").encode("utf-8")).hexdigest(),
+        "body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
         "recipient_count": len(normalized_recipients),
+        "from_address": validate_from_address(policy, from_address),
         "action_token_sha256": _require_text(token_hash, "token_hash"),
         "policy_contract": CONTRACT,
+        "delivery_provider": policy["delivery"]["provider"],
+        "live_delivery_authorized": policy["delivery"]["allow_live_delivery"],
     }
     if policy["audit"]["record_recipient_addresses"]:
         record["recipients"] = normalized_recipients
@@ -354,15 +465,17 @@ def build_audit_record(
     return record
 
 
-def compose_plain_text_message(
+def compose_message(
     policy: dict[str, Any],
     *,
     body: str,
     subject: str,
     recipients: Iterable[str],
+    from_address: str,
     signer_name: str,
     signer_title: str,
     message_class: str = "business_correspondence",
+    body_html: str | None = None,
     control_id: str | None = None,
     case_id: str | None = None,
     action_id: str | None = None,
@@ -370,8 +483,14 @@ def compose_plain_text_message(
     timestamp: datetime | None = None,
 ) -> dict[str, Any]:
     validate_policy(policy)
+    if not policy["delivery"]["allow_prepare"]:
+        raise ValueError("message preparation is disabled")
     event_time = timestamp or datetime.now(timezone.utc)
-    normalized_recipients = normalize_recipients(recipients)
+    normalized_recipients = normalize_recipients(
+        recipients,
+        max_count=policy["delivery"]["max_recipients"],
+    )
+    resolved_from = validate_from_address(policy, from_address)
     resolved_control_id = control_id or derive_control_id(
         subject,
         normalized_recipients,
@@ -379,7 +498,7 @@ def compose_plain_text_message(
     )
     token, token_hash = generate_action_token()
     action_url = build_action_url(policy["tracking"]["action_base_url"], token)
-    footer = render_footer(
+    plain_footer = render_plain_text_footer(
         policy,
         message_class=message_class,
         signer_name=signer_name,
@@ -388,7 +507,23 @@ def compose_plain_text_message(
         action_url=action_url,
         unsubscribe_url=unsubscribe_url,
     )
-    composed_body = append_plain_text_footer(body, footer)
+    composed_body = append_plain_text_footer(body, plain_footer)
+    composed_html = None
+    if body_html is not None:
+        html_footer = render_html_footer(
+            policy,
+            message_class=message_class,
+            signer_name=signer_name,
+            signer_title=signer_title,
+            control_id=resolved_control_id,
+            action_url=action_url,
+            unsubscribe_url=unsubscribe_url,
+        )
+        composed_html = append_html_footer(body_html, html_footer)
+    total_size = len(composed_body.encode("utf-8")) + len((composed_html or "").encode("utf-8"))
+    if total_size > policy["delivery"]["message_size_limit_bytes"]:
+        raise ValueError("prepared message exceeds the configured size limit")
+
     headers = build_control_headers(
         control_id=resolved_control_id,
         case_id=case_id,
@@ -399,29 +534,42 @@ def compose_plain_text_message(
         control_id=resolved_control_id,
         message_class=message_class,
         subject=subject,
+        body=body,
         recipients=normalized_recipients,
         token_hash=token_hash,
+        from_address=resolved_from,
         case_id=case_id,
         action_id=action_id,
         timestamp=event_time,
     )
     return {
         "body": composed_body,
+        "html_body": composed_html,
         "headers": headers,
         "control_id": resolved_control_id,
         "action_url": action_url,
         "action_token": token,
         "action_token_sha256": token_hash,
+        "from_address": resolved_from,
+        "recipients": normalized_recipients,
         "audit_record": audit_record,
+        "delivery": {
+            "provider": policy["delivery"]["provider"],
+            "live_delivery_authorized": policy["delivery"]["allow_live_delivery"],
+            "status": "prepared_not_sent",
+        },
     }
 
 
-def activated_copy(policy: dict[str, Any], mailing_address: str) -> dict[str, Any]:
-    """Return a test/deployment candidate without mutating the committed policy."""
+def activated_prepare_only_copy(policy: dict[str, Any], mailing_address: str) -> dict[str, Any]:
+    """Return a safe preview/API candidate without enabling live delivery."""
     candidate = copy.deepcopy(policy)
     candidate["enabled"] = True
     candidate["deployment_authorized"] = True
-    candidate["smtp_cutover_authorized"] = True
     candidate["organization"]["mailing_address"] = _require_text(mailing_address, "mailing_address")
+    candidate["delivery"]["allow_prepare"] = True
+    candidate["delivery"]["allow_external_submission"] = True
+    candidate["delivery"]["allow_live_delivery"] = False
+    candidate["delivery"]["provider"] = "manual_export"
     validate_policy(candidate)
     return candidate
