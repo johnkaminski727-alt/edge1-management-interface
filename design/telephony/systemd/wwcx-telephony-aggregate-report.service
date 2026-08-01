@@ -1,0 +1,30 @@
+[Unit]
+Description=WW.CX Telephony Aggregate Report (design-only template)
+Documentation=file:/opt/edge1-management-interface/docs/telephony/aggregate-report-runtime-design.md
+ConditionPathExists=/etc/wwcx-telephony/analytics-report-runtime-enabled
+ConditionFileIsExecutable=/opt/edge1-management-interface/tools/telephony/run_telephony_aggregate_report.py
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/tools/telephony/run_telephony_aggregate_report.py --policy /opt/edge1-management-interface/config/telephony/analytics-report-runtime-policy.json
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/wwcx-telephony-analytics-reports /var/lib/wwcx-deployment-evidence/telephony-analytics-report-runtime
