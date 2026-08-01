@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Outbound Mail Gateway | WW.CX Operations</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#compose">Skip to composer</a>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">WW.CX Operations</p>
+        <h1>Outbound Mail Gateway</h1>
+        <p class="subtitle">Compose, control, preview, submit, and reconcile correspondence from one workspace.</p>
+      </div>
+      <div class="mode-pill"><span aria-hidden="true"></span>Preview only</div>
+    </header>
+
+    <nav class="module-nav" aria-label="Operations modules">
+      <a href="../">Private Library</a>
+      <a href="../time-authority/">Time Authority</a>
+      <a href="./" aria-current="page">Outbound Mail</a>
+    </nav>
+
+    <section class="notice" aria-label="Deployment status">
+      <strong>Safe default:</strong> live delivery is disabled. This workspace previews the final message and audit controls without changing SMTP, DNS, or mailbox settings.
+    </section>
+
+    <section class="summary-grid" aria-label="Gateway summary">
+      <article><span>Provider</span><strong id="summary-provider">Not configured</strong></article>
+      <article><span>Sender</span><strong id="summary-sender">john@ww.cx</strong></article>
+      <article><span>Policy</span><strong>Transparent tracking</strong></article>
+      <article><span>Delivery</span><strong>Disabled</strong></article>
+    </section>
+
+    <div class="workspace">
+      <aside class="step-nav" aria-label="Configuration steps">
+        <button type="button" data-step="setup" class="active">1. Setup</button>
+        <button type="button" data-step="compose">2. Compose</button>
+        <button type="button" data-step="controls">3. Controls</button>
+        <button type="button" data-step="preview">4. Preview</button>
+        <button type="button" data-step="activity">5. Activity</button>
+      </aside>
+
+      <section class="panel active" data-panel="setup">
+        <div class="panel-heading"><div><p class="eyebrow">Step 1</p><h2>Gateway setup</h2></div><span class="badge">Required before activation</span></div>
+        <div class="form-grid">
+          <label>Legal name<input id="legal-name" value="Christmas Island Worldwide"></label>
+          <label>Operating name<input id="operating-name" value="WW.CX"></label>
+          <label>Mailing address<input id="mailing-address" placeholder="Configure the verified business mailing address"></label>
+          <label>Contact email<input id="contact-email" type="email" value="john@ww.cx"></label>
+          <label>Website<input id="website" type="url" value="https://ww.cx"></label>
+          <label>Privacy page<input id="privacy-url" type="url" value="https://ww.cx/privacy"></label>
+          <label>Delivery adapter<select id="provider"><option value="">Choose later</option><option>Gmail API</option><option>Provider API</option><option>Authenticated SMTP smarthost</option></select></label>
+          <label>Default sender profile<select id="sender-profile"><option>John Kaminski — john@ww.cx</option><option>WW.CX Records — records@ww.cx</option><option>Spirit Creek Communications</option></select></label>
+        </div>
+        <div class="checklist" id="setup-checklist" aria-live="polite"></div>
+        <div class="panel-actions"><button type="button" data-next="compose">Continue to compose</button></div>
+      </section>
+
+      <section class="panel" data-panel="compose" id="compose">
+        <div class="panel-heading"><div><p class="eyebrow">Step 2</p><h2>Compose correspondence</h2></div><button type="button" class="secondary" id="load-example">Load records-request example</button></div>
+        <div class="form-grid">
+          <label>Message class<select id="message-class"><option value="business_correspondence">Business correspondence</option><option value="legal_notice">Legal notice</option><option value="commercial">Commercial message</option></select></label>
+          <label>Sender name<input id="signer-name" value="John Kaminski"></label>
+          <label>Sender title<input id="signer-title" value="Authorized Representative"></label>
+          <label>To<input id="to" placeholder="recipient@example.com"></label>
+          <label>CC<input id="cc" placeholder="optional@example.com"></label>
+          <label>BCC<input id="bcc" placeholder="Optional; visible in audit controls"></label>
+          <label>Case ID<input id="case-id" placeholder="ENT-184366738"></label>
+          <label>Action ID<input id="action-id" placeholder="ENT-ACT-014"></label>
+          <label class="wide">Subject<input id="subject" placeholder="Clear, specific subject"></label>
+          <label class="wide">Message body<textarea id="body" rows="14" placeholder="Write the message body here. The gateway adds the approved signature and footer during preview."></textarea></label>
+          <label class="wide hidden" id="unsubscribe-wrap">Unsubscribe or preference URL<input id="unsubscribe-url" type="url" placeholder="https://ww.cx/preferences/... "></label>
+        </div>
+        <div class="panel-actions"><button type="button" class="secondary" data-back="setup">Back</button><button type="button" data-next="controls">Continue to controls</button></div>
+      </section>
+
+      <section class="panel" data-panel="controls">
+        <div class="panel-heading"><div><p class="eyebrow">Step 3</p><h2>Correspondence controls</h2></div><span class="badge safe">Privacy-forward defaults</span></div>
+        <div class="control-grid">
+          <label><input id="include-action-link" type="checkbox" checked> Include visible correspondence/acknowledgment link</label>
+          <label><input id="include-disclosure" type="checkbox" checked disabled> Disclose access logging</label>
+          <label><input id="include-confidentiality" type="checkbox" checked> Include confidentiality and records notice</label>
+          <label><input id="include-caveat" type="checkbox" checked disabled> State that the footer does not create legal rights</label>
+          <label><input id="record-recipients" type="checkbox" checked> Record recipient addresses in the restricted audit ledger</label>
+          <label><input id="hidden-tracking" type="checkbox" disabled> Hidden open-tracking pixel</label>
+          <label><input id="device-fingerprint" type="checkbox" disabled> Device fingerprinting</label>
+          <label><input id="full-ip" type="checkbox" disabled> Store full IP addresses</label>
+          <label>Access-event retention<select id="retention"><option value="30">30 days</option><option value="90">90 days</option><option value="180" selected>180 days</option><option value="365">365 days</option></select></label>
+          <label>IP treatment<select id="ip-mode"><option value="none">Do not retain</option><option value="truncated">Truncated</option><option value="keyed_hash" selected>Keyed hash</option></select></label>
+        </div>
+        <section class="explain"><h3>What recipients see</h3><p>The action link is an ordinary disclosed link, not an invisible image. The landing page explains what is logged and why. Access events are treated as evidence of a request, not proof that a named individual personally read the email.</p></section>
+        <div class="panel-actions"><button type="button" class="secondary" data-back="compose">Back</button><button type="button" id="generate-preview">Generate preview</button></div>
+      </section>
+
+      <section class="panel" data-panel="preview">
+        <div class="panel-heading"><div><p class="eyebrow">Step 4</p><h2>Review before submission</h2></div><span class="badge" id="preview-status">Not generated</span></div>
+        <div id="validation-results" class="validation-results" aria-live="polite"></div>
+        <div class="preview-grid">
+          <section><h3>Final message</h3><pre id="message-preview">Complete the previous steps and generate a preview.</pre></section>
+          <section><h3>Control metadata</h3><dl id="metadata-preview" class="metadata"></dl><h3>Headers</h3><pre id="headers-preview">No headers generated.</pre></section>
+        </div>
+        <div class="panel-actions"><button type="button" class="secondary" data-back="controls">Back</button><button type="button" class="secondary" id="copy-preview">Copy final message</button><button type="button" id="submit-message" disabled>Submit message</button></div>
+        <p class="fine-print">Submission remains disabled until a delivery adapter, credentials, sender verification, mailing address, DNS authentication, and explicit production authorization are configured.</p>
+      </section>
+
+      <section class="panel" data-panel="activity">
+        <div class="panel-heading"><div><p class="eyebrow">Step 5</p><h2>Correspondence matrix</h2></div><button type="button" class="secondary" id="export-activity">Export CSV</button></div>
+        <div class="filters"><input id="activity-search" type="search" placeholder="Filter by case, recipient, subject, or control ID"><select id="activity-status"><option value="">All statuses</option><option>Composed</option><option>Submitted</option><option>Delivered</option><option>Bounced</option><option>Acknowledged</option><option>Replied</option><option>Closed</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Control ID</th><th>Case</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Last event</th><th>Confidence</th></tr></thead><tbody id="activity-body"><tr><td colspan="7" class="empty">No local preview events yet.</td></tr></tbody></table></div>
+      </section>
+    </div>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

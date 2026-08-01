@@ -1,0 +1,57 @@
+{
+  "contract": "wwcx.outbound-mail-gateway.v1",
+  "enabled": false,
+  "deployment_authorized": false,
+  "external_delivery_authorized": false,
+  "listen": {
+    "host": "127.0.0.1",
+    "port": 8094
+  },
+  "paths": {
+    "policy": "config/messaging/outbound-mail-policy.json",
+    "audit_jsonl": "var/outbound-mail/audit.jsonl"
+  },
+  "provider": {
+    "selected": "none",
+    "profiles": {
+      "none": {
+        "type": "disabled",
+        "enabled": false
+      },
+      "smtp_submission": {
+        "type": "smtp",
+        "enabled": false,
+        "host_env": "WWCX_MAIL_SMTP_HOST",
+        "port_env": "WWCX_MAIL_SMTP_PORT",
+        "username_env": "WWCX_MAIL_SMTP_USERNAME",
+        "password_env": "WWCX_MAIL_SMTP_PASSWORD",
+        "starttls": true,
+        "timeout_seconds": 20
+      },
+      "gmail_api": {
+        "type": "gmail_api",
+        "enabled": false,
+        "credential_source": "connector_or_runtime_secret"
+      },
+      "internal_webhook": {
+        "type": "webhook",
+        "enabled": false,
+        "url_env": "WWCX_MAIL_WEBHOOK_URL",
+        "secret_env": "WWCX_MAIL_WEBHOOK_SECRET"
+      }
+    }
+  },
+  "admin": {
+    "preview_enabled": true,
+    "send_endpoint_enabled": false,
+    "require_explicit_send_confirmation": true,
+    "max_recipient_count": 50,
+    "max_body_bytes": 262144,
+    "audit_view_limit": 200
+  },
+  "content": {
+    "persist_message_bodies": false,
+    "persist_attachment_bytes": false,
+    "draft_retention_hours": 24
+  }
+}
