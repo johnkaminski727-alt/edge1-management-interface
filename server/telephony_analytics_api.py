@@ -88,6 +88,13 @@ def anomaly_payload() -> dict[str, Any]:
     )
 
 
+def health_response_payload() -> dict[str, Any]:
+    """Return the established health contract plus bounded indicators."""
+    payload = health_payload()
+    payload["anomalies"] = anomaly_payload()
+    return payload
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "WWCXTelephonyAnalytics/0.2"
 
@@ -104,7 +111,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/healthz":
             self.send_json(HTTPStatus.OK, {"status": "ok", "mode": "read_only"})
         elif path == "/api/telephony/platform/health":
-            self.send_json(HTTPStatus.OK, health_payload())
+            self.send_json(HTTPStatus.OK, health_response_payload())
         elif path == "/api/telephony/platform/calls/summary":
             self.send_json(HTTPStatus.OK, summarize_calls(sanitized_events()))
         elif path == "/api/telephony/platform/interconnects/summary":
