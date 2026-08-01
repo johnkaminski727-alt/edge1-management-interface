@@ -2,7 +2,7 @@
 
 ## Project status
 
-READ-ONLY FOUNDATION AND OFFLINE SANITIZED EVENT ADAPTERS IMPLEMENTED; AUTHENTICATED DTMF, PJSIP ENDPOINT-POLICY, AND LOOPBACK ANALYTICS AUDITS ACCEPTED WITH CARRIER PATHS UNVERIFIED
+READ-ONLY FOUNDATION, OFFLINE SANITIZED EVENT ADAPTERS, AND AGGREGATE CONSOLE PANELS IMPLEMENTED; AUTHENTICATED DTMF, PJSIP ENDPOINT-POLICY, AND LOOPBACK ANALYTICS AUDITS ACCEPTED WITH CARRIER PATHS UNVERIFIED
 
 This register covers the consolidated Edge1 project for PBX, SIP, carrier, numbering, routing, health, analytics, and AI-assisted operational analysis.
 
@@ -21,6 +21,9 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 - fail-closed offline adapters for already-sanitized CDR and SIP outcome records;
 - canonical JSON schemas and synthetic examples for sanitized CDR and SIP inputs;
 - negative validation for telephone numbers, SIP URIs, IP and email addresses, caller/callee fields, headers, credentials, SDP, recordings, free-form metadata, unknown fields, and partial-batch acceptance;
+- three exact same-origin console routes to the accepted loopback analytics API;
+- responsive console panels for health score, call and SIP outcomes, failure classes, sanitized carrier utilization, and aggregate interconnect posture;
+- escaped browser rendering and bounded panel-specific unavailable states;
 - focused validation scripts;
 - architecture, safety, privacy, collector, validation, and controlled-follow-on documentation;
 - read-only Asterisk DTMF capability and endpoint-policy audit;
@@ -47,11 +50,13 @@ Create a safe, privacy-minimized, loopback-only operational platform that reuses
 
 The foundation is accepted at repository level when:
 
-- telephony, sanitized-adapter, DTMF, endpoint-policy, and analytics validation scripts pass;
+- telephony, sanitized-adapter, console-panel, DTMF, endpoint-policy, and analytics validation scripts pass;
 - the branch diff contains no credentials or production customer data;
 - existing console validation remains green;
 - analytics produce only aggregate output from sanitized records;
 - adapter inputs fail closed on unsupported or privacy-bearing data and never partially accept a rejected batch;
+- browser analytics use only fixed same-origin GET routes, never a user-selected upstream or direct port-`8099` request;
+- console values are escaped before insertion into HTML and missing analytics produce bounded unavailable states;
 - no configuration, service-control, call-origination, routing, number-management, emergency-calling, database-query, collector activation, or carrier write endpoint exists;
 - review confirms documentation accurately distinguishes local readiness from carrier interoperability and production authorization.
 
@@ -215,6 +220,33 @@ Accepted boundary:
 - no file, database, network, credential, service-control, PBX, carrier, route, or configuration access exists in the adapter module;
 - no live collector, source connection, data-file change, service change, or runtime deployment is included.
 
+## Analytics console-panel repository acceptance — 2026-08-01
+
+Repository assets:
+
+```text
+server/telephony_status_server.py
+src/web/telephony/index.html
+src/web/telephony/telephony.js
+src/web/telephony/telephony.css
+tests/validate_telephony_analytics_console_panels.py
+docs/telephony/analytics-console-panels.md
+```
+
+Accepted boundary:
+
+- the browser uses only three exact same-origin analytics routes;
+- the console server maps those routes to fixed `127.0.0.1:8099` GET endpoints;
+- there is no wildcard, query-selected, path-selected, or user-selected upstream proxy;
+- the browser never directly addresses port `8099`;
+- health, call/SIP outcome, and carrier/interconnect panels render only aggregate responses;
+- every value used in HTML templates is escaped;
+- each analytics request fails independently and a missing upstream returns HTTP `503` with a bounded unavailable state;
+- no fixture fabricates aggregate analytics values;
+- no POST, PUT, PATCH, DELETE, service-control, telephony write, database, credential, route, or public-listener capability is introduced;
+- repository implementation does not install, restart, reload, or deploy either service;
+- live console deployment and rendered acceptance remain separately gated.
+
 ## Controlled blockers
 
 These items are intentionally outside the autonomous repository foundation:
@@ -222,6 +254,7 @@ These items are intentionally outside the autonomous repository foundation:
 - production Asterisk AMI/ARI credentials or permission changes;
 - production CDR database access;
 - connecting live CDR, SIP-edge, AMI/ARI, log, packet, or carrier sources to the offline adapters;
+- deployment or restart of the running console service without a bounded source and rollback check;
 - carrier API credentials;
 - live route, trunk, dial-plan, extension, or registration changes;
 - production calls, messages, emergency-calling tests, or number-porting actions;
@@ -235,12 +268,12 @@ These items are intentionally outside the autonomous repository foundation:
 
 1. populate the sanitized carrier DTMF matrix from reliable provider documentation only;
 2. leave unsupported or undocumented carrier capabilities as `unknown`;
-3. add dashboard panels for health score, failure classes, and carrier performance;
-4. add append-only report-generation audit events;
-5. add bounded anomaly indicators and investigation links;
-6. design live source-minimization collectors only after access, privacy, retention, and rollback review;
+3. add append-only report-generation audit events;
+4. add bounded anomaly indicators and investigation links;
+5. design live source-minimization collectors only after access, privacy, retention, and rollback review;
+6. prepare and separately authorize bounded console deployment and live verification;
 7. publish remaining Edge1 deployment and rollback evidence.
 
 ## Safety statement
 
-Documentation, schemas, adapters, registries, tests, health scores, offline signal probes, endpoint-policy reconciliation, and readiness reports do not prove carrier acceptance, regulatory approval, number-allocation authority, portability authority, emergency-services readiness, production certification, NPAS certification, EAS compliance, or Alert Ready conformance.
+Documentation, schemas, adapters, panels, registries, tests, health scores, offline signal probes, endpoint-policy reconciliation, and readiness reports do not prove carrier acceptance, regulatory approval, number-allocation authority, portability authority, emergency-services readiness, production certification, NPAS certification, EAS compliance, or Alert Ready conformance.
