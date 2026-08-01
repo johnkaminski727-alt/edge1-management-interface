@@ -59,6 +59,7 @@ class MailDomainInventoryTests(unittest.TestCase):
             "google_workspace": ["1 aspmx.l.google.com"],
             "microsoft_365": ["0 tenant.mail.protection.outlook.com"],
             "namecheap_private_email": ["10 mx1.privateemail.com"],
+            "namecheap_shared_hosting": ["5 mx1-hosting.jellyfish.systems"],
             "cloudflare_email_routing": ["10 route1.mx.cloudflare.net"],
             "zoho_mail": ["10 mx.zoho.com"],
             "no_published_mx_observed": [],
