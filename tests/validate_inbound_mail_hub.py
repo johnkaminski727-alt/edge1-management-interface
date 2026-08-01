@@ -25,6 +25,10 @@ import mail_identity_registry
 PRIVATE_DESTINATION = "john-inbox@ww.cx"
 ROLE_DESTINATION = "maildesk@ww.cx"
 SYSTEM_SENDER = "noreply@ww.cx"
+RECONCILED_CREEKCO = {
+    "accessibility@creekco.ca": "creekco-accessibility",
+    "noc@creekco.ca": "creekco-noc",
+}
 
 config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 identities = json.loads(IDENTITIES_PATH.read_text(encoding="utf-8"))
@@ -44,7 +48,7 @@ assert set(status["domains"]) == {
     "scgardens.ca",
     "omegafx.com",
 }
-assert status["route_count"] == 35
+assert status["route_count"] == 37
 
 rules = identities["rules"]
 assert identities["contract"] == "wwcx.mail-identities.v2"
@@ -61,12 +65,21 @@ routes = config["routing"]["routes"]
 john_routes = {address: route for address, route in routes.items() if address.startswith("john@")}
 role_routes = {address: route for address, route in routes.items() if not address.startswith("john@")}
 assert len(john_routes) == 5
-assert len(role_routes) == 30
+assert len(role_routes) == 32
 assert all(route["destination"] == PRIVATE_DESTINATION for route in john_routes.values())
 assert all(route["destination"] == ROLE_DESTINATION for route in role_routes.values())
 assert PRIVATE_DESTINATION not in routes
 assert ROLE_DESTINATION not in routes
 assert SYSTEM_SENDER not in routes
+
+mapping = identities["sender_selection"]["recipient_to_sender"]
+profiles = identities["sender_profiles"]
+for address, profile_key in RECONCILED_CREEKCO.items():
+    assert routes[address]["destination"] == ROLE_DESTINATION
+    assert mapping[address] == address
+    assert profiles[profile_key]["address"] == address
+    assert profiles[profile_key]["status"] == "verified_operational"
+    assert profiles[profile_key]["outbound_enabled"] is False
 
 for path in (CORE_PATH, SERVER_PATH, IDENTITY_ENGINE_PATH, DOC_PATH, IDENTITIES_PATH):
     assert path.is_file(), path
@@ -107,6 +120,7 @@ assert compile_result.returncode == 0
 
 print("Inbound mail hub validation passed")
 print("Five private John routes deliver to john-inbox@ww.cx")
-print("Thirty shared role routes deliver to maildesk@ww.cx")
+print("Thirty-two shared role routes deliver to maildesk@ww.cx")
+print("CreekCo accessibility and NOC identities are registered but live-disabled")
 print("noreply@ww.cx is reserved as an outbound-only system identity")
 print("Production routing, MX changes, SMTP listeners, and outbound activation remain disabled")
