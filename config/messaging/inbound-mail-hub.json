@@ -31,12 +31,30 @@
     }
   },
   "domains": [
-    "ww.cx"
+    "ww.cx",
+    "creekco.ca",
+    "spiritcreekgardens.com",
+    "scgardens.ca"
   ],
   "routing": {
     "unknown_recipient_action": "quarantine",
     "routes": {
       "john@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "records@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "privacy@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "security@ww.cx": {
         "destination_type": "mailbox",
         "destination": "john@ww.cx",
         "enabled": true
@@ -47,6 +65,116 @@
         "enabled": true
       },
       "abuse@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "contact@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "support@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "billing@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "sales@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "regulatory@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "complaints@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "porting@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "privacy@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "postmaster@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "abuse@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "john@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "contact@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "records@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "accounts@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "privacy@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "postmaster@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "abuse@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "john@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "contact@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "records@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "postmaster@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "john@ww.cx",
+        "enabled": true
+      },
+      "abuse@scgardens.ca": {
         "destination_type": "mailbox",
         "destination": "john@ww.cx",
         "enabled": true
