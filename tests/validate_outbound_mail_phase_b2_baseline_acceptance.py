@@ -59,11 +59,16 @@ for value in (
     assert value in acceptance, value
 
 for value in (
+    "## Historical baseline authorization record",
     "proxy installation or reload authorized: **no**",
     "DNS change authorized: **no**",
     "firewall change authorized: **no**",
     "production message authorized: **no**",
     "A generic `Continue` does not authorize",
+    "## Authorization received",
+    "`I am authorizing all work.`",
+    "proxy installation or reload: **authorized only after exact proposal validation and rollback review**",
+    "production message: **not defined or sent**",
 ):
     assert value in state, value
 
@@ -74,5 +79,5 @@ assert "WWCX_MAIL_GATEWAY_TOKEN=" not in acceptance
 assert "BEGIN PRIVATE KEY" not in acceptance
 
 print("Outbound mail Phase B2 baseline acceptance validation passed")
-print("Accepted state remains awaiting exact B2 parameters")
-print("No certificate, proxy, DNS, firewall, provider, sender, delivery, or message authorization is recorded")
+print("The 19:28 UTC baseline remains non-mutating and historically immutable")
+print("Later authorization is conditional on exact parameters, rollback, evidence, and credential secrecy")
