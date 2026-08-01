@@ -27,6 +27,17 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/patch-mariadb-ucp-readiness.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/validate_mariadb_loopback_ucp_readiness.py")
+          text = path.read_text(encoding="utf-8")
+          broken = 'if "while [ "$attempt" -le 30 ]" in main:'
+          fixed = 'if \'while [ "$attempt" -le 30 ]\' in main:'
+          if broken not in text:
+              raise SystemExit("generated validator quoting target not found")
+          path.write_text(text.replace(broken, fixed, 1), encoding="utf-8")
+          PY
           sh -n tools/security/apply_mariadb_loopback_socket_hardening.sh
           python3 tests/validate_apply_mariadb_loopback_socket_hardening.py
           python3 tests/validate_mariadb_loopback_operator_recovery.py
