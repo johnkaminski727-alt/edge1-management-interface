@@ -10,6 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = ROOT / "tools/telephony/validate_dtmf_provider_evidence.py"
 EXAMPLE_PATH = ROOT / "examples/telephony/dtmf-provider-evidence.example.json"
+PROVIDER_RECORD_PATH = (
+    ROOT
+    / "config/telephony/dtmf-provider-evidence"
+    / "provider-candidate-001-public-documentation.json"
+)
+MATRIX_PATH = ROOT / "config/telephony/dtmf-capability-matrix.json"
 SCHEMA_PATH = ROOT / "schemas/telephony/dtmf-provider-evidence.schema.json"
 
 spec = importlib.util.spec_from_file_location("validate_dtmf_provider_evidence", str(VALIDATOR_PATH))
@@ -29,9 +35,12 @@ def expect_failure(record, expected_fragment):
 
 def main():
     example = json.loads(EXAMPLE_PATH.read_text(encoding="utf-8"))
+    provider_record = json.loads(PROVIDER_RECORD_PATH.read_text(encoding="utf-8"))
+    matrix = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 
     validator.validate_record(example)
+    validator.validate_record(provider_record)
 
     assert schema["title"] == "WW.CX DTMF Provider Evidence Record"
     assert schema["properties"]["privacy"]["properties"]["credential_retained"]["const"] is False
@@ -39,6 +48,38 @@ def main():
     assert example["decision"]["matrix_eligible"] is False
     assert example["decision"]["carrier_interoperability"] == "unverified"
     assert example["decision"]["live_test_authorized"] is False
+
+    assert provider_record["review_state"] == "provider-documented"
+    assert provider_record["capabilities"]["inband"]["status"] == "documented"
+    assert provider_record["capabilities"]["inband"]["codec_constraints"] == []
+    assert provider_record["capabilities"]["rfc4733"] == {
+        "status": "unknown",
+        "event_range": "unknown",
+        "evidence_refs": [],
+    }
+    assert provider_record["capabilities"]["sip_info"]["status"] == "unknown"
+    assert provider_record["capabilities"]["extended_abcd"]["status"] == "unknown"
+    assert provider_record["decision"]["matrix_eligible"] is True
+    assert provider_record["decision"]["carrier_interoperability"] == "partially-documented"
+    assert provider_record["decision"]["live_test_authorized"] is False
+
+    matching_interconnects = [
+        entry
+        for entry in matrix["interconnects"]
+        if entry["provider_id"] == provider_record["provider_id"]
+        and entry["route_id"] == provider_record["route_id"]
+    ]
+    assert len(matching_interconnects) == 1
+    matrix_entry = matching_interconnects[0]
+    assert matrix_entry["inband"]["status"] == "documented"
+    assert matrix_entry["inband"]["codec_constraints"] == []
+    assert matrix_entry["inband"]["evidence_reference"] in {
+        record["evidence_id"] for record in provider_record["evidence"]
+    }
+    assert matrix_entry["rfc4733"]["status"] == "unknown"
+    assert matrix_entry["rfc4733"]["event_range"] == "unknown"
+    assert matrix_entry["sip_info"]["status"] == "unknown"
+    assert matrix_entry["extended_abcd"]["status"] == "unknown"
 
     dated_summary = copy.deepcopy(example)
     dated_summary["evidence"][0]["summary"] = (
