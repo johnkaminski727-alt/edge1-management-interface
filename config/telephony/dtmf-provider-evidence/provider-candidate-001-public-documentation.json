@@ -6,14 +6,14 @@
   "review_state": "provider-documented",
   "evidence": [
     {
-      "evidence_id": "account-dtmf-mode-public-doc-20260801",
+      "evidence_id": "account-dtmf-mode-public-doc-v1",
       "source_type": "provider-public-documentation",
       "reviewed_at": "2026-08-01T19:20:00Z",
       "retention": "repository-public",
       "summary": "Public account-setting documentation states that AUTO uses RFC2833 AVT and falls back to in-band when the far end does not support the RTP event mode. No event range or direction-specific behavior is stated."
     },
     {
-      "evidence_id": "provider-dtmf-test-public-doc-20260801",
+      "evidence_id": "provider-dtmf-test-public-doc-v1",
       "source_type": "provider-public-documentation",
       "reviewed_at": "2026-08-01T19:20:00Z",
       "retention": "repository-public",
@@ -34,7 +34,7 @@
       "status": "documented",
       "codec_constraints": [],
       "evidence_refs": [
-        "account-dtmf-mode-public-doc-20260801"
+        "account-dtmf-mode-public-doc-v1"
       ]
     },
     "extended_abcd": {
