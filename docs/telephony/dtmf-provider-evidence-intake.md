@@ -11,6 +11,8 @@ Assets:
 ```text
 schemas/telephony/dtmf-provider-evidence.schema.json
 examples/telephony/dtmf-provider-evidence.example.json
+config/telephony/dtmf-provider-evidence/provider-candidate-001-public-documentation.json
+config/telephony/dtmf-capability-matrix.json
 tools/telephony/validate_dtmf_provider_evidence.py
 ```
 
@@ -78,21 +80,18 @@ Rules enforced by the validator:
 From the repository root:
 
 ```bash
+python3 tests/test_validate_dtmf_provider_evidence.py
+
 python3 tools/telephony/validate_dtmf_provider_evidence.py \
   examples/telephony/dtmf-provider-evidence.example.json
+
+python3 tools/telephony/validate_dtmf_provider_evidence.py \
+  config/telephony/dtmf-provider-evidence/provider-candidate-001-public-documentation.json
 ```
 
-Expected result:
+The synthetic example deliberately records only general PBX compatibility and remains ineligible for the operational capability matrix.
 
-```text
-DTMF provider evidence validation passed
-a review state of unverified
-matrix_eligible=false
-carrier_interoperability=unverified
-live_test_authorized=false
-```
-
-The example deliberately records only general PBX compatibility and remains ineligible for the operational capability matrix.
+The provider-public record is intentionally partial. It records only the public account-level statement that an automatic DTMF mode can fall back to in-band. It does not promote the provider's legacy RFC2833 label into an RFC 4733 claim because no event range is documented.
 
 ## Matrix promotion gate
 
@@ -110,6 +109,8 @@ Promotion records capability evidence only. It does not activate a trunk, endpoi
 
 ## Current decision
 
-The currently reviewed provider correspondence establishes a genuine upstream candidate and general Asterisk/FreePBX suitability, but it does not document provider-specific DTMF behavior. The operational matrix therefore remains empty, and carrier interoperability remains `unverified`.
+A sanitized provider candidate now has one matrix-eligible capability: provider-public documentation directly states an account-level automatic fallback to in-band DTMF. The matrix therefore records `inband.status=documented` with no codec claim.
+
+The same documentation uses the legacy RFC2833/AVT label but does not state an event range. Under the repository evidence policy, RFC 4733 remains `unknown`. SIP INFO, extended `A-D`, exact route directionality, codec and transcoding behavior, and end-to-end carrier interoperability also remain `unknown` or `partially-documented` as applicable.
 
 No external message, provider configuration, purchase, contract acceptance, call, DTMF transmission, route change, or production activation is authorized by this intake package.

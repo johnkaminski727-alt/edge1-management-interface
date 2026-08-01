@@ -65,7 +65,33 @@
     "last_reviewed_at": null,
     "notes": "Do not record credentials, telephone numbers, SIP URIs, or customer identifiers."
   },
-  "interconnects": [],
+  "interconnects": [
+    {
+      "provider_id": "provider-candidate-001",
+      "route_id": "route-candidate-001",
+      "direction": "bidirectional",
+      "rfc4733": {
+        "status": "unknown",
+        "event_range": "unknown",
+        "evidence_reference": null
+      },
+      "sip_info": {
+        "status": "unknown",
+        "evidence_reference": null
+      },
+      "inband": {
+        "status": "documented",
+        "codec_constraints": [],
+        "evidence_reference": "account-dtmf-mode-public-doc-v1"
+      },
+      "extended_abcd": {
+        "status": "unknown",
+        "evidence_reference": null
+      },
+      "last_reviewed_at": "2026-08-01T19:20:00Z",
+      "notes": "Public provider documentation describes account-level AUTO fallback to in-band. It does not state RFC 4733 event range, SIP INFO, extended-key behavior, route directionality, or end-to-end interoperability."
+    }
+  ],
   "approval_boundaries": [
     "No call or channel may be originated by the audit.",
     "No DTMF event, SIP INFO request, or in-band tone may be transmitted by the audit.",

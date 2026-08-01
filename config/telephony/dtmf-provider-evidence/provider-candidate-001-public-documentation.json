@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "provider_id": "provider-candidate-001",
+  "route_id": "route-candidate-001",
+  "direction": "bidirectional",
+  "review_state": "provider-documented",
+  "evidence": [
+    {
+      "evidence_id": "account-dtmf-mode-public-doc-v1",
+      "source_type": "provider-public-documentation",
+      "reviewed_at": "2026-08-01T19:20:00Z",
+      "retention": "repository-public",
+      "summary": "Public account-setting documentation states that AUTO uses RFC2833 AVT and falls back to in-band when the far end does not support the RTP event mode. No event range or direction-specific behavior is stated."
+    },
+    {
+      "evidence_id": "provider-dtmf-test-public-doc-v1",
+      "source_type": "provider-public-documentation",
+      "reviewed_at": "2026-08-01T19:20:00Z",
+      "retention": "repository-public",
+      "summary": "Public PBX setup documentation describes a provider-hosted DTMF diagnostic destination. This supports a documented test workflow but does not establish production-route interoperability."
+    }
+  ],
+  "capabilities": {
+    "rfc4733": {
+      "status": "unknown",
+      "event_range": "unknown",
+      "evidence_refs": []
+    },
+    "sip_info": {
+      "status": "unknown",
+      "evidence_refs": []
+    },
+    "inband": {
+      "status": "documented",
+      "codec_constraints": [],
+      "evidence_refs": [
+        "account-dtmf-mode-public-doc-v1"
+      ]
+    },
+    "extended_abcd": {
+      "status": "unknown",
+      "evidence_refs": []
+    }
+  },
+  "privacy": {
+    "provider_name_retained": false,
+    "account_identifier_retained": false,
+    "credential_retained": false,
+    "telephone_number_retained": false,
+    "sip_uri_retained": false,
+    "personal_identifier_retained": false
+  },
+  "decision": {
+    "matrix_eligible": true,
+    "carrier_interoperability": "partially-documented",
+    "live_test_authorized": false,
+    "notes": "Only account-level in-band fallback is documented. The public material uses the legacy RFC2833 label without an event range, so RFC 4733, SIP INFO, extended keys, route directionality, and end-to-end behavior remain unknown."
+  }
+}
