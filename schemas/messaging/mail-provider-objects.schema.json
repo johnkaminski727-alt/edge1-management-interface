@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/mail-provider-objects.schema.json",
+  "title": "WW.CX Provider Mail Object Inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "provider_id",
+    "provider_family",
+    "captured_at",
+    "source",
+    "objects",
+    "default_addresses",
+    "domain_routing"
+  ],
+  "properties": {
+    "contract": {
+      "const": "wwcx.provider-mail-objects.v1"
+    },
+    "provider_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "provider_family": {
+      "enum": [
+        "namecheap_private_email",
+        "namecheap_shared_hosting",
+        "cpanel",
+        "google_workspace",
+        "microsoft_365",
+        "other"
+      ]
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "read_only",
+        "evidence_files"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "cpanel_uapi",
+            "private_email_admin",
+            "provider_api",
+            "manual_export"
+          ]
+        },
+        "read_only": {
+          "const": true
+        },
+        "evidence_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "uniqueItems": true
+        },
+        "account_reference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mailObject"
+      }
+    },
+    "default_addresses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/defaultAddress"
+      }
+    },
+    "domain_routing": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/domainRouting"
+      }
+    }
+  },
+  "$defs": {
+    "emailAddress": {
+      "type": "string",
+      "format": "email",
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "maxLength": 320
+    },
+    "domainName": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
+      "maxLength": 253
+    },
+    "mailObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "address",
+        "domain",
+        "object_type",
+        "destinations",
+        "receives_mail",
+        "can_send",
+        "active",
+        "access_class",
+        "notes"
+      ],
+      "properties": {
+        "address": {
+          "$ref": "#/$defs/emailAddress"
+        },
+        "domain": {
+          "$ref": "#/$defs/domainName"
+        },
+        "object_type": {
+          "enum": [
+            "mailbox",
+            "alias",
+            "forwarder",
+            "distribution_list",
+            "system_account",
+            "unknown"
+          ]
+        },
+        "destinations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/emailAddress"
+          },
+          "uniqueItems": true
+        },
+        "receives_mail": {
+          "type": "boolean"
+        },
+        "can_send": {
+          "type": "boolean"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "access_class": {
+          "enum": [
+            "private_john",
+            "shared_role",
+            "provider_admin",
+            "system",
+            "unknown"
+          ]
+        },
+        "quota_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "defaultAddress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "behavior",
+        "destination"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/domainName"
+        },
+        "behavior": {
+          "enum": [
+            "reject",
+            "forward",
+            "blackhole",
+            "pipe",
+            "unknown"
+          ]
+        },
+        "destination": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/emailAddress"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "domainRouting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "mode"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/domainName"
+        },
+        "mode": {
+          "enum": [
+            "local",
+            "remote",
+            "automatic",
+            "unknown"
+          ]
+        }
+      }
+    }
+  }
+}
