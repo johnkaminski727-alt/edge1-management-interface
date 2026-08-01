@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -13,15 +14,30 @@ ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "tools/telephony/asterisk_dtmf_readiness_audit.sh"
 PROBE = ROOT / "tools/telephony/dtmf_offline_probe.py"
 MATRIX = ROOT / "config/telephony/dtmf-capability-matrix.json"
+PROVIDER_EVIDENCE_DIR = ROOT / "config/telephony/dtmf-provider-evidence"
+PROVIDER_VALIDATOR = ROOT / "tools/telephony/validate_dtmf_provider_evidence.py"
 DOC = ROOT / "docs/telephony/dtmf-readiness.md"
 
-for path in (AUDIT, PROBE, MATRIX, DOC):
+for path in (AUDIT, PROBE, MATRIX, PROVIDER_VALIDATOR, DOC):
     if not path.is_file():
         raise SystemExit(f"missing DTMF readiness asset: {path.relative_to(ROOT)}")
+if not PROVIDER_EVIDENCE_DIR.is_dir():
+    raise SystemExit(
+        "missing DTMF provider evidence directory: "
+        + str(PROVIDER_EVIDENCE_DIR.relative_to(ROOT))
+    )
 
 audit_text = AUDIT.read_text(encoding="utf-8")
 probe_text = PROBE.read_text(encoding="utf-8")
 doc_text = DOC.read_text(encoding="utf-8")
+
+provider_spec = importlib.util.spec_from_file_location(
+    "validate_dtmf_provider_evidence", str(PROVIDER_VALIDATOR)
+)
+if provider_spec is None or provider_spec.loader is None:
+    raise SystemExit("unable to load DTMF provider evidence validator")
+provider_validator = importlib.util.module_from_spec(provider_spec)
+provider_spec.loader.exec_module(provider_validator)
 
 required_audit_tokens = (
     "#!/bin/sh",
@@ -228,8 +244,131 @@ if matrix.get("asterisk_endpoint_modes") != [
     "auto_info",
 ]:
     raise SystemExit("DTMF capability matrix endpoint modes are incomplete")
-if matrix.get("interconnects") != []:
-    raise SystemExit("public repository matrix must not claim unverified carrier paths")
+
+provider_records = {}
+for record_path in sorted(PROVIDER_EVIDENCE_DIR.glob("*.json")):
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        provider_validator.validate_record(record)
+    except (
+        OSError,
+        json.JSONDecodeError,
+        provider_validator.ValidationError,
+    ) as exc:
+        raise SystemExit(
+            f"invalid DTMF provider evidence record {record_path.relative_to(ROOT)}: {exc}"
+        ) from exc
+    key = (record["provider_id"], record["route_id"])
+    if key in provider_records:
+        raise SystemExit(
+            "duplicate DTMF provider evidence record for sanitized provider and route"
+        )
+    provider_records[key] = record
+
+interconnects = matrix.get("interconnects")
+if not isinstance(interconnects, list):
+    raise SystemExit("DTMF capability matrix interconnects must be an array")
+
+entry_keys = {
+    "provider_id",
+    "route_id",
+    "direction",
+    "rfc4733",
+    "sip_info",
+    "inband",
+    "extended_abcd",
+    "last_reviewed_at",
+    "notes",
+}
+capability_keys = {
+    "rfc4733": {"status", "event_range", "evidence_reference"},
+    "sip_info": {"status", "evidence_reference"},
+    "inband": {"status", "codec_constraints", "evidence_reference"},
+    "extended_abcd": {"status", "evidence_reference"},
+}
+matrix_keys = set()
+
+for index, entry in enumerate(interconnects):
+    location = f"interconnects[{index}]"
+    if not isinstance(entry, dict) or set(entry) != entry_keys:
+        raise SystemExit(f"{location} has incomplete or unsupported fields")
+
+    provider_id = entry["provider_id"]
+    route_id = entry["route_id"]
+    for value, field in ((provider_id, "provider_id"), (route_id, "route_id")):
+        if not isinstance(value, str) or provider_validator.ID_RE.fullmatch(value) is None:
+            raise SystemExit(f"{location}.{field} is not a sanitized identifier")
+
+    key = (provider_id, route_id)
+    if key in matrix_keys:
+        raise SystemExit(f"duplicate DTMF matrix entry at {location}")
+    matrix_keys.add(key)
+
+    record = provider_records.get(key)
+    if record is None:
+        raise SystemExit(f"{location} lacks a validated provider evidence record")
+    if record["decision"]["matrix_eligible"] is not True:
+        raise SystemExit(f"{location} references an ineligible provider evidence record")
+    if record["decision"]["live_test_authorized"] is not False:
+        raise SystemExit(f"{location} provider evidence improperly authorizes a live test")
+    if record["decision"]["carrier_interoperability"] == "unverified":
+        raise SystemExit(f"{location} has no supported capability for matrix promotion")
+    if entry["direction"] != record["direction"]:
+        raise SystemExit(f"{location}.direction differs from provider evidence")
+
+    last_reviewed_at = entry["last_reviewed_at"]
+    if not isinstance(last_reviewed_at, str) or not last_reviewed_at.endswith("Z"):
+        raise SystemExit(f"{location}.last_reviewed_at must be a UTC timestamp")
+    if not isinstance(entry["notes"], str) or not entry["notes"].strip():
+        raise SystemExit(f"{location}.notes must explain the evidence boundary")
+
+    for name, expected_keys in capability_keys.items():
+        matrix_capability = entry[name]
+        if not isinstance(matrix_capability, dict) or set(matrix_capability) != expected_keys:
+            raise SystemExit(f"{location}.{name} has incomplete or unsupported fields")
+
+        evidence_capability = record["capabilities"][name]
+        status = matrix_capability["status"]
+        if status != evidence_capability["status"]:
+            raise SystemExit(f"{location}.{name}.status differs from provider evidence")
+
+        evidence_reference = matrix_capability["evidence_reference"]
+        evidence_refs = evidence_capability["evidence_refs"]
+        if status == "unknown":
+            if evidence_reference is not None or evidence_refs:
+                raise SystemExit(
+                    f"{location}.{name} must remain reference-free while unknown"
+                )
+        elif evidence_reference not in evidence_refs:
+            raise SystemExit(
+                f"{location}.{name} does not reference supporting provider evidence"
+            )
+
+        if name == "rfc4733":
+            if matrix_capability["event_range"] != evidence_capability["event_range"]:
+                raise SystemExit(
+                    f"{location}.rfc4733.event_range differs from provider evidence"
+                )
+            if status == "documented" and matrix_capability["event_range"] == "unknown":
+                raise SystemExit(
+                    f"{location}.rfc4733 lacks an evidence-backed event range"
+                )
+        elif name == "inband":
+            if matrix_capability["codec_constraints"] != evidence_capability["codec_constraints"]:
+                raise SystemExit(
+                    f"{location}.inband codec constraints differ from provider evidence"
+                )
+
+eligible_record_keys = {
+    key
+    for key, record in provider_records.items()
+    if record["decision"]["matrix_eligible"] is True
+}
+if matrix_keys != eligible_record_keys:
+    raise SystemExit(
+        "DTMF capability matrix entries do not exactly match eligible provider evidence records"
+    )
+
 if len(matrix.get("approval_boundaries", [])) < 4:
     raise SystemExit("DTMF capability matrix lacks approval boundaries")
 
