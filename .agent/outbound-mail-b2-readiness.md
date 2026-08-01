@@ -153,6 +153,7 @@ The evidence-only candidate contains exactly the status and prepare routes, rest
 ## Verified non-mutation markers from the accepted proposal
 
 - `hmac_secret_read=no`;
+- `certificate_private_key_read=no`;
 - `certificate_private_key_contents_read=no`;
 - `proxy_config_installed=no`;
 - `proxy_service_reloaded=no`;
