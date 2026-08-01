@@ -71,7 +71,7 @@ case "$EVIDENCE_DIR" in
     *) echo "ERROR evidence directory is outside the protected deployment root" >&2; exit 2 ;;
 esac
 
-for command in awk cat cp curl date dirname find git grep hostname id install node python3 readlink runuser sed sha256sum sort ss stat systemctl tee tr wc xargs; do
+for command in awk bash cat cp curl date dirname find git grep hostname id install node python3 readlink runuser sed sha256sum sleep sort ss stat systemctl tee tr wc xargs; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "ERROR missing command: $command" >&2
         exit 2
@@ -158,7 +158,6 @@ printf 'Required commit: %s\n' "$REQUIRED_COMMIT"
 printf 'Evidence directory: %s\n' "$EVIDENCE_DIR"
 printf 'Mutation boundary: analytics unit replacement and analytics service restart only; console service restart prohibited\n'
 
-
 echo
 echo "=== REPOSITORY PREFLIGHT ==="
 [ -f "$REPO_ROOT/.git/index" ] || { echo "ERROR repository index missing" >&2; exit 3; }
@@ -192,7 +191,6 @@ for path in \
     echo "present=$path"
 done
 
-
 echo
 echo "=== REPOSITORY VALIDATION ==="
 run_repo python3 tests/validate_telephony_anomaly_indicators.py
@@ -202,7 +200,6 @@ run_repo python3 tests/validate_telephony_anomaly_api_panel.py
 run_repo python3 tests/validate_telephony_anomaly_live_deployment.py
 run_repo node --check src/web/telephony/telephony.js
 run_repo node --check src/web/telephony/telephony-anomalies.js
-
 
 echo
 echo "=== CONSOLE PRECHECK — NO RESTART ==="
@@ -229,7 +226,6 @@ grep -Fq 'telephony-anomalies.js' "$EVIDENCE_DIR/console-index-before.html"
 grep -Fq 'id="analytics-anomalies"' "$EVIDENCE_DIR/console-index-before.html"
 curl -fsS --max-time 5 "$CONSOLE_URL/telephony-anomalies.js" >"$EVIDENCE_DIR/telephony-anomalies-before.js"
 curl -fsS --max-time 5 "$CONSOLE_URL/telephony-anomalies.css" >"$EVIDENCE_DIR/telephony-anomalies-before.css"
-
 
 echo
 echo "=== ANALYTICS PRECHECK AND ROLLBACK BASELINE ==="
@@ -263,7 +259,6 @@ for marker in \
 done
 sha256sum "$EVIDENCE_DIR/analytics-unit-candidate.service" | tee "$EVIDENCE_DIR/analytics-unit-candidate.sha256"
 
-
 echo
 echo "=== BOUNDED ANALYTICS DEPLOYMENT ==="
 mutation_started=1
@@ -271,7 +266,6 @@ install -m 0644 "$EVIDENCE_DIR/analytics-unit-candidate.service" "$ANALYTICS_UNI
 systemctl daemon-reload
 systemctl restart "$ANALYTICS_SERVICE"
 wait_for_url "$ANALYTICS_URL/healthz" 15
-
 
 echo
 echo "=== POST-DEPLOYMENT SERVICE VERIFICATION ==="
@@ -305,16 +299,14 @@ post_code=$(curl -sS --max-time 5 -o "$EVIDENCE_DIR/analytics-post-response.json
 printf '%s\n' "$post_code" | tee "$EVIDENCE_DIR/analytics-post-status.txt"
 [ "$post_code" = "405" ]
 
-
 echo
 echo "=== READ-ONLY LIVE ACCEPTANCE ==="
 ACCEPTANCE_TS=$(date -u +%Y%m%dT%H%M%SZ)
 ACCEPTANCE_EVID="/var/lib/wwcx-deployment-evidence/telephony-anomaly-api-panel-live-acceptance/$ACCEPTANCE_TS"
-sh "$REPO_ROOT/tools/telephony/telephony_anomaly_api_panel_live_acceptance_audit.sh" \
+bash "$REPO_ROOT/tools/telephony/telephony_anomaly_api_panel_live_acceptance_audit.sh" \
     --repo-root "$REPO_ROOT" \
     --evidence-dir "$ACCEPTANCE_EVID"
 printf '%s\n' "$ACCEPTANCE_EVID" | tee "$EVIDENCE_DIR/live-acceptance-evidence.txt"
-
 
 echo
 echo "=== FINAL REPOSITORY AND INDEX VERIFICATION ==="
