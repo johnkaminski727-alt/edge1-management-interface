@@ -1,6 +1,6 @@
 # Outbound Mail Phase B2 Readiness State
 
-Last reconciled: 2026-08-01 20:23 UTC  
+Last reconciled: 2026-08-01 20:48 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Parameter discovery issue: #233  
 Parent activation issue: #187
@@ -33,10 +33,6 @@ Accepted facts:
 - B2 template baseline: `f1f65571902c7f377c6a7ca9c52f634973a7635a`;
 - readiness state: `awaiting_explicit_b2_parameters`;
 - evidence directory: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-readiness/20260801T192818Z`;
-- proposed hostname: not supplied in that run;
-- proposed client CIDR: not supplied;
-- certificate full-chain path: not supplied;
-- certificate private-key path: not supplied;
 - unsigned preparation API: HTTP `401`;
 - send probe: HTTP `403`.
 
@@ -44,7 +40,7 @@ The audit completed without reading HMAC or certificate private-key contents and
 
 ## Historical baseline authorization record
 
-At the time the baseline audit was accepted:
+At the time of that baseline:
 
 - certificate/private-key content access authorized: **no**;
 - proxy installation or reload authorized: **no**;
@@ -52,54 +48,46 @@ At the time the baseline audit was accepted:
 - firewall change authorized: **no**;
 - production message authorized: **no**.
 
-A generic `Continue` does not authorize those privileged actions. This historical statement describes the accepted baseline at 19:28 UTC and is preserved unchanged even though later authorization expanded the project scope.
+A generic `Continue` does not authorize those privileged actions. This historical statement remains preserved even though later authorization expanded the bounded project scope.
 
-## Authorization received
+## Later authorization received
 
 At approximately 2026-08-01 19:40 UTC, after the remaining B2/C work and privileged boundaries were stated, the user wrote: `I am authorizing all work.`
 
-This is accepted as authorization to continue the outbound-mail project end to end, including bounded production configuration work after exact parameters, validation, rollback, and evidence requirements are satisfied. It does not waive credential secrecy, authorize disclosure or transmission of private-key/HMAC contents, permit destructive or irreversible work without a verified rollback, accept financial/legal terms, or define an unspecified production message or recipient.
+This authorizes bounded production configuration only after exact parameters, reviewed code, validation, rollback, and evidence requirements are satisfied. It does not authorize secret disclosure, destructive or irreversible work, financial or legal commitments, or an unspecified production message or recipient.
 
-## Live parameter discovery evidence
+## Accepted live parameter discovery
 
-### Edge1 first run
+### First run and remediation
 
-- captured at: `2026-08-01T20:08:56Z`;
-- audited HEAD: `880edfeb3b79941a1d8f50a5eb92b1efe985dc61`;
-- evidence: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-parameter-discovery/20260801T200856Z`;
+The first run at `2026-08-01T20:08:56Z` correctly identified Apache and the active certificate references but was marked not ready because the initial script probed `/healthz` rather than `/outbound-mail/healthz`. PR #243 merged the corrected health route and active-vhost selection as commit `672461ce0f996871be7613a5d6c16bf4950e986d`.
+
+### Corrected run
+
+The corrected discovery was executed through authenticated SSH by `wwadmin`; the audit ran as `root`.
+
+Accepted facts:
+
+- captured at: `2026-08-01T20:41:48Z`;
+- audited repository HEAD: `b5614ffc7ff309b50c8b799e155d41cf67433811`;
+- evidence: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-parameter-discovery/20260801T204148Z`;
+- hostname: `edge1.ww.cx`;
+- exact business159 source: `162.0.217.71/32`;
+- health: HTTP `200`;
 - unsigned preparation: HTTP `401`;
 - send probe: HTTP `403`;
-- Apache: active and enabled on port `443`;
-- gateway: active and enabled on `127.0.0.1:8104`;
-- private-key contents read: no;
-- HMAC secret read: no;
-- proxy/config/certificate/DNS/firewall/listener/website/provider/sender/message mutation: none.
+- active `edge1.ww.cx` vhost blocks: `2`;
+- approved full-chain references in the enabled site: `1`;
+- approved private-key references in the enabled site: `1`;
+- active TLS pair in the enabled site: yes;
+- full-chain path: `/etc/letsencrypt/live/edge1.ww.cx/fullchain.pem`;
+- private-key path: `/etc/letsencrypt/live/edge1.ww.cx/privkey.pem`;
+- readiness: `ready_for_phase_b2_proposal_validation`;
+- failures: `0`;
+- pending decisions: `0`;
+- SHA-256 evidence manifest: passed.
 
-The run was marked `not_ready` only because the discovery script incorrectly probed `/healthz`, which returned the gateway's expected HTTP `404` not-found response. The actual route `/outbound-mail/healthz` returned HTTP `200` during follow-up verification.
-
-The broad inventory counted both `cert.pem` and `fullchain.pem` for the same leaf certificate and counted private-key paths from every Apache vhost. The enabled `edge1.ww.cx` Apache vhost resolves the active pair unambiguously:
-
-```text
-/etc/letsencrypt/live/edge1.ww.cx/fullchain.pem
-/etc/letsencrypt/live/edge1.ww.cx/privkey.pem
-```
-
-The full chain covered `edge1.ww.cx`, `pbx.ww.cx`, and `sip.ww.cx`, and was valid from July 19, 2026 through October 17, 2026 at discovery time. The private-key path was root-owned with mode `0600`; contents were not read.
-
-### Business159
-
-- captured at: `2026-08-01T20:09:23Z`;
-- host: `business159.web-hosting.com`;
-- principal: `wwcxjywl`;
-- audited website HEAD: `6d65ba2833d7ac20fa962f5457dedc45f75a2c47`;
-- evidence: `/home/wwcxjywl/shared/ww-cx-website/evidence/outbound-mail-client-discovery/20260801T200923Z`;
-- successful egress services: `3`;
-- unique egress addresses: `1`;
-- measured address: `162.0.217.71`;
-- exact proposed source: `162.0.217.71/32`;
-- evidence manifest: SHA-256 verification passed;
-- readiness: `ready_for_edge1_b2_proposal_validation`;
-- configuration/secret/deployment/bridge/provider/sender/message mutation: none.
+The two vhost blocks are expected because the enabled site contains non-TLS and TLS blocks for the same hostname. They are not certificate ambiguity.
 
 ## Current exact proposal inputs
 
@@ -108,28 +96,43 @@ PROPOSED_HOSTNAME=edge1.ww.cx
 PROPOSED_CLIENT_CIDR=162.0.217.71/32
 CERTIFICATE_FULLCHAIN_PATH=/etc/letsencrypt/live/edge1.ww.cx/fullchain.pem
 CERTIFICATE_PRIVATE_KEY_PATH=/etc/letsencrypt/live/edge1.ww.cx/privkey.pem
+ACTIVE_VHOST=/etc/apache2/sites-enabled/edge1.ww.cx.conf
 ```
+
+## Apache-specific proposal package
+
+Live discovery proves Apache 2, not nginx, owns port 443. The next repository package therefore:
+
+- renders an Apache include fragment rather than an nginx server block;
+- validates the exact enabled `edge1.ww.cx` vhost;
+- accepts the standard Let's Encrypt `live` symlinks only when they resolve under `/etc/letsencrypt/archive/edge1.ww.cx/`;
+- inspects public certificate metadata but does not read private-key contents;
+- exposes exactly the status and prepare routes in the evidence-only candidate;
+- restricts both routes to `162.0.217.71/32`;
+- retains continued send denial and disabled external delivery.
+
+The expected proposal state is `ready_for_explicit_b2_apache_authorization`.
 
 ## Current authorization and execution state
 
 - B2 baseline audit execution: **accepted**;
 - B2 parameter discovery package: **merged and executed**;
-- discovery false-negative remediation: **in repository review**;
+- corrected discovery evidence: **accepted**;
+- Apache-specific proposal package: **in repository review**;
 - exact B2 hostname: **`edge1.ww.cx`**;
 - exact client source: **`162.0.217.71/32`**;
 - active proxy service: **Apache 2**;
-- active full-chain path: **identified**;
-- active private-key path: **identified by pathname metadata only**;
+- active certificate paths: **identified by enabled-vhost references and pathname metadata**;
 - certificate/private-key content disclosure: **prohibited**;
-- proxy installation or reload: **authorized only after exact proposal validation and rollback review**;
+- proxy installation or reload: **not yet executed**;
 - DNS change: **not currently indicated**;
-- firewall change: **not yet established as required**;
+- firewall change: **not currently indicated**;
 - public preparation route: **not yet activated**;
 - website bridge deployment/activation: **not yet activated**;
 - provider, sender, or delivery activation: **not yet configured**;
 - production message: **not defined or sent**.
 
-## Verified non-mutation markers from the accepted baseline and discovery
+## Verified non-mutation markers
 
 - `hmac_secret_read=no`;
 - `certificate_private_key_read=no`;
@@ -146,4 +149,4 @@ CERTIFICATE_PRIVATE_KEY_PATH=/etc/letsencrypt/live/edge1.ww.cx/privkey.pem
 
 ## Next execution gate
 
-Merge the discovery remediation, rerun the Edge1 discovery with `PROPOSED_CLIENT_CIDR=162.0.217.71/32`, verify its SHA-256 evidence manifest, and require `ready_for_phase_b2_proposal_validation`. Then run the existing non-mutating Phase B2 proposal audit with all four exact values. Live Apache configuration follows only after that proposal passes and an exact backup, syntax check, graceful reload, source-restriction canary, and rollback procedure are captured.
+Merge and run the Apache-specific proposal audit. Require `ready_for_explicit_b2_apache_authorization` and a valid evidence manifest before reviewing a rollback-capable Apache installer. No live route, reload, website bridge, provider, sender, delivery, or message action may precede that acceptance.
