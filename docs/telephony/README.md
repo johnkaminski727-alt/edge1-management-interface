@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md). Provider claims must pass the privacy-safe [DTMF Provider Evidence Intake](dtmf-provider-evidence-intake.md) before promotion into the capability matrix.
 
 ## Preview
 
@@ -29,6 +29,7 @@ Open `http://127.0.0.1:8088/telephony/` through an approved local or private con
 - SIP failure classification and interconnect summaries
 - read-only Asterisk DTMF policy inventory and offline complete 16-key signal validation
 - sanitized reconciliation of runtime PJSIP object counts against generated endpoint-policy records
+- evidence-gated provider capability intake that rejects unsupported or privacy-bearing claims
 
 ## Adapter boundary
 
@@ -48,7 +49,7 @@ propose -> inspect -> validate -> approve/reject -> operator-controlled apply ->
 
 The browser must never connect directly to PBX, carrier, or gateway administrative interfaces. A localhost-only API wrapper will normalize and redact approved data sources.
 
-The DTMF readiness and endpoint-policy reconciliation audits perform no call or channel creation, no tone or SIP request transmission, no database query, and no endpoint, trunk, route, carrier, or emergency-calling change. Carrier interoperability remains unknown until supported by provider documentation or a separately authorized controlled test.
+The DTMF readiness and endpoint-policy reconciliation audits perform no call or channel creation, no tone or SIP request transmission, no database query, and no endpoint, trunk, route, carrier, or emergency-calling change. The provider evidence intake does not contact providers or authorize a live test. Carrier interoperability remains unknown until supported by provider-specific technical documentation or a separately authorized controlled test.
 
 ## Validation
 
@@ -59,6 +60,9 @@ python3 tests/validate_telephony_console.py
 python3 tests/validate_telephony_platform.py
 python3 tests/validate_asterisk_dtmf_readiness_audit.py
 python3 tests/validate_asterisk_pjsip_endpoint_policy_reconciliation.py
+python3 tests/test_validate_dtmf_provider_evidence.py
+python3 tools/telephony/validate_dtmf_provider_evidence.py \
+  examples/telephony/dtmf-provider-evidence.example.json
 ```
 
 ## Operator acceptance
@@ -71,12 +75,14 @@ The authenticated DTMF audit completed on `edge1.ww.cx` with exit code `0`, one 
 
 ## Next implementation slice
 
-1. populate the sanitized carrier capability matrix from reliable provider documentation only
-2. leave unsupported or undocumented carrier capabilities as `unknown`
-3. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
-4. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
-5. add sanitized CDR and SIP-event collectors
-6. add health-score, failure-class, and carrier-performance console panels
-7. add append-only report-generation audit events
-8. add bounded anomaly indicators without automatic enforcement
-9. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
+1. use the sanitized evidence-intake record for each genuine provider and route candidate
+2. obtain provider-specific RFC 4733, event-range, SIP INFO, in-band, codec, and extended-key documentation
+3. populate the carrier capability matrix only from records that pass evidence validation
+4. leave unsupported or undocumented carrier capabilities as `unknown`
+5. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
+6. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
+7. add sanitized CDR and SIP-event collectors
+8. add health-score, failure-class, and carrier-performance console panels
+9. add append-only report-generation audit events
+10. add bounded anomaly indicators without automatic enforcement
+11. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
