@@ -64,6 +64,7 @@ ODBC_GATE="$REPO_ROOT/tools/security/asterisk_res_odbc_path_audit.sh"
 DROPIN_DIR=/etc/systemd/system/mariadb.socket.d
 DROPIN="$DROPIN_DIR/10-loopback-only.conf"
 EXPECTED_SOURCE_SHA=c5365e2d9bd882fcf62a8676b98f8f996094c5b5e45572fe9a0244b7f4f32fea
+POST_CHANGE_ATTEMPTS=60
 ROLLBACK_ARMED=0
 
 mkdir -p "$EVIDENCE_DIR"
@@ -128,10 +129,12 @@ rollback() {
     verify_units "$EVIDENCE_DIR/systemd-verify-rollback.txt" mariadb.socket mariadb.service || verify_rc=$?
 
     restart_mariadb_pair || return 1
+    wait_for_ucp_runtime "$EVIDENCE_DIR/tcp-listeners-after-rollback.txt" || return 1
     systemctl show mariadb.socket mariadb.service \
         >"$EVIDENCE_DIR/systemd-after-rollback.txt" 2>&1 || true
-    ss -H -ltnpe >"$EVIDENCE_DIR/tcp-listeners-after-rollback.txt" 2>&1 || true
     ss -H -lxnp >"$EVIDENCE_DIR/unix-listeners-after-rollback.txt" 2>&1 || true
+    ss -Htnpe state established \
+        >"$EVIDENCE_DIR/mariadb-connections-after-rollback.txt" 2>&1 || true
     journalctl -u mariadb.socket -u mariadb.service -u freepbx.service \
         --since '-10 minutes' --no-pager \
         >"$EVIDENCE_DIR/journal-after-rollback.txt" 2>&1 || true
@@ -191,6 +194,39 @@ ucp_loopback_connection_reestablished() {
         '
 }
 
+wait_for_ucp_runtime() {
+    tcp_output=$1
+    attempt=1
+    while [ "$attempt" -le "$POST_CHANGE_ATTEMPTS" ]; do
+        ss -H -ltnpe >"$tcp_output" 2>&1 || return 1
+        if ucp_contract_ok "$tcp_output" && ucp_loopback_connection_reestablished; then
+            return 0
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+wait_for_post_change_runtime() {
+    attempt=1
+    while [ "$attempt" -le "$POST_CHANGE_ATTEMPTS" ]; do
+        ss -H -ltnpe >"$EVIDENCE_DIR/tcp-listeners-after.txt" 2>&1 || return 1
+        ss -H -lxnp >"$EVIDENCE_DIR/unix-listeners-after.txt" 2>&1 || return 1
+        if listener_contract_ok "$EVIDENCE_DIR/tcp-listeners-after.txt" && \
+           unix_contract_ok "$EVIDENCE_DIR/unix-listeners-after.txt" && \
+           ucp_contract_ok "$EVIDENCE_DIR/tcp-listeners-after.txt" && \
+           ucp_loopback_connection_reestablished; then
+            printf '%s\n' "$attempt" >"$EVIDENCE_DIR/post-change-readiness-attempts.txt"
+            return 0
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    printf '%s\n' "$POST_CHANGE_ATTEMPTS" >"$EVIDENCE_DIR/post-change-readiness-attempts.txt"
+    return 1
+}
+
 log "WW.CX MARIADB LOOPBACK SOCKET HARDENING"
 log "Host: $HOST"
 log "Time: $(date -Is)"
@@ -247,25 +283,16 @@ log "Restarting MariaDB socket and service as one bounded maintenance action"
 restart_mariadb_pair || fail_after_mutation "MariaDB socket/service restart failed"
 
 systemctl show mariadb.socket mariadb.service >"$EVIDENCE_DIR/systemd-after.txt" 2>&1 || fail_after_mutation "could not capture post-change systemd state"
-ss -H -ltnpe >"$EVIDENCE_DIR/tcp-listeners-after.txt" 2>&1 || fail_after_mutation "could not capture TCP listeners"
-ss -H -lxnp >"$EVIDENCE_DIR/unix-listeners-after.txt" 2>&1 || fail_after_mutation "could not capture Unix listeners"
 
-listener_contract_ok "$EVIDENCE_DIR/tcp-listeners-after.txt" || fail_after_mutation "TCP 3306 does not match IPv4/IPv6 loopback-only contract"
-unix_contract_ok "$EVIDENCE_DIR/unix-listeners-after.txt" || fail_after_mutation "required MariaDB Unix sockets are missing"
-ucp_contract_ok "$EVIDENCE_DIR/tcp-listeners-after.txt" || fail_after_mutation "UCP listeners changed unexpectedly"
-
-log "Waiting for the local FreePBX/UCP database relationship to re-establish"
-reconnected=0
-attempt=1
-while [ "$attempt" -le 30 ]; do
-    if ucp_loopback_connection_reestablished; then
-        reconnected=1
-        break
-    fi
-    sleep 1
-    attempt=$((attempt + 1))
-done
-[ "$reconnected" -eq 1 ] || fail_after_mutation "the local UCP Node MariaDB TCP relationship did not re-establish within 30 seconds"
+log "Waiting up to $POST_CHANGE_ATTEMPTS seconds for MariaDB and FreePBX/UCP readiness"
+if ! wait_for_post_change_runtime; then
+    listener_contract_ok "$EVIDENCE_DIR/tcp-listeners-after.txt" || fail_after_mutation "TCP 3306 does not match IPv4/IPv6 loopback-only contract"
+    unix_contract_ok "$EVIDENCE_DIR/unix-listeners-after.txt" || fail_after_mutation "required MariaDB Unix sockets are missing"
+    ucp_contract_ok "$EVIDENCE_DIR/tcp-listeners-after.txt" || fail_after_mutation "UCP listeners did not recover within the readiness window"
+    ucp_loopback_connection_reestablished || fail_after_mutation "the local UCP Node MariaDB TCP relationship did not recover within the readiness window"
+    fail_after_mutation "post-change MariaDB/UCP readiness timed out"
+fi
+log "Post-change MariaDB and UCP readiness gate passed"
 
 ss -Htnpe state established 2>/dev/null |
     awk '
