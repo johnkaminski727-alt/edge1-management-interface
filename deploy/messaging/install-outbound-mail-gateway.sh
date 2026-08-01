@@ -155,8 +155,14 @@ rollback() {
 trap rollback EXIT
 trap 'exit 130' HUP INT TERM
 
+if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
+  groupadd --system "$SERVICE_GROUP"
+fi
 if ! id "$SERVICE_USER" >/dev/null 2>&1; then
-  useradd --system --home-dir "$STATE_DIR" --create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+  useradd --system --gid "$SERVICE_GROUP" --home-dir "$STATE_DIR" --create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+elif [ "$(id -gn "$SERVICE_USER")" != "$SERVICE_GROUP" ]; then
+  echo "Existing service user $SERVICE_USER has unexpected primary group $(id -gn "$SERVICE_USER")." >&2
+  exit 1
 fi
 
 install -d -m 0750 -o "$SERVICE_USER" -g "$SERVICE_GROUP" "$STATE_DIR"
