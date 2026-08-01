@@ -57,7 +57,6 @@ chmod 0700 "$HOME/.local/libexec/wwcx/capture_cpanel_mail_inventory.sh"
 
 sh "$HOME/.local/libexec/wwcx/capture_cpanel_mail_inventory.sh" \
   --output "$HOME/private-mail-evidence/$(date -u +%Y%m%dT%H%M%SZ)" \
-  --user "$(id -un)" \
   --domain creekco.ca \
   --domain scgardens.ca \
   --domain omegafx.com
@@ -85,6 +84,14 @@ Email list_filters
 It validates that every UAPI response reports success and writes `SHA256SUMS` plus restricted `metadata.json`.
 
 The official cPanel UAPI documentation identifies `Email::list_pops` as the email-account listing function, `Email::list_forwarders` and `Email::list_domain_forwarders` as forwarder listing functions, and `Email::list_default_address` as the default or catch-all address inspection function. The capture script intentionally excludes all corresponding mutation functions.
+
+### Shared-hosting caveats observed on business159
+
+The Namecheap `business159` jailed shell exposes `/usr/local/cpanel/bin/uapi`, but the wrapper cannot execute its missing `/usr/local/cpanel/cpanel` backend. In that environment, use an authenticated browser-session UAPI call or a short-lived cPanel API token from Windows PowerShell instead of retrying the SSH wrapper.
+
+Remote password-based HTTP Basic authentication returned HTTP 401 on this account. A cPanel API token succeeded with the documented header form `Authorization: cpanel USER:TOKEN`. The token must be short-lived, must never be written into evidence, and must be revoked immediately after capture.
+
+A valid capture must authenticate and complete a read-only probe before creating an evidence directory. Do not mark a bundle complete when it contains only locally generated metadata and checksums.
 
 ## Namecheap Private Email capture
 
