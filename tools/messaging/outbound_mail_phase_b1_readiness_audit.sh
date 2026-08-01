@@ -46,7 +46,12 @@ fail() {
 }
 
 branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)
-head_commit=$(git -C "$REPO_ROOT" rev-parse HEAD)
+if head_commit=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null); then
+  :
+else
+  head_commit=unknown
+  fail "repository HEAD could not be resolved"
+fi
 record captured_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 record host "$host_fqdn"
 record principal "$(id -un)"
@@ -81,16 +86,18 @@ printf '%s\n' "$protected_paths" > "$output_dir/protected-paths.txt"
 if ! git -C "$REPO_ROOT" diff --quiet "$PHASE_B_PACKAGE_COMMIT"..HEAD -- $protected_paths; then
   fail "protected outbound-mail files changed after the approved Phase B package commit"
   git -C "$REPO_ROOT" diff --name-only "$PHASE_B_PACKAGE_COMMIT"..HEAD -- $protected_paths \
-    > "$output_dir/protected-path-changes.txt"
+    > "$output_dir/protected-path-changes.txt" || true
 else
   : > "$output_dir/protected-path-changes.txt"
 fi
 
-git -C "$REPO_ROOT" status --short --branch > "$output_dir/git-status.txt"
+git -C "$REPO_ROOT" status --short --branch > "$output_dir/git-status.txt" 2>&1 || \
+  fail "git status capture failed"
 git -C "$REPO_ROOT" log -1 --format='commit=%H%nauthor_date=%aI%ncommitter_date=%cI%nsubject=%s' \
-  > "$output_dir/git-head.txt"
+  > "$output_dir/git-head.txt" 2>&1 || fail "git HEAD metadata capture failed"
 
-python3 - "$REPO_ROOT" "$output_dir/committed-safety.json" <<'PY'
+if ! python3 - "$REPO_ROOT" "$output_dir/committed-safety.json" \
+  2> "$output_dir/committed-safety-error.txt" <<'PY'
 import json
 import pathlib
 import sys
@@ -116,8 +123,7 @@ state = {
     "outbound_identity_activation_authorized": identities["outbound_activation_authorized"],
     "live_sender_count": sum(1 for item in identities["sender_profiles"].values() if item["outbound_enabled"]),
 }
-
-assert state == {
+expected = {
     "gateway_enabled": False,
     "deployment_authorized": False,
     "external_delivery_authorized": False,
@@ -133,7 +139,12 @@ assert state == {
     "live_sender_count": 0,
 }
 out.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+if state != expected:
+    raise SystemExit("committed outbound-mail safety state does not match the Phase B1 prerequisite")
 PY
+then
+  fail "committed outbound-mail safety validation failed"
+fi
 
 if ! systemctl is-active --quiet "$SERVICE_NAME"; then
   fail "$SERVICE_NAME is not active"
@@ -145,19 +156,20 @@ systemctl status "$SERVICE_NAME" --no-pager -l > "$output_dir/service-status.txt
 systemctl show "$SERVICE_NAME" \
   -p ActiveState -p SubState -p UnitFileState -p FragmentPath -p DropInPaths \
   -p User -p Group -p ExecStart -p MainPID -p EnvironmentFiles \
-  > "$output_dir/service-properties.txt"
+  > "$output_dir/service-properties.txt" 2>&1 || fail "service property capture failed"
 
-if ! systemctl show "$SERVICE_NAME" -p User --value | grep -qx 'wwcx-mail-gateway'; then
+if ! systemctl show "$SERVICE_NAME" -p User --value 2>/dev/null | grep -qx 'wwcx-mail-gateway'; then
   fail "service principal is not wwcx-mail-gateway"
 fi
 
-ss -lntp > "$output_dir/listeners.txt" 2>&1 || true
-if ! ss -lnt 2>/dev/null | awk 'NR > 1 {print $4}' | grep -Eq '(^|\[)127\.0\.0\.1:8104$'; then
+ss -lntp > "$output_dir/listeners.txt" 2>&1 || fail "listener inventory failed"
+port_addresses="$output_dir/port-8104-addresses.txt"
+ss -lnt 2>/dev/null | awk 'NR > 1 {print $4}' | grep -E ':8104$' > "$port_addresses" || true
+if ! grep -qx '127.0.0.1:8104' "$port_addresses"; then
   fail "loopback listener 127.0.0.1:8104 was not observed"
 fi
-if ss -lnt 2>/dev/null | awk 'NR > 1 {print $4}' | grep -Eq '(^0\.0\.0\.0:8104$|^\[::\]:8104$|^[^:]+:8104$)' \
-  && ! ss -lnt 2>/dev/null | awk 'NR > 1 {print $4}' | grep -Eq '^127\.0\.0\.1:8104$'; then
-  fail "port 8104 may be exposed beyond loopback"
+if grep -Ev '^127\.0\.0\.1:8104$' "$port_addresses" | grep -q .; then
+  fail "port 8104 has a non-approved listener address"
 fi
 
 curl -fsS --max-time 5 http://127.0.0.1:8104/outbound-mail/healthz \
@@ -180,7 +192,7 @@ if [ "$send_code" != 403 ]; then
   fail "send probe did not return HTTP 403"
 fi
 
-python3 - "$output_dir/status.json" <<'PY'
+if ! python3 - "$output_dir/status.json" 2> "$output_dir/status-validation-error.txt" <<'PY'
 import json
 import pathlib
 import sys
@@ -194,6 +206,9 @@ assert status["preparation_api"]["runtime_secret_configured"] is False
 assert status["sender_selection"]["live_sender_count"] == 0
 assert not any(item["ready"] for item in status["providers"])
 PY
+then
+  fail "runtime status safety validation failed"
+fi
 
 runtime_metadata="$output_dir/runtime-file-metadata.tsv"
 printf 'path\tpresent\ttype\tuid\tmode\tbytes\n' > "$runtime_metadata"
