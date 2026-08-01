@@ -81,7 +81,94 @@ systemctl show "$SERVICE_NAME" -p ActiveState -p SubState -p FragmentPath -p Dro
 ss -lntp > "$EVIDENCE_DIR/listeners-before.txt" 2>&1 || true
 curl -fsS http://127.0.0.1:8104/outbound-mail/status > "$EVIDENCE_DIR/status-before.json"
 
+python3 - "$REPO_ROOT" <<'PY'
+import json
+import pathlib
+import sys
+root = pathlib.Path(sys.argv[1])
+config = json.loads((root / "config/messaging/outbound-mail-gateway.json").read_text(encoding="utf-8"))
+policy = json.loads((root / "config/messaging/outbound-mail-policy.json").read_text(encoding="utf-8"))
+identities = json.loads((root / "config/messaging/mail-identities.json").read_text(encoding="utf-8"))
+assert config["listen"] == {"host": "127.0.0.1", "port": 8104}
+assert config["enabled"] is False
+assert config["external_delivery_authorized"] is False
+assert config["admin"]["send_endpoint_enabled"] is False
+assert config["preparation_api"]["enabled"] is False
+assert config["provider"]["selected"] == "none"
+assert not any(profile["enabled"] for profile in config["provider"]["profiles"].values())
+assert policy["enabled"] is False
+assert policy["smtp_cutover_authorized"] is False
+assert policy["delivery"]["allow_external_submission"] is False
+assert policy["delivery"]["allow_live_delivery"] is False
+assert identities["outbound_activation_authorized"] is False
+assert not any(profile["outbound_enabled"] for profile in identities["sender_profiles"].values())
+PY
+
+rollback_dir=$(mktemp -d)
+chmod 0700 "$rollback_dir"
+runtime_tmp=
+env_tmp=
+dropin_tmp=
+success=false
+mutated=false
+
+for path in "$DROPIN_TARGET" "$ENV_FILE" "$RUNTIME_CONFIG"; do
+  name=$(basename "$path")
+  if [ -f "$path" ]; then
+    cp -a "$path" "$rollback_dir/$name"
+    printf '%s=present mode=%s\n' "$name" "$(stat -c %a "$path")" >> "$EVIDENCE_DIR/prior-runtime-files.txt"
+  else
+    printf '%s=absent\n' "$name" >> "$EVIDENCE_DIR/prior-runtime-files.txt"
+  fi
+done
+
+cleanup_temporaries() {
+  [ -z "$runtime_tmp" ] || rm -f "$runtime_tmp"
+  [ -z "$env_tmp" ] || rm -f "$env_tmp"
+  [ -z "$dropin_tmp" ] || rm -f "$dropin_tmp"
+  rm -rf "$rollback_dir"
+  unset secret 2>/dev/null || true
+}
+
+restore_prior() {
+  echo "Phase B1 operation failed; restoring prior runtime files and service state." >&2
+  install -d -m 0755 "$RUNTIME_DIR" "$DROPIN_DIR"
+  for path in "$DROPIN_TARGET" "$ENV_FILE" "$RUNTIME_CONFIG"; do
+    name=$(basename "$path")
+    if [ -f "$rollback_dir/$name" ]; then
+      cp -a "$rollback_dir/$name" "$path"
+    else
+      rm -f "$path"
+    fi
+  done
+  rmdir "$DROPIN_DIR" 2>/dev/null || true
+  systemctl daemon-reload || true
+  systemctl restart "$SERVICE_NAME" || true
+  systemctl status "$SERVICE_NAME" --no-pager -l > "$EVIDENCE_DIR/service-after-rollback.txt" 2>&1 || true
+}
+
+on_exit() {
+  rc=$?
+  trap - EXIT HUP INT TERM
+  if [ "$success" != true ] && [ "$mutated" = true ]; then
+    restore_prior
+  fi
+  cleanup_temporaries
+  exit "$rc"
+}
+on_signal() {
+  trap - EXIT HUP INT TERM
+  if [ "$success" != true ] && [ "$mutated" = true ]; then
+    restore_prior
+  fi
+  cleanup_temporaries
+  exit 130
+}
+trap on_exit EXIT
+trap on_signal HUP INT TERM
+
 if [ "$ACTION" = disable ]; then
+  mutated=true
   rm -f "$DROPIN_TARGET" "$ENV_FILE" "$RUNTIME_CONFIG"
   rmdir "$DROPIN_DIR" 2>/dev/null || true
   systemctl daemon-reload
@@ -95,6 +182,9 @@ if [ "$ACTION" = disable ]; then
     find . -type f ! -name SHA256SUMS -print | sort | xargs sha256sum > SHA256SUMS
   )
   chmod -R go-rwx "$EVIDENCE_DIR"
+  success=true
+  cleanup_temporaries
+  trap - EXIT HUP INT TERM
   echo "Preparation API disabled and Phase A service restored."
   echo "Evidence: $EVIDENCE_DIR"
   exit 0
@@ -137,65 +227,9 @@ if [ "${#secret}" -lt 43 ] || [ "${#secret}" -gt 256 ]; then
 fi
 printf 'secret_length=%s\n' "${#secret}" >> "$EVIDENCE_DIR/preflight.txt"
 
-python3 - "$REPO_ROOT" <<'PY'
-import json
-import pathlib
-import sys
-root = pathlib.Path(sys.argv[1])
-config = json.loads((root / "config/messaging/outbound-mail-gateway.json").read_text(encoding="utf-8"))
-policy = json.loads((root / "config/messaging/outbound-mail-policy.json").read_text(encoding="utf-8"))
-identities = json.loads((root / "config/messaging/mail-identities.json").read_text(encoding="utf-8"))
-assert config["listen"] == {"host": "127.0.0.1", "port": 8104}
-assert config["enabled"] is False
-assert config["external_delivery_authorized"] is False
-assert config["admin"]["send_endpoint_enabled"] is False
-assert config["preparation_api"]["enabled"] is False
-assert config["provider"]["selected"] == "none"
-assert not any(profile["enabled"] for profile in config["provider"]["profiles"].values())
-assert policy["enabled"] is False
-assert policy["smtp_cutover_authorized"] is False
-assert policy["delivery"]["allow_external_submission"] is False
-assert policy["delivery"]["allow_live_delivery"] is False
-assert identities["outbound_activation_authorized"] is False
-assert not any(profile["outbound_enabled"] for profile in identities["sender_profiles"].values())
-PY
-
-backup_dir="$EVIDENCE_DIR/rollback"
-install -d -m 0700 "$backup_dir"
-for path in "$DROPIN_TARGET" "$ENV_FILE" "$RUNTIME_CONFIG"; do
-  if [ -f "$path" ]; then
-    cp -a "$path" "$backup_dir/$(basename "$path")"
-  fi
-done
-
 runtime_tmp=$(mktemp)
 env_tmp=$(mktemp)
 dropin_tmp=$(mktemp)
-success=false
-rollback() {
-  rc=$?
-  rm -f "$runtime_tmp" "$env_tmp" "$dropin_tmp"
-  unset secret
-  if [ "$success" = true ]; then
-    return
-  fi
-  echo "Phase B1 activation failed; restoring prior runtime files and service state." >&2
-  for path in "$DROPIN_TARGET" "$ENV_FILE" "$RUNTIME_CONFIG"; do
-    name=$(basename "$path")
-    if [ -f "$backup_dir/$name" ]; then
-      install -m "$(stat -c %a "$backup_dir/$name")" "$backup_dir/$name" "$path"
-    else
-      rm -f "$path"
-    fi
-  done
-  rmdir "$DROPIN_DIR" 2>/dev/null || true
-  systemctl daemon-reload || true
-  systemctl restart "$SERVICE_NAME" || true
-  systemctl status "$SERVICE_NAME" --no-pager -l > "$EVIDENCE_DIR/service-after-rollback.txt" 2>&1 || true
-  exit "$rc"
-}
-trap rollback EXIT HUP INT TERM
-
 python3 - "$REPO_ROOT/config/messaging/outbound-mail-gateway.json" "$runtime_tmp" <<'PY'
 import json
 import pathlib
@@ -215,6 +249,7 @@ printf 'WWCX_MAIL_GATEWAY_TOKEN=%s\n' "$secret" > "$env_tmp"
 unset secret
 sed "s#/opt/edge1-management-interface#$REPO_ROOT#g" "$DROPIN_SOURCE" > "$dropin_tmp"
 
+mutated=true
 install -d -m 0755 "$RUNTIME_DIR" "$DROPIN_DIR"
 install -m 0644 -o root -g root "$runtime_tmp" "$RUNTIME_CONFIG"
 install -m 0600 -o root -g root "$env_tmp" "$ENV_FILE"
@@ -248,12 +283,12 @@ PY
 
 (
   cd "$EVIDENCE_DIR"
-  find . -type f ! -path './rollback/*' ! -name SHA256SUMS -print | sort | xargs sha256sum > SHA256SUMS
+  find . -type f ! -name SHA256SUMS -print | sort | xargs sha256sum > SHA256SUMS
 )
 chmod -R go-rwx "$EVIDENCE_DIR"
 
 success=true
-rm -f "$runtime_tmp" "$env_tmp" "$dropin_tmp"
+cleanup_temporaries
 trap - EXIT HUP INT TERM
 
 echo "WW.CX outbound mail preparation API enabled on loopback only."
