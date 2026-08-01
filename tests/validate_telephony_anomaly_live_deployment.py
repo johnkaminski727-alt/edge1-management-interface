@@ -7,11 +7,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = ROOT / "deploy/telephony/telephony-anomaly-api-panel-deploy.sh"
+DEPLOY_V2 = ROOT / "deploy/telephony/telephony-anomaly-api-panel-deploy-v2.sh"
 AUDIT = ROOT / "tools/telephony/telephony_anomaly_api_panel_live_acceptance_audit.sh"
 VALIDATOR = ROOT / "tools/telephony/validate_telephony_analytics_evidence.py"
 DOC = ROOT / "docs/telephony/anomaly-api-panel-live-deployment.md"
 
-for path in (DEPLOY, AUDIT, VALIDATOR, DOC):
+for path in (DEPLOY, DEPLOY_V2, AUDIT, VALIDATOR, DOC):
     if not path.is_file():
         raise SystemExit(f"missing anomaly deployment asset: {path.relative_to(ROOT)}")
 
@@ -32,6 +33,8 @@ for marker in (
     if marker not in validator_source:
         raise SystemExit(f"analytics evidence validator missing anomaly marker: {marker}")
 
+# The original script remains the analytics-only rollback engine. The v2 wrapper
+# performs the required canonical console process refresh before invoking it.
 deploy_source = DEPLOY.read_text(encoding="utf-8")
 for marker in (
     "#!/bin/bash",
@@ -52,7 +55,7 @@ for marker in (
     "rollback_required=no",
 ):
     if marker not in deploy_source:
-        raise SystemExit(f"deployment script missing safety marker: {marker}")
+        raise SystemExit(f"analytics deployment engine missing safety marker: {marker}")
 
 for forbidden in (
     'systemctl restart "$CONSOLE_SERVICE"',
@@ -68,7 +71,7 @@ for forbidden in (
     "iptables",
 ):
     if forbidden in deploy_source:
-        raise SystemExit(f"deployment script contains prohibited marker: {forbidden}")
+        raise SystemExit(f"analytics deployment engine contains prohibited marker: {forbidden}")
 
 audit_source = AUDIT.read_text(encoding="utf-8")
 for marker in (
@@ -105,14 +108,15 @@ for forbidden in (
     if forbidden in audit_source:
         raise SystemExit(f"read-only live audit contains mutation marker: {forbidden}")
 
-doc_source = DOC.read_text(encoding="utf-8")
-doc_source_lower = doc_source.lower()
+doc_source_lower = DOC.read_text(encoding="utf-8").lower()
 for marker in (
+    "corrected operator entrypoint",
+    "2026-08-01 live correction",
     "mutation scope",
     "pre-deployment gates",
-    "automatic rollback",
+    "console refresh verification",
+    "automatic analytics rollback",
     "live acceptance",
-    "console service is not restarted",
     "no telephony traffic",
 ):
     if marker not in doc_source_lower:
