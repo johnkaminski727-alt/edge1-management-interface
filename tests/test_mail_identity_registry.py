@@ -67,6 +67,23 @@ class MailIdentityRegistryTests(unittest.TestCase):
         self.assertEqual(selection.reason, "original_recipient")
         self.assertEqual(selection.reply_to, "support@creekco.ca")
 
+    def test_reconciled_creekco_identities_select_themselves(self) -> None:
+        expected = {
+            "accessibility@creekco.ca": "creekco-accessibility",
+            "noc@creekco.ca": "creekco-noc",
+        }
+        for address, profile_key in expected.items():
+            with self.subTest(address=address):
+                selection = MODULE.resolve_sender(
+                    self.registry,
+                    {"original_recipient": address},
+                )
+                self.assertEqual(selection.address, address)
+                self.assertEqual(selection.identity_key, profile_key)
+                self.assertEqual(selection.reason, "original_recipient")
+                self.assertEqual(selection.reply_to, address)
+                self.assertFalse(selection.live_enabled)
+
     def test_identity_hint_and_default_sender(self) -> None:
         hinted = MODULE.resolve_sender(
             self.registry,

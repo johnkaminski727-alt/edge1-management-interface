@@ -54,6 +54,8 @@
       "regulatory@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
       "complaints@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
       "porting@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
+      "accessibility@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
+      "noc@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
       "privacy@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
       "postmaster@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
       "abuse@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},

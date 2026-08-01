@@ -28,10 +28,10 @@ The disabled configuration manages:
 - `scgardens.ca`;
 - `omegafx.com`.
 
-There are 35 named routes:
+There are 37 named routes:
 
 - five private `john@...` routes deliver to `john-inbox@ww.cx`;
-- thirty company and role routes deliver to `maildesk@ww.cx`.
+- thirty-two company and role routes deliver to `maildesk@ww.cx`.
 
 Unknown recipients at a managed domain are quarantined. Recipients outside the managed domains are rejected. Catch-all delivery is not enabled.
 
@@ -52,12 +52,21 @@ These addresses are private to John and converge only on `john-inbox@ww.cx`:
 All non-`john@...` addresses converge on `maildesk@ww.cx`. This includes:
 
 - WW.CX records, privacy, security, postmaster, and abuse;
-- CreekCo contact, support, billing, sales, regulatory, complaints, porting, privacy, postmaster, and abuse;
+- CreekCo contact, support, billing, sales, regulatory, complaints, porting, accessibility, network operations, privacy, postmaster, and abuse;
 - Spirit Creek Gardens contact, records, accounts, privacy, postmaster, and abuse;
 - short gardens contact, records, postmaster, and abuse;
 - OmegaFX contact, records, privacy, postmaster, and abuse.
 
 The shared mailbox can later be delegated, ticketed, or connected to workflows without exposing the private John mailbox.
+
+## Reconciled CreekCo identities
+
+Round-trip tests performed on 2026-07-28 demonstrated inbound delivery and matching outbound reply identity for `accessibility@creekco.ca` and `noc@creekco.ca`. Those two operational identities are now represented in both the inbound route table and the automatic sender-selection map:
+
+- `accessibility@creekco.ca` — accessibility requests, accommodation correspondence, and accessible-service support;
+- `noc@creekco.ca` — network operations, maintenance, carrier coordination, incidents, and technical escalation.
+
+Both deliver internally to `maildesk@ww.cx`. Their sender profiles remain `outbound_enabled: false`; registering the identities does not authorize live gateway delivery.
 
 ## Routing model
 
@@ -95,6 +104,14 @@ Inbound to john@spiritcreekgardens.com
 Inbound to support@creekco.ca
   -> deliver to maildesk@ww.cx
   -> reply from support@creekco.ca
+
+Inbound to accessibility@creekco.ca
+  -> deliver to maildesk@ww.cx
+  -> reply from accessibility@creekco.ca
+
+Inbound to noc@creekco.ca
+  -> deliver to maildesk@ww.cx
+  -> reply from noc@creekco.ca
 ```
 
 ## API
@@ -121,7 +138,7 @@ Before enabling inbound routing:
 4. configure access controls proving shared operators cannot read the private mailbox;
 5. inventory every existing mailbox, alias, forwarder, list, and catch-all on all five domains;
 6. select and authenticate an inbound provider adapter;
-7. test all five private routes and all thirty shared routes;
+7. test all five private routes and all thirty-two shared routes;
 8. verify original-recipient preservation, duplicates, loops, bounces, quarantine, and rollback;
 9. obtain explicit authorization for each provider-routing or MX cutover.
 

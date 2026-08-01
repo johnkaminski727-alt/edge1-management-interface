@@ -70,17 +70,16 @@
         "dns1.namecheaphosting.com",
         "dns2.namecheaphosting.com"
       ],
-      "configured_route_count": 11,
+      "configured_route_count": 13,
       "verified_round_trip_addresses": [
         "abuse@creekco.ca",
+        "accessibility@creekco.ca",
         "contact@creekco.ca",
+        "noc@creekco.ca",
         "privacy@creekco.ca",
         "regulatory@creekco.ca"
       ],
-      "observed_but_unregistered_addresses": [
-        "accessibility@creekco.ca",
-        "noc@creekco.ca"
-      ],
+      "observed_but_unregistered_addresses": [],
       "configured_but_unverified_addresses": [
         "billing@creekco.ca",
         "complaints@creekco.ca",
@@ -91,6 +90,7 @@
         "support@creekco.ca"
       ],
       "verification_date": "2026-07-28",
+      "registry_reconciliation_date": "2026-08-01",
       "provider_admin_verification": "required"
     },
     "spiritcreekgardens.com": {
@@ -167,7 +167,6 @@
     "DKIM selectors and signing status are not yet inventoried for any domain.",
     "ww.cx has no published DMARC record in this observation.",
     "spiritcreekgardens.com has no published MX, SPF, or DMARC record.",
-    "accessibility@creekco.ca and noc@creekco.ca were operationally observed but are not yet registered in the 35-route hub configuration.",
     "No sender identity is live-enabled in the outbound gateway."
   ],
   "activation_boundary": {
