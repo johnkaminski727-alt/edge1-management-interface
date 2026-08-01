@@ -14,6 +14,7 @@ examples/telephony/dtmf-provider-evidence.example.json
 config/telephony/dtmf-provider-evidence/provider-candidate-001-public-documentation.json
 config/telephony/dtmf-capability-matrix.json
 tools/telephony/validate_dtmf_provider_evidence.py
+docs/telephony/dtmf-provider-technical-questionnaire-20260801.md
 ```
 
 ## Privacy boundary
@@ -54,6 +55,12 @@ For each sanitized provider and route, obtain evidence for the applicable direct
 7. Does the answer apply to the exact product, route type, and service direction under review?
 
 Do not infer an answer from generic SIP standards language or from a configuration guide that does not describe provider-network behavior.
+
+The current provider-specific escalation, public-source answer table, and response-promotion procedure are recorded in:
+
+```text
+docs/telephony/dtmf-provider-technical-questionnaire-20260801.md
+```
 
 ## Status rules
 
@@ -113,4 +120,6 @@ A sanitized provider candidate now has one matrix-eligible capability: provider-
 
 The same documentation uses the legacy RFC2833/AVT label but does not state an event range. Under the repository evidence policy, RFC 4733 remains `unknown`. SIP INFO, extended `A-D`, exact route directionality, codec and transcoding behavior, and end-to-end carrier interoperability also remain `unknown` or `partially-documented` as applicable.
 
-No external message, provider configuration, purchase, contract acceptance, call, DTMF transmission, route change, or production activation is authorized by this intake package.
+A technical questionnaire covering every unresolved field was sent to provider support on `2026-08-01T20:39:00Z`. The private correspondence remains in the authoritative mailbox. No additional matrix capability will be promoted until a provider response directly supports the exact claim and passes the privacy and cross-record validation gates.
+
+No provider configuration, purchase, contract acceptance, call, DTMF transmission, route change, or production activation is authorized by this intake package.
