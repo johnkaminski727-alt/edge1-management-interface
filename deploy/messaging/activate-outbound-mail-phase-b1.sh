@@ -14,6 +14,8 @@ RUNTIME_CONFIG=/etc/wwcx/outbound-mail-gateway.json
 ENV_FILE=/etc/wwcx/outbound-mail-gateway.env
 DROPIN_FILE=/etc/systemd/system/wwcx-outbound-mail-gateway.service.d/20-preparation-api.conf
 SECRET_SOURCE=
+INSTALLER_SUCCEEDED=false
+ACTIVATION_ACCEPTED=false
 
 fail() {
   echo "ERROR: $*" >&2
@@ -27,13 +29,31 @@ cleanup() {
   SECRET_SOURCE=
 }
 
+rollback_if_needed() {
+  if [ "$INSTALLER_SUCCEEDED" = true ] && [ "$ACTIVATION_ACCEPTED" != true ]; then
+    echo "Phase B1 wrapper verification failed; restoring the Phase A disabled state." >&2
+    if ! EXPECTED_COMMIT="$EXPECTED_COMMIT" ACTION=disable sh "$INSTALLER"; then
+      echo "WARNING: automatic Phase A restoration failed; inspect the latest Phase B1 evidence before further action." >&2
+    fi
+  fi
+}
+
+on_exit() {
+  rc=$?
+  trap - EXIT HUP INT TERM
+  rollback_if_needed
+  cleanup
+  exit "$rc"
+}
+
 on_signal() {
   trap - EXIT HUP INT TERM
+  rollback_if_needed
   cleanup
   exit 130
 }
 
-trap cleanup EXIT
+trap on_exit EXIT
 trap on_signal HUP INT TERM
 
 [ "$(id -u)" -eq 0 ] || fail "run as root"
@@ -134,6 +154,7 @@ EXPECTED_COMMIT="$EXPECTED_COMMIT" \
 SECRET_SOURCE_FILE="$SECRET_SOURCE" \
 ACTION=install \
 sh "$INSTALLER"
+INSTALLER_SUCCEEDED=true
 
 rm -f -- "$SECRET_SOURCE"
 SECRET_SOURCE=
@@ -159,6 +180,7 @@ assert not any(provider["ready"] for provider in status["providers"])
 send_code=$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8104/outbound-mail/send || true)
 [ "$send_code" = 403 ] || fail "send endpoint is not disabled after B1 activation"
 
+ACTIVATION_ACCEPTED=true
 trap - EXIT HUP INT TERM
 cleanup
 
