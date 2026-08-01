@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/sanitized-cdr-record.schema.json",
+  "title": "WW.CX Sanitized CDR Record",
+  "description": "Privacy-minimized CDR-style input for offline telephony analytics adapters. Raw calling or called numbers, SIP URIs, headers, credentials, SDP, media, recordings, channels, and free-form metadata are not permitted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_record_id",
+    "observed_at",
+    "direction",
+    "disposition",
+    "duration_seconds"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "source_record_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "direction": {
+      "enum": ["inbound", "outbound", "internal", "unknown"]
+    },
+    "disposition": {
+      "enum": ["answered", "completed", "busy", "no_answer", "failed", "cancelled", "rejected", "unknown"]
+    },
+    "sip_code": {
+      "type": ["integer", "null"],
+      "minimum": 100,
+      "maximum": 699
+    },
+    "carrier_id": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+    },
+    "destination_country": {
+      "type": ["string", "null"],
+      "pattern": "^(?:[A-Z]{2}|unknown)$"
+    },
+    "duration_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 604800
+    }
+  }
+}
