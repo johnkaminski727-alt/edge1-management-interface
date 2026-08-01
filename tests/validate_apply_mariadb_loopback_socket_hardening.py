@@ -37,7 +37,7 @@ required = (
     "@mariadb",
     "ucp_contract_ok",
     "ucp_loopback_connection_reestablished",
-    "users:\\(\\(\\\"node",
+    "users:\\(\\(\"node",
     "journal-after.txt",
     "CHANGE APPLIED AND VERIFIED",
     "CHANGE FAILED AND ROLLED BACK",
