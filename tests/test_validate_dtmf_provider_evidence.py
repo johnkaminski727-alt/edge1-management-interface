@@ -40,6 +40,12 @@ def main():
     assert example["decision"]["carrier_interoperability"] == "unverified"
     assert example["decision"]["live_test_authorized"] is False
 
+    dated_summary = copy.deepcopy(example)
+    dated_summary["evidence"][0]["summary"] = (
+        "Reviewed on 2026-08-01; no provider-specific DTMF transport capability was documented."
+    )
+    validator.validate_record(dated_summary)
+
     leaked_email = copy.deepcopy(example)
     leaked_email["decision"]["notes"] = "Contact operator@example.test for the provider record."
     expect_failure(leaked_email, "contains an email address")
@@ -47,6 +53,12 @@ def main():
     leaked_number = copy.deepcopy(example)
     leaked_number["evidence"][0]["summary"] = "Customer account 123456789 was activated."
     expect_failure(leaked_number, "contains a telephone, account, or personal number")
+
+    dated_leaked_number = copy.deepcopy(example)
+    dated_leaked_number["evidence"][0]["summary"] = (
+        "Reviewed on 2026-08-01 for customer account 123456789."
+    )
+    expect_failure(dated_leaked_number, "contains a telephone, account, or personal number")
 
     private_public = copy.deepcopy(example)
     private_public["evidence"][0]["retention"] = "repository-public"
