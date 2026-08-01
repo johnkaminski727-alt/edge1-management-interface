@@ -17,6 +17,9 @@ text = SCRIPT.read_text(encoding="utf-8")
 required = (
     "EXPECTED_HOST=${EXPECTED_HOST:-edge1.ww.cx}",
     "PHASE_B_PACKAGE_COMMIT=${PHASE_B_PACKAGE_COMMIT:-c55059c2d0230ea273709bbb5a4169b00bb226c1}",
+    "EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness",
+    "output_dir=\"$EVIDENCE_ROOT/$TIMESTAMP\"",
+    "--porcelain --untracked-files=all",
     "git -C \"$REPO_ROOT\" merge-base --is-ancestor",
     "protected outbound-mail files changed",
     "config/messaging/outbound-mail-gateway.json",
@@ -26,6 +29,7 @@ required = (
     "committed outbound-mail safety validation failed",
     "systemctl is-active --quiet",
     "systemctl is-enabled --quiet",
+    "systemctl status \"$SERVICE_NAME\" --no-pager --lines=0 -l",
     "127\\.0\\.0\\.1:8104",
     "port-8104-addresses.txt",
     "grep -Ev '^127\\.0\\.0\\.1:8104$'",
@@ -53,6 +57,7 @@ for value in required:
     assert value in text, value
 
 for prohibited in (
+    "EVIDENCE_DIR=",
     "systemctl restart",
     "systemctl start",
     "systemctl stop",
