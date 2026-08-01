@@ -45,7 +45,7 @@ HOST=$(hostname -f)
     exit 2
 }
 
-for command in asterisk awk date find grep hostname id install mkdir python3 sed sha256sum sort stat tail xargs; do
+for command in asterisk awk cat date dirname find grep hostname id install mkdir python3 rm sed sha256sum sort stat tail tr xargs; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "ERROR missing command: $command" >&2
         exit 2
@@ -217,6 +217,8 @@ fi
 
 section "PJSIP ENDPOINT DTMF POLICY"
 : >"$EVIDENCE_DIR/pjsip-endpoint-dtmf-policy.txt"
+: >"$EVIDENCE_DIR/asterisk-config-metadata.txt"
+: >"$EVIDENCE_DIR/asterisk-config.sha256"
 config_count=0
 for file in /etc/asterisk/pjsip*.conf; do
     [ -f "$file" ] || continue
