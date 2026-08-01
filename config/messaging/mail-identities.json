@@ -1,1 +1,239 @@
-{"contract":"wwcx.mail-identities.v1","outbound_activation_authorized":false,"domains":{"ww.cx":{"legal_name":"Christmas Island Worldwide","operating_name":"WW.CX","purpose":"operations, administration, records, and personal correspondence","identity_role":"operations_and_personal","preferred_outbound":true},"creekco.ca":{"legal_name":"Spirit Creek Gardens Inc.","operating_name":"CreekCo / Spirit Creek Communications","purpose":"telecommunications customers, carriers, support, complaints, porting, regulatory correspondence, and a private John address","identity_role":"telecommunications","preferred_outbound":true},"spiritcreekgardens.com":{"legal_name":"Spirit Creek Gardens Inc.","operating_name":"Spirit Creek Gardens","purpose":"primary work identity for corporate, gardens, accounting, privacy, and records correspondence","identity_role":"primary_work","preferred_outbound":true},"scgardens.ca":{"legal_name":"Spirit Creek Gardens Inc.","operating_name":"Spirit Creek Gardens","purpose":"legacy short-form aliases including a private John address","identity_role":"legacy_alias","preferred_outbound":false},"omegafx.com":{"legal_name":"OmegaFX Marketing Group Inc.","operating_name":"OmegaFX","purpose":"OmegaFX business correspondence and a private John address","identity_role":"business_and_personal","preferred_outbound":true}},"sender_profiles":{"john-wwcx":{"address":"john@ww.cx","display_name":"John Kaminski","organization":"WW.CX","use_for":"private correspondence, operations, technical administration, and cross-company records","address_class":"private_john","status":"existing","outbound_enabled":false},"john-omegafx":{"address":"john@omegafx.com","display_name":"John Kaminski","organization":"OmegaFX","use_for":"private correspondence associated with the OmegaFX domain","address_class":"private_john","status":"existing_or_planned_alias","outbound_enabled":false},"john-creekco":{"address":"john@creekco.ca","display_name":"John Kaminski","organization":"CreekCo","use_for":"private correspondence associated with the CreekCo domain; not the general support identity","address_class":"private_john","status":"planned_alias","outbound_enabled":false},"john-scgardens":{"address":"john@scgardens.ca","display_name":"John Kaminski","organization":"Spirit Creek Gardens","use_for":"private correspondence using the short gardens domain","address_class":"private_john","status":"existing_or_planned_alias","outbound_enabled":false},"spirit-creek-gardens-john":{"address":"john@spiritcreekgardens.com","display_name":"John Kaminski","organization":"Spirit Creek Gardens Inc.","use_for":"primary personal work correspondence for Spirit Creek Gardens corporate and gardens matters","address_class":"private_john_work","status":"preferred_work","outbound_enabled":false},"creekco-contact":{"address":"contact@creekco.ca","display_name":"CreekCo","organization":"Spirit Creek Communications","use_for":"general telecommunications contact and public correspondence","address_class":"work_role","status":"existing_public_identity","outbound_enabled":false},"creekco-support":{"address":"support@creekco.ca","display_name":"CreekCo Support","organization":"Spirit Creek Communications","use_for":"customer support and service matters","address_class":"work_role","status":"planned","outbound_enabled":false},"creekco-regulatory":{"address":"regulatory@creekco.ca","display_name":"CreekCo Regulatory","organization":"Spirit Creek Communications","use_for":"carrier, regulator, compliance, and emergency-services administration","address_class":"work_role","status":"planned","outbound_enabled":false},"spirit-creek-gardens-records":{"address":"records@spiritcreekgardens.com","display_name":"Spirit Creek Gardens Records","organization":"Spirit Creek Gardens Inc.","use_for":"records requests, privacy files, claims, and document exchange","address_class":"work_role","status":"planned","outbound_enabled":false},"spirit-creek-gardens-accounts":{"address":"accounts@spiritcreekgardens.com","display_name":"Spirit Creek Gardens Accounts","organization":"Spirit Creek Gardens Inc.","use_for":"billing, invoices, banking, and accounting correspondence","address_class":"work_role","status":"planned","outbound_enabled":false},"omegafx-contact":{"address":"contact@omegafx.com","display_name":"OmegaFX","organization":"OmegaFX Marketing Group Inc.","use_for":"general OmegaFX business correspondence","address_class":"work_role","status":"planned","outbound_enabled":false}},"rules":{"reply_from_matching_identity":true,"allow_legacy_alias_as_outbound_sender":false,"require_sender_domain_alignment":true,"require_dkim_before_outbound_activation":true,"require_dmarc_review_before_outbound_activation":true,"private_john_addresses":["john@ww.cx","john@omegafx.com","john@creekco.ca","john@scgardens.ca","john@spiritcreekgardens.com"],"primary_work_address":"john@spiritcreekgardens.com","private_john_delivery_mailbox":"CONFIGURE_PRIVATE_JOHN_MAILBOX","shared_role_delivery_mailbox":"CONFIGURE_SHARED_ROLE_MAILBOX","require_distinct_private_and_role_destinations":true}}
+{
+  "contract": "wwcx.mail-identities.v2",
+  "outbound_activation_authorized": false,
+  "mailboxes": {
+    "private_john": {
+      "address": "john-inbox@ww.cx",
+      "access": "private_john_only",
+      "purpose": "private delivery target for all John-addressed mail",
+      "accepts_direct_public_use": false
+    },
+    "shared_role": {
+      "address": "maildesk@ww.cx",
+      "access": "shared_role_operators",
+      "purpose": "shared delivery target for company and role mail",
+      "accepts_direct_public_use": false
+    }
+  },
+  "system_senders": {
+    "noreply": {
+      "address": "noreply@ww.cx",
+      "purpose": "system-generated notifications that must not invite a reply",
+      "reply_policy": "no_reply",
+      "outbound_enabled": false
+    }
+  },
+  "domains": {
+    "ww.cx": {
+      "legal_name": "Christmas Island Worldwide",
+      "operating_name": "WW.CX",
+      "purpose": "operations, administration, records, and private correspondence",
+      "identity_role": "operations_and_private",
+      "preferred_outbound": true
+    },
+    "creekco.ca": {
+      "legal_name": "Spirit Creek Gardens Inc.",
+      "operating_name": "CreekCo / Spirit Creek Communications",
+      "purpose": "telecommunications customers, carriers, support, complaints, porting, regulatory correspondence, and a private John identity",
+      "identity_role": "telecommunications",
+      "preferred_outbound": true
+    },
+    "spiritcreekgardens.com": {
+      "legal_name": "Spirit Creek Gardens Inc.",
+      "operating_name": "Spirit Creek Gardens",
+      "purpose": "primary work identity for corporate, gardens, accounting, privacy, and records correspondence",
+      "identity_role": "primary_work",
+      "preferred_outbound": true
+    },
+    "scgardens.ca": {
+      "legal_name": "Spirit Creek Gardens Inc.",
+      "operating_name": "Spirit Creek Gardens",
+      "purpose": "legacy short-form identities including a private John address",
+      "identity_role": "legacy_alias",
+      "preferred_outbound": false
+    },
+    "omegafx.com": {
+      "legal_name": "OmegaFX Marketing Group Inc.",
+      "operating_name": "OmegaFX",
+      "purpose": "OmegaFX business correspondence and a private John identity",
+      "identity_role": "business_and_private",
+      "preferred_outbound": true
+    }
+  },
+  "sender_profiles": {
+    "john-wwcx": {
+      "address": "john@ww.cx",
+      "display_name": "John Kaminski",
+      "organization": "WW.CX",
+      "use_for": "private correspondence, operations, technical administration, and cross-company records",
+      "address_class": "private_john",
+      "status": "existing",
+      "outbound_enabled": false
+    },
+    "john-omegafx": {
+      "address": "john@omegafx.com",
+      "display_name": "John Kaminski",
+      "organization": "OmegaFX",
+      "use_for": "private correspondence associated with the OmegaFX domain",
+      "address_class": "private_john",
+      "status": "existing_or_planned_alias",
+      "outbound_enabled": false
+    },
+    "john-creekco": {
+      "address": "john@creekco.ca",
+      "display_name": "John Kaminski",
+      "organization": "CreekCo",
+      "use_for": "private correspondence associated with the CreekCo domain; not the general support identity",
+      "address_class": "private_john",
+      "status": "planned_alias",
+      "outbound_enabled": false
+    },
+    "john-scgardens": {
+      "address": "john@scgardens.ca",
+      "display_name": "John Kaminski",
+      "organization": "Spirit Creek Gardens",
+      "use_for": "private correspondence using the short gardens domain",
+      "address_class": "private_john",
+      "status": "existing_or_planned_alias",
+      "outbound_enabled": false
+    },
+    "spirit-creek-gardens-john": {
+      "address": "john@spiritcreekgardens.com",
+      "display_name": "John Kaminski",
+      "organization": "Spirit Creek Gardens Inc.",
+      "use_for": "primary private work correspondence for Spirit Creek Gardens corporate and gardens matters",
+      "address_class": "private_john_work",
+      "status": "preferred_work",
+      "outbound_enabled": false
+    },
+    "creekco-contact": {
+      "address": "contact@creekco.ca",
+      "display_name": "CreekCo",
+      "organization": "Spirit Creek Communications",
+      "use_for": "general telecommunications contact and public correspondence",
+      "address_class": "work_role",
+      "status": "existing_public_identity",
+      "outbound_enabled": false
+    },
+    "creekco-support": {
+      "address": "support@creekco.ca",
+      "display_name": "CreekCo Support",
+      "organization": "Spirit Creek Communications",
+      "use_for": "customer support and service matters",
+      "address_class": "work_role",
+      "status": "planned",
+      "outbound_enabled": false
+    },
+    "creekco-regulatory": {
+      "address": "regulatory@creekco.ca",
+      "display_name": "CreekCo Regulatory",
+      "organization": "Spirit Creek Communications",
+      "use_for": "carrier, regulator, compliance, and emergency-services administration",
+      "address_class": "work_role",
+      "status": "planned",
+      "outbound_enabled": false
+    },
+    "spirit-creek-gardens-records": {
+      "address": "records@spiritcreekgardens.com",
+      "display_name": "Spirit Creek Gardens Records",
+      "organization": "Spirit Creek Gardens Inc.",
+      "use_for": "records requests, privacy files, claims, and document exchange",
+      "address_class": "work_role",
+      "status": "planned",
+      "outbound_enabled": false
+    },
+    "spirit-creek-gardens-accounts": {
+      "address": "accounts@spiritcreekgardens.com",
+      "display_name": "Spirit Creek Gardens Accounts",
+      "organization": "Spirit Creek Gardens Inc.",
+      "use_for": "billing, invoices, banking, and accounting correspondence",
+      "address_class": "work_role",
+      "status": "planned",
+      "outbound_enabled": false
+    },
+    "omegafx-contact": {
+      "address": "contact@omegafx.com",
+      "display_name": "OmegaFX",
+      "organization": "OmegaFX Marketing Group Inc.",
+      "use_for": "general OmegaFX business correspondence",
+      "address_class": "work_role",
+      "status": "planned",
+      "outbound_enabled": false
+    },
+    "system-noreply": {
+      "address": "noreply@ww.cx",
+      "display_name": "WW.CX Automated Mail",
+      "organization": "WW.CX",
+      "use_for": "system-generated notifications that must not invite a reply",
+      "address_class": "system_no_reply",
+      "status": "reserved",
+      "outbound_enabled": false
+    }
+  },
+  "sender_selection": {
+    "enabled": true,
+    "strategy": "system_flag_then_original_recipient_then_identity_hint_then_default",
+    "allow_submitted_from_override": false,
+    "default_sender": "john@ww.cx",
+    "system_sender": "noreply@ww.cx",
+    "reject_unknown_original_recipient": true,
+    "live_sender_allowlist": [],
+    "recipient_to_sender": {
+      "john@ww.cx": "john@ww.cx",
+      "records@ww.cx": "records@ww.cx",
+      "privacy@ww.cx": "privacy@ww.cx",
+      "security@ww.cx": "security@ww.cx",
+      "postmaster@ww.cx": "postmaster@ww.cx",
+      "abuse@ww.cx": "abuse@ww.cx",
+      "john@creekco.ca": "john@creekco.ca",
+      "contact@creekco.ca": "contact@creekco.ca",
+      "support@creekco.ca": "support@creekco.ca",
+      "billing@creekco.ca": "billing@creekco.ca",
+      "sales@creekco.ca": "sales@creekco.ca",
+      "regulatory@creekco.ca": "regulatory@creekco.ca",
+      "complaints@creekco.ca": "complaints@creekco.ca",
+      "porting@creekco.ca": "porting@creekco.ca",
+      "privacy@creekco.ca": "privacy@creekco.ca",
+      "postmaster@creekco.ca": "postmaster@creekco.ca",
+      "abuse@creekco.ca": "abuse@creekco.ca",
+      "john@spiritcreekgardens.com": "john@spiritcreekgardens.com",
+      "contact@spiritcreekgardens.com": "contact@spiritcreekgardens.com",
+      "records@spiritcreekgardens.com": "records@spiritcreekgardens.com",
+      "accounts@spiritcreekgardens.com": "accounts@spiritcreekgardens.com",
+      "privacy@spiritcreekgardens.com": "privacy@spiritcreekgardens.com",
+      "postmaster@spiritcreekgardens.com": "postmaster@spiritcreekgardens.com",
+      "abuse@spiritcreekgardens.com": "abuse@spiritcreekgardens.com",
+      "john@scgardens.ca": "john@scgardens.ca",
+      "contact@scgardens.ca": "contact@scgardens.ca",
+      "records@scgardens.ca": "records@scgardens.ca",
+      "postmaster@scgardens.ca": "postmaster@scgardens.ca",
+      "abuse@scgardens.ca": "abuse@scgardens.ca",
+      "john@omegafx.com": "john@omegafx.com",
+      "contact@omegafx.com": "contact@omegafx.com",
+      "records@omegafx.com": "records@omegafx.com",
+      "privacy@omegafx.com": "privacy@omegafx.com",
+      "postmaster@omegafx.com": "postmaster@omegafx.com",
+      "abuse@omegafx.com": "abuse@omegafx.com"
+    }
+  },
+  "rules": {
+    "reply_from_matching_identity": true,
+    "allow_legacy_alias_as_outbound_sender": false,
+    "require_sender_domain_alignment": true,
+    "require_dkim_before_outbound_activation": true,
+    "require_dmarc_review_before_outbound_activation": true,
+    "private_john_addresses": [
+      "john@creekco.ca",
+      "john@omegafx.com",
+      "john@scgardens.ca",
+      "john@spiritcreekgardens.com",
+      "john@ww.cx"
+    ],
+    "primary_work_address": "john@spiritcreekgardens.com",
+    "private_john_delivery_mailbox": "john-inbox@ww.cx",
+    "shared_role_delivery_mailbox": "maildesk@ww.cx",
+    "system_sender": "noreply@ww.cx",
+    "require_distinct_private_and_role_destinations": true,
+    "delivery_mailboxes_are_internal_only": true
+  }
+}
