@@ -1,7 +1,7 @@
 {
   "contract": "wwcx.suricata-protected-retention-policy.v1",
-  "status": "design_only",
-  "enabled": false,
+  "status": "live_authorized",
+  "enabled": true,
   "activation_requires_explicit_authorization": true,
   "ingest": {
     "source": "/var/lib/bigbird/operations-center/latest.json",
@@ -12,23 +12,7 @@
     "deduplication": {
       "algorithm": "sha256",
       "unique_constraint": "event_key",
-      "canonical_fields": [
-        "timestamp",
-        "signature",
-        "signature_id",
-        "generator_id",
-        "revision",
-        "flow_id",
-        "event_id",
-        "source",
-        "source_port",
-        "destination",
-        "destination_port",
-        "protocol",
-        "application_protocol",
-        "category",
-        "action"
-      ]
+      "canonical_fields": ["timestamp","signature","signature_id","generator_id","revision","flow_id","event_id","source","source_port","destination","destination_port","protocol","application_protocol","category","action"]
     }
   },
   "storage": {
@@ -56,25 +40,7 @@
     "credentials_included": false,
     "private_keys_included": false,
     "arbitrary_metadata_included": false,
-    "approved_fields": [
-      "timestamp",
-      "signature",
-      "severity",
-      "risk",
-      "category",
-      "action",
-      "source",
-      "source_port",
-      "destination",
-      "destination_port",
-      "protocol",
-      "application_protocol",
-      "signature_id",
-      "generator_id",
-      "revision",
-      "flow_id",
-      "event_id"
-    ]
+    "approved_fields": ["timestamp","signature","severity","risk","category","action","source","source_port","destination","destination_port","protocol","application_protocol","signature_id","generator_id","revision","flow_id","event_id"]
   },
   "query": {
     "network_listener": false,
@@ -101,7 +67,7 @@
     "data_destruction_requires_separate_authorization": true
   },
   "acceptance": {
-    "deployment_authorized": false,
+    "deployment_authorized": true,
     "suricata_configuration_changed": false,
     "suricata_service_changed": false,
     "traffic_controls_changed": false,
