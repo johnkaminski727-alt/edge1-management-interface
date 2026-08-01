@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/analytics-report-audit-event.schema.json",
+  "title": "WW.CX Telephony Analytics Report Audit Event",
+  "description": "Stored hash-chained JSONL event for an aggregate telephony analytics report-generation action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_type",
+    "event_id",
+    "occurred_at",
+    "report_id",
+    "report_kind",
+    "generator_id",
+    "repository_revision",
+    "input_manifest_sha256",
+    "output_sha256",
+    "aggregate_record_count",
+    "privacy_profile",
+    "previous_event_sha256",
+    "event_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "event_type": {"const": "telephony_analytics_report_generated"},
+    "event_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$"},
+    "occurred_at": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "report_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$"},
+    "report_kind": {
+      "enum": ["health_summary", "call_summary", "interconnect_summary", "combined_summary"]
+    },
+    "generator_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$"},
+    "repository_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "input_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "aggregate_record_count": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+    "privacy_profile": {"const": "aggregate_no_customer_identifiers"},
+    "previous_event_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "event_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
