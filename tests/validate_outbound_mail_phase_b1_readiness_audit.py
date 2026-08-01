@@ -97,8 +97,10 @@ for path in (STATE, RUNBOOK, ACCEPTANCE):
     assert "mail delivery" in content
 
 state_text = STATE.read_text(encoding="utf-8")
-assert "production HMAC secret generated: **no**" in state_text
-assert "production HMAC secret installed: **no**" in state_text
+assert "production HMAC secret currently installed: **no**" in state_text
+assert "temporary activation secret generated during failed attempt: **yes; removed**" in state_text
+assert "B1 runtime overlay currently installed: **no**" in state_text
+assert "latest Phase B1 attempt outcome: **failed startup race; automatic rollback complete**" in state_text
 assert "B1 readiness audit executed and accepted: **yes**" in state_text
 assert "B1 readiness state: **ready for explicit B1 authorization**" in state_text
 assert "2026-08-01T17:45:48Z" in state_text
@@ -136,4 +138,5 @@ for value in (
     assert value in acceptance_text, value
 
 print("Outbound mail Phase B1 read-only readiness audit validation passed")
-print("Live readiness acceptance is recorded without secret or activation material")
+print("Live readiness acceptance remains valid after the rolled-back activation attempt")
+print("No B1 credential or runtime overlay is currently installed")
