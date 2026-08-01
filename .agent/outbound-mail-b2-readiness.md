@@ -1,6 +1,6 @@
 # Outbound Mail Phase B2 Readiness State
 
-Last reconciled: 2026-08-01 20:48 UTC  
+Last reconciled: 2026-08-01 21:10 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Parameter discovery issue: #233  
 Parent activation issue: #187
@@ -99,26 +99,43 @@ CERTIFICATE_PRIVATE_KEY_PATH=/etc/letsencrypt/live/edge1.ww.cx/privkey.pem
 ACTIVE_VHOST=/etc/apache2/sites-enabled/edge1.ww.cx.conf
 ```
 
-## Apache-specific proposal package
+## Accepted Apache proposal audit
 
-Live discovery proves Apache 2, not nginx, owns port 443. The next repository package therefore:
+The Apache-specific proposal audit was executed through authenticated SSH by `wwadmin`; the audit ran as `root`.
 
-- renders an Apache include fragment rather than an nginx server block;
-- validates the exact enabled `edge1.ww.cx` vhost;
-- accepts the standard Let's Encrypt `live` symlinks only when they resolve under `/etc/letsencrypt/archive/edge1.ww.cx/`;
-- inspects public certificate metadata but does not read private-key contents;
-- exposes exactly the status and prepare routes in the evidence-only candidate;
-- restricts both routes to `162.0.217.71/32`;
-- retains continued send denial and disabled external delivery.
+Accepted facts:
 
-The expected proposal state is `ready_for_explicit_b2_apache_authorization`.
+- captured at: `2026-08-01T21:09:34Z`;
+- audited repository HEAD: `d89cbb06d5ecd171e67c1a281beb58ef16a1f24c`;
+- proposal package merge: `105ea0f2dd79a3bbc5a09c5c7c7ed49eab5a0e0d`;
+- evidence: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-apache-proposal/20260801T210934Z`;
+- hostname: `edge1.ww.cx`;
+- exact business159 source: `162.0.217.71/32`;
+- active vhost target: `/etc/apache2/sites-available/edge1.ww.cx.conf`;
+- health: HTTP `200`;
+- status: HTTP `200`;
+- unsigned preparation: HTTP `401`;
+- send probe: HTTP `403`;
+- edge1 ServerName occurrences: `2`;
+- approved full-chain references: `1`;
+- approved private-key references: `1`;
+- resolved full chain: `/etc/letsencrypt/archive/edge1.ww.cx/fullchain2.pem`;
+- resolved private key: `/etc/letsencrypt/archive/edge1.ww.cx/privkey2.pem`;
+- private-key contents read: no;
+- readiness: `ready_for_explicit_b2_apache_authorization`;
+- failures: `0`;
+- SHA-256 evidence manifest: passed.
+
+The evidence-only candidate contains exactly the status and prepare routes, restricts both to `162.0.217.71/32`, proxies only to `127.0.0.1:8104`, denies other methods, and contains no send or wildcard route.
 
 ## Current authorization and execution state
 
 - B2 baseline audit execution: **accepted**;
 - B2 parameter discovery package: **merged and executed**;
 - corrected discovery evidence: **accepted**;
-- Apache-specific proposal package: **in repository review**;
+- Apache-specific proposal package: **merged and executed**;
+- Apache proposal evidence: **accepted**;
+- Apache activation package: **in repository review**;
 - exact B2 hostname: **`edge1.ww.cx`**;
 - exact client source: **`162.0.217.71/32`**;
 - active proxy service: **Apache 2**;
@@ -128,15 +145,16 @@ The expected proposal state is `ready_for_explicit_b2_apache_authorization`.
 - DNS change: **not currently indicated**;
 - firewall change: **not currently indicated**;
 - public preparation route: **not yet activated**;
+- business159 source acceptance: **not yet executed**;
 - website bridge deployment/activation: **not yet activated**;
 - provider, sender, or delivery activation: **not yet configured**;
 - production message: **not defined or sent**.
 
-## Verified non-mutation markers
+## Verified non-mutation markers from the accepted proposal
 
 - `hmac_secret_read=no`;
 - `certificate_private_key_read=no`;
-- `candidate_config_written_to_evidence_only=yes`;
+- `certificate_private_key_contents_read=no`;
 - `proxy_config_installed=no`;
 - `proxy_service_reloaded=no`;
 - `certificate_generated=no`;
@@ -145,8 +163,9 @@ The expected proposal state is `ready_for_explicit_b2_apache_authorization`.
 - `public_listener_added=no`;
 - `website_bridge_enabled=no`;
 - `provider_or_sender_enabled=no`;
+- `external_delivery_enabled=no`;
 - `message_sent=no`.
 
 ## Next execution gate
 
-Merge and run the Apache-specific proposal audit. Require `ready_for_explicit_b2_apache_authorization` and a valid evidence manifest before reviewing a rollback-capable Apache installer. No live route, reload, website bridge, provider, sender, delivery, or message action may precede that acceptance.
+Merge the rollback-capable Apache activation package after both repository workflows pass. Activation must use the accepted proposal evidence, preserve the existing listener and certificate references, install only one exact include fragment, validate Apache before reload, automatically restore the prior configuration on failure, deny unapproved sources, and preserve direct HMAC authentication and send denial. A successful activation remains pending until business159 receives HTTP `401` from the source-restricted unsigned status route.
