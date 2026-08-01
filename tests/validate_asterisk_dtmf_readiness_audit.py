@@ -32,12 +32,8 @@ required_audit_tokens = (
     "core show version",
     "core show uptime",
     "core show channels count",
-    "module show like app_senddtmf",
-    "module show like app_playtones",
-    "module show like app_read",
-    "module show like func_pjsip",
-    "module show like res_pjsip_sdp_rtp",
-    "module show like res_rtp_asterisk",
+    "for module_query in app_senddtmf app_playtones app_read func_pjsip res_pjsip_sdp_rtp res_rtp_asterisk dsp; do",
+    "module show like $module_query",
     "core show application SendDTMF",
     "core show application Read",
     "core show function PJSIP_DTMF_MODE",
@@ -59,6 +55,38 @@ required_audit_tokens = (
 for token in required_audit_tokens:
     if token not in audit_text:
         raise SystemExit(f"missing DTMF audit behavior: {token}")
+
+command_loop = re.search(r"for command in ([^;]+); do", audit_text)
+if command_loop is None:
+    raise SystemExit("audit lacks an external-command preflight")
+required_commands = {
+    "asterisk",
+    "awk",
+    "cat",
+    "date",
+    "dirname",
+    "find",
+    "grep",
+    "hostname",
+    "id",
+    "install",
+    "mkdir",
+    "python3",
+    "rm",
+    "sed",
+    "sha256sum",
+    "sort",
+    "stat",
+    "tail",
+    "tr",
+    "xargs",
+}
+observed_commands = set(command_loop.group(1).split())
+missing_commands = sorted(required_commands - observed_commands)
+if missing_commands:
+    raise SystemExit(
+        "audit command preflight is incomplete: " + ", ".join(missing_commands)
+    )
 
 prohibited_audit_patterns = (
     r"(?im)^\s*(?:sudo\s+)?systemctl\s+(?:start|stop|restart|reload|enable|disable|mask|unmask)\b",
@@ -86,6 +114,11 @@ if "cat /etc/asterisk" in audit_text or "sed -n" in audit_text:
 
 if "sanitize_stream" not in audit_text:
     raise SystemExit("audit must sanitize Asterisk CLI output")
+
+if ': >"$EVIDENCE_DIR/asterisk-config-metadata.txt"' not in audit_text:
+    raise SystemExit("audit must initialize configuration metadata evidence")
+if ': >"$EVIDENCE_DIR/asterisk-config.sha256"' not in audit_text:
+    raise SystemExit("audit must initialize configuration hash evidence")
 
 allowed_asterisk_commands = {
     "core show version",
