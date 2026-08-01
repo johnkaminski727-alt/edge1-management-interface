@@ -17,7 +17,9 @@ required = (
     "module show like res_resolver_unbound",
     "module show like res_rtp_asterisk",
     "module show like res_stun_monitor",
-    "pidfile:/run/asterisk/asterisk.pid",
+    "/run/asterisk/asterisk.pid",
+    "/var/run/asterisk/asterisk.pid",
+    'PID_SOURCE="pidfile:$pidfile"',
     "process-table:unique-asterisk-f",
     "No tracer, packet capture, configuration, service, listener, route, certificate, firewall, package, call, logger, module, container, or traffic change was performed.",
 )
