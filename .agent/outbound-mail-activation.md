@@ -1,6 +1,6 @@
 # Outbound Mail Activation State
 
-Last reconciled: 2026-08-01 18:38 UTC  
+Last reconciled: 2026-08-01 18:46 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Authoritative branch: `main`
 
@@ -102,7 +102,7 @@ Verified evidence:
 
 Root cause: `systemctl restart` completed before the Python HTTP listener was ready, and the installer launched the canary without a bounded readiness wait.
 
-Remediation: the installer now waits for both an active systemd unit and HTTP 200 from the loopback health endpoint before running the B1 canary, the Phase A disable smoke test, or rollback verification. Readiness attempts and failure diagnostics are written into the restricted evidence directory.
+Remediation: PR #214 merged as `79d6591e8f7ae8b404bff9cb3a4ab8929a63817c`. The installer now waits for both an active systemd unit and HTTP 200 from the loopback health endpoint before running the B1 canary, the Phase A disable smoke test, or rollback verification. Readiness attempts and failure diagnostics are written into the restricted evidence directory.
 
 ## Current activation state
 
@@ -128,7 +128,11 @@ Remediation: the installer now waits for both an active systemd unit and HTTP 20
 
 ## Active execution boundary
 
-Phase B1 remains authorized, but it may be retried only after the startup-readiness remediation is merged, synchronized to Edge1, and verified as an ancestor of the current clean `main`. The operator must stop and report rather than bypassing any preflight, evidence, loopback, credential-permission, readiness, canary, rollback, or no-send check.
+Phase B1 remains authorized, but it may be retried only after the startup-readiness remediation is merged, synchronized to Edge1, and verified as an ancestor of the current clean `main`.
+
+The approved activation baseline commit must be supplied explicitly through `APPROVED_ACTIVATION_COMMIT`. It must identify the reviewed merged baseline containing the activation wrapper and startup-readiness remediation. The wrapper verifies that baseline is an ancestor and that every protected B1 asset—including the wrapper itself—has not changed after that baseline before it generates temporary credential material.
+
+The operator must stop and report rather than bypassing any approved-baseline, preflight, evidence, loopback, credential-permission, readiness, canary, rollback, or no-send check.
 
 ## Remaining stop conditions
 
