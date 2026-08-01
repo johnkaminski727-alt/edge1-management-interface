@@ -3,7 +3,14 @@
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-  const state = { preview: null, activity: [] };
+  const state = { status: null, preview: null, activity: [], remoteActivity: [] };
+
+  const escapeHtml = (value) => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 
   function showStep(name) {
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === name));
@@ -12,37 +19,68 @@
   }
 
   function splitAddresses(value) {
-    return value.split(/[;,]/).map((item) => item.trim()).filter(Boolean);
+    return String(value || '').split(/[;,]/).map((item) => item.trim()).filter(Boolean);
   }
 
-  function escapeHeader(value) {
-    return value.replace(/[\r\n]/g, ' ').trim();
-  }
-
-  function makeControlId() {
-    const now = new Date();
-    const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-    const random = crypto.getRandomValues(new Uint32Array(2));
-    return `WWCX-${stamp}-${random[0].toString(16).padStart(8, '0')}${random[1].toString(16).padStart(8, '0')}`.toUpperCase();
-  }
-
-  function tokenFragment() {
-    const bytes = crypto.getRandomValues(new Uint8Array(24));
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  function formPayload() {
+    return {
+      from_address: $('#contact-email').value.trim(),
+      to: $('#to').value,
+      cc: $('#cc').value,
+      bcc: $('#bcc').value,
+      subject: $('#subject').value.trim(),
+      body: $('#body').value,
+      message_class: $('#message-class').value,
+      signer_name: $('#signer-name').value.trim(),
+      signer_title: $('#signer-title').value.trim(),
+      case_id: $('#case-id').value.trim(),
+      action_id: $('#action-id').value.trim(),
+      mailing_address: $('#mailing-address').value.trim(),
+      unsubscribe_url: $('#unsubscribe-url').value.trim(),
+    };
   }
 
   function updateSetup() {
+    const selected = state.status && state.status.providers.find((item) => item.selected);
     const checks = [
       ['Mailing address configured', Boolean($('#mailing-address').value.trim())],
-      ['Delivery adapter selected', Boolean($('#provider').value)],
+      ['Delivery adapter enabled', Boolean(selected && selected.enabled)],
+      ['Runtime provider settings available', Boolean(selected && selected.configured)],
       ['Privacy page configured', Boolean($('#privacy-url').value.trim())],
-      ['Live delivery authorized', false],
+      ['Live delivery authorized', Boolean(state.status && state.status.external_delivery_enabled)],
     ];
-    $('#setup-checklist').innerHTML = checks.map(([label, ok]) => `<p class="${ok ? 'pass' : 'pending'}"><span>${ok ? '✓' : '○'}</span>${label}</p>`).join('');
-    $('#summary-provider').textContent = $('#provider').value || 'Not configured';
+    $('#setup-checklist').innerHTML = checks.map(([label, ok]) => `<p class="${ok ? 'pass' : 'pending'}"><span>${ok ? '✓' : '○'}</span>${escapeHtml(label)}</p>`).join('');
+    $('#summary-provider').textContent = selected ? selected.name : 'Not configured';
+    $('#summary-sender').textContent = $('#contact-email').value.trim() || 'Not configured';
   }
 
-  function validate() {
+  function renderProviderOptions(status) {
+    const select = $('#provider');
+    select.innerHTML = status.providers.map((provider) => {
+      const label = `${provider.name} — ${provider.ready ? 'ready' : provider.detail}`;
+      return `<option value="${escapeHtml(provider.name)}" ${provider.selected ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+    }).join('');
+    select.disabled = true;
+    select.title = 'Provider selection is controlled by the server configuration and activation process.';
+  }
+
+  function renderStatus(status) {
+    state.status = status;
+    renderProviderOptions(status);
+    const pill = $('.mode-pill');
+    pill.innerHTML = `<span aria-hidden="true"></span>${status.external_delivery_enabled ? 'Gateway ready' : 'Preview only'}`;
+    pill.classList.toggle('ready', status.external_delivery_enabled);
+    $('#submit-message').disabled = !status.external_delivery_enabled;
+    updateSetup();
+  }
+
+  async function loadStatus() {
+    const response = await fetch('/outbound-mail/status', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Gateway status failed: ${response.status}`);
+    renderStatus(await response.json());
+  }
+
+  function clientValidation() {
     const errors = [];
     const warnings = [];
     const recipients = [...splitAddresses($('#to').value), ...splitAddresses($('#cc').value), ...splitAddresses($('#bcc').value)];
@@ -50,105 +88,145 @@
     if (!$('#subject').value.trim()) errors.push('Add a subject.');
     if (!$('#body').value.trim()) errors.push('Add a message body.');
     if (!$('#mailing-address').value.trim()) warnings.push('Mailing address is not configured; live submission remains blocked.');
-    if (!$('#provider').value) warnings.push('No delivery adapter is selected.');
     if ($('#message-class').value === 'commercial' && !$('#unsubscribe-url').value.trim()) errors.push('Commercial messages require an unsubscribe or preference URL.');
-    if ($('#include-action-link').checked && !$('#include-disclosure').checked) errors.push('Action links require a visible logging disclosure.');
+    if (!state.status || !state.status.external_delivery_enabled) warnings.push('External delivery remains disabled; this preview does not send mail.');
     return { errors, warnings, recipients };
   }
 
-  function renderFooter(controlId, actionUrl) {
-    const lines = [
-      '--',
-      $('#signer-name').value.trim() || 'John Kaminski',
-      $('#signer-title').value.trim() || 'Authorized Representative',
-      `${$('#operating-name').value.trim()} | ${$('#legal-name').value.trim()}`,
-      $('#mailing-address').value.trim() || '[Mailing address required before live delivery]',
-      `Email: ${$('#contact-email').value.trim()} | Web: ${$('#website').value.trim()}`,
-      '',
-      '[WWCX-CORRESPONDENCE-CONTROL]',
-      `Correspondence control: ${controlId}`,
-    ];
-    if ($('#include-action-link').checked) lines.push(`View the correspondence record or acknowledge receipt: ${actionUrl}`);
-    lines.push('Access to the linked correspondence record may be logged for security, delivery verification, records management, and dispute resolution.');
-    lines.push(`Privacy information: ${$('#privacy-url').value.trim()}`);
-    if ($('#include-confidentiality').checked) {
-      lines.push('', 'CONFIDENTIALITY AND RECORDS NOTICE: This message and any attachments may contain confidential information intended for the addressed recipient. If received in error, notify the sender and delete the material.');
-    }
-    lines.push('This notice does not create confidentiality, privilege, a contractual duty, or other legal rights where they do not otherwise exist.');
-    if ($('#message-class').value === 'commercial') lines.push('', `Commercial-message preferences or unsubscribe: ${$('#unsubscribe-url').value.trim()}`);
-    return lines.join('\n');
-  }
-
-  function generatePreview() {
-    const result = validate();
-    const controlId = makeControlId();
-    const actionUrl = `https://ww.cx/correspondence/r/${tokenFragment()}`;
-    const body = `${$('#body').value.trim()}\n\n${renderFooter(controlId, actionUrl)}`;
-    const headers = {
-      'X-WWCX-Control-ID': controlId,
-      'X-WWCX-Policy': 'wwcx.outbound-mail-policy.v1',
-      'X-WWCX-Tracking': 'disclosed-action-link; no-hidden-pixel',
-    };
-    if ($('#case-id').value.trim()) headers['X-WWCX-Case-ID'] = escapeHeader($('#case-id').value);
-    if ($('#action-id').value.trim()) headers['X-WWCX-Action-ID'] = escapeHeader($('#action-id').value);
-
-    state.preview = { controlId, actionUrl, body, headers, result };
-    $('#message-preview').textContent = body;
-    $('#headers-preview').textContent = Object.entries(headers).map(([key, value]) => `${key}: ${value}`).join('\n');
-    $('#metadata-preview').innerHTML = [
-      ['Class', $('#message-class option:checked').textContent],
-      ['Recipients', String(result.recipients.length)],
-      ['Retention', `${$('#retention').value} days`],
-      ['IP treatment', $('#ip-mode option:checked').textContent],
-      ['Provider', $('#provider').value || 'Not configured'],
-    ].map(([term, value]) => `<div><dt>${term}</dt><dd>${value}</dd></div>`).join('');
+  function renderValidation(result) {
     const items = [
-      ...result.errors.map((text) => `<p class="error">✕ ${text}</p>`),
-      ...result.warnings.map((text) => `<p class="warning">! ${text}</p>`),
+      ...result.errors.map((text) => `<p class="error">✕ ${escapeHtml(text)}</p>`),
+      ...result.warnings.map((text) => `<p class="warning">! ${escapeHtml(text)}</p>`),
       ...(result.errors.length || result.warnings.length ? [] : ['<p class="pass">✓ Preview satisfies configured policy checks.</p>']),
     ];
     $('#validation-results').innerHTML = items.join('');
-    $('#preview-status').textContent = result.errors.length ? 'Blocked' : 'Preview ready';
-    $('#preview-status').className = `badge ${result.errors.length ? 'danger' : 'safe'}`;
-    $('#submit-message').disabled = true;
+  }
 
+  function addComposedActivity(preview) {
+    const request = preview.request;
     state.activity.unshift({
-      controlId,
-      caseId: $('#case-id').value.trim() || '—',
-      recipient: result.recipients[0] || '—',
-      subject: $('#subject').value.trim() || 'Untitled',
+      controlId: preview.control_id,
+      caseId: request.case_id || '—',
+      recipient: request.recipients[0] || '—',
+      subject: request.subject || 'Untitled',
       status: 'Composed',
       event: new Date().toISOString(),
       confidence: 'Confirmed',
     });
     renderActivity();
+  }
+
+  async function generatePreview() {
+    const validation = clientValidation();
+    renderValidation(validation);
+    if (validation.errors.length) {
+      $('#preview-status').textContent = 'Blocked';
+      $('#preview-status').className = 'badge danger';
+      showStep('preview');
+      return;
+    }
+
+    $('#preview-status').textContent = 'Generating';
+    $('#preview-status').className = 'badge';
+    const response = await fetch('/outbound-mail/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formPayload()),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      validation.errors.push(`${result.error || 'preview_failed'}: ${result.message || 'Unknown error'}`);
+      renderValidation(validation);
+      $('#preview-status').textContent = 'Blocked';
+      $('#preview-status').className = 'badge danger';
+      showStep('preview');
+      return;
+    }
+
+    state.preview = result;
+    $('#message-preview').textContent = result.body;
+    $('#headers-preview').textContent = Object.entries(result.headers).map(([key, value]) => `${key}: ${value}`).join('\n');
+    $('#metadata-preview').innerHTML = [
+      ['Control ID', result.control_id],
+      ['Class', result.request.message_class],
+      ['Recipients', String(result.request.recipients.length)],
+      ['Action URL', result.action_url],
+      ['Provider', state.status.providers.find((item) => item.selected)?.name || 'none'],
+      ['Tracking', 'disclosed-action-link; no-hidden-pixel'],
+    ].map(([term, value]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('');
+    $('#preview-status').textContent = 'Preview ready';
+    $('#preview-status').className = 'badge safe';
+    $('#submit-message').disabled = !(state.status && state.status.external_delivery_enabled);
+    addComposedActivity(result);
     showStep('preview');
+  }
+
+  async function submitMessage() {
+    if (!state.status || !state.status.external_delivery_enabled || !state.preview) return;
+    if (!window.confirm('Submit this correspondence through the configured external provider?')) return;
+    const payload = formPayload();
+    payload.confirm_send = true;
+    const response = await fetch('/outbound-mail/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      window.alert(`${result.error || 'send_failed'}: ${result.message || 'Unknown error'}`);
+      return;
+    }
+    window.alert(`Message submitted. Control ID: ${result.control_id}`);
+    await loadActivity();
+  }
+
+  function normalizedRemoteActivity(event) {
+    return {
+      controlId: event.control_id || '—',
+      caseId: event.case_id || '—',
+      recipient: event.recipient_count ? `${event.recipient_count} recipient(s)` : '—',
+      subject: 'Restricted in audit view',
+      status: event.event === 'outbound_message_submitted' ? 'Submitted' : (event.event || 'Event'),
+      event: event.occurred_at || '—',
+      confidence: 'Confirmed',
+    };
+  }
+
+  async function loadActivity() {
+    const response = await fetch('/outbound-mail/audit?limit=100', { cache: 'no-store' });
+    if (!response.ok) return;
+    const result = await response.json();
+    state.remoteActivity = (result.events || []).map(normalizedRemoteActivity);
+    renderActivity();
   }
 
   function renderActivity() {
     const query = $('#activity-search').value.toLowerCase();
     const status = $('#activity-status').value;
-    const rows = state.activity.filter((row) => (!status || row.status === status) && Object.values(row).join(' ').toLowerCase().includes(query));
-    $('#activity-body').innerHTML = rows.length ? rows.map((row) => `<tr><td>${row.controlId}</td><td>${row.caseId}</td><td>${row.recipient}</td><td>${row.subject}</td><td><span class="status">${row.status}</span></td><td>${row.event}</td><td>${row.confidence}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No matching events.</td></tr>';
+    const combined = [...state.activity, ...state.remoteActivity];
+    const rows = combined.filter((row) => (!status || row.status === status) && Object.values(row).join(' ').toLowerCase().includes(query));
+    $('#activity-body').innerHTML = rows.length ? rows.map((row) => `<tr><td>${escapeHtml(row.controlId)}</td><td>${escapeHtml(row.caseId)}</td><td>${escapeHtml(row.recipient)}</td><td>${escapeHtml(row.subject)}</td><td><span class="status">${escapeHtml(row.status)}</span></td><td>${escapeHtml(row.event)}</td><td>${escapeHtml(row.confidence)}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No matching events.</td></tr>';
   }
 
   function exportCsv() {
     const header = ['Control ID', 'Case', 'Recipient', 'Subject', 'Status', 'Last event', 'Confidence'];
-    const rows = state.activity.map((row) => [row.controlId, row.caseId, row.recipient, row.subject, row.status, row.event, row.confidence]);
+    const rows = [...state.activity, ...state.remoteActivity].map((row) => [row.controlId, row.caseId, row.recipient, row.subject, row.status, row.event, row.confidence]);
     const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    link.href = url;
     link.download = 'wwcx-correspondence-matrix.csv';
     link.click();
-    URL.revokeObjectURL(link.href);
+    URL.revokeObjectURL(url);
   }
 
   $$('.step-nav button').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.step)));
   $$('[data-next]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.next)));
   $$('[data-back]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.back)));
-  ['mailing-address', 'provider', 'privacy-url'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
+  ['mailing-address', 'privacy-url', 'contact-email'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
   $('#message-class').addEventListener('change', () => $('#unsubscribe-wrap').classList.toggle('hidden', $('#message-class').value !== 'commercial'));
   $('#generate-preview').addEventListener('click', generatePreview);
+  $('#submit-message').addEventListener('click', submitMessage);
   $('#copy-preview').addEventListener('click', async () => state.preview && navigator.clipboard.writeText(state.preview.body));
   $('#activity-search').addEventListener('input', renderActivity);
   $('#activity-status').addEventListener('change', renderActivity);
@@ -161,5 +239,8 @@
     $('#body').value = 'Hello,\n\nPlease provide the complete chronology and supporting records identified in our correspondence.\n\nThank you.';
   });
 
-  updateSetup();
+  Promise.all([loadStatus(), loadActivity()]).catch((error) => {
+    $('.mode-pill').textContent = 'Gateway unavailable';
+    $('#setup-checklist').innerHTML = `<p class="error"><span>✕</span>${escapeHtml(error.message)}</p>`;
+  });
 })();
