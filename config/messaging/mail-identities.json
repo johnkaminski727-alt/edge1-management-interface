@@ -133,6 +133,24 @@
       "status": "planned",
       "outbound_enabled": false
     },
+    "creekco-accessibility": {
+      "address": "accessibility@creekco.ca",
+      "display_name": "CreekCo Accessibility",
+      "organization": "Spirit Creek Communications",
+      "use_for": "accessibility requests, accessible-service support, and accommodation correspondence",
+      "address_class": "work_role",
+      "status": "verified_operational",
+      "outbound_enabled": false
+    },
+    "creekco-noc": {
+      "address": "noc@creekco.ca",
+      "display_name": "CreekCo Network Operations",
+      "organization": "Spirit Creek Communications",
+      "use_for": "network operations, carrier coordination, incidents, maintenance, and technical escalation",
+      "address_class": "work_role",
+      "status": "verified_operational",
+      "outbound_enabled": false
+    },
     "spirit-creek-gardens-records": {
       "address": "records@spiritcreekgardens.com",
       "display_name": "Spirit Creek Gardens Records",
@@ -193,6 +211,8 @@
       "regulatory@creekco.ca": "regulatory@creekco.ca",
       "complaints@creekco.ca": "complaints@creekco.ca",
       "porting@creekco.ca": "porting@creekco.ca",
+      "accessibility@creekco.ca": "accessibility@creekco.ca",
+      "noc@creekco.ca": "noc@creekco.ca",
       "privacy@creekco.ca": "privacy@creekco.ca",
       "postmaster@creekco.ca": "postmaster@creekco.ca",
       "abuse@creekco.ca": "abuse@creekco.ca",
