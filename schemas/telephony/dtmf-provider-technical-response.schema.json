@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/telephony/dtmf-provider-technical-response.schema.json",
+  "title": "WW.CX DTMF Provider Technical Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider_id",
+    "route_id",
+    "response_state",
+    "response_evidence",
+    "questions",
+    "privacy",
+    "decision"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+    "route_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+    "response_state": {"enum": ["pending", "received", "reviewed"]},
+    "response_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "source_type", "retention", "received_at", "summary"],
+      "properties": {
+        "evidence_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+        "source_type": {"const": "provider-private-correspondence"},
+        "retention": {"const": "internal-restricted"},
+        "received_at": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}
+          ]
+        },
+        "summary": {"type": "string", "minLength": 1, "maxLength": 500}
+      }
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question_id", "answer_status", "evidence_strength", "scopes", "details", "evidence_refs"],
+        "properties": {
+          "question_id": {
+            "enum": [
+              "rfc4733-directionality",
+              "rfc4733-event-range",
+              "extended-abcd",
+              "sip-info",
+              "inband-codecs",
+              "auto-fallback",
+              "route-exceptions",
+              "diagnostic-scope",
+              "asterisk-pjsip-settings"
+            ]
+          },
+          "answer_status": {"enum": ["unanswered", "documented", "not-supported", "conditional", "test-required"]},
+          "evidence_strength": {"enum": ["none", "service-guarantee", "best-effort", "configuration-guidance", "controlled-test-only"]},
+          "scopes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"enum": ["account-level", "inbound", "outbound", "internal", "unknown"]}
+          },
+          "details": {"type": "string", "minLength": 1, "maxLength": 500},
+          "evidence_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"}
+          }
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_name_retained", "account_identifier_retained", "credential_retained", "telephone_number_retained", "sip_uri_retained", "personal_identifier_retained"],
+      "properties": {
+        "provider_name_retained": {"const": false},
+        "account_identifier_retained": {"const": false},
+        "credential_retained": {"const": false},
+        "telephone_number_retained": {"const": false},
+        "sip_uri_retained": {"const": false},
+        "personal_identifier_retained": {"const": false}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matrix_update_allowed", "live_test_authorized", "notes"],
+      "properties": {
+        "matrix_update_allowed": {"type": "boolean"},
+        "live_test_authorized": {"const": false},
+        "notes": {"type": "string", "minLength": 1, "maxLength": 500}
+      }
+    }
+  }
+}

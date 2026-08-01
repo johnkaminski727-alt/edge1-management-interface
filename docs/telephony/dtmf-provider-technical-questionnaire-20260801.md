@@ -22,9 +22,11 @@ Provider-controlled public documentation supports only the following statements:
 3. the automatic mode can fall back to in-band when the other end does not support that RTP-event mode;
 4. account and subaccount codec allowlists are configurable;
 5. a provider-hosted DTMF diagnostic destination exists;
-6. public troubleshooting guidance may recommend trying in-band or AVT device settings when diagnosing DTMF problems.
+6. public troubleshooting guidance may recommend trying in-band or AVT device settings when diagnosing DTMF problems;
+7. the public Asterisk PJSIP example uses `ulaw` and mentions optional `g729`, but does not set a PJSIP DTMF mode;
+8. public SIP INFO references occur in client feature descriptions and troubleshooting guidance, not in a provider-network service guarantee.
 
-These statements do not establish an RFC 4733 event range, direction-specific support, SIP INFO support, codec survival, transcoding behavior, extended `A-D`, or end-to-end carrier interoperability.
+These statements do not establish an RFC 4733 event range, direction-specific support, SIP INFO service support, codec survival, transcoding behavior, extended `A-D`, or end-to-end carrier interoperability.
 
 ## Current evidence decision
 
@@ -35,12 +37,12 @@ These statements do not establish an RFC 4733 event range, direction-specific su
 | Is RFC 4733 supported inbound and outbound? | `unknown` | Public text does not distinguish customer-to-provider and provider-to-customer behavior. |
 | Which events are advertised or accepted? | `unknown` | No `0-11`, `0-15`, payload, or event-list statement is published. |
 | Are `A-D` supported end to end? | `unknown` | A diagnostic destination alone does not prove extended-event handling. |
-| Is SIP INFO supported? | `unknown` | Device troubleshooting references do not constitute a provider service guarantee. |
-| Which codecs preserve in-band DTMF? | `unknown` | Configurable codec allowlists do not prove DTMF survival through any codec or transcoder. |
+| Is SIP INFO supported? | `unknown` | Client feature and troubleshooting references do not constitute a provider service guarantee. |
+| Which codecs preserve in-band DTMF? | `unknown` | Configurable codec allowlists and audio troubleshooting do not prove DTMF survival through any codec or transcoder. |
 | Does the provider translate between DTMF modes? | `unknown` | The published fallback wording does not specify pass-through versus interworking. |
 | Are there direction, route, POP, SBC, regional, encryption, or upstream-carrier exceptions? | `unknown` | No exact applicability statement is published. |
 | What does the diagnostic destination validate? | `partially-documented` | Its existence and general purpose are documented; recognized digits and path scope are not. |
-| Which Asterisk PJSIP settings are provider-recommended? | `partially-documented` | Matching the account DTMF mode is recommended; event range, payload, `auto_info`, codec, and direct-media guidance remain unknown. |
+| Which Asterisk PJSIP settings are provider-recommended? | `partially-documented` for media only | The public example uses `ulaw` and mentions optional `g729`, but omits `dtmf_mode`, event range, payload, `auto_info`, and direct-media guidance. |
 
 ## Provider escalation
 
@@ -63,23 +65,33 @@ The request explicitly asks the provider to distinguish:
 - best-effort or commonly observed behavior;
 - behavior that can only be established by a controlled live test.
 
-## Promotion rule
+## Response processing
+
+The validated response worksheet and promotion gates are documented in:
+
+```text
+docs/telephony/dtmf-provider-response-intake.md
+schemas/telephony/dtmf-provider-technical-response.schema.json
+examples/telephony/dtmf-provider-technical-response.example.json
+tools/telephony/validate_dtmf_provider_technical_response.py
+```
 
 No additional capability may be promoted while the response is pending.
 
 When a response arrives:
 
 1. retain the original message in the restricted mailbox;
-2. create only a sanitized evidence summary in the repository;
-3. map each answer to an exact capability, direction, route scope, and evidence reference;
-4. leave ambiguous or unanswered fields as `unknown`;
-5. do not treat configuration advice as proof of carrier or end-to-end interoperability;
-6. do not authorize a live test through the evidence record;
-7. run provider-evidence, privacy, cross-record matrix, and repository validations before merge.
+2. create only a sanitized technical-response worksheet;
+3. classify each answer as a service guarantee, best-effort statement, configuration guidance, or controlled-test-only result;
+4. map each answer to an exact capability and scope;
+5. leave ambiguous or unanswered fields as `unknown`;
+6. do not treat configuration advice as proof of carrier or end-to-end interoperability;
+7. do not authorize a live test through the response or evidence record;
+8. run response-intake, provider-evidence, privacy, cross-record matrix, and repository validations before merge.
 
 ## Operational boundary
 
-Sending the questionnaire did not originate a call, transmit DTMF, change an endpoint, trunk, route, DID, dialplan, account setting, codec, service, listener, firewall rule, DNS record, certificate, emergency-calling path, or production traffic.
+Sending the questionnaire and preparing the response intake did not originate a call, transmit DTMF, change an endpoint, trunk, route, DID, dialplan, account setting, codec, service, listener, firewall rule, DNS record, certificate, emergency-calling path, or production traffic.
 
 Current accepted state remains:
 
