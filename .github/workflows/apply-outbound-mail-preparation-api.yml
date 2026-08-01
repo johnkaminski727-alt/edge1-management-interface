@@ -1,0 +1,485 @@
+name: Apply outbound mail preparation API
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/outbound-mail-preparation-api'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Apply preparation API configuration and server integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(path_text: str, old: str, new: str, label: str) -> None:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one exact anchor, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          config_path = Path('config/messaging/outbound-mail-gateway.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          config['preparation_api'] = {
+              'enabled': False,
+              'authentication': 'hmac_sha256',
+              'secret_env': 'WWCX_MAIL_GATEWAY_TOKEN',
+              'allowed_clients': ['wwcx-website-admin'],
+              'clock_skew_seconds': 300,
+              'nonce_ttl_seconds': 900,
+              'nonce_store': 'var/outbound-mail/preparation-nonces.sqlite3',
+              'max_request_bytes': 327680,
+          }
+          ordered = {}
+          for key, value in config.items():
+              ordered[key] = value
+              if key == 'admin':
+                  ordered['preparation_api'] = config['preparation_api']
+          if list(ordered).count('preparation_api') > 1:
+              raise SystemExit('preparation_api duplicated')
+          config_path.write_text(json.dumps(ordered, indent=2) + '\n', encoding='utf-8')
+
+          gateway_path = 'server/outbound_mail_gateway.py'
+          replace_once(
+              gateway_path,
+              'import outbound_mail_policy\n',
+              'import outbound_mail_policy\nimport outbound_mail_preparation_auth\n',
+              'gateway auth import',
+          )
+          replace_once(
+              gateway_path,
+              '''            "provider",
+                          "admin",
+                          "content",
+          ''',
+              '''            "provider",
+                          "admin",
+                          "preparation_api",
+                          "content",
+          ''',
+              'gateway top-level preparation_api key',
+          )
+          replace_once(
+              gateway_path,
+              '''    _require_int(admin["audit_view_limit"], "admin.audit_view_limit", 1, 5000)
+
+                  content = config["content"]
+          ''',
+              '''    _require_int(admin["audit_view_limit"], "admin.audit_view_limit", 1, 5000)
+
+                  try:
+                      outbound_mail_preparation_auth.validate_config(config["preparation_api"])
+                  except outbound_mail_preparation_auth.PreparationAuthConfigurationError as exc:
+                      raise ConfigurationError(str(exc)) from exc
+
+                  content = config["content"]
+          ''',
+              'gateway preparation API validation',
+          )
+          replace_once(
+              gateway_path,
+              '''        "persist_attachment_bytes": config["content"]["persist_attachment_bytes"],
+                      "providers": [item.to_dict() for item in statuses],
+          ''',
+              '''        "persist_attachment_bytes": config["content"]["persist_attachment_bytes"],
+                      "preparation_api": outbound_mail_preparation_auth.status_payload(
+                          config["preparation_api"]
+                      ),
+                      "providers": [item.to_dict() for item in statuses],
+          ''',
+              'gateway preparation API status',
+          )
+
+          server_path = 'server/outbound_mail_gateway_server.py'
+          replace_once(
+              server_path,
+              'import argparse\nimport json\nimport sys\n',
+              'import argparse\nimport json\nimport sys\nfrom datetime import datetime, timezone\n',
+              'server datetime import',
+          )
+          replace_once(
+              server_path,
+              'import outbound_mail_policy\n',
+              'import outbound_mail_policy\nimport outbound_mail_preparation_auth as preparation_auth\n',
+              'server preparation auth import',
+          )
+          replace_once(
+              server_path,
+              '''    def load(self) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Path]:
+                      config = gateway.load_json(self.config_path)
+                      gateway.validate_gateway_config(config)
+                      policy_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["policy"])
+                      audit_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["audit_jsonl"])
+                      policy = outbound_mail_policy.load_policy(policy_path)
+                      outbound_mail_policy.validate_policy(policy)
+                      identities = gateway.load_json(self.identities_path)
+                      mail_identity_registry.validate_registry(identities)
+                      return config, policy, identities, audit_path
+          ''',
+              '''    def load(
+                      self,
+                  ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], Path, Path]:
+                      config = gateway.load_json(self.config_path)
+                      gateway.validate_gateway_config(config)
+                      policy_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["policy"])
+                      audit_path = gateway.resolve_repo_path(REPO_ROOT, config["paths"]["audit_jsonl"])
+                      nonce_path = gateway.resolve_repo_path(
+                          REPO_ROOT,
+                          config["preparation_api"]["nonce_store"],
+                      )
+                      policy = outbound_mail_policy.load_policy(policy_path)
+                      outbound_mail_policy.validate_policy(policy)
+                      identities = gateway.load_json(self.identities_path)
+                      mail_identity_registry.validate_registry(identities)
+                      return config, policy, identities, audit_path, nonce_path
+          ''',
+              'server application load tuple',
+          )
+          replace_once(
+              server_path,
+              '''    def _read_json(self, max_bytes: int) -> dict[str, Any]:
+                      raw_length = self.headers.get("Content-Length", "")
+                      try:
+                          length = int(raw_length)
+                      except ValueError as exc:
+                          raise gateway.GatewayError("invalid Content-Length") from exc
+                      if length < 1 or length > max_bytes:
+                          raise gateway.GatewayError("request body length is invalid")
+                      body = self.rfile.read(length)
+                      try:
+                          payload = json.loads(body.decode("utf-8"))
+                      except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                          raise gateway.GatewayError("request body must be valid UTF-8 JSON") from exc
+                      if not isinstance(payload, dict):
+                          raise gateway.GatewayError("request JSON must be an object")
+                      return payload
+          ''',
+              '''    def _read_body(self, max_bytes: int) -> bytes:
+                      raw_length = self.headers.get("Content-Length", "")
+                      try:
+                          length = int(raw_length)
+                      except ValueError as exc:
+                          raise gateway.GatewayError("invalid Content-Length") from exc
+                      if length < 1 or length > max_bytes:
+                          raise gateway.GatewayError("request body length is invalid")
+                      return self.rfile.read(length)
+
+                  def _decode_json(self, body: bytes) -> dict[str, Any]:
+                      try:
+                          payload = json.loads(body.decode("utf-8"))
+                      except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                          raise gateway.GatewayError("request body must be valid UTF-8 JSON") from exc
+                      if not isinstance(payload, dict):
+                          raise gateway.GatewayError("request JSON must be an object")
+                      return payload
+
+                  def _read_json(self, max_bytes: int) -> dict[str, Any]:
+                      return self._decode_json(self._read_body(max_bytes))
+
+                  def _authenticate_preparation_api(
+                      self,
+                      config: dict[str, Any],
+                      nonce_path: Path,
+                      method: str,
+                      path: str,
+                      body: bytes,
+                  ) -> preparation_auth.VerifiedPreparationClient:
+                      return preparation_auth.verify_request(
+                          config["preparation_api"],
+                          dict(self.headers.items()),
+                          method,
+                          path,
+                          body,
+                          nonce_path,
+                      )
+          ''',
+              'server raw body and authentication helpers',
+          )
+          replace_once(
+              server_path,
+              '''    def _handle_error(self, exc: Exception) -> None:
+                      if isinstance(exc, gateway.DeliveryDisabledError):
+          ''',
+              '''    def _handle_error(self, exc: Exception) -> None:
+                      if isinstance(exc, preparation_auth.PreparationApiDisabledError):
+                          status = HTTPStatus.FORBIDDEN
+                          code = "preparation_api_disabled"
+                      elif isinstance(exc, preparation_auth.PreparationAuthUnavailableError):
+                          status = HTTPStatus.SERVICE_UNAVAILABLE
+                          code = "preparation_auth_unavailable"
+                      elif isinstance(exc, preparation_auth.PreparationReplayError):
+                          status = HTTPStatus.CONFLICT
+                          code = "replay_detected"
+                      elif isinstance(exc, preparation_auth.InvalidPreparationAuthError):
+                          status = HTTPStatus.UNAUTHORIZED
+                          code = "authentication_failed"
+                          exc = RuntimeError("Preparation API authentication failed.")
+                      elif isinstance(exc, gateway.DeliveryDisabledError):
+          ''',
+              'server authentication error mapping',
+          )
+          replace_once(
+              server_path,
+              '''                gateway.ConfigurationError,
+                              mail_identity_registry.IdentityRegistryError,
+                              ValueError,
+          ''',
+              '''                gateway.ConfigurationError,
+                              preparation_auth.PreparationAuthConfigurationError,
+                              mail_identity_registry.IdentityRegistryError,
+                              ValueError,
+          ''',
+              'server auth configuration error mapping',
+          )
+          replace_once(
+              server_path,
+              '            config, policy, identities, audit_path = self.application.load()\n',
+              '            config, policy, identities, audit_path, nonce_path = self.application.load()\n',
+              'server GET load tuple',
+          )
+          replace_once(
+              server_path,
+              '''            if parsed.path == "/outbound-mail/status":
+                              self._send_json(
+                                  HTTPStatus.OK,
+                                  identity_gateway.status_payload(config, policy, identities),
+                              )
+                              return
+          ''',
+              '''            if parsed.path == "/outbound-mail/status":
+                              self._send_json(
+                                  HTTPStatus.OK,
+                                  identity_gateway.status_payload(config, policy, identities),
+                              )
+                              return
+                          if parsed.path == "/outbound-mail/api/v1/status":
+                              client = self._authenticate_preparation_api(
+                                  config,
+                                  nonce_path,
+                                  "GET",
+                                  parsed.path,
+                                  b"",
+                              )
+                              status_payload = identity_gateway.status_payload(
+                                  config,
+                                  policy,
+                                  identities,
+                              )
+                              status_payload["preparation_api"]["contract"] = (
+                                  "wwcx.outbound-mail-preparation-api.v1"
+                              )
+                              status_payload["preparation_api"]["authenticated_client_id"] = (
+                                  client.client_id
+                              )
+                              self._send_json(HTTPStatus.OK, status_payload)
+                              return
+          ''',
+              'server authenticated status route',
+          )
+
+          old_post = '''    def do_POST(self) -> None:
+                      parsed = urlparse(self.path)
+                      try:
+                          config, policy, identities, audit_path = self.application.load()
+                          max_bytes = config["admin"]["max_body_bytes"] + 65536
+                          payload = self._read_json(max_bytes)
+                          if parsed.path == "/outbound-mail/preview":
+                              preview = identity_gateway.compose_preview(config, policy, identities, payload)
+                              preview.pop("action_token", None)
+                              self._send_json(HTTPStatus.OK, preview)
+                              return
+                          if parsed.path == "/outbound-mail/send":
+                              confirmation = payload.pop("confirm_send", False) is True
+                              result = identity_gateway.send_message(
+                                  config,
+                                  policy,
+                                  identities,
+                                  payload,
+                                  confirmation=confirmation,
+                                  audit_path=audit_path,
+                              )
+                              self._send_json(HTTPStatus.ACCEPTED, result)
+                              return
+                          self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+                      except Exception as exc:
+                          self._handle_error(exc)
+          '''
+          new_post = '''    def do_POST(self) -> None:
+                      parsed = urlparse(self.path)
+                      try:
+                          config, policy, identities, audit_path, nonce_path = self.application.load()
+                          if parsed.path == "/outbound-mail/api/v1/prepare":
+                              body = self._read_body(
+                                  config["preparation_api"]["max_request_bytes"]
+                              )
+                              client = self._authenticate_preparation_api(
+                                  config,
+                                  nonce_path,
+                                  "POST",
+                                  parsed.path,
+                                  body,
+                              )
+                              payload = self._decode_json(body)
+                              preview = identity_gateway.compose_preview(
+                                  config,
+                                  policy,
+                                  identities,
+                                  payload,
+                              )
+                              preview.pop("action_token", None)
+                              audit_event = dict(preview["audit_record"])
+                              audit_event.update(
+                                  {
+                                      "event": "outbound_message_prepared_api",
+                                      "occurred_at": datetime.now(timezone.utc).isoformat(
+                                          timespec="seconds"
+                                      ),
+                                      "client_id": client.client_id,
+                                      "sender_address": preview["request"]["from_address"],
+                                      "sender_selection_reason": preview["sender_selection"][
+                                          "reason"
+                                      ],
+                                      "sender_identity_key": preview["sender_selection"][
+                                          "identity_key"
+                                      ],
+                                      "delivery_status": "prepared_not_sent",
+                                  }
+                              )
+                              gateway.append_audit_event(audit_path, audit_event)
+                              preview["preparation_api"] = {
+                                  "contract": "wwcx.outbound-mail-preparation-api.v1",
+                                  "authenticated_client_id": client.client_id,
+                                  "delivery_status": "prepared_not_sent",
+                              }
+                              self._send_json(HTTPStatus.OK, preview)
+                              return
+
+                          max_bytes = config["admin"]["max_body_bytes"] + 65536
+                          payload = self._read_json(max_bytes)
+                          if parsed.path == "/outbound-mail/preview":
+                              preview = identity_gateway.compose_preview(config, policy, identities, payload)
+                              preview.pop("action_token", None)
+                              self._send_json(HTTPStatus.OK, preview)
+                              return
+                          if parsed.path == "/outbound-mail/send":
+                              confirmation = payload.pop("confirm_send", False) is True
+                              result = identity_gateway.send_message(
+                                  config,
+                                  policy,
+                                  identities,
+                                  payload,
+                                  confirmation=confirmation,
+                                  audit_path=audit_path,
+                              )
+                              self._send_json(HTTPStatus.ACCEPTED, result)
+                              return
+                          self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+                      except Exception as exc:
+                          self._handle_error(exc)
+          '''
+          replace_once(server_path, old_post, new_post, 'server authenticated prepare route')
+          replace_once(
+              server_path,
+              '    config, policy, identities, _ = application.load()\n',
+              '    config, policy, identities, _, _ = application.load()\n',
+              'server main load tuple',
+          )
+
+          test_path = 'tests/test_outbound_mail_gateway.py'
+          replace_once(
+              test_path,
+              '''        self.assertFalse(self.config["admin"]["send_endpoint_enabled"])
+                      self.assertEqual(self.config["provider"]["selected"], "none")
+          ''',
+              '''        self.assertFalse(self.config["admin"]["send_endpoint_enabled"])
+                      self.assertFalse(self.config["preparation_api"]["enabled"])
+                      self.assertEqual(
+                          self.config["preparation_api"]["authentication"],
+                          "hmac_sha256",
+                      )
+                      self.assertEqual(self.config["provider"]["selected"], "none")
+          ''',
+              'gateway unit committed preparation API state',
+          )
+          replace_once(
+              test_path,
+              '''        self.assertFalse(status["device_fingerprinting"])
+          ''',
+              '''        self.assertFalse(status["device_fingerprinting"])
+                      self.assertFalse(status["preparation_api"]["enabled"])
+                      self.assertNotIn("secret", json.dumps(status["preparation_api"]).casefold())
+          ''',
+              'gateway unit preparation status',
+          )
+
+          validator = Path('tests/validate_outbound_mail_gateway.py')
+          text = validator.read_text(encoding='utf-8')
+          text = text.replace(
+              'FACADE_PATH = ROOT / "server" / "identity_aware_outbound_gateway.py"\n',
+              'FACADE_PATH = ROOT / "server" / "identity_aware_outbound_gateway.py"\nAUTH_PATH = ROOT / "server" / "outbound_mail_preparation_auth.py"\n',
+              1,
+          )
+          text = text.replace(
+              'assert status["persist_attachment_bytes"] is False\n',
+              'assert status["persist_attachment_bytes"] is False\nassert status["preparation_api"]["enabled"] is False\nassert status["preparation_api"]["authentication"] == "hmac_sha256"\nassert status["preparation_api"]["runtime_secret_configured"] is False\n',
+              1,
+          )
+          text = text.replace(
+              '    FACADE_PATH,\n    IDENTITIES_PATH,\n',
+              '    FACADE_PATH,\n    AUTH_PATH,\n    IDENTITIES_PATH,\n',
+              1,
+          )
+          text = text.replace(
+              '    \'"/outbound-mail/send"\',\n    "DEFAULT_IDENTITIES",\n',
+              '    \'"/outbound-mail/send"\',\n    \'"/outbound-mail/api/v1/status"\',\n    \'"/outbound-mail/api/v1/prepare"\',\n    "preparation_auth.verify_request",\n    "outbound_message_prepared_api",\n    "DEFAULT_IDENTITIES",\n',
+              1,
+          )
+          text = text.replace(
+              '        "tests.test_identity_aware_outbound_gateway",\n',
+              '        "tests.test_identity_aware_outbound_gateway",\n        "tests.test_outbound_mail_preparation_auth",\n',
+              1,
+          )
+          text = text.replace(
+              '        str(FACADE_PATH),\n',
+              '        str(FACADE_PATH),\n        str(AUTH_PATH),\n',
+              1,
+          )
+          validator.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate preparation API foundation
+        run: |
+          python3 -m json.tool config/messaging/outbound-mail-gateway.json >/dev/null
+          python3 -m unittest \
+            tests.test_outbound_mail_policy \
+            tests.test_outbound_mail_gateway \
+            tests.test_outbound_mail_admin_assets \
+            tests.test_mail_identity_registry \
+            tests.test_identity_aware_outbound_gateway \
+            tests.test_outbound_mail_preparation_auth
+          python3 tests/validate_outbound_mail_gateway.py
+          python3 -m compileall -q server tests tools
+
+      - name: Commit final changes and remove one-shot workflow
+        run: |
+          rm .github/workflows/apply-outbound-mail-preparation-api.yml
+          git config user.name "WW.CX Engineering Agent"
+          git config user.email "johnkaminski727@gmail.com"
+          git add -A
+          git commit -m "Add authenticated outbound preparation API"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
