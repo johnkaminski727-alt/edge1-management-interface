@@ -1,0 +1,179 @@
+{
+  "anomaly_summary": {
+    "indicators": [
+      {
+        "automatic_action": false,
+        "id": "platform_health_score",
+        "investigation_target": "#analytics-health",
+        "minimum_sample": 1,
+        "observed_value": 85.0,
+        "reason_code": "platform_health_score_watch",
+        "sample_size": 1,
+        "state": "watch",
+        "thresholds": {
+          "critical_below": 60.0,
+          "watch_below": 90.0
+        },
+        "unit": "score"
+      },
+      {
+        "automatic_action": false,
+        "id": "answer_rate",
+        "investigation_target": "#analytics-failures",
+        "minimum_sample": 20,
+        "observed_value": 75.0,
+        "reason_code": "answer_rate_ok",
+        "sample_size": 20,
+        "state": "ok",
+        "thresholds": {
+          "critical_below": 50.0,
+          "watch_below": 70.0
+        },
+        "unit": "percent"
+      },
+      {
+        "automatic_action": false,
+        "id": "failure_ratio",
+        "investigation_target": "#analytics-failures",
+        "minimum_sample": 20,
+        "observed_value": 25.0,
+        "reason_code": "failure_ratio_watch",
+        "sample_size": 20,
+        "state": "watch",
+        "thresholds": {
+          "critical_at_or_above": 50.0,
+          "watch_at_or_above": 25.0
+        },
+        "unit": "percent"
+      },
+      {
+        "automatic_action": false,
+        "id": "dominant_failure_concentration",
+        "investigation_target": "#analytics-failures",
+        "minimum_sample": 10,
+        "observed_value": 60.0,
+        "reason_code": "dominant_failure_concentration_insufficient_data",
+        "sample_size": 5,
+        "state": "insufficient_data",
+        "thresholds": {
+          "critical_at_or_above": 80.0,
+          "watch_at_or_above": 60.0
+        },
+        "unit": "percent"
+      },
+      {
+        "automatic_action": false,
+        "id": "interconnect_attention_ratio",
+        "investigation_target": "#analytics-carriers",
+        "minimum_sample": 2,
+        "observed_value": 50.0,
+        "reason_code": "interconnect_attention_ratio_critical",
+        "sample_size": 2,
+        "state": "critical",
+        "thresholds": {
+          "critical_at_or_above": 50.0,
+          "watch_at_or_above": 25.0
+        },
+        "unit": "percent"
+      },
+      {
+        "automatic_action": false,
+        "id": "interconnect_latency",
+        "investigation_target": "#analytics-carriers",
+        "minimum_sample": 2,
+        "observed_value": 120.0,
+        "reason_code": "interconnect_latency_ok",
+        "sample_size": 2,
+        "state": "ok",
+        "thresholds": {
+          "average_critical_at_or_above": 500.0,
+          "average_watch_at_or_above": 250.0,
+          "maximum_critical_at_or_above": 1500.0,
+          "maximum_watch_at_or_above": 750.0
+        },
+        "unit": "milliseconds_average"
+      }
+    ],
+    "mode": "informational_no_enforcement",
+    "overall_state": "critical",
+    "safety": {
+      "automatic_action": false,
+      "notification_dispatch": false,
+      "route_change": false,
+      "service_control": false,
+      "traffic_enforcement": false
+    },
+    "schema_version": "1.0"
+  },
+  "call_summary": {
+    "answer_rate_percent": 75.0,
+    "calls_answered": 15,
+    "calls_total": 20,
+    "carriers": {
+      "carrier-a": 12,
+      "carrier-b": 8
+    },
+    "destination_countries": {
+      "ca": 12,
+      "us": 8
+    },
+    "directions": {
+      "inbound": 10,
+      "outbound": 10
+    },
+    "dispositions": {
+      "answered": 15,
+      "failed": 5
+    },
+    "duration_seconds_average": 30.0,
+    "duration_seconds_total": 600,
+    "failure_classes": {
+      "busy": 3,
+      "service_unavailable": 2
+    },
+    "sip_codes": {
+      "200": 15,
+      "486": 3,
+      "503": 2
+    }
+  },
+  "generated_at": "2026-08-01T22:05:00Z",
+  "health_summary": {
+    "components": {
+      "analytics": "healthy",
+      "pbx": "unknown",
+      "registry": "ready",
+      "routing": "unknown",
+      "sip": "healthy"
+    },
+    "overall_status": "degraded",
+    "score": 85
+  },
+  "interconnect_summary": {
+    "attention_required": 1,
+    "interconnects_total": 2,
+    "latency_ms_average": 120.0,
+    "latency_ms_max": 180.0,
+    "states": {
+      "degraded": 1,
+      "healthy": 1
+    }
+  },
+  "privacy_profile": "aggregate_no_customer_identifiers",
+  "report_id": "report-fixture-alpha",
+  "report_kind": "combined_summary",
+  "report_type": "telephony_analytics_aggregate_report",
+  "repository_revision": "9bfc9d0c494da11a4fb47fe38e7390f0b12d1444",
+  "safety": {
+    "audit_log_append": false,
+    "call_origination": false,
+    "dtmf_transmission": false,
+    "live_source_access": false,
+    "notification_dispatch": false,
+    "route_change": false,
+    "service_control": false,
+    "traffic_enforcement": false
+  },
+  "schema_version": "1.0",
+  "source_contract": "already_aggregated_summaries_only"
+}
