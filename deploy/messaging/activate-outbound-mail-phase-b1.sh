@@ -26,7 +26,15 @@ cleanup() {
   fi
   SECRET_SOURCE=
 }
-trap cleanup EXIT HUP INT TERM
+
+on_signal() {
+  trap - EXIT HUP INT TERM
+  cleanup
+  exit 130
+}
+
+trap cleanup EXIT
+trap on_signal HUP INT TERM
 
 [ "$(id -u)" -eq 0 ] || fail "run as root"
 [ "$(hostname -f 2>/dev/null || hostname)" = "$EXPECTED_HOST" ] || fail "unexpected host"
