@@ -1,8 +1,8 @@
 # Outbound Mail Phase B2 Readiness State
 
-Last reconciled: 2026-08-01 19:28 UTC  
+Last reconciled: 2026-08-01 19:48 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
-Acceptance issue: #224  
+Parameter discovery issue: #233  
 Parent activation issue: #187
 
 ## Verified prerequisite
@@ -31,7 +31,7 @@ Accepted facts:
 - B2 template baseline: `f1f65571902c7f377c6a7ca9c52f634973a7635a`;
 - readiness state: `awaiting_explicit_b2_parameters`;
 - evidence directory: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-readiness/20260801T192818Z`;
-- proposed hostname: not supplied;
+- proposed hostname: not supplied in that run;
 - proposed client CIDR: not supplied;
 - certificate full-chain path: not supplied;
 - certificate private-key path: not supplied;
@@ -40,32 +40,49 @@ Accepted facts:
 
 The audit completed without reading HMAC or certificate private-key contents and without changing runtime or network state.
 
-## Pending exact B2 parameters
+## Authorization received
 
-A later proposal-validation run requires all four values together:
+At approximately 2026-08-01 19:40 UTC, after the remaining B2/C work and privileged boundaries were stated, the user wrote: `I am authorizing all work.`
 
-1. exact lowercase non-wildcard API hostname;
-2. exact single-source IPv4 `/32` or IPv6 `/128`;
-3. approved certificate full-chain path;
-4. approved certificate private-key path.
+This is accepted as authorization to continue the outbound-mail project end to end, including bounded production configuration work after exact parameters, validation, rollback, and evidence requirements are satisfied. It does not waive credential secrecy, authorize disclosure or transmission of private-key/HMAC contents, permit destructive or irreversible work without a verified rollback, accept financial/legal terms, or define an unspecified production message or recipient.
 
-No value has been selected or inferred.
+## Parameter discovery in progress
 
-## Current authorization state
+The committed website bridge fixes the exact API hostname as:
+
+```text
+edge1.ww.cx
+```
+
+The bridge rejects alternate hosts, ports, paths, queries, fragments, credentials, and redirects.
+
+The remaining proposal inputs must be evidenced rather than guessed:
+
+1. actual business159 outbound NAT address as one `/32` or `/128`;
+2. existing approved certificate full-chain path on Edge1;
+3. corresponding existing private-key path identified by metadata only;
+4. selected active reverse-proxy service and destination configuration path.
+
+Issue #233 tracks a read-only Edge1 discovery tool. Website issue `johnkaminski727-alt/ww-cx-website#36` tracks the business159 egress measurement. An A or AAAA record is not accepted as proof of outbound NAT identity.
+
+## Current authorization and execution state
 
 - B2 baseline audit execution: **accepted**;
-- B2 proposal validation: **not yet parameterized**;
-- certificate/private-key content access authorized: **no**;
-- proxy installation or reload authorized: **no**;
-- DNS change authorized: **no**;
-- firewall change authorized: **no**;
-- public listener or route authorized: **no**;
-- external signed canary authorized: **no**;
-- website bridge authorized: **no**;
-- provider, sender, or delivery activation authorized: **no**;
-- production message authorized: **no**.
+- B2 parameter discovery package: **authorized and in repository review**;
+- exact B2 hostname: **`edge1.ww.cx`, fixed by committed bridge contract**;
+- exact client source `/32` or `/128`: **not yet measured**;
+- certificate paths: **not yet discovered and accepted**;
+- certificate/private-key content disclosure: **prohibited**;
+- proxy installation or reload: **authorized only after exact proposal validation and rollback review**;
+- DNS change: **authorized only if proposal evidence proves it is required and the exact record is recorded**;
+- firewall change: **authorized only if proposal evidence proves it is required and the exact rule is recorded**;
+- public listener or route: **not yet activated**;
+- external signed canary: **authorized only after the restricted proxy is installed and source allow-list is verified**;
+- website bridge deployment/activation: **authorized only after B2 external canary acceptance and secure shared-secret installation**;
+- provider, sender, or delivery activation: **not yet configured**;
+- production message: **not defined or sent**.
 
-## Verified non-mutation markers
+## Verified non-mutation markers from the accepted baseline
 
 - `hmac_secret_read=no`;
 - `certificate_private_key_read=no`;
@@ -80,8 +97,6 @@ No value has been selected or inferred.
 - `provider_or_sender_enabled=no`;
 - `message_sent=no`.
 
-## Required explicit B2 decision
+## Next execution gate
 
-Before any live B2 change, obtain exact authorization naming the hostname, certificate source and paths, client source address, reverse-proxy service and destination path, reload scope, DNS/firewall changes if any, external canary source, rollback procedure, and evidence directory.
-
-A generic `Continue` does not authorize those privileged actions.
+Run both read-only parameter discovery tools and accept their evidence. Then run the existing Phase B2 proposal-validation audit with all four exact values. Live proxy installation follows only if that proposal reaches `ready_for_explicit_b2_authorization` and the installation package preserves rollback, source restriction, exact-route exposure, HMAC authentication, and continued send denial.
