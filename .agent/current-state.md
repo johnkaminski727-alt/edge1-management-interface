@@ -6,7 +6,8 @@ Authoritative branch: `main`
 Accepted security live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
 Minimum confirmed alerting live repository state: contains `03d219e853bd8a373cd9d0503c45579901615017`  
 DTMF readiness implementation merge: `0703b88b227b346e022a40ca931e34d0874559cd`  
-Repository state used for DTMF live acceptance: `a600a341bdaaefde8b6bde89cfb9dba48877f500`
+Repository state used for DTMF live acceptance: `a600a341bdaaefde8b6bde89cfb9dba48877f500`  
+PJSIP endpoint-policy implementation and live-audit repository state: `6906d1bb7f5aa517c249bf893ab23675b63f062f`
 
 ## Verified live baseline
 
@@ -21,14 +22,19 @@ Repository state used for DTMF live acceptance: `a600a341bdaaefde8b6bde89cfb9dba
 - The guarded update completed with zero active calls, preserved configuration evidence, restarted the PBX, and validated the running binary against the installed package.
 - Kamailio remained active after the PBX restart.
 - `app_playtones`, `app_senddtmf`, DSP, `chan_pjsip`, `res_pjsip`, and `res_pjsip_sdp_rtp` were running after the update.
-- No PJSIP endpoints and no alerting-related dialplan matches were observed.
 - The authenticated DTMF readiness audit completed with exit code `0`, one warning, zero failures, and no runtime mutation.
 - Runtime `SendDTMF()` help advertised `0-9`, `*`, `#`, and `A-D`.
 - The offline DTMF probe passed all sixteen keypad symbols and recorded RFC 4733 event range `0-15`.
-- No configured PJSIP endpoint DTMF-policy records were found, so carrier and end-to-end DTMF behavior remain unverified.
+- The authenticated PJSIP endpoint-policy reconciliation completed with exit code `0`, two informational warnings, zero failures, and no runtime mutation.
+- The PJSIP runtime registry exposed zero endpoints, AORs, contacts, and transports.
+- Twenty-three generated PJSIP configuration files contained zero explicit endpoint-policy records.
+- Runtime and generated endpoint counts matched at zero.
+- FreePBX CLI `17.0.30` was present; FreePBX source metadata and hashes were recorded without reading contents or querying the database.
+- Active runtime/generated endpoint-policy evidence is accepted; dormant database, backup, inactive, module-private, and external provisioning data remains unverified.
+- Carrier and end-to-end DTMF behavior remains unverified.
 - The offline alerting laboratory is installed under `/opt/wwcx-alerting-lab`.
 - The installed bilingual CAP-CP structural fixture and lifecycle/replay smoke test both passed with no errors or warnings.
-- No CAP feed, `Actual` alert path, call origination, page route, alert-tone transmission, carrier route, DTMF transmission, or public alert distribution was enabled.
+- No CAP feed, `Actual` alert path, call origination, page route, alert-tone transmission, carrier route, DTMF transmission, database query, or public alert distribution was enabled.
 
 Protected live evidence:
 
@@ -39,6 +45,7 @@ Protected live evidence:
 /var/lib/wwcx-deployment-evidence/asterisk-security-update/20260731T233728Z
 /var/lib/wwcx-deployment-evidence/alerting-lab-install/20260731T233821Z
 /var/lib/wwcx-deployment-evidence/asterisk-dtmf-readiness/20260801T073955Z
+/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z
 ```
 
 Operator-local rollout evidence:
@@ -57,8 +64,10 @@ Operator-local rollout evidence:
 - Test-only EBS and CAP-CP compatibility foundation merged through PR #157 as `7456304d41063075be15ff894af815877dd8a554`.
 - Alerting continuity state merged through PR #159 as `03d219e853bd8a373cd9d0503c45579901615017`.
 - Read-only Asterisk DTMF inventory, offline 16-key probe, capability matrix, and runbook merged through PR #197 as `0703b88b227b346e022a40ca931e34d0874559cd`.
+- Authenticated DTMF live acceptance merged through PR #201 as `6ff2183b0b1857548e549504e7064d39c519aefe`.
+- Read-only PJSIP runtime-to-generated endpoint-policy reconciliation merged through PR #202 as `6906d1bb7f5aa517c249bf893ab23675b63f062f`.
 
-No public-summary staging, authenticated restricted route, restricted release, detailed-artifact migration, public cutover, detailed-artifact removal, protected-retention installation, operational CAP feed, `Actual` alert handling, alert origination, Asterisk alert dialplan, page delivery, alert-tone transmission, DTMF transmission, carrier routing, or public alert distribution has occurred.
+No public-summary staging, authenticated restricted route, restricted release, detailed-artifact migration, public cutover, detailed-artifact removal, protected-retention installation, operational CAP feed, `Actual` alert handling, alert origination, Asterisk alert dialplan, page delivery, alert-tone transmission, DTMF transmission, carrier routing, FreePBX database query, or public alert distribution has occurred.
 
 ## Alerting compatibility live acceptance
 
@@ -105,16 +114,46 @@ Accepted:
 - RFC 4733 event-range model `0-15`;
 - zero calls, channels, processed calls, transmissions, and runtime mutations.
 
+## PJSIP endpoint-policy live acceptance
+
+Authenticated execution on `edge1.ww.cx` as `wwadmin` accepted the active runtime/generated endpoint-policy reconciliation.
+
+Acceptance record:
+
+```text
+docs/telephony/asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md
+```
+
+Evidence and hashes:
+
+```text
+/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z/operator-console.txt
+SHA-256: fa370b2a9fa085b7301fcf64c54326b1362321342873610e94710d9588bf3a26
+
+/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z/evidence-files.sha256
+SHA-256: c9183f3e7ff838dc2beae038c2a206b408114ed64eea0787b2b4195a9582623d
+```
+
+Accepted:
+
+- zero runtime endpoints, AORs, contacts, and transports;
+- 23 generated PJSIP configuration files inspected;
+- zero explicit generated endpoint-policy records;
+- runtime and generated endpoint counts matched at zero;
+- FreePBX source metadata and hashes captured without reading contents;
+- no database query, credential read, identifier retention, call, channel, DTMF transmission, or runtime mutation;
+- database inspection deferred because it is unnecessary for the verified active-state conclusion.
+
 Still unverified:
 
-- configured endpoint or trunk `dtmf_mode` policy;
+- dormant, historical, backup, inactive, module-private, or externally provisioned endpoint data;
 - live SDP negotiation;
 - carrier, SBC, gateway, SIP INFO, in-band, codec, transcoding, and end-to-end behavior;
 - emergency-calling paths and every production route.
 
 ## Residual alerting warnings
 
-1. `pjsip show transports` returned `No objects found`, although the Asterisk process owned UDP `127.0.0.1:5061`. Runtime object visibility and sanitized transport configuration need reconciliation.
+1. `pjsip show transports` returned `No objects found`, although the Asterisk process owned UDP `127.0.0.1:5061`. The endpoint-policy audit confirmed zero PJSIP runtime objects and zero generated endpoints, but the separate socket/transport discrepancy remains unresolved.
 2. The legacy SysV-backed Asterisk wrapper was active, while `systemctl is-enabled asterisk` reported disabled. Boot persistence is not yet accepted.
 3. Asterisk TCP `8089` listened on a non-loopback wildcard address. TLS, certificate identity, authentication, firewall reachability, and operational need require read-only verification.
 
@@ -145,10 +184,10 @@ The bundle records exact public-tree hashes and modes, filesystem anomalies, man
 
 ## Telephony next gates
 
-1. reconcile runtime PJSIP endpoint visibility and authoritative FreePBX/generated endpoint-policy sources without changing configuration;
-2. populate the sanitized carrier DTMF capability matrix from provider documentation only;
+1. populate the sanitized carrier DTMF capability matrix from reliable provider documentation only;
+2. leave unsupported or undocumented capabilities as `unknown`;
 3. keep carrier and end-to-end paths `unverified` pending separate controlled-test authority;
-4. do not originate calls, transmit DTMF, alter routes, or test emergency-calling paths under the read-only acceptance.
+4. do not originate calls, transmit DTMF, query credential-bearing databases, alter routes, or test emergency-calling paths under the read-only acceptance.
 
 ## Alerting next gates
 
@@ -170,4 +209,4 @@ The bundle records exact public-tree hashes and modes, filesystem anomalies, man
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, public or restricted routes, production traffic, timer scheduling, `/var/www` publication or removal, operational alert feed, `Actual` alert acceptance, call/page origination, alert-tone transmission, DTMF transmission, carrier routing, source pruning, or data deletion changed as part of the accepted alerting and DTMF read-only work.
+No DNS, Unbound, RPZ, nftables, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, public or restricted routes, production traffic, timer scheduling, `/var/www` publication or removal, operational alert feed, `Actual` alert acceptance, call/page origination, alert-tone transmission, DTMF transmission, carrier routing, FreePBX database query, source pruning, or data deletion changed as part of the accepted alerting, DTMF, and PJSIP read-only work.

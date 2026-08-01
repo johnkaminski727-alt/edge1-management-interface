@@ -4,7 +4,7 @@
 
 Phase 1 is a read-only, fixture-backed operational console for SIP, PBX, SMS/MMS, media, numbering, and carrier interconnect visibility. It deliberately exposes no production-changing controls.
 
-The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). The remaining endpoint-policy evidence gap is handled by [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md).
+The consolidated management and analytics foundation is documented in [Edge1 Telephony Operations Platform](operations-platform.md). Project delivery and controlled blockers are tracked in the [WW.CX Telephony Operations Platform Register](../project-register/wwcx-telephony-operations-platform.md). DTMF capability inventory and its controlled test boundary are documented in [Asterisk DTMF Readiness](dtmf-readiness.md). The authenticated Edge1 DTMF result is recorded in [Asterisk DTMF Readiness Live Acceptance — 2026-08-01](asterisk-dtmf-readiness-live-acceptance-20260801.md). Endpoint-policy reconciliation is documented in [Asterisk PJSIP Endpoint Policy Reconciliation](pjsip-endpoint-policy-reconciliation.md), with the authenticated result recorded in [Asterisk PJSIP Endpoint Policy Live Acceptance — 2026-08-01](asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md).
 
 ## Preview
 
@@ -67,17 +67,16 @@ Before treating the console as accepted for operational use, complete the [Telep
 
 Checklist completion does not authorize production routing, public exposure, emergency-calling changes, carrier administration, or write controls.
 
-The authenticated DTMF audit completed on `edge1.ww.cx` with exit code `0`, one warning, zero failures, all sixteen offline keypad symbols passing, and no runtime mutation. Local Asterisk capability is accepted. Carrier, endpoint, trunk, SIP INFO, in-band, SDP-negotiation, and end-to-end behavior remain `unverified`.
+The authenticated DTMF audit completed on `edge1.ww.cx` with exit code `0`, one warning, zero failures, all sixteen offline keypad symbols passing, and no runtime mutation. The subsequent PJSIP reconciliation completed with exit code `0`, two informational warnings, zero failures, and consistent zero endpoint counts across runtime and 23 generated configuration files. Local Asterisk capability is accepted. Carrier, endpoint, trunk, SIP INFO, in-band, SDP-negotiation, and end-to-end behavior remain `unverified`.
 
 ## Next implementation slice
 
-1. run and review the merged read-only PJSIP endpoint-policy reconciliation on Edge1
-2. decide whether the generated/runtime evidence is sufficient or whether a separately designed metadata-only database count is needed
-3. populate the sanitized carrier capability matrix from provider documentation only
-4. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
-5. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
-6. add sanitized CDR and SIP-event collectors
-7. add health-score, failure-class, and carrier-performance console panels
-8. add append-only report-generation audit events
-9. add bounded anomaly indicators without automatic enforcement
-10. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
+1. populate the sanitized carrier capability matrix from reliable provider documentation only
+2. leave unsupported or undocumented carrier capabilities as `unknown`
+3. keep every live route and interconnect marked `unverified` pending separate controlled-test authorization
+4. expose aggregate health, call, and interconnect analytics through loopback-only GET endpoints
+5. add sanitized CDR and SIP-event collectors
+6. add health-score, failure-class, and carrier-performance console panels
+7. add append-only report-generation audit events
+8. add bounded anomaly indicators without automatic enforcement
+9. complete remaining Edge1 validation, smoke tests, evidence capture, and deployment runbook updates
