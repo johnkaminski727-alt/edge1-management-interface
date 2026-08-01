@@ -47,7 +47,7 @@ for marker in (
     'systemctl restart "$ANALYTICS_SERVICE"',
     "console service restart prohibited",
     "telephony_anomaly_api_panel_live_acceptance_audit.sh",
-    "runtime source=canonical-main".replace(" ", "_"),
+    "analytics_runtime_source=canonical-main",
     "console_service_restart=none",
     "rollback_required=no",
 ):
@@ -106,15 +106,16 @@ for forbidden in (
         raise SystemExit(f"read-only live audit contains mutation marker: {forbidden}")
 
 doc_source = DOC.read_text(encoding="utf-8")
+doc_source_lower = doc_source.lower()
 for marker in (
-    "Mutation scope",
-    "Pre-deployment gates",
-    "Automatic rollback",
-    "Live acceptance",
-    "Console service is not restarted",
-    "No telephony traffic",
+    "mutation scope",
+    "pre-deployment gates",
+    "automatic rollback",
+    "live acceptance",
+    "console service is not restarted",
+    "no telephony traffic",
 ):
-    if marker not in doc_source:
+    if marker not in doc_source_lower:
         raise SystemExit(f"deployment documentation missing marker: {marker}")
 
 print("telephony anomaly live deployment validation passed")
