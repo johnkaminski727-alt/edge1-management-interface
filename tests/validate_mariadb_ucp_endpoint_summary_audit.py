@@ -22,6 +22,8 @@ required = (
     "summarize_listener 8003",
     "UCP BIND AND PUBLICATION CONTRACT",
     "endpoint addresses are reduced to scope labels",
+    'sub(/^"/, "", token);',
+    'sub(/".*$/, "", token);',
     "No database query, grant inspection, service, process, PM2, unit, listener, firewall, WireGuard, configuration, package, client-address, logger, packet capture, external scan, container, or traffic change was performed.",
 )
 for token in required:
@@ -57,6 +59,8 @@ for token in (
 
 if "$4 ~ port_re || $5 ~ port_re" in text:
     raise SystemExit("stale ss endpoint columns detected")
+if r'\"' in text:
+    raise SystemExit("escaped quote remains in AWK regular expression")
 
 result = subprocess.run(
     ["sh", "-n", str(SCRIPT)],
