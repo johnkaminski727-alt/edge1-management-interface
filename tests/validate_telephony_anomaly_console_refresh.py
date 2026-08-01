@@ -78,7 +78,7 @@ def main() -> int:
         "HTTP 404",
         "stale in-memory route map",
         "console restart",
-        "analytics rollback",
+        "restored the exact prior unit and worktree",
         "loopback-only",
         "No calls",
     )
