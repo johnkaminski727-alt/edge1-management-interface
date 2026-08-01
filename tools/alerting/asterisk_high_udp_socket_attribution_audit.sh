@@ -26,7 +26,7 @@ done
 HOST=$(hostname -f)
 [ "$HOST" = "$EXPECTED_HOST" ] || { echo "ERROR expected $EXPECTED_HOST, found $HOST" >&2; exit 2; }
 
-for command in asterisk awk grep sed sort ss systemctl readlink date hostname id ps find stat sha256sum; do
+for command in asterisk awk grep sed sort ss systemctl readlink date hostname id ps find stat sha256sum ip tr; do
     command -v "$command" >/dev/null 2>&1 || { echo "ERROR missing command: $command" >&2; exit 2; }
 done
 
@@ -54,6 +54,55 @@ safe_config_lines() {
     ' "$file"
 }
 
+valid_asterisk_pid() {
+    candidate=$1
+    case "$candidate" in
+        ''|0|*[!0-9]*) return 1 ;;
+    esac
+    [ -d "/proc/$candidate" ] || return 1
+    comm=""
+    if [ -r "/proc/$candidate/comm" ]; then
+        IFS= read -r comm < "/proc/$candidate/comm" || true
+    fi
+    [ "$comm" = "asterisk" ]
+}
+
+resolve_asterisk_pid() {
+    candidate=$(systemctl show -p MainPID --value asterisk 2>/dev/null || true)
+    if valid_asterisk_pid "$candidate"; then
+        printf '%s|systemd_mainpid\n' "$candidate"
+        return 0
+    fi
+
+    for pidfile in /run/asterisk/asterisk.pid /var/run/asterisk/asterisk.pid; do
+        [ -r "$pidfile" ] || continue
+        candidate=""
+        IFS= read -r candidate < "$pidfile" || true
+        if valid_asterisk_pid "$candidate"; then
+            printf '%s|pidfile:%s\n' "$candidate" "$pidfile"
+            return 0
+        fi
+    done
+
+    resolved=""
+    count=0
+    for candidate in $(ps -eo pid=,comm=,args= | awk '$2 == "asterisk" && $0 ~ /asterisk[[:space:]]+-f([[:space:]]|$)/ {print $1}'); do
+        if valid_asterisk_pid "$candidate"; then
+            resolved=$candidate
+            count=$((count + 1))
+        fi
+    done
+    if [ "$count" -eq 1 ]; then
+        printf '%s|process_table\n' "$resolved"
+        return 0
+    fi
+    if [ "$count" -gt 1 ]; then
+        printf '|ambiguous_process_table\n'
+    else
+        printf '|unresolved\n'
+    fi
+}
+
 echo "WW.CX ASTERISK HIGH UDP SOCKET ATTRIBUTION AUDIT"
 echo "Host: $HOST"
 echo "Time: $(date -Is)"
@@ -64,10 +113,16 @@ asterisk -rx 'core show version' 2>&1 || true
 asterisk -rx 'core show uptime' 2>&1 || true
 asterisk -rx 'core show channels count' 2>&1 || true
 echo "service_active=$(systemctl is-active asterisk 2>&1 || true)"
-PID=$(systemctl show -p MainPID --value asterisk 2>/dev/null || true)
+PID_RESULT=$(resolve_asterisk_pid)
+PID=${PID_RESULT%%|*}
+PID_SOURCE=${PID_RESULT#*|}
 case "$PID" in
-    ''|0|*[!0-9]*) fail "Unable to resolve Asterisk MainPID"; PID="" ;;
-    *) echo "asterisk_pid=$PID"; ps -p "$PID" -o pid=,lstart=,etime=,args= 2>/dev/null || true ;;
+    ''|0|*[!0-9]*) fail "Unable to resolve a unique live Asterisk PID (source=$PID_SOURCE)"; PID="" ;;
+    *)
+        echo "asterisk_pid=$PID"
+        echo "pid_source=$PID_SOURCE"
+        ps -p "$PID" -o pid=,lstart=,etime=,args= 2>/dev/null || true
+        ;;
 esac
 
 section "ASTERISK UDP SOCKETS"
@@ -141,7 +196,7 @@ section "KERNEL EPHEMERAL RANGE"
 if command -v sysctl >/dev/null 2>&1; then
     EPHEMERAL=$(sysctl -n net.ipv4.ip_local_port_range 2>/dev/null || true)
 else
-    EPHEMERAL=$(cat /proc/sys/net/ipv4/ip_local_port_range 2>/dev/null || true)
+    EPHEMERAL=$(sed -n '1p' /proc/sys/net/ipv4/ip_local_port_range 2>/dev/null || true)
 fi
 echo "ip_local_port_range=$EPHEMERAL"
 EPHEMERAL_START=$(printf '%s\n' "$EPHEMERAL" | awk '{print $1}')
