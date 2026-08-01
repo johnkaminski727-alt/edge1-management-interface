@@ -162,7 +162,7 @@ if "while [ \"$attempt\" -le 30 ]" in main:
     raise SystemExit("obsolete relationship-only 30-second wait remains")
 
 rollback_start = text.index("rollback() {")
-rollback_end = text.index("\nfail_after_mutation() {", rollback_start)
+rollback_end = text.index("fail_after_mutation() {", rollback_start)
 rollback = text[rollback_start:rollback_end]
 if rollback.index("restart_mariadb_pair") > rollback.index("wait_for_ucp_runtime"):
     raise SystemExit("rollback UCP wait must follow MariaDB restoration")
