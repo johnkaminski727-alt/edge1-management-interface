@@ -1,0 +1,12 @@
+[Unit]
+Description=WW.CX Telephony Aggregate Report Schedule (design-only template)
+Documentation=file:/opt/edge1-management-interface/docs/telephony/aggregate-report-runtime-design.md
+ConditionPathExists=/etc/wwcx-telephony/analytics-report-runtime-enabled
+ConditionFileIsExecutable=/opt/edge1-management-interface/tools/telephony/run_telephony_aggregate_report.py
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+RandomizedDelaySec=15m
+Persistent=false
+Unit=wwcx-telephony-aggregate-report.service
+AccuracySec=1m
