@@ -7,7 +7,7 @@ Parent activation issue: #187
 
 ## Verified prerequisite
 
-Phase B1 remains accepted live on `edge1.ww.cx`:
+Phase B1 is accepted live on `edge1.ww.cx` and remained accepted during the B2 baseline audit:
 
 - service `wwcx-outbound-mail-gateway.service` remains on loopback `127.0.0.1:8104`;
 - preparation authentication remains enabled with a root-owned runtime credential;
