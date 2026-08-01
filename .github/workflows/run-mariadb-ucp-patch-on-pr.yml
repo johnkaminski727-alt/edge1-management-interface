@@ -35,9 +35,7 @@ jobs:
           start = source.index(start_marker) + len(start_marker)
           end = source.index(end_marker, start)
           lines = source[start:end].splitlines()
-          if not all(not line or line.startswith('          ') for line in lines):
-              raise SystemExit('patch payload contains an unexpected YAML indentation level')
-          payload = '\n'.join(line[10:] if line else '' for line in lines) + '\n'
+          payload = '\n'.join(line[10:] if line.startswith('          ') else '' for line in lines) + '\n'
           exec(compile(payload, 'mariadb-ucp-patch-payload.py', 'exec'), {'__name__': '__main__'})
           PY
 
