@@ -1,16 +1,18 @@
 # Outbound Mail Phase B2 Readiness State
 
-Last reconciled: 2026-08-01 19:48 UTC  
+Last reconciled: 2026-08-01 20:23 UTC  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
 Parameter discovery issue: #233  
 Parent activation issue: #187
 
 ## Verified prerequisite
 
-Phase B1 is accepted live on `edge1.ww.cx` and remained accepted during the B2 baseline audit:
+Phase B1 is accepted live on `edge1.ww.cx`:
 
-- service `wwcx-outbound-mail-gateway.service` remains on loopback `127.0.0.1:8104`;
-- preparation authentication remains enabled with a root-owned runtime credential;
+- service `wwcx-outbound-mail-gateway.service` is active and enabled;
+- listener remains restricted to `127.0.0.1:8104`;
+- preparation authentication is enabled with a root-owned runtime credential;
+- `/outbound-mail/healthz` returns HTTP `200`;
 - unsigned preparation requests return HTTP `401`;
 - send returns HTTP `403`;
 - external delivery and policy remain disabled;
@@ -58,43 +60,76 @@ At approximately 2026-08-01 19:40 UTC, after the remaining B2/C work and privile
 
 This is accepted as authorization to continue the outbound-mail project end to end, including bounded production configuration work after exact parameters, validation, rollback, and evidence requirements are satisfied. It does not waive credential secrecy, authorize disclosure or transmission of private-key/HMAC contents, permit destructive or irreversible work without a verified rollback, accept financial/legal terms, or define an unspecified production message or recipient.
 
-## Parameter discovery in progress
+## Live parameter discovery evidence
 
-The committed website bridge fixes the exact API hostname as:
+### Edge1 first run
+
+- captured at: `2026-08-01T20:08:56Z`;
+- audited HEAD: `880edfeb3b79941a1d8f50a5eb92b1efe985dc61`;
+- evidence: `/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b2-parameter-discovery/20260801T200856Z`;
+- unsigned preparation: HTTP `401`;
+- send probe: HTTP `403`;
+- Apache: active and enabled on port `443`;
+- gateway: active and enabled on `127.0.0.1:8104`;
+- private-key contents read: no;
+- HMAC secret read: no;
+- proxy/config/certificate/DNS/firewall/listener/website/provider/sender/message mutation: none.
+
+The run was marked `not_ready` only because the discovery script incorrectly probed `/healthz`, which returned the gateway's expected HTTP `404` not-found response. The actual route `/outbound-mail/healthz` returned HTTP `200` during follow-up verification.
+
+The broad inventory counted both `cert.pem` and `fullchain.pem` for the same leaf certificate and counted private-key paths from every Apache vhost. The enabled `edge1.ww.cx` Apache vhost resolves the active pair unambiguously:
 
 ```text
-edge1.ww.cx
+/etc/letsencrypt/live/edge1.ww.cx/fullchain.pem
+/etc/letsencrypt/live/edge1.ww.cx/privkey.pem
 ```
 
-The bridge rejects alternate hosts, ports, paths, queries, fragments, credentials, and redirects.
+The full chain covered `edge1.ww.cx`, `pbx.ww.cx`, and `sip.ww.cx`, and was valid from July 19, 2026 through October 17, 2026 at discovery time. The private-key path was root-owned with mode `0600`; contents were not read.
 
-The remaining proposal inputs must be evidenced rather than guessed:
+### Business159
 
-1. actual business159 outbound NAT address as one `/32` or `/128`;
-2. existing approved certificate full-chain path on Edge1;
-3. corresponding existing private-key path identified by metadata only;
-4. selected active reverse-proxy service and destination configuration path.
+- captured at: `2026-08-01T20:09:23Z`;
+- host: `business159.web-hosting.com`;
+- principal: `wwcxjywl`;
+- audited website HEAD: `6d65ba2833d7ac20fa962f5457dedc45f75a2c47`;
+- evidence: `/home/wwcxjywl/shared/ww-cx-website/evidence/outbound-mail-client-discovery/20260801T200923Z`;
+- successful egress services: `3`;
+- unique egress addresses: `1`;
+- measured address: `162.0.217.71`;
+- exact proposed source: `162.0.217.71/32`;
+- evidence manifest: SHA-256 verification passed;
+- readiness: `ready_for_edge1_b2_proposal_validation`;
+- configuration/secret/deployment/bridge/provider/sender/message mutation: none.
 
-Issue #233 tracks a read-only Edge1 discovery tool. Website issue `johnkaminski727-alt/ww-cx-website#36` tracks the business159 egress measurement. An A or AAAA record is not accepted as proof of outbound NAT identity.
+## Current exact proposal inputs
+
+```text
+PROPOSED_HOSTNAME=edge1.ww.cx
+PROPOSED_CLIENT_CIDR=162.0.217.71/32
+CERTIFICATE_FULLCHAIN_PATH=/etc/letsencrypt/live/edge1.ww.cx/fullchain.pem
+CERTIFICATE_PRIVATE_KEY_PATH=/etc/letsencrypt/live/edge1.ww.cx/privkey.pem
+```
 
 ## Current authorization and execution state
 
 - B2 baseline audit execution: **accepted**;
-- B2 parameter discovery package: **authorized and in repository review**;
-- exact B2 hostname: **`edge1.ww.cx`, fixed by committed bridge contract**;
-- exact client source `/32` or `/128`: **not yet measured**;
-- certificate paths: **not yet discovered and accepted**;
+- B2 parameter discovery package: **merged and executed**;
+- discovery false-negative remediation: **in repository review**;
+- exact B2 hostname: **`edge1.ww.cx`**;
+- exact client source: **`162.0.217.71/32`**;
+- active proxy service: **Apache 2**;
+- active full-chain path: **identified**;
+- active private-key path: **identified by pathname metadata only**;
 - certificate/private-key content disclosure: **prohibited**;
 - proxy installation or reload: **authorized only after exact proposal validation and rollback review**;
-- DNS change: **authorized only if proposal evidence proves it is required and the exact record is recorded**;
-- firewall change: **authorized only if proposal evidence proves it is required and the exact rule is recorded**;
-- public listener or route: **not yet activated**;
-- external signed canary: **authorized only after the restricted proxy is installed and source allow-list is verified**;
-- website bridge deployment/activation: **authorized only after B2 external canary acceptance and secure shared-secret installation**;
+- DNS change: **not currently indicated**;
+- firewall change: **not yet established as required**;
+- public preparation route: **not yet activated**;
+- website bridge deployment/activation: **not yet activated**;
 - provider, sender, or delivery activation: **not yet configured**;
 - production message: **not defined or sent**.
 
-## Verified non-mutation markers from the accepted baseline
+## Verified non-mutation markers from the accepted baseline and discovery
 
 - `hmac_secret_read=no`;
 - `certificate_private_key_read=no`;
@@ -111,4 +146,4 @@ Issue #233 tracks a read-only Edge1 discovery tool. Website issue `johnkaminski7
 
 ## Next execution gate
 
-Run both read-only parameter discovery tools and accept their evidence. Then run the existing Phase B2 proposal-validation audit with all four exact values. Live proxy installation follows only if that proposal reaches `ready_for_explicit_b2_authorization` and the installation package preserves rollback, source restriction, exact-route exposure, HMAC authentication, and continued send denial.
+Merge the discovery remediation, rerun the Edge1 discovery with `PROPOSED_CLIENT_CIDR=162.0.217.71/32`, verify its SHA-256 evidence manifest, and require `ready_for_phase_b2_proposal_validation`. Then run the existing non-mutating Phase B2 proposal audit with all four exact values. Live Apache configuration follows only after that proposal passes and an exact backup, syntax check, graceful reload, source-restriction canary, and rollback procedure are captured.
