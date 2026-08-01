@@ -20,6 +20,8 @@ required = (
     "EXPECTED_COMMIT=${EXPECTED_COMMIT:-}",
     "PHASE_B_PACKAGE_COMMIT=${PHASE_B_PACKAGE_COMMIT:-c55059c2d0230ea273709bbb5a4169b00bb226c1}",
     "READINESS_EVIDENCE=${READINESS_EVIDENCE:-/var/lib/wwcx-deployment-evidence/outbound-mail-phase-b1-readiness/20260801T174548Z}",
+    "INSTALLER_SUCCEEDED=false",
+    "ACTIVATION_ACCEPTED=false",
     "status --porcelain --untracked-files=all",
     "merge-base --is-ancestor",
     "protected Phase B files changed",
@@ -43,6 +45,11 @@ required = (
     "chmod 0600",
     "SECRET_SOURCE_FILE=\"$SECRET_SOURCE\"",
     "ACTION=install",
+    "INSTALLER_SUCCEEDED=true",
+    "rollback_if_needed",
+    "ACTION=disable",
+    "restoring the Phase A disabled state",
+    "ACTIVATION_ACCEPTED=true",
     "rm -f -- \"$SECRET_SOURCE\"",
     "runtime environment file mode is not 0600",
     'status["preparation_api"]["enabled"] is True',
@@ -78,12 +85,13 @@ prohibited = (
 for value in prohibited:
     assert value not in text, value
 
-assert "trap cleanup EXIT" in text
+assert "trap on_exit EXIT" in text
 assert "trap on_signal HUP INT TERM" in text
 assert "trap - EXIT HUP INT TERM" in text
 assert "exit 130" in text
 assert text.count('rm -f -- "$SECRET_SOURCE"') >= 2
 assert 'The production secret will not be displayed, hashed, or copied into deployment evidence.' in text
+assert text.index("INSTALLER_SUCCEEDED=true") < text.index("ACTIVATION_ACCEPTED=true")
 
 syntax = subprocess.run(["sh", "-n", str(SCRIPT)], cwd=ROOT, check=False)
 assert syntax.returncode == 0
@@ -98,4 +106,5 @@ assert "2026-08-01 18:06 UTC" in state
 
 print("Authorized outbound mail Phase B1 activation wrapper validation passed")
 print("Secret generation is temporary, non-disclosing, loopback-only, and rollback-backed")
+print("Post-install failures restore Phase A through the documented disable path")
 print("B2, DNS, firewall, provider, sender, and delivery activation remain absent")
