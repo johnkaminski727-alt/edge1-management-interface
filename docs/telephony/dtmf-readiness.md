@@ -36,6 +36,8 @@ An absent endpoint `dtmf_mode` is recorded by this audit as `implicit-rfc4733`, 
 
 ## Safety boundary
 
+**No channel, call, tone transmission, SIP request, or production telephony change is performed by this audit.**
+
 The audit may:
 
 - inspect Asterisk version, uptime, channel counts, module inventory, and CLI help;
