@@ -22,13 +22,16 @@ SERVER_ROOT = REPO_ROOT / "server"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
+import identity_aware_outbound_gateway  # noqa: E402
+import mail_identity_registry  # noqa: E402
 import outbound_mail_gateway  # noqa: E402
 import outbound_mail_policy  # noqa: E402
 
 
 DEFAULT_CONFIG = REPO_ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
+DEFAULT_IDENTITIES = REPO_ROOT / "config" / "messaging" / "mail-identities.json"
 EXAMPLE_REQUEST = {
-    "from_address": "john@ww.cx",
+    "identity_hint": "john-wwcx",
     "to": ["records@example.com"],
     "cc": [],
     "bcc": [],
@@ -62,6 +65,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--policy",
         default="",
         help="Policy JSON path. Defaults to the path declared by the gateway config.",
+    )
+    parser.add_argument(
+        "--identities",
+        default=str(DEFAULT_IDENTITIES),
+        help="Canonical mail-identity registry JSON path.",
     )
     parser.add_argument(
         "--output",
@@ -117,17 +125,15 @@ def resolve_policy_path(config: dict[str, Any], override: str) -> Path:
 def prepare_artifact(
     config: dict[str, Any],
     policy: dict[str, Any],
+    identities: dict[str, Any],
     request: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    requested_from = str(
-        request.get("from_address") or policy["organization"]["contact_email"]
+    preview = identity_aware_outbound_gateway.compose_preview(
+        config,
+        policy,
+        identities,
+        request,
     )
-    validated_from = outbound_mail_policy.validate_from_address(policy, requested_from)
-    effective_policy = copy.deepcopy(policy)
-    effective_policy["organization"]["contact_email"] = validated_from
-    outbound_mail_policy.validate_policy(effective_policy)
-
-    preview = outbound_mail_gateway.compose_preview(config, effective_policy, request)
     public_request = {
         key: value
         for key, value in preview["request"].items()
@@ -139,6 +145,7 @@ def prepare_artifact(
         "network_activity": False,
         "external_delivery_attempted": False,
         "request": public_request,
+        "sender_selection": preview["sender_selection"],
         "control_id": preview["control_id"],
         "action_url": preview["action_url"],
         "action_token_sha256": preview["action_token_sha256"],
@@ -149,6 +156,9 @@ def prepare_artifact(
     audit_record = copy.deepcopy(preview["audit_record"])
     audit_record["source"] = "outbound_mail_prepare_cli"
     audit_record["delivery_status"] = "prepared_not_sent"
+    audit_record["sender_address"] = preview["sender_selection"]["address"]
+    audit_record["sender_selection_reason"] = preview["sender_selection"]["reason"]
+    audit_record["sender_identity_key"] = preview["sender_selection"]["identity_key"]
     return artifact, audit_record
 
 
@@ -176,8 +186,15 @@ def main(argv: list[str] | None = None) -> int:
         policy_path = resolve_policy_path(config, args.policy)
         policy = outbound_mail_gateway.load_json(policy_path)
         outbound_mail_policy.validate_policy(policy)
+        identities = outbound_mail_gateway.load_json(Path(args.identities).resolve())
+        mail_identity_registry.validate_registry(identities)
         request = load_request(args.input)
-        artifact, audit_record = prepare_artifact(config, policy, request)
+        artifact, audit_record = prepare_artifact(
+            config,
+            policy,
+            identities,
+            request,
+        )
 
         indent = 2 if args.pretty else None
         separators = None if args.pretty else (",", ":")
@@ -193,7 +210,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.audit_jsonl:
             outbound_mail_gateway.append_audit_event(args.audit_jsonl, audit_record)
         return 0
-    except (OSError, ValueError, KeyError, outbound_mail_gateway.GatewayError) as exc:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        outbound_mail_gateway.GatewayError,
+        mail_identity_registry.IdentityRegistryError,
+    ) as exc:
         print(f"outbound-mail-prepare: {exc}", file=sys.stderr)
         return 2
 

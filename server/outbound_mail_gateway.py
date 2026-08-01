@@ -369,6 +369,11 @@ def normalize_message_request(config: dict[str, Any], payload: dict[str, Any]) -
 
 def runtime_policy(base_policy: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
     candidate = copy.deepcopy(base_policy)
+    requested_from = str(request.get("from_address", "")).strip()
+    if requested_from:
+        candidate["organization"]["contact_email"] = (
+            outbound_mail_policy.validate_from_address(candidate, requested_from)
+        )
     if request.get("mailing_address"):
         candidate["organization"]["mailing_address"] = request["mailing_address"]
     outbound_mail_policy.validate_policy(candidate)

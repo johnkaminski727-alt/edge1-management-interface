@@ -72,6 +72,8 @@ class IdentityAwareOutboundGatewayTests(unittest.TestCase):
         self.assertEqual(preview["request"]["reply_to"], "john@spiritcreekgardens.com")
         self.assertEqual(preview["sender_selection"]["reason"], "original_recipient")
         self.assertTrue(preview["sender_selection"]["from_address_replaced"])
+        self.assertEqual(preview["audit_record"]["from_address"], "john@spiritcreekgardens.com")
+        self.assertIn("Email: john@spiritcreekgardens.com", preview["body"])
         self.assertNotIn("wrong@example.com", json.dumps(preview))
 
     def test_preview_selects_role_identity(self) -> None:
@@ -85,6 +87,8 @@ class IdentityAwareOutboundGatewayTests(unittest.TestCase):
         )
         self.assertEqual(preview["request"]["from_address"], "records@spiritcreekgardens.com")
         self.assertEqual(preview["request"]["reply_to"], "records@spiritcreekgardens.com")
+        self.assertEqual(preview["audit_record"]["from_address"], "records@spiritcreekgardens.com")
+        self.assertIn("Email: records@spiritcreekgardens.com", preview["body"])
 
     def test_system_preview_uses_noreply(self) -> None:
         payload = self.base_payload()
@@ -98,6 +102,8 @@ class IdentityAwareOutboundGatewayTests(unittest.TestCase):
         self.assertEqual(preview["request"]["from_address"], "noreply@ww.cx")
         self.assertIsNone(preview["request"]["reply_to"])
         self.assertEqual(preview["sender_selection"]["reason"], "system_generated")
+        self.assertEqual(preview["audit_record"]["from_address"], "noreply@ww.cx")
+        self.assertIn("Email: noreply@ww.cx", preview["body"])
 
     def test_noreply_cannot_be_selected_by_manual_hint(self) -> None:
         for hint in ("system-noreply", "noreply@ww.cx"):
