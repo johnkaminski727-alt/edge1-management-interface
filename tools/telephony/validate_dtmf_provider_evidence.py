@@ -12,7 +12,11 @@ from pathlib import Path
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,95}$")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 SIP_URI_RE = re.compile(r"(?i)\bsips?:[^\s]+")
-LONG_NUMBER_RE = re.compile(r"(?<![A-Za-z0-9])\+?[0-9][0-9 ()-]{5,}[0-9](?![A-Za-z0-9])")
+LONG_NUMBER_RE = re.compile(
+    r"(?<![A-Za-z0-9])"
+    r"(?![0-9]{4}-[0-9]{2}(?:-[0-9]{2})?(?:T|$))"
+    r"\+?[0-9][0-9 ()-]{5,}[0-9](?![A-Za-z0-9])"
+)
 QUERY_URL_RE = re.compile(r"(?i)https?://[^\s?#]+\?[^\s]+")
 
 TOP_LEVEL_KEYS = {
