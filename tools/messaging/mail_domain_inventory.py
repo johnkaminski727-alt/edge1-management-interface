@@ -117,6 +117,8 @@ def infer_mail_provider(mx_records: list[str]) -> dict[str, str]:
         return {"provider_family": "microsoft_365", "confidence": "high"}
     if "privateemail.com" in joined:
         return {"provider_family": "namecheap_private_email", "confidence": "high"}
+    if "jellyfish.systems" in joined:
+        return {"provider_family": "namecheap_shared_hosting", "confidence": "high"}
     if "mx.cloudflare.net" in joined:
         return {"provider_family": "cloudflare_email_routing", "confidence": "high"}
     if "zoho." in joined:
