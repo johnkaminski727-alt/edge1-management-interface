@@ -28,34 +28,36 @@ assert 'network_defense_sensor_exporter.py' in network_defense
 
 suricata = (root / 'deploy/systemd/wwcx-network-sensor-suricata.service').read_text(encoding='utf-8')
 for marker in (
-    'User=suricata',
-    'Group=suricata',
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
+    '--user=suricata',
+    '--group=suricata',
     'ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor',
+    'CapabilityBoundingSet=CAP_CHOWN CAP_SETGID CAP_SETUID CAP_SETPCAP CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_NICE',
     'UMask=0007',
 ):
     assert marker in suricata, marker
-for forbidden in ('--user=suricata', '--group=suricata', 'CAP_CHOWN', 'CAP_SETUID', 'CAP_SETGID'):
-    assert forbidden not in suricata, forbidden
+assert 'AmbientCapabilities=' not in suricata
+assert 'User=suricata' not in suricata
+assert 'Group=suricata' not in suricata
 
 pcap = (root / 'deploy/systemd/wwcx-network-sensor-pcap.service').read_text(encoding='utf-8')
 for marker in (
-    'User=wwsensor',
-    'Group=wwsensor',
+    'User=root',
+    'Group=root',
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/lib/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/pcap',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/extracted',
     'ReadWritePaths=/var/lib/wwcx-network-sensor',
+    'CapabilityBoundingSet=CAP_CHOWN CAP_SETGID CAP_SETUID CAP_NET_ADMIN CAP_NET_RAW',
     'UMask=0007',
 ):
     assert marker in pcap, marker
-for forbidden in ('CAP_CHOWN', 'CAP_SETUID', 'CAP_SETGID'):
-    assert forbidden not in pcap, forbidden
+assert 'AmbientCapabilities=' not in pcap
 
 pcap_wrapper = (root / 'tools/networking/network-sensor-pcap.sh').read_text(encoding='utf-8')
-assert '-Z wwsensor' not in pcap_wrapper
+assert '-Z wwsensor' in pcap_wrapper
 assert '/usr/bin/tcpdump' in pcap_wrapper
 
 zeek = (root / 'deploy/systemd/wwcx-network-sensor-zeek.service').read_text(encoding='utf-8')
