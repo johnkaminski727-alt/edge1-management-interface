@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Verify Network Defense uses the freshness, DNS, Spamhaus, Fail2ban, and nftables runtime chain."""
+"""Verify Network Defense uses the sensor, freshness, DNS, Spamhaus, Fail2ban, and nftables runtime chain."""
 
 import unittest
 from pathlib import Path
 
 
 class NetworkDefenseRuntimeWiringTests(unittest.TestCase):
-    def test_systemd_uses_freshness_wrapper_over_nftables_exporter(self):
+    def test_systemd_uses_sensor_wrapper_over_freshness_exporter(self):
         service = Path('deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
+        sensor = Path('server/network_defense_sensor_exporter.py').read_text(encoding='utf-8')
         freshness = Path('server/network_defense_freshness_exporter.py').read_text(encoding='utf-8')
-        self.assertIn('server/network_defense_freshness_exporter.py', service)
+        self.assertIn('server/network_defense_sensor_exporter.py', service)
+        self.assertIn('network_defense_freshness_exporter', sensor)
         self.assertIn('network_defense_nftables_exporter.py', freshness)
         self.assertIn('NETWORK_STALE_SECONDS = 10 * 60', freshness)
+        self.assertNotIn('server/network_defense_freshness_exporter.py --output', service)
         self.assertNotIn('server/network_defense_nftables_exporter.py --output', service)
         self.assertNotIn('server/network_defense_fail2ban_exporter.py --output', service)
         self.assertNotIn('server/network_defense_dns_exporter.py --output', service)
