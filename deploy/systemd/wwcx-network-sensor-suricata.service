@@ -1,0 +1,24 @@
+[Unit]
+Description=WW.CX Edge1 passive network sensor - Suricata
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/default/wwcx-network-sensor
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/wwcx-network-sensor
+RuntimeDirectory=wwcx-network-sensor
+RuntimeDirectoryMode=0750
+ExecStart=/usr/bin/suricata --af-packet=${SENSOR_INTERFACE} -c ${SURICATA_CONFIG} -l /var/log/wwcx-network-sensor/suricata --pidfile /run/wwcx-network-sensor/suricata.pid --user=suricata --group=suricata --set unix-command.enabled=no --init-errors-fatal
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/wwcx-network-sensor/suricata /run/wwcx-network-sensor
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_NICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_NICE
+
+[Install]
+WantedBy=multi-user.target
