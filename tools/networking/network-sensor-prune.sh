@@ -4,10 +4,13 @@ set -euo pipefail
 : "${PCAP_RETENTION_DAYS:=7}"
 : "${PCAP_MAX_GB:=250}"
 : "${EXTRACTED_RETENTION_DAYS:=14}"
+: "${METADATA_RETENTION_DAYS:=90}"
 PCAP=/var/lib/wwcx-network-sensor/pcap
 EXTRACTED=/var/lib/wwcx-network-sensor/extracted
+METADATA=/var/log/wwcx-network-sensor
 find "$PCAP" -type f -name '*.pcap*' -mtime "+$PCAP_RETENTION_DAYS" -delete 2>/dev/null || true
 find "$EXTRACTED" -type f -mtime "+$EXTRACTED_RETENTION_DAYS" -delete 2>/dev/null || true
+find "$METADATA" -type f -mtime "+$METADATA_RETENTION_DAYS" -delete 2>/dev/null || true
 max_bytes=$((PCAP_MAX_GB * 1024 * 1024 * 1024))
 current_bytes="$(du -sb "$PCAP" 2>/dev/null | awk '{print $1}')"
 current_bytes="${current_bytes:-0}"
