@@ -56,6 +56,32 @@ assert "ReadOnlyPaths=-/var/lib/wwcx-network-sensor/restricted" in correlation_u
 network_defense_unit = (ROOT / "deploy/systemd/wwcx-network-defense.service").read_text(encoding="utf-8")
 assert "network_defense_sensor_exporter.py" in network_defense_unit
 
+suricata_unit = (ROOT / "deploy/systemd/wwcx-network-sensor-suricata.service").read_text(encoding="utf-8")
+for marker in (
+    "install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor",
+    "install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata",
+    "install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek",
+    "UMask=0007",
+):
+    assert marker in suricata_unit, marker
+
+pcap_unit = (ROOT / "deploy/systemd/wwcx-network-sensor-pcap.service").read_text(encoding="utf-8")
+for marker in (
+    "install -d -o root -g root -m 0755 /var/lib/wwcx-network-sensor",
+    "install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/pcap",
+    "install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/extracted",
+    "UMask=0007",
+):
+    assert marker in pcap_unit, marker
+
+zeek_unit = (ROOT / "deploy/systemd/wwcx-network-sensor-zeek.service").read_text(encoding="utf-8")
+for marker in (
+    "install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek",
+    "install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/extracted",
+    "UMask=0007",
+):
+    assert marker in zeek_unit, marker
+
 installer = (ROOT / "deploy/install-edge1-network-sensor.sh").read_text(encoding="utf-8")
 for marker in (
     'MISSING_PACKAGES=""',
