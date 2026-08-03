@@ -178,8 +178,26 @@ bash "$ROOT/tools/networking/validate-edge1-network-sensor.sh" | tee "$EVIDENCE_
 
 MUTATION_STARTED=1
 if [ "$INSTALL_PACKAGES" = true ]; then
-  apt-get update | tee "$EVIDENCE_DIR/apt-update.txt"
-  DEBIAN_FRONTEND=noninteractive apt-get install -y suricata tcpdump jq python3 ethtool | tee "$EVIDENCE_DIR/apt-install.txt"
+  MISSING_PACKAGES=""
+  for package in suricata tcpdump jq ethtool; do
+    if ! command -v "$package" >/dev/null 2>&1; then
+      MISSING_PACKAGES="$MISSING_PACKAGES $package"
+    fi
+  done
+
+  if [ -n "$MISSING_PACKAGES" ]; then
+    apt-get update | tee "$EVIDENCE_DIR/apt-update.txt"
+    for package in $MISSING_PACKAGES; do
+      candidate="$(apt-cache policy "$package" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+      if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
+        fail "required package $package is missing and has no APT installation candidate"
+      fi
+    done
+    DEBIAN_FRONTEND=noninteractive apt-get install -y $MISSING_PACKAGES | tee "$EVIDENCE_DIR/apt-install.txt"
+  else
+    printf 'All requested network-sensor runtime commands are already available; APT installation skipped.\n' \
+      | tee "$EVIDENCE_DIR/apt-install-skipped.txt"
+  fi
 fi
 for command in suricata tcpdump jq; do command -v "$command" >/dev/null 2>&1 || fail "required runtime command is unavailable: $command"; done
 if [ "$ENABLE_ZEEK" = true ]; then
