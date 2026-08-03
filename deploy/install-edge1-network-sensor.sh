@@ -47,12 +47,15 @@ install -o root -g root -m 0755 "$ROOT/server/network_sensor_exporter.py" /usr/l
 for script in network-sensor-pcap.sh network-sensor-zeek.sh network-sensor-prune.sh; do install -o root -g root -m 0755 "$ROOT/tools/networking/$script" "/usr/local/libexec/wwcx-$script"; done
 for unit in "$ROOT"/deploy/systemd/wwcx-network-sensor-*; do install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename "$unit")"; done
 install -o root -g root -m 0644 "$ROOT/deploy/systemd/wwcx-security-correlation.service" /etc/systemd/system/wwcx-security-correlation.service
+install -o root -g root -m 0644 "$ROOT/deploy/systemd/wwcx-network-defense.service" /etc/systemd/system/wwcx-network-defense.service
 install -o root -g root -m 0644 "$ROOT/src/web/network-sensor/index.html" /var/www/edge1-status/network-sensor/index.html
 python3 -m py_compile \
   "$ROOT/server/network_sensor_exporter.py" \
-  "$ROOT/server/security_correlation_sensor_exporter.py"
+  "$ROOT/server/security_correlation_sensor_exporter.py" \
+  "$ROOT/server/network_defense_sensor_exporter.py"
 python3 "$ROOT/tests/test_network_sensor_exporter.py"
 python3 "$ROOT/tests/test_network_sensor_correlation_integration.py"
+python3 "$ROOT/tests/test_network_sensor_network_defense_integration.py"
 suricata -T -c /etc/suricata/suricata.yaml
 systemctl daemon-reload
 if [ "$ACTIVATE" = true ]; then
