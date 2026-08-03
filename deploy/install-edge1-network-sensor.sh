@@ -46,9 +46,13 @@ install -o root -g root -m 0644 "$ROOT/config/network-sensor/wwcx-owner-full.zee
 install -o root -g root -m 0755 "$ROOT/server/network_sensor_exporter.py" /usr/local/libexec/wwcx-network-sensor-exporter.py
 for script in network-sensor-pcap.sh network-sensor-zeek.sh network-sensor-prune.sh; do install -o root -g root -m 0755 "$ROOT/tools/networking/$script" "/usr/local/libexec/wwcx-$script"; done
 for unit in "$ROOT"/deploy/systemd/wwcx-network-sensor-*; do install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename "$unit")"; done
+install -o root -g root -m 0644 "$ROOT/deploy/systemd/wwcx-security-correlation.service" /etc/systemd/system/wwcx-security-correlation.service
 install -o root -g root -m 0644 "$ROOT/src/web/network-sensor/index.html" /var/www/edge1-status/network-sensor/index.html
-python3 -m py_compile "$ROOT/server/network_sensor_exporter.py"
+python3 -m py_compile \
+  "$ROOT/server/network_sensor_exporter.py" \
+  "$ROOT/server/security_correlation_sensor_exporter.py"
 python3 "$ROOT/tests/test_network_sensor_exporter.py"
+python3 "$ROOT/tests/test_network_sensor_correlation_integration.py"
 suricata -T -c /etc/suricata/suricata.yaml
 systemctl daemon-reload
 if [ "$ACTIVATE" = true ]; then
@@ -59,5 +63,7 @@ if [ "$ACTIVATE" = true ]; then
   fi
   systemctl enable --now wwcx-network-sensor-exporter.timer wwcx-network-sensor-prune.timer
   systemctl start wwcx-network-sensor-exporter.service
+  systemctl start wwcx-security-correlation.service
+  systemctl start wwcx-network-defense.service
 fi
 printf 'Installed Edge1 network sensor for interface %s. Activation=%s Zeek=%s\n' "$INTERFACE" "$ACTIVATE" "$ENABLE_ZEEK"
