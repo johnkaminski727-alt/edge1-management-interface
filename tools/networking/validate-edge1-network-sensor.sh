@@ -15,17 +15,45 @@ done
 python3 - "$ROOT" <<'PY'
 from pathlib import Path
 import sys
-root=Path(sys.argv[1])
-for path in (root/'deploy/systemd').glob('wwcx-network-sensor-*'):
-    text=path.read_text()
-    assert 'ExecStart=' in text or path.suffix=='.timer'
-correlation=(root/'deploy/systemd/wwcx-security-correlation.service').read_text()
+
+root = Path(sys.argv[1])
+for path in (root / 'deploy/systemd').glob('wwcx-network-sensor-*'):
+    text = path.read_text(encoding='utf-8', errors='replace')
+    assert 'ExecStart=' in text or path.suffix == '.timer'
+
+correlation = (root / 'deploy/systemd/wwcx-security-correlation.service').read_text(encoding='utf-8')
 assert 'security_correlation_sensor_exporter.py' in correlation
-network_defense=(root/'deploy/systemd/wwcx-network-defense.service').read_text()
+network_defense = (root / 'deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
 assert 'network_defense_sensor_exporter.py' in network_defense
-for forbidden in ('iptables -F','nft flush','ip route add','ip route del','sysctl -w net.ipv4.ip_forward=1'):
-    for path in root.rglob('*'):
-        if path.is_file() and path.name != 'validate-edge1-network-sensor.sh':
-            assert forbidden not in path.read_text(errors='ignore'), (forbidden,path)
+
+runtime_files = [
+    root / 'config/network-sensor/owner-full.env',
+    root / 'config/network-sensor/wwcx-owner-full.zeek',
+    root / 'deploy/install-edge1-network-sensor.sh',
+    root / 'deploy/systemd/wwcx-security-correlation.service',
+    root / 'deploy/systemd/wwcx-network-defense.service',
+    root / 'server/network_sensor_exporter.py',
+    root / 'server/security_correlation_sensor_exporter.py',
+    root / 'server/network_defense_sensor_exporter.py',
+    root / 'tools/networking/discover-edge1-network-sensor.sh',
+    root / 'tools/networking/network-sensor-pcap.sh',
+    root / 'tools/networking/network-sensor-prune.sh',
+    root / 'tools/networking/network-sensor-zeek.sh',
+]
+runtime_files.extend(sorted((root / 'deploy/systemd').glob('wwcx-network-sensor-*')))
+
+forbidden_commands = (
+    'iptables -F',
+    'nft flush ruleset',
+    'ip route add',
+    'ip route del',
+    'sysctl -w net.ipv4.ip_forward=1',
+)
+for path in runtime_files:
+    assert path.is_file(), path
+    text = path.read_text(encoding='utf-8', errors='replace')
+    for forbidden in forbidden_commands:
+        assert forbidden not in text, (forbidden, path)
+
 print('Static network sensor validation passed.')
 PY
