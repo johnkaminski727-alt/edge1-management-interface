@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edge1 Network Sensor</title>
+<style>body{font-family:system-ui,sans-serif;margin:2rem;max-width:1100px}pre{white-space:pre-wrap;background:#111;color:#eee;padding:1rem;border-radius:.5rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}.card{border:1px solid #bbb;border-radius:.5rem;padding:1rem}table{width:100%;border-collapse:collapse}td,th{padding:.35rem;border-bottom:1px solid #ddd;text-align:left}</style></head>
+<body><h1>Edge1 Network Sensor</h1><p id="status">Loading…</p><div class="grid" id="cards"></div><h2>Top observations</h2><div id="tables"></div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+fetch('./data/network-sensor.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(r.status);return r.json()}).then(d=>{
+ document.getElementById('status').textContent=`${d.profile} · ${d.mode} · ${d.interface} · updated ${d.generated_at}`;
+ const c=d.capture||{},t=d.totals||{},s=d.storage||{};
+ document.getElementById('cards').innerHTML=[['Full PCAP',c.full_packet_capture?'Enabled':'Disabled'],['Suricata events',t.suricata_events_sampled||0],['Zeek events',t.zeek_events_sampled||0],['PCAP bytes',s.pcap?.bytes||0]].map(x=>`<div class=card><strong>${esc(x[0])}</strong><div>${esc(x[1])}</div></div>`).join('');
+ document.getElementById('tables').innerHTML=Object.entries(d.top||{}).map(([name,rows])=>`<h3>${esc(name.replaceAll('_',' '))}</h3><table><thead><tr><th>Value</th><th>Count</th></tr></thead><tbody>${(rows||[]).map(r=>`<tr><td>${esc(r.value)}</td><td>${esc(r.count)}</td></tr>`).join('')}</tbody></table>`).join('');
+}).catch(e=>document.getElementById('status').textContent=`Unavailable: ${e}`);
+</script></body></html>
