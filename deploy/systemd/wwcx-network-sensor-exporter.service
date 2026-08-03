@@ -1,0 +1,18 @@
+[Unit]
+Description=WW.CX Edge1 network sensor snapshot exporter
+After=wwcx-network-sensor-suricata.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/default/wwcx-network-sensor
+ExecStart=/usr/local/libexec/wwcx-network-sensor-exporter.py --interface ${SENSOR_INTERFACE}
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/log/wwcx-network-sensor /var/lib/wwcx-network-sensor/pcap /var/lib/wwcx-network-sensor/extracted
+ReadWritePaths=/var/lib/wwcx-network-sensor/restricted /var/www/edge1-status/network-sensor/data
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
