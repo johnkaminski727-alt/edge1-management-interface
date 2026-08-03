@@ -1,0 +1,24 @@
+[Unit]
+Description=WW.CX Edge1 passive network sensor - Zeek metadata
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/default/wwcx-network-sensor
+
+[Service]
+Type=simple
+User=wwsensor
+Group=wwsensor
+EnvironmentFile=/etc/default/wwcx-network-sensor
+ExecStart=/usr/local/libexec/wwcx-network-sensor-zeek.sh
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/wwcx-network-sensor/zeek /var/lib/wwcx-network-sensor/extracted
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target
