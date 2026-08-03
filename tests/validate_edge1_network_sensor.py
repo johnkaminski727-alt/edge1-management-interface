@@ -56,6 +56,17 @@ assert "ReadOnlyPaths=-/var/lib/wwcx-network-sensor/restricted" in correlation_u
 network_defense_unit = (ROOT / "deploy/systemd/wwcx-network-defense.service").read_text(encoding="utf-8")
 assert "network_defense_sensor_exporter.py" in network_defense_unit
 
+installer = (ROOT / "deploy/install-edge1-network-sensor.sh").read_text(encoding="utf-8")
+for marker in (
+    'MISSING_PACKAGES=""',
+    "for package in suricata tcpdump jq ethtool",
+    'command -v "$package"',
+    'apt-cache policy "$package"',
+    "APT installation skipped",
+):
+    assert marker in installer, marker
+assert "apt-get install -y suricata tcpdump jq python3 ethtool" not in installer
+
 # Run the exact operator-facing validation path used by the guarded live installer.
 # Its forbidden-command scan is intentionally limited to executable and installed
 # network-sensor runtime assets, rather than tests and documentation containing
