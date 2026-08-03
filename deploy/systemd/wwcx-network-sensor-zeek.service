@@ -21,7 +21,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/var/log/wwcx-network-sensor/zeek /var/lib/wwcx-network-sensor/extracted
+ReadWritePaths=/var/log/wwcx-network-sensor /var/lib/wwcx-network-sensor
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
 
