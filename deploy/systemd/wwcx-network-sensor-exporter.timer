@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh WW.CX Edge1 network sensor snapshots
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+RandomizedDelaySec=10s
+Persistent=true
+Unit=wwcx-network-sensor-exporter.service
+
+[Install]
+WantedBy=timers.target
