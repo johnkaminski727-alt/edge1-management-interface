@@ -9,9 +9,12 @@ Type=simple
 EnvironmentFile=/etc/default/wwcx-network-sensor
 RuntimeDirectory=wwcx-network-sensor
 RuntimeDirectoryMode=0750
+ExecStartPre=/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor
+ExecStartPre=/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata
 ExecStart=/usr/bin/suricata --af-packet=${SENSOR_INTERFACE} -c ${SURICATA_CONFIG} -l /var/log/wwcx-network-sensor/suricata --pidfile /run/wwcx-network-sensor/suricata.pid --user=suricata --group=suricata --set unix-command.enabled=no --init-errors-fatal
 Restart=on-failure
 RestartSec=5s
+UMask=0007
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
