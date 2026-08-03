@@ -51,14 +51,13 @@ python3 -m py_compile "$ROOT/server/network_sensor_exporter.py"
 python3 "$ROOT/tests/test_network_sensor_exporter.py"
 suricata -T -c /etc/suricata/suricata.yaml
 systemctl daemon-reload
-systemctl enable wwcx-network-sensor-exporter.timer wwcx-network-sensor-prune.timer
 if [ "$ACTIVATE" = true ]; then
   systemctl enable --now wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service
   if [ "$ENABLE_ZEEK" = true ]; then
     command -v zeek >/dev/null 2>&1 || [ -x /opt/zeek/bin/zeek ] || { echo "Zeek requested but not installed" >&2; exit 1; }
     systemctl enable --now wwcx-network-sensor-zeek.service
   fi
+  systemctl enable --now wwcx-network-sensor-exporter.timer wwcx-network-sensor-prune.timer
   systemctl start wwcx-network-sensor-exporter.service
-  systemctl start wwcx-network-sensor-exporter.timer wwcx-network-sensor-prune.timer
 fi
 printf 'Installed Edge1 network sensor for interface %s. Activation=%s Zeek=%s\n' "$INTERFACE" "$ACTIVATE" "$ENABLE_ZEEK"
