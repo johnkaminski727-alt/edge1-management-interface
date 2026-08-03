@@ -11,5 +11,4 @@ exec /usr/bin/tcpdump \
   -s 0 \
   -B 4096 \
   -G "$PCAP_ROTATE_SECONDS" \
-  -Z wwsensor \
   -w '/var/lib/wwcx-network-sensor/pcap/%Y%m%dT%H%M%SZ.pcap'
