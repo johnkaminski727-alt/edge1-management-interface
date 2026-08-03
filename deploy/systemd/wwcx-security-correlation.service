@@ -1,14 +1,15 @@
 [Unit]
 Description=WW.CX read-only security correlation exporter
-After=network-online.target wwcx-security-operations.service wwcx-operations-network.service
+After=network-online.target wwcx-security-operations.service wwcx-operations-network.service wwcx-network-sensor-exporter.service
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 User=root
 Group=root
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/security_correlation_exporter.py --output /var/www/edge1-status/security/correlation/data/security-correlation.json
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/security_correlation_sensor_exporter.py --output /var/www/edge1-status/security/correlation/data/security-correlation.json
 UMask=0022
+ReadOnlyPaths=-/var/lib/wwcx-network-sensor/restricted
 ReadWritePaths=/var/www/edge1-status/security/correlation/data
 NoNewPrivileges=true
 PrivateTmp=true

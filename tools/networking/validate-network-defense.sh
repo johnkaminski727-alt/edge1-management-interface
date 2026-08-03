@@ -9,6 +9,8 @@ python3 -m py_compile \
   server/network_defense_dns_exporter.py \
   server/network_defense_fail2ban_exporter.py \
   server/network_defense_nftables_exporter.py \
+  server/network_defense_freshness_exporter.py \
+  server/network_defense_sensor_exporter.py \
   server/spamhaus_live_state_verifier.py \
   server/fail2ban_live_state_verifier.py \
   server/nftables_live_state_verifier.py
@@ -28,6 +30,7 @@ python3 tests/test_network_defense_dns_exporter.py
 python3 tests/test_network_defense_fail2ban_exporter.py
 python3 tests/test_network_defense_nftables_exporter.py
 python3 tests/test_network_defense_runtime_wiring.py
+python3 tests/test_network_sensor_network_defense_integration.py
 
 python3 - <<'PY'
 from html.parser import HTMLParser

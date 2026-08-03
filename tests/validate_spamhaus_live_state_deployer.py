@@ -9,6 +9,7 @@ TIMER = ROOT / 'deploy' / 'systemd' / 'wwcx-spamhaus-live-state.timer'
 NETWORK_SERVICE = ROOT / 'deploy' / 'systemd' / 'wwcx-network-defense.service'
 NFTABLES_WRAPPER = ROOT / 'server' / 'network_defense_nftables_exporter.py'
 FINAL_WRAPPER = ROOT / 'server' / 'network_defense_freshness_exporter.py'
+SENSOR_WRAPPER = ROOT / 'server' / 'network_defense_sensor_exporter.py'
 PAGE = ROOT / 'src' / 'web' / 'network-defense' / 'index.html'
 
 installer = INSTALLER.read_text(encoding='utf-8')
@@ -18,6 +19,7 @@ timer = TIMER.read_text(encoding='utf-8')
 network_service = NETWORK_SERVICE.read_text(encoding='utf-8')
 nftables_wrapper = NFTABLES_WRAPPER.read_text(encoding='utf-8')
 final_wrapper = FINAL_WRAPPER.read_text(encoding='utf-8')
+sensor_wrapper = SENSOR_WRAPPER.read_text(encoding='utf-8')
 page = PAGE.read_text(encoding='utf-8')
 
 required_installer = (
@@ -89,11 +91,13 @@ for marker in (
     'wwcx-spamhaus-live-state.service',
     'wwcx-fail2ban-live-state.service',
     'wwcx-nftables-live-state.service',
-    'server/network_defense_freshness_exporter.py',
+    'server/network_defense_sensor_exporter.py',
 ):
     if marker not in network_service:
         raise SystemExit(f'Network Defense verifier ordering marker missing: {marker}')
 
+if 'network_defense_freshness_exporter' not in sensor_wrapper:
+    raise SystemExit('Sensor-aware Network Defense wrapper does not preserve the freshness-aware layer')
 if 'network_defense_nftables_exporter.py' not in final_wrapper:
     raise SystemExit('Final Network Defense wrapper does not preserve the nftables-aware layer')
 if 'network_defense_fail2ban_exporter.py' not in nftables_wrapper:
