@@ -56,17 +56,13 @@ assert "ReadOnlyPaths=-/var/lib/wwcx-network-sensor/restricted" in correlation_u
 network_defense_unit = (ROOT / "deploy/systemd/wwcx-network-defense.service").read_text(encoding="utf-8")
 assert "network_defense_sensor_exporter.py" in network_defense_unit
 
-combined = "\n".join(
-    path.read_text(encoding="utf-8", errors="replace")
-    for path in ROOT.rglob("*network-sensor*")
-    if path.is_file() and path.name not in {"validate_edge1_network_sensor.py", "validate-edge1-network-sensor.sh"}
-)
-for forbidden in (
-    "iptables -F",
-    "nft flush ruleset",
-    "ip route add default",
-    "sysctl -w net.ipv4.ip_forward=1",
-):
-    assert forbidden not in combined, forbidden
+# Run the exact operator-facing validation path used by the guarded live installer.
+# Its forbidden-command scan is intentionally limited to executable and installed
+# network-sensor runtime assets, rather than tests and documentation containing
+# literal negative-test strings.
+subprocess.run([
+    "bash",
+    str(ROOT / "tools/networking/validate-edge1-network-sensor.sh"),
+], check=True)
 
 print("Edge1 passive network sensor repository validation passed.")
