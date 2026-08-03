@@ -1,0 +1,16 @@
+[Unit]
+Description=Prune WW.CX Edge1 network sensor retained data
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/default/wwcx-network-sensor
+ExecStart=/usr/local/libexec/wwcx-network-sensor-prune.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/wwcx-network-sensor/pcap /var/lib/wwcx-network-sensor/extracted
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
