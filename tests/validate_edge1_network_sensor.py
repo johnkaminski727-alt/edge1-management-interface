@@ -69,4 +69,11 @@ for forbidden in (
 ):
     assert forbidden not in combined, forbidden
 
+# Run the same operator-facing validation path used by the guarded live installer.
+# This prevents CI from passing while the live deployment preflight fails.
+subprocess.run([
+    "bash",
+    str(ROOT / "tools/networking/validate-edge1-network-sensor.sh"),
+], check=True)
+
 print("Edge1 passive network sensor repository validation passed.")
