@@ -6,8 +6,8 @@ ConditionPathExists=/etc/default/wwcx-network-sensor
 
 [Service]
 Type=simple
-User=wwsensor
-Group=wwsensor
+User=root
+Group=root
 EnvironmentFile=/etc/default/wwcx-network-sensor
 ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/lib/wwcx-network-sensor
 ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/pcap
@@ -21,8 +21,7 @@ PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
 ReadWritePaths=/var/lib/wwcx-network-sensor
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_CHOWN CAP_SETGID CAP_SETUID CAP_NET_ADMIN CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target
