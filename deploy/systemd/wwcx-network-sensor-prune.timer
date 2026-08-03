@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily WW.CX Edge1 network sensor retention enforcement
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 UTC
+RandomizedDelaySec=20min
+Persistent=true
+Unit=wwcx-network-sensor-prune.service
+
+[Install]
+WantedBy=timers.target
