@@ -20,7 +20,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/var/log/wwcx-network-sensor/suricata /run/wwcx-network-sensor
+ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_NICE
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_NICE
 
