@@ -26,6 +26,35 @@ assert 'security_correlation_sensor_exporter.py' in correlation
 network_defense = (root / 'deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
 assert 'network_defense_sensor_exporter.py' in network_defense
 
+suricata = (root / 'deploy/systemd/wwcx-network-sensor-suricata.service').read_text(encoding='utf-8')
+for marker in (
+    'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor',
+    'ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata',
+    'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
+    'ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor',
+    'UMask=0007',
+):
+    assert marker in suricata, marker
+
+pcap = (root / 'deploy/systemd/wwcx-network-sensor-pcap.service').read_text(encoding='utf-8')
+for marker in (
+    'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/lib/wwcx-network-sensor',
+    'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/pcap',
+    'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/extracted',
+    'ReadWritePaths=/var/lib/wwcx-network-sensor',
+    'UMask=0007',
+):
+    assert marker in pcap, marker
+
+zeek = (root / 'deploy/systemd/wwcx-network-sensor-zeek.service').read_text(encoding='utf-8')
+for marker in (
+    'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
+    'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/extracted',
+    'ReadWritePaths=/var/log/wwcx-network-sensor /var/lib/wwcx-network-sensor',
+    'UMask=0007',
+):
+    assert marker in zeek, marker
+
 runtime_files = [
     root / 'config/network-sensor/owner-full.env',
     root / 'config/network-sensor/wwcx-owner-full.zeek',
