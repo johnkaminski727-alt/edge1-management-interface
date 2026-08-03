@@ -10,10 +10,13 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 REQUIRED = (
     "server/network_sensor_exporter.py",
     "server/security_correlation_sensor_exporter.py",
+    "server/network_defense_sensor_exporter.py",
     "tests/test_network_sensor_exporter.py",
     "tests/test_network_sensor_correlation_integration.py",
+    "tests/test_network_sensor_network_defense_integration.py",
     "deploy/install-edge1-network-sensor.sh",
     "deploy/systemd/wwcx-security-correlation.service",
+    "deploy/systemd/wwcx-network-defense.service",
     "tools/networking/discover-edge1-network-sensor.sh",
     "tools/networking/validate-edge1-network-sensor.sh",
     "src/web/network-sensor/index.html",
@@ -27,10 +30,12 @@ subprocess.run([
     "python3", "-m", "py_compile",
     str(ROOT / "server/network_sensor_exporter.py"),
     str(ROOT / "server/security_correlation_sensor_exporter.py"),
+    str(ROOT / "server/network_defense_sensor_exporter.py"),
 ], check=True)
 for test in (
     ROOT / "tests/test_network_sensor_exporter.py",
     ROOT / "tests/test_network_sensor_correlation_integration.py",
+    ROOT / "tests/test_network_sensor_network_defense_integration.py",
 ):
     subprocess.run(["python3", str(test)], check=True)
 
@@ -48,6 +53,8 @@ for path in (
 correlation_unit = (ROOT / "deploy/systemd/wwcx-security-correlation.service").read_text(encoding="utf-8")
 assert "security_correlation_sensor_exporter.py" in correlation_unit
 assert "ReadOnlyPaths=-/var/lib/wwcx-network-sensor/restricted" in correlation_unit
+network_defense_unit = (ROOT / "deploy/systemd/wwcx-network-defense.service").read_text(encoding="utf-8")
+assert "network_defense_sensor_exporter.py" in network_defense_unit
 
 combined = "\n".join(
     path.read_text(encoding="utf-8", errors="replace")
