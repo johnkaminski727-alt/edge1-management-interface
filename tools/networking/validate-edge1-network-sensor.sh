@@ -28,6 +28,8 @@ assert 'network_defense_sensor_exporter.py' in network_defense
 
 suricata = (root / 'deploy/systemd/wwcx-network-sensor-suricata.service').read_text(encoding='utf-8')
 for marker in (
+    'User=suricata',
+    'Group=suricata',
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
@@ -35,9 +37,13 @@ for marker in (
     'UMask=0007',
 ):
     assert marker in suricata, marker
+for forbidden in ('--user=suricata', '--group=suricata', 'CAP_CHOWN', 'CAP_SETUID', 'CAP_SETGID'):
+    assert forbidden not in suricata, forbidden
 
 pcap = (root / 'deploy/systemd/wwcx-network-sensor-pcap.service').read_text(encoding='utf-8')
 for marker in (
+    'User=wwsensor',
+    'Group=wwsensor',
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/lib/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/pcap',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/lib/wwcx-network-sensor/extracted',
@@ -45,6 +51,12 @@ for marker in (
     'UMask=0007',
 ):
     assert marker in pcap, marker
+for forbidden in ('CAP_CHOWN', 'CAP_SETUID', 'CAP_SETGID'):
+    assert forbidden not in pcap, forbidden
+
+pcap_wrapper = (root / 'tools/networking/network-sensor-pcap.sh').read_text(encoding='utf-8')
+assert '-Z wwsensor' not in pcap_wrapper
+assert '/usr/bin/tcpdump' in pcap_wrapper
 
 zeek = (root / 'deploy/systemd/wwcx-network-sensor-zeek.service').read_text(encoding='utf-8')
 for marker in (
