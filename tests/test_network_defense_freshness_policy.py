@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).parents[1] / 'server' / 'network_defense_freshness_exporter.py'
+SENSOR_PATH = Path(__file__).parents[1] / 'server' / 'network_defense_sensor_exporter.py'
 SERVICE_PATH = Path(__file__).parents[1] / 'deploy' / 'systemd' / 'wwcx-network-defense.service'
 SPEC = importlib.util.spec_from_file_location('network_defense_freshness_exporter', MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -47,17 +48,20 @@ class NetworkDefenseFreshnessPolicyTests(unittest.TestCase):
         self.assertEqual(BASE.SOURCE_STALE_SECONDS['spamhaus'], 8 * 60 * 60)
         self.assertEqual(BASE.SOURCE_STALE_SECONDS['spamhaus_live_state'], 5 * 60)
 
-    def test_service_uses_final_freshness_wrapper_without_capabilities(self):
+    def test_service_uses_sensor_wrapper_over_final_freshness_layer(self):
         service = SERVICE_PATH.read_text(encoding='utf-8')
-        self.assertIn('server/network_defense_freshness_exporter.py', service)
+        sensor = SENSOR_PATH.read_text(encoding='utf-8')
+        self.assertIn('server/network_defense_sensor_exporter.py', service)
+        self.assertIn('network_defense_freshness_exporter', sensor)
         self.assertIn('RestrictAddressFamilies=AF_UNIX', service)
         self.assertIn('CapabilityBoundingSet=\n', service)
         self.assertIn('AmbientCapabilities=\n', service)
 
-    def test_wrapper_has_no_command_or_network_execution(self):
-        source = MODULE_PATH.read_text(encoding='utf-8')
-        for token in ('subprocess', 'socket', 'requests', 'urllib.request', 'os.system', 'Popen('):
-            self.assertNotIn(token, source)
+    def test_wrappers_have_no_command_or_network_execution(self):
+        for path in (MODULE_PATH, SENSOR_PATH):
+            source = path.read_text(encoding='utf-8')
+            for token in ('subprocess', 'socket', 'requests', 'urllib.request', 'os.system', 'Popen('):
+                self.assertNotIn(token, source)
 
 
 if __name__ == '__main__':
