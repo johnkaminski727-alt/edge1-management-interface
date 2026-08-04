@@ -1,9 +1,11 @@
 {
   "contract": "wwcx.outbound-mail-runtime-acceptance.v1",
   "accepted_at": "2026-08-04T05:14:35Z",
+  "verified_at": "2026-08-04T05:33:16Z",
   "acceptance_source": {
     "issue": 187,
     "issue_comment_id": 5174900763,
+    "post_fix_issue_comment_id": 5175033877,
     "operator_transcript_reviewed": true
   },
   "deployment": {
@@ -11,7 +13,9 @@
     "repository": "/opt/edge1-management-interface",
     "branch": "main",
     "deployed_commit": "1f79d030bec94c6247e3fb5bc93a7f6a76d65ad6",
+    "current_verified_commit": "681806b1190e0639d12120566fa8733430fd3fae",
     "repair_pull_request": 291,
+    "git_index_fix_pull_request": 293,
     "service": "wwcx-outbound-mail-gateway.service",
     "listener": "127.0.0.1:8104",
     "runtime_state": "runtime_migration_active_safe_disabled",
@@ -22,16 +26,27 @@
   "evidence": {
     "audit_directory": "/var/lib/wwcx-deployment-evidence/outbound-mail-runtime-migration/20260804T051426Z",
     "install_directory": "/var/lib/wwcx-deployment-evidence/outbound-mail-runtime-migration/20260804T051435Z",
+    "verify_directory": "/var/lib/wwcx-deployment-evidence/outbound-mail-runtime-migration/20260804T053316Z",
     "audit_failures": 0,
     "install_failures": 0,
+    "verify_failures": 0,
     "rollback_executed": false,
     "source_config_preserved": true,
     "installer_verification_passed": true,
+    "post_fix_verification_passed": true,
     "independent_manifest_recheck_recorded": false
   },
   "source_configuration": {
     "sha256": "b82b6e9c74245d40ce4eb467bbd9aee4006a9b3db0538a5df8801f0764485db4",
     "modified": false
+  },
+  "repository_integrity": {
+    "git_index_owner": "wwadmin",
+    "git_index_group": "wwadmin",
+    "git_index_mode": "0644",
+    "worktree_clean_after_root_verification": true,
+    "root_verification_preserved_index_ownership": true,
+    "git_optional_locks_disabled_for_root_wrapper": true
   },
   "preserved_boundaries": {
     "provider_credentials_read": false,
