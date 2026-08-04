@@ -7,6 +7,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -36,6 +37,11 @@ def load(relative: str) -> dict:
 def authorization(config: dict, policy: dict, identities: dict, key: str, address: str, now: datetime) -> dict:
     return {
         "contract": MODULE.AUTH_CONTRACT,
+        "authorization_id": "WWCX-PILOT-AUTH-0001",
+        "authorized_by": "john-k",
+        "authorization_reference": "github-issue-187",
+        "issued_at": (now - timedelta(minutes=5)).isoformat(timespec="seconds"),
+        "expires_at": (now + timedelta(minutes=30)).isoformat(timespec="seconds"),
         "provider_profile": "smtp_submission",
         "sender_identity_key": key,
         "sender_address": address,
@@ -45,7 +51,6 @@ def authorization(config: dict, policy: dict, identities: dict, key: str, addres
         "smtp_auth_canary_sha256": "a" * 64,
         "pilot_recipient_sha256": "b" * 64,
         "pilot_payload_sha256": "c" * 64,
-        "expires_at": (now + timedelta(minutes=30)).isoformat(timespec="seconds"),
         "smtp_authentication_verified": True,
         "sender_provider_capability_verified": True,
         "dkim_dns_verified": True,
@@ -81,6 +86,8 @@ for path in (TOOL, SCHEMA, DOC):
 schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
 check(schema["properties"]["contract"]["const"] == MODULE.AUTH_CONTRACT, "schema contract mismatch")
 check(schema["additionalProperties"] is False, "schema permits extra fields")
+for field in ("authorization_id", "authorized_by", "authorization_reference", "issued_at", "expires_at"):
+    check(field in schema["required"], f"schema does not require {field}")
 check(schema["properties"]["max_recipient_count"]["const"] == 1, "schema permits multiple recipients")
 check(schema["properties"]["rollback_required"]["const"] is True, "schema permits no rollback")
 for key in ("bulk_authorized", "commercial_authorized", "regulatory_authorized", "emergency_authorized"):
@@ -111,6 +118,13 @@ check(selected is not None, "no disabled identity produced a validator-clean act
 identity_key, sender_address, auth, bundle = selected
 
 check(bundle["contract"] == MODULE.BUNDLE_CONTRACT, "bundle contract mismatch")
+check(bundle["authorization_id"] == auth["authorization_id"], "authorization ID mismatch")
+check(bundle["authorized_by"] == auth["authorized_by"], "authorization actor mismatch")
+check(bundle["authorization_reference"] == auth["authorization_reference"], "authorization reference mismatch")
+check(bundle["authorization_sha256"] == MODULE.sha256_document(auth), "authorization hash mismatch")
+check(bundle["source_runtime_sha256"]["outbound-mail-gateway-runtime.json"] == auth["runtime_config_sha256"], "gateway source hash missing")
+check(bundle["source_runtime_sha256"]["outbound-mail-policy-runtime.json"] == auth["runtime_policy_sha256"], "policy source hash missing")
+check(bundle["source_runtime_sha256"]["mail-identities-runtime.json"] == auth["runtime_identities_sha256"], "identity source hash missing")
 check(bundle["provider_profile"] == "smtp_submission", "provider profile mismatch")
 check(bundle["sender_identity_key"] == identity_key, "sender key mismatch")
 check(bundle["sender_address_sha256"] == hashlib.sha256(sender_address.encode()).hexdigest(), "sender hash mismatch")
@@ -155,11 +169,20 @@ hash_mismatch = copy.deepcopy(auth)
 hash_mismatch["runtime_config_sha256"] = "f" * 64
 rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, hash_mismatch, now=now), "runtime hash mismatch")
 expired = copy.deepcopy(auth)
+expired["issued_at"] = (now - timedelta(hours=2)).isoformat()
 expired["expires_at"] = (now - timedelta(seconds=1)).isoformat()
 rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, expired, now=now), "expired authorization")
 long_lived = copy.deepcopy(auth)
+long_lived["issued_at"] = now.isoformat()
 long_lived["expires_at"] = (now + timedelta(hours=3)).isoformat()
 rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, long_lived, now=now), "authorization over two hours")
+not_yet = copy.deepcopy(auth)
+not_yet["issued_at"] = (now + timedelta(minutes=1)).isoformat()
+not_yet["expires_at"] = (now + timedelta(minutes=30)).isoformat()
+rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, not_yet, now=now), "future authorization")
+invalid_reference = copy.deepcopy(auth)
+invalid_reference["authorization_reference"] = "bad reference with spaces"
+rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, invalid_reference, now=now), "invalid authorization reference")
 wrong_address = copy.deepcopy(auth)
 wrong_address["sender_address"] = "wrong@example.com"
 rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, wrong_address, now=now), "sender address mismatch")
@@ -182,15 +205,17 @@ with tempfile.TemporaryDirectory() as temporary:
     written = MODULE.write_bundle(bundle, output)
     check("manifest.json" in written, "activation bundle manifest missing")
     check(len(written) == 7, "activation bundle file count mismatch")
+    check((output.stat().st_mode & 0o777) == 0o700, "activation bundle root mode too broad")
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     check("activated" not in manifest and "rollback" not in manifest, "manifest retained inline documents")
+    check(manifest["authorization_sha256"] == MODULE.sha256_document(auth), "manifest authorization hash mismatch")
     check(len(manifest["file_sha256"]) == 6, "manifest hash inventory mismatch")
     for relative, digest in manifest["file_sha256"].items():
         path = output / relative
         check(path.is_file(), f"bundle file missing: {relative}")
         check((path.stat().st_mode & 0o777) == 0o600, f"bundle file mode too broad: {relative}")
         check(hashlib.sha256(path.read_bytes()).hexdigest() == digest, f"bundle file hash mismatch: {relative}")
-    rejects(lambda: MODULE.write_bundle(bundle, output), "non-empty output directory")
+    rejects(lambda: MODULE.write_bundle(bundle, output), "existing output directory")
 
     config_path = folder / "config.json"
     policy_path = folder / "policy.json"
@@ -199,7 +224,11 @@ with tempfile.TemporaryDirectory() as temporary:
     config_path.write_text(json.dumps(runtime_config), encoding="utf-8")
     policy_path.write_text(json.dumps(policy), encoding="utf-8")
     identities_path.write_text(json.dumps(identities), encoding="utf-8")
-    auth_path.write_text(json.dumps(auth), encoding="utf-8")
+
+    current = datetime.now(timezone.utc)
+    current_auth = authorization(runtime_config, policy, identities, identity_key, sender_address, current)
+    auth_path.write_text(json.dumps(current_auth), encoding="utf-8")
+    os.chmod(auth_path, 0o600)
     cli_output = folder / "cli-bundle"
     process = subprocess.run(
         [
@@ -216,7 +245,75 @@ with tempfile.TemporaryDirectory() as temporary:
         text=True,
         check=False,
     )
-    check(process.returncode == 2, "CLI unexpectedly accepted expired-by-current-time synthetic authorization")
+    check(process.returncode == 0, process.stderr)
+    check((cli_output.stat().st_mode & 0o777) == 0o700, "CLI output root mode too broad")
+
+    broad_auth = folder / "broad-authorization.json"
+    broad_auth.write_text(json.dumps(current_auth), encoding="utf-8")
+    os.chmod(broad_auth, 0o644)
+    broad_output = folder / "broad-output"
+    broad = subprocess.run(
+        [
+            sys.executable,
+            str(TOOL),
+            "--config", str(config_path),
+            "--policy", str(policy_path),
+            "--identities", str(identities_path),
+            "--authorization", str(broad_auth),
+            "--output-dir", str(broad_output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    check(broad.returncode == 2, "CLI accepted broad authorization permissions")
+    check("private mode 0600" in broad.stderr, "broad authorization refusal reason changed")
+    check(not broad_output.exists(), "CLI wrote output for broad authorization")
+
+    symlink_auth = folder / "authorization-link.json"
+    symlink_auth.symlink_to(auth_path)
+    symlink_output = folder / "symlink-output"
+    linked = subprocess.run(
+        [
+            sys.executable,
+            str(TOOL),
+            "--config", str(config_path),
+            "--policy", str(policy_path),
+            "--identities", str(identities_path),
+            "--authorization", str(symlink_auth),
+            "--output-dir", str(symlink_output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    check(linked.returncode == 2, "CLI accepted symlinked authorization")
+    check("symlink component" in linked.stderr, "symlink authorization refusal reason changed")
+    check(not symlink_output.exists(), "CLI wrote output for symlinked authorization")
+
+    target = folder / "output-target"
+    target.mkdir(mode=0o700)
+    output_link = folder / "output-link"
+    output_link.symlink_to(target, target_is_directory=True)
+    linked_output = subprocess.run(
+        [
+            sys.executable,
+            str(TOOL),
+            "--config", str(config_path),
+            "--policy", str(policy_path),
+            "--identities", str(identities_path),
+            "--authorization", str(auth_path),
+            "--output-dir", str(output_link),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    check(linked_output.returncode == 2, "CLI accepted symlinked output directory")
+    check(not any(target.iterdir()), "CLI wrote through symlinked output directory")
 
     forbidden = ROOT / "var" / "forbidden-activation-bundle"
     refused = subprocess.run(
@@ -235,23 +332,29 @@ with tempfile.TemporaryDirectory() as temporary:
         check=False,
     )
     check(refused.returncode == 2, "CLI accepted output inside Git tree")
-    check("refusing activation authorization or output" in refused.stderr, "worktree refusal reason changed")
+    check("refusing runtime input, activation authorization, or output" in refused.stderr, "worktree refusal reason changed")
     check(not forbidden.exists(), "CLI wrote forbidden activation output")
 
 source = TOOL.read_text(encoding="utf-8")
 for required in (
     "changes only the exact SMTP provider",
-    "authorization window exceeds two hours",
+    "authorization lifetime exceeds two hours",
+    "authorization is not yet valid",
     "required preparation-only safe state",
     "activation gateway changes are unauthorized",
     "activation policy changes are unauthorized",
     "activation identity changes are unauthorized",
+    "must be private mode 0600 or stricter",
+    "contains a symlink component",
+    "output parent is group/world writable",
     "rollback_required",
+    "authorization_sha256",
+    "source_runtime_sha256",
     "credentials_read",
     "runtime_files_modified",
     "provider_contacted",
     "message_sent",
-    "refusing activation authorization or output inside the Git working tree",
+    "refusing runtime input, activation authorization, or output inside the Git working tree",
 ):
     check(required in source, f"activation builder missing safety marker: {required}")
 for prohibited in (
@@ -268,7 +371,7 @@ for prohibited in (
     check(prohibited not in source, f"activation builder contains prohibited operation: {prohibited}")
 
 print("Controlled outbound-mail activation bundle validation passed")
-print("Exact runtime hashes, two-hour authorization, readiness gates, one sender/recipient/payload, and rollback verified")
+print("Exact runtime and authorization hashes, bounded issuance window, one sender/recipient/payload, and rollback verified")
+print("Private operator-owned authorization, symlink refusal, 0700 bundle root, and 0600 files verified")
 print("Only six gateway, two policy, and three identity paths change")
-print("Activated and rollback files are private, hashed, and never installed by the builder")
 print("No credential, provider contact, runtime mutation, message preparation, or message traffic occurs")
