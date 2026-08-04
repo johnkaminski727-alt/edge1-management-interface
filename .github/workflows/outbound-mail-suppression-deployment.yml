@@ -1,0 +1,41 @@
+name: Validate outbound mail suppression deployment
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/messaging/install-outbound-mail-suppression-server.sh'
+      - 'tools/messaging/initialize_outbound_mail_delivery_state.py'
+      - 'tests/validate_outbound_mail_suppression_deployment.py'
+      - 'docs/messaging-operations/outbound-mail-suppression-deployment-20260804.md'
+      - 'server/outbound_mail_gateway_suppressed_server.py'
+      - 'server/outbound_mail_suppression_gate.py'
+      - 'server/outbound_mail_delivery_events.py'
+      - '.github/workflows/outbound-mail-suppression-deployment.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'deploy/messaging/install-outbound-mail-suppression-server.sh'
+      - 'tools/messaging/initialize_outbound_mail_delivery_state.py'
+      - 'tests/validate_outbound_mail_suppression_deployment.py'
+      - 'docs/messaging-operations/outbound-mail-suppression-deployment-20260804.md'
+      - 'server/outbound_mail_gateway_suppressed_server.py'
+      - 'server/outbound_mail_suppression_gate.py'
+      - 'server/outbound_mail_delivery_events.py'
+      - '.github/workflows/outbound-mail-suppression-deployment.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          sh -n deploy/messaging/install-outbound-mail-suppression-server.sh
+          python3 -m py_compile tools/messaging/initialize_outbound_mail_delivery_state.py
+          python3 -m py_compile tests/validate_outbound_mail_suppression_deployment.py
+      - name: Functional and safety validation
+        run: python3 tests/validate_outbound_mail_suppression_deployment.py
