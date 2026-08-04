@@ -253,10 +253,12 @@ suricata -T -c /etc/suricata/suricata.yaml > "$EVIDENCE_DIR/suricata-config-test
 systemctl daemon-reload
 
 if [ "$ACTIVATE" = true ]; then
-  SURICATA_ACCEPTANCE_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  systemctl enable --now wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service
+  systemctl enable wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service
+  systemctl restart wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service
+  SURICATA_ACCEPTANCE_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
   if [ "$ENABLE_ZEEK" = true ]; then
-    systemctl enable --now wwcx-network-sensor-zeek.service
+    systemctl enable wwcx-network-sensor-zeek.service
+    systemctl restart wwcx-network-sensor-zeek.service
   fi
   systemctl enable --now wwcx-network-sensor-exporter.timer wwcx-network-sensor-prune.timer
 
