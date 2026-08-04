@@ -78,7 +78,8 @@ installer = (root / 'deploy/install-edge1-network-sensor.sh').read_text(encoding
 for marker in (
     'network_sensor_capture_acceptance.py',
     'suricata-capture-acceptance.json',
-    '--wait-seconds 75',
+    '--startup-wait-seconds 75',
+    '--observation-seconds 30',
 ):
     assert marker in installer, marker
 
