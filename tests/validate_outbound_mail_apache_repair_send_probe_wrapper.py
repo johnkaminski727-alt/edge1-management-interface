@@ -47,7 +47,7 @@ for forbidden in (
 legacy = "  direct_send=$(curl -sS --max-time 5 -H 'Content-Type: application/json' -d '{}' -o /dev/null -w '%{http_code}' http://127.0.0.1:8104/outbound-mail/send || true)\n"
 assert original.count(legacy) == 1
 assert "apache-repair-canary@example.invalid" not in original
-assert wrapper.count("apache-repair-canary@example.invalid") == 2
+assert wrapper.count("apache-repair-canary@example.invalid") == 3
 assert wrapper.count("delivery_disabled") >= 2
 
 syntax = subprocess.run(["sh", "-n", str(WRAPPER)], cwd=ROOT, check=False)
