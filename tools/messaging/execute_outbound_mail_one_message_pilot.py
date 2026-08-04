@@ -17,10 +17,12 @@ import hashlib
 import json
 import os
 import pathlib
+import sqlite3
 import stat
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any
@@ -34,7 +36,6 @@ for item in (SERVER, TOOLS):
 
 import build_outbound_mail_controlled_activation_bundle as activation_bundle
 import mail_identity_registry
-import outbound_mail_delivery_events as delivery_events
 import outbound_mail_gateway as gateway
 import outbound_mail_policy
 
@@ -586,6 +587,60 @@ def copy_runtime_backup(
     return backups
 
 
+def read_suppression_state_readonly(
+    database: pathlib.Path,
+    recipient_sha256: str,
+) -> dict[str, Any]:
+    if len(recipient_sha256) != 64 or set(recipient_sha256) - HEX64:
+        raise PilotExecutionError("pilot recipient hash is invalid")
+    encoded = urllib.parse.quote(str(database), safe="/")
+    try:
+        connection = sqlite3.connect(
+            f"file:{encoded}?mode=ro",
+            uri=True,
+            timeout=5,
+        )
+        connection.row_factory = sqlite3.Row
+        try:
+            row = connection.execute(
+                """
+                SELECT suppression_active,suppression_reason,event_count,
+                       transient_failure_count,last_event_id,last_event_type,
+                       last_occurred_at
+                FROM recipient_delivery_state
+                WHERE recipient_sha256=?
+                """,
+                (recipient_sha256,),
+            ).fetchone()
+        finally:
+            connection.close()
+    except sqlite3.Error as exc:
+        raise PilotExecutionError(
+            "suppression database is unreadable or lacks the required schema"
+        ) from exc
+    if row is None:
+        return {
+            "recipient_sha256": recipient_sha256,
+            "suppression_active": False,
+            "suppression_reason": None,
+            "event_count": 0,
+            "transient_failure_count": 0,
+            "last_event_id": None,
+            "last_event_type": None,
+            "last_occurred_at": None,
+        }
+    return {
+        "recipient_sha256": recipient_sha256,
+        "suppression_active": bool(row["suppression_active"]),
+        "suppression_reason": row["suppression_reason"],
+        "event_count": int(row["event_count"]),
+        "transient_failure_count": int(row["transient_failure_count"]),
+        "last_event_id": row["last_event_id"],
+        "last_event_type": row["last_event_type"],
+        "last_occurred_at": row["last_occurred_at"],
+    }
+
+
 def minimize_submission(
     status: int,
     response: dict[str, Any],
@@ -682,7 +737,7 @@ def audit_context(
         "suppression database",
         owner_uid=private_owner,
     )
-    state = delivery_events.recipient_state(
+    state = read_suppression_state_readonly(
         suppression_path,
         authorization["pilot_recipient_sha256"],
     )
@@ -741,8 +796,10 @@ def execute_pilot(
     activation_started = False
     send_attempted = False
     submission: dict[str, Any] | None = None
-    failure: str | None = None
-    rollback_error: str | None = None
+    failure_code: str | None = None
+    failure_detail: str | None = None
+    rollback_error_code: str | None = None
+    rollback_error_detail: str | None = None
     try:
         activation_started = True
         adapter.replace_runtime(
@@ -778,7 +835,8 @@ def execute_pilot(
         if not submission["accepted"]:
             raise PilotExecutionError("provider did not accept the one-message pilot")
     except Exception as exc:
-        failure = str(exc)
+        failure_code = exc.__class__.__name__[:64]
+        failure_detail = str(exc)
     finally:
         if activation_started:
             try:
@@ -815,7 +873,8 @@ def execute_pilot(
                 )
                 require_disabled_status(rollback_status_code, rollback_status)
             except Exception as exc:
-                rollback_error = str(exc)
+                rollback_error_code = exc.__class__.__name__[:64]
+                rollback_error_detail = str(exc)
 
     record = {
         "contract": CONTRACT,
@@ -840,22 +899,36 @@ def execute_pilot(
         "send_attempt_count": 1 if send_attempted else 0,
         "submission": submission,
         "rollback_attempted": activation_started,
-        "rollback_succeeded": activation_started and rollback_error is None,
-        "post_rollback_safe_disabled": (
-            activation_started and rollback_error is None
+        "rollback_succeeded": (
+            activation_started and rollback_error_detail is None
         ),
-        "failure": failure,
-        "rollback_error": rollback_error,
+        "post_rollback_safe_disabled": (
+            activation_started and rollback_error_detail is None
+        ),
+        "failure_code": failure_code,
+        "failure_detail_sha256": (
+            sha256_bytes(failure_detail.encode("utf-8"))
+            if failure_detail is not None
+            else None
+        ),
+        "rollback_error_code": rollback_error_code,
+        "rollback_error_detail_sha256": (
+            sha256_bytes(rollback_error_detail.encode("utf-8"))
+            if rollback_error_detail is not None
+            else None
+        ),
         "recipient_address_stored": False,
         "message_content_stored": False,
         "provider_credentials_read": False,
         "raw_provider_response_stored": False,
     }
     secure_write_json(evidence / "execution.json", record)
-    if rollback_error is not None:
-        raise PilotExecutionError(f"automatic rollback failed: {rollback_error}")
-    if failure is not None:
-        raise PilotExecutionError(failure)
+    if rollback_error_detail is not None:
+        raise PilotExecutionError(
+            f"automatic rollback failed: {rollback_error_detail}"
+        )
+    if failure_detail is not None:
+        raise PilotExecutionError(failure_detail)
     return record
 
 
