@@ -1,0 +1,57 @@
+name: Validate WW.CX Private Email inventory
+
+on:
+  pull_request:
+    paths:
+      - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
+      - 'docs/messaging-operations/namecheap-private-email-inventory-acceptance-20260802.md'
+      - 'tests/validate_namecheap_private_email_inventory.py'
+      - 'tools/messaging/reconcile_mail_provider_objects.py'
+      - 'config/messaging/inbound-mail-hub.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/namecheap-private-email-inventory.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
+      - 'docs/messaging-operations/namecheap-private-email-inventory-acceptance-20260802.md'
+      - 'tests/validate_namecheap_private_email_inventory.py'
+      - 'tools/messaging/reconcile_mail_provider_objects.py'
+      - 'config/messaging/inbound-mail-hub.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/namecheap-private-email-inventory.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: python3 -m py_compile tests/validate_namecheap_private_email_inventory.py
+      - name: Validate normalized inventory and reconciliation
+        run: python3 tests/validate_namecheap_private_email_inventory.py
+      - name: Produce partial reconciliation evidence
+        run: |
+          set +e
+          python3 tools/messaging/reconcile_mail_provider_objects.py \
+            --inventory records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json \
+            --output /tmp/namecheap-private-email-wwcx-reconciliation.json \
+            --strict
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/namecheap-private-email-wwcx-reconciliation.json').read_text())
+          assert report['read_only'] is True
+          assert report['summary']['ready_for_pilot'] is False
+          assert report['summary']['observed_address_count'] == 2
+          print('observed_address_count=2')
+          print('ready_for_pilot=false')
+          print('critical_gap_count=' + str(report['summary']['critical_gap_count']))
+          PY
