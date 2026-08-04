@@ -55,7 +55,7 @@ class MailDkimInventoryTests(unittest.TestCase):
             del url, timeout
             answers = []
             if query_name.startswith("default."):
-                answers = ['"v=DKIM1; k=rsa; p=ABCDEF123456"']
+                answers = ["v=DKIM1; k=rsa; p=ABCDEF123456"]
             return {
                 "resolver": resolver,
                 "status": "ok",
@@ -81,7 +81,7 @@ class MailDkimInventoryTests(unittest.TestCase):
     def test_flags_resolver_disagreement(self) -> None:
         def fake_query(resolver: str, url: str, query_name: str, timeout: float) -> dict:
             del url, query_name, timeout
-            answers = ['"v=DKIM1; p=AAAA"'] if resolver == "cloudflare" else []
+            answers = ["v=DKIM1; p=AAAA"] if resolver == "cloudflare" else []
             return {
                 "resolver": resolver,
                 "status": "ok",
