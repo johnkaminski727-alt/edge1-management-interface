@@ -1,0 +1,68 @@
+name: Validate WW.CX DMARC monitoring proposal
+
+on:
+  pull_request:
+    paths:
+      - 'tools/messaging/wwcx_dmarc_monitoring_proposal.py'
+      - 'tests/validate_wwcx_dmarc_monitoring_proposal.py'
+      - 'docs/messaging-operations/wwcx-dmarc-monitoring-proposal-20260804.md'
+      - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
+      - 'records/messaging/dns-inventories/mail-domain-dns-acceptance-20260804.json'
+      - 'records/messaging/dns-inventories/wwcx-dkim-dns-acceptance-20260804.json'
+      - '.github/workflows/wwcx-dmarc-monitoring-proposal.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/messaging/wwcx_dmarc_monitoring_proposal.py'
+      - 'tests/validate_wwcx_dmarc_monitoring_proposal.py'
+      - 'docs/messaging-operations/wwcx-dmarc-monitoring-proposal-20260804.md'
+      - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
+      - 'records/messaging/dns-inventories/mail-domain-dns-acceptance-20260804.json'
+      - 'records/messaging/dns-inventories/wwcx-dkim-dns-acceptance-20260804.json'
+      - '.github/workflows/wwcx-dmarc-monitoring-proposal.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile tools/messaging/wwcx_dmarc_monitoring_proposal.py
+          python3 -m py_compile tests/validate_wwcx_dmarc_monitoring_proposal.py
+      - name: Functional validation
+        run: python3 tests/validate_wwcx_dmarc_monitoring_proposal.py
+      - name: Generate non-deploying proposal artifact
+        run: |
+          mkdir -p /tmp/wwcx-dmarc-proposal
+          python3 tools/messaging/wwcx_dmarc_monitoring_proposal.py \
+            --pretty \
+            --output /tmp/wwcx-dmarc-proposal/proposal.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          value = json.loads(Path('/tmp/wwcx-dmarc-proposal/proposal.json').read_text())
+          assert value['policy'] == 'none'
+          assert value['forensic_reporting_requested'] is False
+          assert value['readiness']['dns_change_ready'] is False
+          assert value['readiness']['pilot_authentication_ready'] is False
+          assert all(item is False for item in value['authorization'].values())
+          assert value['dns_modified'] is False
+          assert value['message_sent'] is False
+          print('record_syntax_ready=true')
+          print('dns_change_ready=false')
+          print('pilot_authentication_ready=false')
+          PY
+          sha256sum /tmp/wwcx-dmarc-proposal/proposal.json \
+            > /tmp/wwcx-dmarc-proposal/SHA256SUMS
+      - name: Upload proposal artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wwcx-dmarc-monitoring-proposal-${{ github.sha }}
+          path: /tmp/wwcx-dmarc-proposal/
+          if-no-files-found: error
+          retention-days: 30
