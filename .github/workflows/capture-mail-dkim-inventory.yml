@@ -7,7 +7,10 @@ on:
       - 'tools/messaging/mail_dkim_inventory.py'
       - 'tests/test_mail_dkim_inventory.py'
       - 'tests/validate_mail_dkim_inventory.py'
+      - 'tests/validate_wwcx_dkim_dns_acceptance_20260804.py'
+      - 'records/messaging/dns-inventories/wwcx-dkim-dns-acceptance-20260804.json'
       - 'docs/messaging-operations/wwcx-dkim-candidate-discovery-20260804.md'
+      - 'docs/messaging-operations/wwcx-dkim-dns-acceptance-20260804.md'
       - '.github/workflows/capture-mail-dkim-inventory.yml'
   push:
     branches:
@@ -17,7 +20,10 @@ on:
       - 'tools/messaging/mail_dkim_inventory.py'
       - 'tests/test_mail_dkim_inventory.py'
       - 'tests/validate_mail_dkim_inventory.py'
+      - 'tests/validate_wwcx_dkim_dns_acceptance_20260804.py'
+      - 'records/messaging/dns-inventories/wwcx-dkim-dns-acceptance-20260804.json'
       - 'docs/messaging-operations/wwcx-dkim-candidate-discovery-20260804.md'
+      - 'docs/messaging-operations/wwcx-dkim-dns-acceptance-20260804.md'
       - '.github/workflows/capture-mail-dkim-inventory.yml'
   workflow_dispatch:
 
@@ -35,8 +41,10 @@ jobs:
       - name: Syntax and deterministic validation
         run: |
           python3 -m py_compile tools/messaging/mail_dkim_inventory.py
+          python3 -m py_compile tests/validate_wwcx_dkim_dns_acceptance_20260804.py
           python3 -m unittest tests.test_mail_dkim_inventory
           python3 tests/validate_mail_dkim_inventory.py
+          python3 tests/validate_wwcx_dkim_dns_acceptance_20260804.py
       - name: Capture current public DKIM candidate evidence
         run: |
           mkdir -p /tmp/wwcx-mail-dkim-inventory
