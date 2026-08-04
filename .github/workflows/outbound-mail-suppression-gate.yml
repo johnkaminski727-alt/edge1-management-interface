@@ -1,0 +1,39 @@
+name: Validate outbound mail suppression gate
+
+on:
+  pull_request:
+    paths:
+      - 'server/outbound_mail_delivery_events.py'
+      - 'server/outbound_mail_suppression_gate.py'
+      - 'server/outbound_mail_gateway.py'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'tests/validate_outbound_mail_suppression_gate.py'
+      - 'docs/messaging-operations/outbound-mail-suppression-send-gate-20260804.md'
+      - '.github/workflows/outbound-mail-suppression-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/outbound_mail_delivery_events.py'
+      - 'server/outbound_mail_suppression_gate.py'
+      - 'server/outbound_mail_gateway.py'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'tests/validate_outbound_mail_suppression_gate.py'
+      - 'docs/messaging-operations/outbound-mail-suppression-send-gate-20260804.md'
+      - '.github/workflows/outbound-mail-suppression-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile server/outbound_mail_delivery_events.py
+          python3 -m py_compile server/outbound_mail_suppression_gate.py
+          python3 -m py_compile tests/validate_outbound_mail_suppression_gate.py
+      - name: Functional validation
+        run: python3 tests/validate_outbound_mail_suppression_gate.py
