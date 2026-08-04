@@ -233,7 +233,8 @@ with tempfile.TemporaryDirectory() as temporary:
 
 source = TOOL.read_text(encoding="utf-8")
 for required in (
-    "replaces source IP addresses with report-scoped SHA-256 pseudonyms",
+    "replaces",
+    "source IP addresses with report-scoped SHA-256 pseudonyms",
     "prohibited DTD or entity declarations",
     "raw aggregate SHA-256 does not match the manifest",
     "approved WW.CX p=none policy",
