@@ -1,0 +1,43 @@
+{
+  "contract": "wwcx.mail-dkim-selector-candidates.v1",
+  "read_only": true,
+  "domains": {
+    "ww.cx": {
+      "provider_family": "namecheap_private_email",
+      "selection_status": "query_all_candidates_until_subscription_generation_is_independently_confirmed",
+      "candidates": [
+        {
+          "selector": "default",
+          "basis": "Namecheap support reported the default selector; Namecheap documents default._domainkey for Private Email subscriptions purchased before 2026-06-02.",
+          "authoritative_for_activation": false
+        },
+        {
+          "selector": "privateemail",
+          "basis": "Namecheap documents privateemail._domainkey for Private Email subscriptions purchased on or after 2026-06-02.",
+          "authoritative_for_activation": false
+        }
+      ]
+    }
+  },
+  "documentation_sources": [
+    {
+      "publisher": "Namecheap",
+      "title": "How to set up a DKIM record for Private Email",
+      "url": "https://www.namecheap.com/support/knowledgebase/article.aspx/10383/2176/how-to-set-up-a-dkim-record-for-private-email/",
+      "reviewed_at": "2026-08-04"
+    },
+    {
+      "publisher": "Namecheap",
+      "title": "What does Namecheap Private Email DNS verification imply?",
+      "url": "https://www.namecheap.com/support/knowledgebase/article.aspx/1262/2176/what-does-namecheap-private-email-dns-verification-imply/",
+      "reviewed_at": "2026-08-04"
+    }
+  ],
+  "activation_boundary": {
+    "dns_changes_authorized": false,
+    "provider_login_authorized": false,
+    "sender_activation_authorized": false,
+    "delivery_authorized": false,
+    "message_authorized": false
+  }
+}
