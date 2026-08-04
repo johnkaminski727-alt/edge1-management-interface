@@ -43,6 +43,13 @@ def _mode(path: Path) -> int:
     return stat.S_IMODE(path.stat().st_mode)
 
 
+def _resolve_repository_path(repo: Path, value: Path, label: str) -> Path:
+    try:
+        return gateway.resolve_repo_path(repo, str(value))
+    except gateway.ConfigurationError as exc:
+        raise RuntimePathError(f"{label} escaped the repository root") from exc
+
+
 def resolve_config_file(
     configured: str | Path,
     *,
@@ -53,7 +60,7 @@ def resolve_config_file(
     value = Path(configured)
     repo = Path(repo_root).resolve()
     if not value.is_absolute():
-        candidate = gateway.resolve_repo_path(repo, str(value))
+        candidate = _resolve_repository_path(repo, value, "repository configuration path")
         if not candidate.is_file() or candidate.is_symlink():
             raise RuntimePathError("repository configuration file is absent or unsafe")
         return candidate
@@ -89,7 +96,7 @@ def resolve_state_path(
     value = Path(configured)
     repo = Path(repo_root).resolve()
     if not value.is_absolute():
-        return gateway.resolve_repo_path(repo, str(value))
+        return _resolve_repository_path(repo, value, "repository mutable-state path")
 
     root_input = Path(state_root).absolute()
     root = root_input.resolve(strict=False)
