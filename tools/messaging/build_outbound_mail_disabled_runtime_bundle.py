@@ -82,10 +82,21 @@ def _all_provider_profiles_disabled(config: dict[str, Any]) -> bool:
 
 
 def _all_senders_disabled(identities: dict[str, Any]) -> bool:
-    entries = identities.get("identities", {})
-    return isinstance(entries, dict) and bool(entries) and all(
-        isinstance(item, dict) and item.get("live_enabled") is False
-        for item in entries.values()
+    profiles = identities.get("sender_profiles", {})
+    system_senders = identities.get("system_senders", {})
+    return (
+        isinstance(profiles, dict)
+        and bool(profiles)
+        and all(
+            isinstance(profile, dict) and profile.get("outbound_enabled") is False
+            for profile in profiles.values()
+        )
+        and isinstance(system_senders, dict)
+        and bool(system_senders)
+        and all(
+            isinstance(sender, dict) and sender.get("outbound_enabled") is False
+            for sender in system_senders.values()
+        )
     )
 
 
@@ -103,6 +114,7 @@ def validate_safe_disabled_sources(
     except Exception as exc:
         raise RuntimeBundleError(f"source document validation failed: {exc}") from exc
 
+    delivery = policy["delivery"]
     unsafe = any(
         [
             config["enabled"],
@@ -112,7 +124,11 @@ def validate_safe_disabled_sources(
             config["provider"]["selected"] != "none",
             not _all_provider_profiles_disabled(config),
             policy["enabled"],
-            policy["delivery"]["smtp_cutover_authorized"],
+            policy["deployment_authorized"],
+            policy["smtp_cutover_authorized"],
+            delivery["provider"] != "disabled",
+            delivery["allow_external_submission"],
+            delivery["allow_live_delivery"],
             identities["outbound_activation_authorized"],
             bool(identities["sender_selection"]["live_sender_allowlist"]),
             not _all_senders_disabled(identities),
