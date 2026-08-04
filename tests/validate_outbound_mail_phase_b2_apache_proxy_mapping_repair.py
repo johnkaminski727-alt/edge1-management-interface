@@ -83,6 +83,8 @@ template = TEMPLATE.read_text(encoding="utf-8")
 origin_line = '    ProxyPassMatch "http://127.0.0.1:8104" retry=0 connectiontimeout=5 timeout=30'
 status_line = '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30'
 prepare_line = '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30'
+legacy_status_line = status_line.replace("ProxyPassMatch", "ProxyPass", 1)
+legacy_prepare_line = prepare_line.replace("ProxyPassMatch", "ProxyPass", 1)
 assert template.count(origin_line) == 2
 assert status_line not in template
 assert prepare_line not in template
@@ -95,11 +97,16 @@ assert "/outbound-mail/send" not in template
 # advanced to origin-only targets to avoid Apache appending the path twice.
 mapping_stage = template.replace(origin_line, status_line, 1).replace(origin_line, prepare_line, 1)
 assert mapping_stage.count('ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/') == 2
-legacy = mapping_stage.replace("ProxyPassMatch", "ProxyPass")
+legacy = mapping_stage.replace(status_line, legacy_status_line, 1).replace(
+    prepare_line,
+    legacy_prepare_line,
+    1,
+)
 assert legacy.count('ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/') == 2
-candidate = legacy.replace(
-    '    ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/',
-    '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/',
+candidate = legacy.replace(legacy_status_line, status_line, 1).replace(
+    legacy_prepare_line,
+    prepare_line,
+    1,
 )
 assert candidate == mapping_stage
 
