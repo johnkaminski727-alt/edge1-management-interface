@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/outbound-mail-one-message-execution.schema.json",
+  "title": "WW.CX one-message outbound-mail execution evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "captured_at",
+    "repository_commit",
+    "authorization_id",
+    "authorization_sha256",
+    "bundle_manifest_sha256",
+    "pilot_recipient_sha256",
+    "pilot_payload_sha256",
+    "smtp_auth_canary_sha256",
+    "activation_started",
+    "send_attempted",
+    "send_attempt_count",
+    "submission",
+    "rollback_attempted",
+    "rollback_succeeded",
+    "post_rollback_safe_disabled",
+    "failure_code",
+    "failure_detail_sha256",
+    "rollback_error_code",
+    "rollback_error_detail_sha256",
+    "recipient_address_stored",
+    "message_content_stored",
+    "provider_credentials_read",
+    "raw_provider_response_stored"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.outbound-mail-one-message-execution.v1"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "repository_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "authorization_id": {"type": "string", "minLength": 3, "maxLength": 160},
+    "authorization_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "bundle_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "pilot_recipient_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "pilot_payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "smtp_auth_canary_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "activation_started": {"type": "boolean"},
+    "send_attempted": {"type": "boolean"},
+    "send_attempt_count": {"type": "integer", "minimum": 0, "maximum": 1},
+    "submission": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gateway_http_status",
+            "accepted",
+            "provider",
+            "provider_message_id_sha256",
+            "response_sha256",
+            "audit_event_sha256",
+            "raw_response_stored"
+          ],
+          "properties": {
+            "gateway_http_status": {"type": "integer", "minimum": 100, "maximum": 599},
+            "accepted": {"type": "boolean"},
+            "provider": {"type": "string", "minLength": 1, "maxLength": 64},
+            "provider_message_id_sha256": {
+              "oneOf": [
+                {"type": "null"},
+                {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+              ]
+            },
+            "response_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "audit_event_sha256": {
+              "oneOf": [
+                {"type": "null"},
+                {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+              ]
+            },
+            "raw_response_stored": {"const": false}
+          }
+        }
+      ]
+    },
+    "rollback_attempted": {"type": "boolean"},
+    "rollback_succeeded": {"type": "boolean"},
+    "post_rollback_safe_disabled": {"type": "boolean"},
+    "failure_code": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+      ]
+    },
+    "failure_detail_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      ]
+    },
+    "rollback_error_code": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+      ]
+    },
+    "rollback_error_detail_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      ]
+    },
+    "recipient_address_stored": {"const": false},
+    "message_content_stored": {"const": false},
+    "provider_credentials_read": {"const": false},
+    "raw_provider_response_stored": {"const": false}
+  }
+}

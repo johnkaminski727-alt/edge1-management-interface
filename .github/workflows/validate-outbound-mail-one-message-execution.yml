@@ -1,0 +1,39 @@
+name: Validate one-message outbound mail execution wrapper
+
+on:
+  pull_request:
+    paths:
+      - 'tools/messaging/execute_outbound_mail_one_message_pilot.py'
+      - 'tests/validate_outbound_mail_one_message_execution.py'
+      - 'schemas/messaging/outbound-mail-one-message-execution.schema.json'
+      - 'docs/messaging-operations/outbound-mail-one-message-execution-20260804.md'
+      - '.github/workflows/validate-outbound-mail-one-message-execution.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/messaging/execute_outbound_mail_one_message_pilot.py'
+      - 'tests/validate_outbound_mail_one_message_execution.py'
+      - 'schemas/messaging/outbound-mail-one-message-execution.schema.json'
+      - 'docs/messaging-operations/outbound-mail-one-message-execution-20260804.md'
+      - '.github/workflows/validate-outbound-mail-one-message-execution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and schema checks
+        run: |
+          python3 -m py_compile tools/messaging/execute_outbound_mail_one_message_pilot.py
+          python3 -m py_compile tests/validate_outbound_mail_one_message_execution.py
+          python3 -m json.tool schemas/messaging/outbound-mail-one-message-execution.schema.json >/dev/null
+      - name: Fake-runtime transaction validation
+        run: python3 tests/validate_outbound_mail_one_message_execution.py
