@@ -115,13 +115,24 @@ with tempfile.TemporaryDirectory() as temporary:
 
     unsafe_policy = copy.deepcopy(policy)
     unsafe_policy["enabled"] = True
-    unsafe_policy["delivery"]["smtp_cutover_authorized"] = True
+    unsafe_policy["deployment_authorized"] = True
+    unsafe_policy["smtp_cutover_authorized"] = True
+    unsafe_policy["delivery"]["provider"] = "smtp_submission"
+    unsafe_policy["delivery"]["allow_external_submission"] = True
+    unsafe_policy["delivery"]["allow_live_delivery"] = True
     rejects(lambda: MODULE.build_bundle(live_config, unsafe_policy, identities, config_root=config_root, state_root=state_root), "enabled policy")
+
+    activated_identities = copy.deepcopy(identities)
+    activated_identities["outbound_activation_authorized"] = True
+    first_profile = next(iter(activated_identities["sender_profiles"].values()))
+    first_profile["outbound_enabled"] = True
+    activated_identities["sender_selection"]["live_sender_allowlist"] = [first_profile["address"]]
+    rejects(lambda: MODULE.build_bundle(live_config, policy, activated_identities, config_root=config_root, state_root=state_root), "activated identities")
 
     malformed_identities = copy.deepcopy(identities)
     malformed_identities["outbound_activation_authorized"] = True
     malformed_identities["sender_selection"]["live_sender_allowlist"] = ["not-a-valid-sender"]
-    rejects(lambda: MODULE.build_bundle(live_config, policy, malformed_identities, config_root=config_root, state_root=state_root), "activated or malformed identities")
+    rejects(lambda: MODULE.build_bundle(live_config, policy, malformed_identities, config_root=config_root, state_root=state_root), "malformed identities")
 
     rejects(lambda: MODULE.build_bundle(config, policy, identities, config_root=config_root, state_root=state_root), "preparation-disabled production source")
     test_bundle = MODULE.build_bundle(
@@ -162,6 +173,10 @@ for required in (
     "source configuration is not in the required safe-disabled state",
     "source document validation failed",
     "existing runtime preparation API is not enabled",
+    "sender_profiles",
+    "outbound_enabled",
+    "smtp_cutover_authorized",
+    "allow_live_delivery",
     "credentials_read",
     "message_sent",
 ):
@@ -172,5 +187,6 @@ for prohibited in ("smtplib", "requests.", "urllib.request", "subprocess.", "WWC
 print("Disabled outbound-mail runtime bundle validation passed")
 print("Only policy, audit, and nonce paths change; preparation state is preserved")
 print("Gateway, provider, policy, sender, delivery, send, and malformed source states fail closed")
+print("Authoritative sender_profiles, system_senders, and top-level policy cutover gates verified")
 print("Staged files are mode 0600 and hashed; source documents remain unmodified")
 print("No credential, provider connection, runtime mutation, or message traffic occurs")
