@@ -3,9 +3,11 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 python3 -m py_compile \
   "$ROOT/server/network_sensor_exporter.py" \
+  "$ROOT/server/network_sensor_capture_acceptance.py" \
   "$ROOT/server/security_correlation_sensor_exporter.py" \
   "$ROOT/server/network_defense_sensor_exporter.py"
 python3 "$ROOT/tests/test_network_sensor_exporter.py"
+python3 "$ROOT/tests/test_network_sensor_capture_acceptance.py"
 python3 "$ROOT/tests/test_network_sensor_correlation_integration.py"
 python3 "$ROOT/tests/test_network_sensor_network_defense_integration.py"
 for file in "$ROOT"/tools/networking/network-sensor-*.sh "$ROOT"/tools/networking/discover-edge1-network-sensor.sh "$ROOT"/deploy/install-edge1-network-sensor.sh; do
@@ -30,7 +32,9 @@ suricata = (root / 'deploy/systemd/wwcx-network-sensor-suricata.service').read_t
 for marker in (
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata',
+    'ExecStartPre=+/usr/bin/chown -R suricata:root /var/log/wwcx-network-sensor/suricata',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
+    '--pcap=${SENSOR_INTERFACE}',
     '--user=suricata',
     '--group=suricata',
     'ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor',
@@ -38,6 +42,7 @@ for marker in (
     'UMask=0007',
 ):
     assert marker in suricata, marker
+assert '--af-packet=' not in suricata
 assert 'AmbientCapabilities=' not in suricata
 assert 'User=suricata' not in suricata
 assert 'Group=suricata' not in suricata
@@ -69,6 +74,14 @@ for marker in (
 ):
     assert marker in zeek, marker
 
+installer = (root / 'deploy/install-edge1-network-sensor.sh').read_text(encoding='utf-8')
+for marker in (
+    'network_sensor_capture_acceptance.py',
+    'suricata-capture-acceptance.json',
+    '--wait-seconds 75',
+):
+    assert marker in installer, marker
+
 runtime_files = [
     root / 'config/network-sensor/owner-full.env',
     root / 'config/network-sensor/wwcx-owner-full.zeek',
@@ -76,6 +89,7 @@ runtime_files = [
     root / 'deploy/systemd/wwcx-security-correlation.service',
     root / 'deploy/systemd/wwcx-network-defense.service',
     root / 'server/network_sensor_exporter.py',
+    root / 'server/network_sensor_capture_acceptance.py',
     root / 'server/security_correlation_sensor_exporter.py',
     root / 'server/network_defense_sensor_exporter.py',
     root / 'tools/networking/discover-edge1-network-sensor.sh',
