@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/outbound-mail-pilot-evidence.schema.json",
+  "title": "WW.CX controlled outbound-mail pilot evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "captured_at",
+    "execution_status",
+    "pilot_id",
+    "scope",
+    "authorizations",
+    "preflight",
+    "submission",
+    "receipt",
+    "authentication",
+    "audit_linkage",
+    "rollback",
+    "safety",
+    "evidence_files",
+    "failure_reasons"
+  ],
+  "properties": {
+    "contract": {
+      "const": "wwcx.outbound-mail-controlled-pilot-evidence.v1"
+    },
+    "captured_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "execution_status": {
+      "enum": ["not_executed", "executed_pass", "executed_fail", "rolled_back"]
+    },
+    "pilot_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9._:-]{7,127}$"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_profile",
+        "provider_family",
+        "sender_address",
+        "sender_domain",
+        "recipient_address_sha256",
+        "recipient_domain",
+        "recipient_owned_by_wwcx",
+        "message_class",
+        "subject_sha256",
+        "body_sha256",
+        "message_count",
+        "recipient_count"
+      ],
+      "properties": {
+        "provider_profile": {"type": ["string", "null"]},
+        "provider_family": {"type": ["string", "null"]},
+        "sender_address": {"type": ["string", "null"], "format": "email"},
+        "sender_domain": {"type": ["string", "null"]},
+        "recipient_address_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "recipient_domain": {"type": ["string", "null"]},
+        "recipient_owned_by_wwcx": {"type": "boolean"},
+        "message_class": {"enum": ["test_business_correspondence", "not_selected"]},
+        "subject_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "body_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "message_count": {"type": "integer", "minimum": 0, "maximum": 1},
+        "recipient_count": {"type": "integer", "minimum": 0, "maximum": 1}
+      }
+    },
+    "authorizations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_terms_reviewed",
+        "provider_credential_installation_authorized",
+        "sender_activation_authorized",
+        "runtime_cutover_authorized",
+        "exact_recipient_authorized",
+        "exact_message_authorized",
+        "production_message_traffic_authorized",
+        "authorization_reference"
+      ],
+      "properties": {
+        "provider_terms_reviewed": {"type": "boolean"},
+        "provider_credential_installation_authorized": {"type": "boolean"},
+        "sender_activation_authorized": {"type": "boolean"},
+        "runtime_cutover_authorized": {"type": "boolean"},
+        "exact_recipient_authorized": {"type": "boolean"},
+        "exact_message_authorized": {"type": "boolean"},
+        "production_message_traffic_authorized": {"type": "boolean"},
+        "authorization_reference": {"type": ["string", "null"], "maxLength": 256}
+      }
+    },
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_commit",
+        "clean_main",
+        "gateway_enabled",
+        "deployment_authorized",
+        "external_delivery_authorized",
+        "send_endpoint_enabled",
+        "policy_enabled",
+        "smtp_cutover_authorized",
+        "provider_selected",
+        "provider_ready",
+        "sender_allowlisted",
+        "canonical_sender_provider_object_verified",
+        "spf_path_verified",
+        "dkim_dns_verified",
+        "dmarc_record_published",
+        "return_path_defined",
+        "bounce_ingestion_ready",
+        "complaint_suppression_ready",
+        "rollback_verified"
+      ],
+      "properties": {
+        "repository_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+        "clean_main": {"type": "boolean"},
+        "gateway_enabled": {"type": "boolean"},
+        "deployment_authorized": {"type": "boolean"},
+        "external_delivery_authorized": {"type": "boolean"},
+        "send_endpoint_enabled": {"type": "boolean"},
+        "policy_enabled": {"type": "boolean"},
+        "smtp_cutover_authorized": {"type": "boolean"},
+        "provider_selected": {"type": "boolean"},
+        "provider_ready": {"type": "boolean"},
+        "sender_allowlisted": {"type": "boolean"},
+        "canonical_sender_provider_object_verified": {"type": "boolean"},
+        "spf_path_verified": {"type": "boolean"},
+        "dkim_dns_verified": {"type": "boolean"},
+        "dmarc_record_published": {"type": "boolean"},
+        "return_path_defined": {"type": "boolean"},
+        "bounce_ingestion_ready": {"type": "boolean"},
+        "complaint_suppression_ready": {"type": "boolean"},
+        "rollback_verified": {"type": "boolean"}
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "accepted_by_provider",
+        "provider_message_id_sha256",
+        "gateway_http_status",
+        "provider_response_class",
+        "submitted_at"
+      ],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "accepted_by_provider": {"type": "boolean"},
+        "provider_message_id_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "gateway_http_status": {"type": ["integer", "null"], "minimum": 100, "maximum": 599},
+        "provider_response_class": {"enum": ["not_attempted", "accepted", "temporary_failure", "permanent_failure", "unknown"]},
+        "submitted_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "received",
+        "received_at",
+        "recipient_address_sha256",
+        "message_id_sha256",
+        "subject_hash_matches",
+        "body_hash_matches",
+        "controlled_footer_present",
+        "control_headers_present",
+        "complete_headers_evidence_sha256"
+      ],
+      "properties": {
+        "received": {"type": "boolean"},
+        "received_at": {"type": ["string", "null"], "format": "date-time"},
+        "recipient_address_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "message_id_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "subject_hash_matches": {"type": "boolean"},
+        "body_hash_matches": {"type": "boolean"},
+        "controlled_footer_present": {"type": "boolean"},
+        "control_headers_present": {"type": "boolean"},
+        "complete_headers_evidence_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dkim_result",
+        "dkim_selector",
+        "dkim_signing_domain",
+        "dkim_from_alignment",
+        "spf_result",
+        "spf_envelope_domain",
+        "spf_from_alignment",
+        "dmarc_result",
+        "dmarc_policy",
+        "dmarc_aligned"
+      ],
+      "properties": {
+        "dkim_result": {"enum": ["not_tested", "pass", "fail", "neutral", "temperror", "permerror", "none"]},
+        "dkim_selector": {"type": ["string", "null"]},
+        "dkim_signing_domain": {"type": ["string", "null"]},
+        "dkim_from_alignment": {"type": "boolean"},
+        "spf_result": {"enum": ["not_tested", "pass", "fail", "softfail", "neutral", "temperror", "permerror", "none"]},
+        "spf_envelope_domain": {"type": ["string", "null"]},
+        "spf_from_alignment": {"type": "boolean"},
+        "dmarc_result": {"enum": ["not_tested", "pass", "fail", "none"]},
+        "dmarc_policy": {"enum": ["not_observed", "none", "quarantine", "reject"]},
+        "dmarc_aligned": {"type": "boolean"}
+      }
+    },
+    "audit_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "gateway_event_id",
+        "gateway_audit_record_sha256",
+        "provider_message_id_matches",
+        "receipt_message_id_matches",
+        "recipient_hash_matches"
+      ],
+      "properties": {
+        "control_id": {"type": ["string", "null"]},
+        "gateway_event_id": {"type": ["string", "null"]},
+        "gateway_audit_record_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "provider_message_id_matches": {"type": "boolean"},
+        "receipt_message_id_matches": {"type": "boolean"},
+        "recipient_hash_matches": {"type": "boolean"}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_reference",
+        "available",
+        "executed",
+        "reason",
+        "post_rollback_safe_disabled",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "plan_reference": {"type": ["string", "null"]},
+        "available": {"type": "boolean"},
+        "executed": {"type": "boolean"},
+        "reason": {"type": ["string", "null"], "maxLength": 512},
+        "post_rollback_safe_disabled": {"type": "boolean"},
+        "evidence_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "single_message_only",
+        "single_recipient_only",
+        "bulk_traffic_enabled",
+        "commercial_traffic_enabled",
+        "customer_traffic_enabled",
+        "regulatory_traffic_enabled",
+        "emergency_traffic_enabled",
+        "provider_credentials_inspected_by_validator",
+        "message_body_stored_inline",
+        "recipient_address_stored_inline",
+        "complete_headers_stored_inline",
+        "message_sent"
+      ],
+      "properties": {
+        "single_message_only": {"type": "boolean"},
+        "single_recipient_only": {"type": "boolean"},
+        "bulk_traffic_enabled": {"type": "boolean"},
+        "commercial_traffic_enabled": {"type": "boolean"},
+        "customer_traffic_enabled": {"type": "boolean"},
+        "regulatory_traffic_enabled": {"type": "boolean"},
+        "emergency_traffic_enabled": {"type": "boolean"},
+        "provider_credentials_inspected_by_validator": {"type": "boolean"},
+        "message_body_stored_inline": {"type": "boolean"},
+        "recipient_address_stored_inline": {"type": "boolean"},
+        "complete_headers_stored_inline": {"type": "boolean"},
+        "message_sent": {"type": "boolean"}
+      }
+    },
+    "evidence_files": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "restricted_path", "sha256", "contains_message_content", "contains_credentials"],
+        "properties": {
+          "role": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{2,63}$"},
+          "restricted_path": {"type": "string", "minLength": 1, "maxLength": 512},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "contains_message_content": {"type": "boolean"},
+          "contains_credentials": {"const": false}
+        }
+      }
+    },
+    "failure_reasons": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {"type": "string", "minLength": 1, "maxLength": 512}
+    }
+  }
+}
