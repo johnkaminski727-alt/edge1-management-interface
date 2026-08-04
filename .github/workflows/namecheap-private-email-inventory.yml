@@ -5,7 +5,9 @@ on:
     paths:
       - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
       - 'docs/messaging-operations/namecheap-private-email-inventory-acceptance-20260802.md'
+      - 'docs/messaging/mail-provider-inventory.md'
       - 'tests/validate_namecheap_private_email_inventory.py'
+      - 'tests/validate_mail_provider_inventory_summary.py'
       - 'tools/messaging/reconcile_mail_provider_objects.py'
       - 'config/messaging/inbound-mail-hub.json'
       - 'config/messaging/mail-identities.json'
@@ -16,7 +18,9 @@ on:
     paths:
       - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
       - 'docs/messaging-operations/namecheap-private-email-inventory-acceptance-20260802.md'
+      - 'docs/messaging/mail-provider-inventory.md'
       - 'tests/validate_namecheap_private_email_inventory.py'
+      - 'tests/validate_mail_provider_inventory_summary.py'
       - 'tools/messaging/reconcile_mail_provider_objects.py'
       - 'config/messaging/inbound-mail-hub.json'
       - 'config/messaging/mail-identities.json'
@@ -31,9 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Syntax checks
-        run: python3 -m py_compile tests/validate_namecheap_private_email_inventory.py
+        run: |
+          python3 -m py_compile tests/validate_namecheap_private_email_inventory.py
+          python3 -m py_compile tests/validate_mail_provider_inventory_summary.py
       - name: Validate normalized inventory and reconciliation
         run: python3 tests/validate_namecheap_private_email_inventory.py
+      - name: Validate reconciled provider summary
+        run: python3 tests/validate_mail_provider_inventory_summary.py
       - name: Produce partial reconciliation evidence
         run: |
           set +e
