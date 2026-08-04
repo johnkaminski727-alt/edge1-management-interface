@@ -1,0 +1,57 @@
+{
+  "contract": "wwcx.outbound-mail-runtime-acceptance.v1",
+  "accepted_at": "2026-08-04T05:14:35Z",
+  "acceptance_source": {
+    "issue": 187,
+    "issue_comment_id": 5174900763,
+    "operator_transcript_reviewed": true
+  },
+  "deployment": {
+    "host": "edge1.ww.cx",
+    "repository": "/opt/edge1-management-interface",
+    "branch": "main",
+    "deployed_commit": "1f79d030bec94c6247e3fb5bc93a7f6a76d65ad6",
+    "repair_pull_request": 291,
+    "service": "wwcx-outbound-mail-gateway.service",
+    "listener": "127.0.0.1:8104",
+    "runtime_state": "runtime_migration_active_safe_disabled",
+    "state_root": "/var/lib/wwcx-outbound-mail",
+    "required_systemd_write_path": "/var/lib/wwcx-outbound-mail",
+    "installed_via_bounded_wrapper": true
+  },
+  "evidence": {
+    "audit_directory": "/var/lib/wwcx-deployment-evidence/outbound-mail-runtime-migration/20260804T051426Z",
+    "install_directory": "/var/lib/wwcx-deployment-evidence/outbound-mail-runtime-migration/20260804T051435Z",
+    "audit_failures": 0,
+    "install_failures": 0,
+    "rollback_executed": false,
+    "source_config_preserved": true,
+    "installer_verification_passed": true,
+    "independent_manifest_recheck_recorded": false
+  },
+  "source_configuration": {
+    "sha256": "b82b6e9c74245d40ce4eb467bbd9aee4006a9b3db0538a5df8801f0764485db4",
+    "modified": false
+  },
+  "preserved_boundaries": {
+    "provider_credentials_read": false,
+    "hmac_secret_read": false,
+    "provider_enabled": false,
+    "sender_enabled": false,
+    "policy_enabled": false,
+    "external_delivery_enabled": false,
+    "message_prepared": false,
+    "message_sent": false,
+    "dns_modified": false,
+    "firewall_modified": false,
+    "public_listener_added": false
+  },
+  "phase_e_effect": {
+    "safe_disabled_runtime_migration_completed": true,
+    "provider_activation_authorized": false,
+    "credential_use_authorized": false,
+    "smtp_auth_canary_authorized": false,
+    "production_message_authorized": false,
+    "remaining_state": "blocked_pending_separate_explicit_authorizations_and_live_evidence"
+  }
+}
