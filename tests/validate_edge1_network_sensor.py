@@ -115,7 +115,8 @@ for marker in (
     "APT installation skipped",
     "network_sensor_capture_acceptance.py",
     "suricata-capture-acceptance.json",
-    "--wait-seconds 75",
+    "--startup-wait-seconds 75",
+    "--observation-seconds 30",
 ):
     assert marker in installer, marker
 assert "apt-get install -y suricata tcpdump jq python3 ethtool" not in installer
