@@ -1,0 +1,37 @@
+name: Validate authenticated DSN normalizer
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/messaging/authenticated-dsn-evidence.schema.json'
+      - 'tools/messaging/normalize_authenticated_dsn.py'
+      - 'tests/validate_authenticated_dsn_normalizer.py'
+      - 'docs/messaging-operations/authenticated-dsn-normalization-20260804.md'
+      - 'server/outbound_mail_delivery_events.py'
+      - '.github/workflows/outbound-mail-dsn-normalizer.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'schemas/messaging/authenticated-dsn-evidence.schema.json'
+      - 'tools/messaging/normalize_authenticated_dsn.py'
+      - 'tests/validate_authenticated_dsn_normalizer.py'
+      - 'docs/messaging-operations/authenticated-dsn-normalization-20260804.md'
+      - 'server/outbound_mail_delivery_events.py'
+      - '.github/workflows/outbound-mail-dsn-normalizer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and JSON checks
+        run: |
+          python3 -m py_compile tools/messaging/normalize_authenticated_dsn.py
+          python3 -m py_compile tests/validate_authenticated_dsn_normalizer.py
+          python3 -m json.tool schemas/messaging/authenticated-dsn-evidence.schema.json >/dev/null
+      - name: Functional validation
+        run: python3 tests/validate_authenticated_dsn_normalizer.py
