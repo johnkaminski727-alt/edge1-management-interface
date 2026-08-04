@@ -1,0 +1,53 @@
+{
+  "contract": "wwcx.provider-mail-objects.v1",
+  "provider_id": "namecheap-private-email-wwcx",
+  "provider_family": "namecheap_private_email",
+  "captured_at": "2026-08-02T05:43:30+00:00",
+  "source": {
+    "method": "namecheap_support_ticket_normalization",
+    "read_only": true,
+    "evidence_files": [
+      "Namecheap Private Email ticket NC-JDV-2953 responses dated 2026-08-01 and 2026-08-02"
+    ],
+    "account_reference": "ww.cx Private Email subscription"
+  },
+  "objects": [
+    {
+      "address": "blank@ww.cx",
+      "domain": "ww.cx",
+      "object_type": "mailbox",
+      "destinations": [],
+      "receives_mail": true,
+      "can_send": true,
+      "active": true,
+      "access_class": "unknown",
+      "quota_bytes": 10737418240,
+      "notes": "Provider reports an active 10 GB mailbox, approximately 130 MB used at capture, and the Catch-All destination. The provider reports the domain configured for send and receive. Mailbox ownership/access classification, auto-forward state, retained-copy behavior, filter rules, and an authenticated sender test remain unverified."
+    },
+    {
+      "address": "domaincontact@ww.cx",
+      "domain": "ww.cx",
+      "object_type": "mailbox",
+      "destinations": [],
+      "receives_mail": true,
+      "can_send": true,
+      "active": true,
+      "access_class": "unknown",
+      "quota_bytes": 10737418240,
+      "notes": "Provider reports an active 10 GB mailbox with less than 1 MB used at capture and the domain configured for send and receive. Mailbox ownership/access classification, auto-forward state, retained-copy behavior, filter rules, and an authenticated sender test remain unverified."
+    }
+  ],
+  "default_addresses": [
+    {
+      "domain": "ww.cx",
+      "behavior": "forward",
+      "destination": "blank@ww.cx"
+    }
+  ],
+  "domain_routing": [
+    {
+      "domain": "ww.cx",
+      "mode": "unknown"
+    }
+  ]
+}
