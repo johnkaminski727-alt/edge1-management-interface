@@ -1,0 +1,46 @@
+name: Validate disabled outbound mail runtime migration
+
+on:
+  pull_request:
+    paths:
+      - 'tools/messaging/build_outbound_mail_disabled_runtime_bundle.py'
+      - 'deploy/messaging/install-outbound-mail-disabled-runtime-migration.sh'
+      - 'tests/validate_outbound_mail_disabled_runtime_bundle.py'
+      - 'tests/validate_outbound_mail_disabled_runtime_migration.py'
+      - 'docs/messaging-operations/outbound-mail-disabled-runtime-migration-20260804.md'
+      - 'server/outbound_mail_gateway_runtime_server.py'
+      - 'server/outbound_mail_runtime_application.py'
+      - 'server/outbound_mail_runtime_paths.py'
+      - '.github/workflows/outbound-mail-disabled-runtime-migration.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/messaging/build_outbound_mail_disabled_runtime_bundle.py'
+      - 'deploy/messaging/install-outbound-mail-disabled-runtime-migration.sh'
+      - 'tests/validate_outbound_mail_disabled_runtime_bundle.py'
+      - 'tests/validate_outbound_mail_disabled_runtime_migration.py'
+      - 'docs/messaging-operations/outbound-mail-disabled-runtime-migration-20260804.md'
+      - 'server/outbound_mail_gateway_runtime_server.py'
+      - 'server/outbound_mail_runtime_application.py'
+      - 'server/outbound_mail_runtime_paths.py'
+      - '.github/workflows/outbound-mail-disabled-runtime-migration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          sh -n deploy/messaging/install-outbound-mail-disabled-runtime-migration.sh
+          python3 -m py_compile tools/messaging/build_outbound_mail_disabled_runtime_bundle.py
+          python3 -m py_compile tests/validate_outbound_mail_disabled_runtime_bundle.py
+          python3 -m py_compile tests/validate_outbound_mail_disabled_runtime_migration.py
+      - name: Functional and safety validation
+        run: |
+          python3 tests/validate_outbound_mail_disabled_runtime_bundle.py
+          python3 tests/validate_outbound_mail_disabled_runtime_migration.py
