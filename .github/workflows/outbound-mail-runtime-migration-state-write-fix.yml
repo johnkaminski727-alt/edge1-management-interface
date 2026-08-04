@@ -1,0 +1,30 @@
+name: Validate outbound-mail runtime migration state write fix
+
+on:
+  pull_request:
+    paths:
+      - deploy/messaging/install-outbound-mail-disabled-runtime-migration-fixed.sh
+      - tests/validate_outbound_mail_disabled_runtime_migration_fixed.py
+      - docs/messaging-operations/outbound-mail-runtime-migration-state-write-fix-20260804.md
+      - .github/workflows/outbound-mail-runtime-migration-state-write-fix.yml
+  push:
+    branches:
+      - main
+    paths:
+      - deploy/messaging/install-outbound-mail-disabled-runtime-migration-fixed.sh
+      - tests/validate_outbound_mail_disabled_runtime_migration_fixed.py
+      - docs/messaging-operations/outbound-mail-runtime-migration-state-write-fix-20260804.md
+      - .github/workflows/outbound-mail-runtime-migration-state-write-fix.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate wrapper shell syntax
+        run: sh -n deploy/messaging/install-outbound-mail-disabled-runtime-migration-fixed.sh
+      - name: Validate bounded transformation
+        run: python3 tests/validate_outbound_mail_disabled_runtime_migration_fixed.py
