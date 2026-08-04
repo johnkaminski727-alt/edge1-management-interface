@@ -60,13 +60,16 @@ assert "ReadOnlyPaths=-/var/lib/wwcx-network-sensor/restricted" in correlation_u
 network_defense_unit = (ROOT / "deploy/systemd/wwcx-network-defense.service").read_text(encoding="utf-8")
 assert "network_defense_sensor_exporter.py" in network_defense_unit
 
+sensor_defaults = (ROOT / "config/network-sensor/owner-full.env").read_text(encoding="utf-8")
+assert "SURICATA_CAPTURE_ARGUMENT=--af-packet=CHANGE_ME" in sensor_defaults
+
 suricata_unit = (ROOT / "deploy/systemd/wwcx-network-sensor-suricata.service").read_text(encoding="utf-8")
 for marker in (
     "ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor",
     "ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata",
     "ExecStartPre=+/usr/bin/chown -R suricata:root /var/log/wwcx-network-sensor/suricata",
     "ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek",
-    "--pcap=${SENSOR_INTERFACE}",
+    "ExecStart=/usr/bin/suricata ${SURICATA_CAPTURE_ARGUMENT}",
     "--user=suricata",
     "--group=suricata",
     "ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor",
@@ -74,7 +77,8 @@ for marker in (
     "UMask=0007",
 ):
     assert marker in suricata_unit, marker
-assert "--af-packet=" not in suricata_unit
+assert "--af-packet=${SENSOR_INTERFACE}" not in suricata_unit
+assert "--pcap=${SENSOR_INTERFACE}" not in suricata_unit
 assert "AmbientCapabilities=" not in suricata_unit
 assert "User=suricata" not in suricata_unit
 assert "Group=suricata" not in suricata_unit
@@ -113,6 +117,9 @@ for marker in (
     'command -v "$package"',
     'apt-cache policy "$package"',
     "APT installation skipped",
+    "SURICATA_CAPTURE_BACKEND=af-packet",
+    '[ "$ALLOW_ADDRESSED" = true ] && SURICATA_CAPTURE_BACKEND=pcap',
+    'SURICATA_CAPTURE_ARGUMENT=$suricata_capture_argument',
     "network_sensor_capture_acceptance.py",
     "suricata-capture-acceptance.json",
     "--startup-wait-seconds 75",
