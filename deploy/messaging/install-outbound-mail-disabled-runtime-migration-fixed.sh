@@ -36,4 +36,4 @@ grep -Fqx 'ReadWritePaths=$STATE_ROOT' "$temporary" || {
     exit 1
 }
 
-sh "$temporary"
+GIT_OPTIONAL_LOCKS=0 sh "$temporary"
