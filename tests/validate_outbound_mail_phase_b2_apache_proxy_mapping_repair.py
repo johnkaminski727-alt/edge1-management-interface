@@ -104,7 +104,7 @@ for required in (
     "APACHE_PROXY_MAPPING_REPAIR_AUTHORIZED=yes",
     "automatic rollback",
     "Do not install the Business159 credential",
-    "no message",
+    "No message is prepared or sent",
 ):
     assert required in runbook, required
 
