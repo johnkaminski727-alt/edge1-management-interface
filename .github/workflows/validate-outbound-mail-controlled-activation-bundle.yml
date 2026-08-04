@@ -1,0 +1,39 @@
+name: Validate controlled outbound mail activation bundle
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/messaging/outbound-mail-controlled-activation.schema.json'
+      - 'tools/messaging/build_outbound_mail_controlled_activation_bundle.py'
+      - 'tests/validate_outbound_mail_controlled_activation_bundle.py'
+      - 'docs/messaging-operations/outbound-mail-controlled-activation-bundle-20260804.md'
+      - '.github/workflows/validate-outbound-mail-controlled-activation-bundle.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'schemas/messaging/outbound-mail-controlled-activation.schema.json'
+      - 'tools/messaging/build_outbound_mail_controlled_activation_bundle.py'
+      - 'tests/validate_outbound_mail_controlled_activation_bundle.py'
+      - 'docs/messaging-operations/outbound-mail-controlled-activation-bundle-20260804.md'
+      - '.github/workflows/validate-outbound-mail-controlled-activation-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and schema checks
+        run: |
+          python3 -m py_compile tools/messaging/build_outbound_mail_controlled_activation_bundle.py
+          python3 -m py_compile tests/validate_outbound_mail_controlled_activation_bundle.py
+          python3 -m json.tool schemas/messaging/outbound-mail-controlled-activation.schema.json >/dev/null
+      - name: Functional and safety validation
+        run: python3 tests/validate_outbound_mail_controlled_activation_bundle.py
