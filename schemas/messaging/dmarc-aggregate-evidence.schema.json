@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/dmarc-aggregate-evidence.schema.json",
+  "title": "WW.CX authenticated DMARC aggregate-report evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "captured_at",
+    "source_authentication",
+    "source_verified",
+    "mailbox_identity_sha256",
+    "evidence_sha256",
+    "attachment_name_sha256",
+    "expected_policy_domain",
+    "raw_report_restricted",
+    "credentials_included",
+    "message_content_included"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.dmarc-aggregate-evidence.v1"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "source_authentication": {"const": "authenticated_mailbox_attachment"},
+    "source_verified": {"const": true},
+    "mailbox_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "attachment_name_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_policy_domain": {"const": "ww.cx"},
+    "raw_report_restricted": {"const": true},
+    "credentials_included": {"const": false},
+    "message_content_included": {"const": false}
+  }
+}

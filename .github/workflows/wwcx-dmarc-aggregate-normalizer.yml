@@ -1,0 +1,35 @@
+name: Validate WW.CX DMARC aggregate normalizer
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/messaging/dmarc-aggregate-evidence.schema.json'
+      - 'tools/messaging/normalize_dmarc_aggregate_report.py'
+      - 'tests/validate_dmarc_aggregate_normalizer.py'
+      - 'docs/messaging-operations/dmarc-aggregate-normalization-20260804.md'
+      - '.github/workflows/wwcx-dmarc-aggregate-normalizer.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'schemas/messaging/dmarc-aggregate-evidence.schema.json'
+      - 'tools/messaging/normalize_dmarc_aggregate_report.py'
+      - 'tests/validate_dmarc_aggregate_normalizer.py'
+      - 'docs/messaging-operations/dmarc-aggregate-normalization-20260804.md'
+      - '.github/workflows/wwcx-dmarc-aggregate-normalizer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and schema checks
+        run: |
+          python3 -m py_compile tools/messaging/normalize_dmarc_aggregate_report.py
+          python3 -m py_compile tests/validate_dmarc_aggregate_normalizer.py
+          python3 -m json.tool schemas/messaging/dmarc-aggregate-evidence.schema.json >/dev/null
+      - name: Functional and privacy validation
+        run: python3 tests/validate_dmarc_aggregate_normalizer.py
