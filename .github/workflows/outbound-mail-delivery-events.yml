@@ -1,0 +1,43 @@
+name: Validate outbound mail delivery events
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/messaging/outbound-mail-delivery-event.schema.json'
+      - 'server/outbound_mail_delivery_events.py'
+      - 'tools/messaging/outbound_mail_delivery_event_cli.py'
+      - 'tests/test_outbound_mail_delivery_events.py'
+      - 'tests/validate_outbound_mail_delivery_events.py'
+      - 'docs/messaging-operations/outbound-mail-delivery-event-foundation-20260804.md'
+      - '.github/workflows/outbound-mail-delivery-events.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'schemas/messaging/outbound-mail-delivery-event.schema.json'
+      - 'server/outbound_mail_delivery_events.py'
+      - 'tools/messaging/outbound_mail_delivery_event_cli.py'
+      - 'tests/test_outbound_mail_delivery_events.py'
+      - 'tests/validate_outbound_mail_delivery_events.py'
+      - 'docs/messaging-operations/outbound-mail-delivery-event-foundation-20260804.md'
+      - '.github/workflows/outbound-mail-delivery-events.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and JSON checks
+        run: |
+          python3 -m py_compile server/outbound_mail_delivery_events.py
+          python3 -m py_compile tools/messaging/outbound_mail_delivery_event_cli.py
+          python3 -m py_compile tests/test_outbound_mail_delivery_events.py
+          python3 -m py_compile tests/validate_outbound_mail_delivery_events.py
+          python3 -m json.tool schemas/messaging/outbound-mail-delivery-event.schema.json >/dev/null
+      - name: Functional validation
+        run: |
+          python3 -m unittest tests.test_outbound_mail_delivery_events
+          python3 tests/validate_outbound_mail_delivery_events.py
