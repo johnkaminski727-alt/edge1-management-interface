@@ -221,6 +221,7 @@ def validate_safe_sources(
         raise ActivationBundleError(f"runtime source document validation failed: {exc}") from exc
     profiles = config["provider"]["profiles"]
     sender_profiles = identities["sender_profiles"]
+    delivery = policy["delivery"]
     unsafe = any(
         [
             not config["preparation_api"]["enabled"],
@@ -231,7 +232,13 @@ def validate_safe_sources(
             config["provider"]["selected"] != "none",
             any(profile.get("enabled") is not False for profile in profiles.values()),
             policy["enabled"],
-            policy["delivery"]["smtp_cutover_authorized"],
+            policy["deployment_authorized"],
+            policy["smtp_cutover_authorized"],
+            delivery["provider"] != "disabled",
+            not delivery["allow_prepare"],
+            delivery["allow_external_submission"],
+            delivery["allow_live_delivery"],
+            policy["organization"]["mailing_address"] == outbound_mail_policy.PLACEHOLDER_ADDRESS,
             identities["outbound_activation_authorized"],
             bool(identities["sender_selection"]["live_sender_allowlist"]),
             any(profile.get("outbound_enabled") is not False for profile in sender_profiles.values()),
@@ -273,7 +280,11 @@ def build_bundle(
 
     active_policy = copy.deepcopy(policy)
     active_policy["enabled"] = True
-    active_policy["delivery"]["smtp_cutover_authorized"] = True
+    active_policy["deployment_authorized"] = True
+    active_policy["smtp_cutover_authorized"] = True
+    active_policy["delivery"]["provider"] = "smtp_submission"
+    active_policy["delivery"]["allow_external_submission"] = True
+    active_policy["delivery"]["allow_live_delivery"] = True
 
     active_identities = copy.deepcopy(identities)
     active_identities["outbound_activation_authorized"] = True
@@ -300,7 +311,16 @@ def build_bundle(
             "provider.selected",
         ]
     )
-    expected_policy = ["delivery.smtp_cutover_authorized", "enabled"]
+    expected_policy = sorted(
+        [
+            "deployment_authorized",
+            "delivery.allow_external_submission",
+            "delivery.allow_live_delivery",
+            "delivery.provider",
+            "enabled",
+            "smtp_cutover_authorized",
+        ]
+    )
     expected_identities = sorted(
         [
             f"sender_profiles.{identity_key}.outbound_enabled",
