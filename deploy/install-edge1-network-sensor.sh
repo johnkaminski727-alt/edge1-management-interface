@@ -263,7 +263,8 @@ if [ "$ACTIVATE" = true ]; then
   python3 "$ROOT/server/network_sensor_capture_acceptance.py" \
     --interface "$INTERFACE" \
     --started-at "$SURICATA_ACCEPTANCE_STARTED_AT" \
-    --wait-seconds 75 \
+    --startup-wait-seconds 75 \
+    --observation-seconds 30 \
     --output "$EVIDENCE_DIR/suricata-capture-acceptance.json" \
     | tee "$EVIDENCE_DIR/suricata-capture-acceptance-console.json"
 
