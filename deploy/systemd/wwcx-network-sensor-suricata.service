@@ -11,8 +11,9 @@ RuntimeDirectory=wwcx-network-sensor
 RuntimeDirectoryMode=0750
 ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor
 ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata
+ExecStartPre=+/usr/bin/chown -R suricata:root /var/log/wwcx-network-sensor/suricata
 ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek
-ExecStart=/usr/bin/suricata --af-packet=${SENSOR_INTERFACE} -c ${SURICATA_CONFIG} -l /var/log/wwcx-network-sensor/suricata --pidfile /run/wwcx-network-sensor/suricata.pid --user=suricata --group=suricata --set unix-command.enabled=no --init-errors-fatal
+ExecStart=/usr/bin/suricata ${SURICATA_CAPTURE_ARGUMENT} -c ${SURICATA_CONFIG} -l /var/log/wwcx-network-sensor/suricata --pidfile /run/wwcx-network-sensor/suricata.pid --user=suricata --group=suricata --set unix-command.enabled=no --init-errors-fatal
 Restart=on-failure
 RestartSec=5s
 UMask=0007

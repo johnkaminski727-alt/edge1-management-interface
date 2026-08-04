@@ -3,9 +3,11 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 python3 -m py_compile \
   "$ROOT/server/network_sensor_exporter.py" \
+  "$ROOT/server/network_sensor_capture_acceptance.py" \
   "$ROOT/server/security_correlation_sensor_exporter.py" \
   "$ROOT/server/network_defense_sensor_exporter.py"
 python3 "$ROOT/tests/test_network_sensor_exporter.py"
+python3 "$ROOT/tests/test_network_sensor_capture_acceptance.py"
 python3 "$ROOT/tests/test_network_sensor_correlation_integration.py"
 python3 "$ROOT/tests/test_network_sensor_network_defense_integration.py"
 for file in "$ROOT"/tools/networking/network-sensor-*.sh "$ROOT"/tools/networking/discover-edge1-network-sensor.sh "$ROOT"/deploy/install-edge1-network-sensor.sh; do
@@ -26,11 +28,16 @@ assert 'security_correlation_sensor_exporter.py' in correlation
 network_defense = (root / 'deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
 assert 'network_defense_sensor_exporter.py' in network_defense
 
+sensor_defaults = (root / 'config/network-sensor/owner-full.env').read_text(encoding='utf-8')
+assert 'SURICATA_CAPTURE_ARGUMENT=--af-packet=CHANGE_ME' in sensor_defaults
+
 suricata = (root / 'deploy/systemd/wwcx-network-sensor-suricata.service').read_text(encoding='utf-8')
 for marker in (
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata',
+    'ExecStartPre=+/usr/bin/chown -R suricata:root /var/log/wwcx-network-sensor/suricata',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
+    'ExecStart=/usr/bin/suricata ${SURICATA_CAPTURE_ARGUMENT}',
     '--user=suricata',
     '--group=suricata',
     'ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor',
@@ -38,6 +45,8 @@ for marker in (
     'UMask=0007',
 ):
     assert marker in suricata, marker
+assert '--af-packet=${SENSOR_INTERFACE}' not in suricata
+assert '--pcap=${SENSOR_INTERFACE}' not in suricata
 assert 'AmbientCapabilities=' not in suricata
 assert 'User=suricata' not in suricata
 assert 'Group=suricata' not in suricata
@@ -69,6 +78,19 @@ for marker in (
 ):
     assert marker in zeek, marker
 
+installer = (root / 'deploy/install-edge1-network-sensor.sh').read_text(encoding='utf-8')
+for marker in (
+    'SURICATA_CAPTURE_BACKEND=af-packet',
+    '[ "$ALLOW_ADDRESSED" = true ] && SURICATA_CAPTURE_BACKEND=pcap',
+    'SURICATA_CAPTURE_ARGUMENT=$suricata_capture_argument',
+    'systemctl restart wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service',
+    'network_sensor_capture_acceptance.py',
+    'suricata-capture-acceptance.json',
+    '--startup-wait-seconds 75',
+    '--observation-seconds 30',
+):
+    assert marker in installer, marker
+
 runtime_files = [
     root / 'config/network-sensor/owner-full.env',
     root / 'config/network-sensor/wwcx-owner-full.zeek',
@@ -76,6 +98,7 @@ runtime_files = [
     root / 'deploy/systemd/wwcx-security-correlation.service',
     root / 'deploy/systemd/wwcx-network-defense.service',
     root / 'server/network_sensor_exporter.py',
+    root / 'server/network_sensor_capture_acceptance.py',
     root / 'server/security_correlation_sensor_exporter.py',
     root / 'server/network_defense_sensor_exporter.py',
     root / 'tools/networking/discover-edge1-network-sensor.sh',
