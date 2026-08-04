@@ -83,6 +83,7 @@ for marker in (
     'SURICATA_CAPTURE_BACKEND=af-packet',
     '[ "$ALLOW_ADDRESSED" = true ] && SURICATA_CAPTURE_BACKEND=pcap',
     'SURICATA_CAPTURE_ARGUMENT=$suricata_capture_argument',
+    'systemctl restart wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service',
     'network_sensor_capture_acceptance.py',
     'suricata-capture-acceptance.json',
     '--startup-wait-seconds 75',
