@@ -7,6 +7,11 @@
 #
 # This fragment exposes exactly two source-restricted, HMAC-authenticated
 # preparation routes. It does not expose a send route.
+#
+# ProxyPassMatch intentionally targets only the loopback origin. Because the
+# directive is inside LocationMatch and uses no backreference, Apache appends
+# the original matched request path to this origin. Supplying the full backend
+# path here would duplicate the path and produce a backend HTTP 404.
 
 ProxyPreserveHost On
 
@@ -18,7 +23,7 @@ ProxyPreserveHost On
         Require all denied
     </LimitExcept>
 
-    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30
+    ProxyPassMatch "http://127.0.0.1:8104" retry=0 connectiontimeout=5 timeout=30
     ProxyPassReverse "http://127.0.0.1:8104/outbound-mail/api/v1/status"
 </LocationMatch>
 
@@ -30,6 +35,6 @@ ProxyPreserveHost On
         Require all denied
     </LimitExcept>
 
-    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30
+    ProxyPassMatch "http://127.0.0.1:8104" retry=0 connectiontimeout=5 timeout=30
     ProxyPassReverse "http://127.0.0.1:8104/outbound-mail/api/v1/prepare"
 </LocationMatch>

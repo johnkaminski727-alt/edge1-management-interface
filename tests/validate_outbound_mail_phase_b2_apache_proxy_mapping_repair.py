@@ -80,18 +80,35 @@ syntax = subprocess.run(["sh", "-n", str(SCRIPT)], cwd=ROOT, check=False)
 assert syntax.returncode == 0
 
 template = TEMPLATE.read_text(encoding="utf-8")
-assert template.count('ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/') == 2
+origin_line = '    ProxyPassMatch "http://127.0.0.1:8104" retry=0 connectiontimeout=5 timeout=30'
+status_line = '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30'
+prepare_line = '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30'
+legacy_status_line = status_line.replace("ProxyPassMatch", "ProxyPass", 1)
+legacy_prepare_line = prepare_line.replace("ProxyPassMatch", "ProxyPass", 1)
+assert template.count(origin_line) == 2
+assert status_line not in template
+assert prepare_line not in template
 assert template.count('\n    ProxyPass "') == 0
 assert template.count("Require ip PREPARATION_CLIENT_CIDR") == 2
 assert "/outbound-mail/send" not in template
 
-legacy = template.replace("ProxyPassMatch", "ProxyPass")
-assert legacy.count('ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/') == 2
-candidate = legacy.replace(
-    '    ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/',
-    '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/',
+# Reconstruct the accepted intermediate state produced by the historical
+# ProxyPass-to-ProxyPassMatch repair. The current canonical template has since
+# advanced to origin-only targets to avoid Apache appending the path twice.
+mapping_stage = template.replace(origin_line, status_line, 1).replace(origin_line, prepare_line, 1)
+assert mapping_stage.count('ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/') == 2
+legacy = mapping_stage.replace(status_line, legacy_status_line, 1).replace(
+    prepare_line,
+    legacy_prepare_line,
+    1,
 )
-assert candidate == template
+assert legacy.count('ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/') == 2
+candidate = legacy.replace(legacy_status_line, status_line, 1).replace(
+    legacy_prepare_line,
+    prepare_line,
+    1,
+)
+assert candidate == mapping_stage
 
 runbook = RUNBOOK.read_text(encoding="utf-8")
 for required in (
@@ -109,6 +126,6 @@ for required in (
     assert required in runbook, required
 
 print("Outbound mail Apache proxy-mapping repair validation passed")
-print("Exactly two ProxyPass directives are converted to ProxyPassMatch")
-print("Audit defaults, exact-commit checks, Git ownership protection, and automatic rollback are enforced")
+print("The historical ProxyPass-to-ProxyPassMatch stage remains reproducible")
+print("The canonical template may safely advance to origin-only proxy targets")
 print("Credentials, provider activation, delivery, and message traffic remain blocked")

@@ -108,8 +108,11 @@ template = TEMPLATE.read_text(encoding="utf-8")
 assert template.count("Require ip PREPARATION_CLIENT_CIDR") == 2
 assert template.count('<LocationMatch "^/outbound-mail/api/v1/status$">') == 1
 assert template.count('<LocationMatch "^/outbound-mail/api/v1/prepare$">') == 1
-assert template.count('ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status"') == 1
-assert template.count('ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare"') == 1
+assert template.count('ProxyPassMatch "http://127.0.0.1:8104"') == 2
+assert 'ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status"' not in template
+assert 'ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare"' not in template
+assert "Apache appends" in template
+assert "duplicate the path" in template
 assert '\n    ProxyPass "' not in template
 assert "/outbound-mail/send" not in template
 
@@ -155,5 +158,5 @@ for value in (
 
 print("Outbound mail Phase B2 Apache activation validation passed")
 print("Exact-route activation, drift-safe rollback, and no-send boundaries are enforced")
-print("LocationMatch proxy mappings use ProxyPassMatch as required")
+print("LocationMatch proxy mappings use origin-only ProxyPassMatch targets")
 print("Business159 source acceptance remains a separate post-activation gate")
