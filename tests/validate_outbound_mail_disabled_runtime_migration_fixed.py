@@ -30,7 +30,7 @@ for required in (
     "mktemp /tmp/wwcx-outbound-mail-runtime-migration",
     "trap cleanup EXIT HUP INT TERM",
     "sh -n",
-    'sh "$temporary"',
+    'GIT_OPTIONAL_LOCKS=0 sh "$temporary"',
 ):
     check(required in source, f"wrapper missing safety marker: {required}")
 
@@ -56,6 +56,7 @@ with tempfile.TemporaryDirectory() as temporary_dir:
         """#!/bin/sh
 set -eu
 STATE_ROOT=${STATE_ROOT:-/var/lib/wwcx-outbound-mail}
+printf 'GIT_OPTIONAL_LOCKS=%s\n' "${GIT_OPTIONAL_LOCKS:-}"
 write_dropin() {
 cat <<EOF
 [Service]
@@ -72,6 +73,7 @@ write_dropin
     check(result.returncode == 0, f"wrapper transform failed: {result.stderr}")
     check(result.stdout.count("ReadWritePaths=/var/lib/wwcx-outbound-mail") == 1, "state root was not injected exactly once")
     check("ExecStart=/bin/true" in result.stdout, "original drop-in content was not preserved")
+    check("GIT_OPTIONAL_LOCKS=0" in result.stdout, "root-level installer did not inherit read-only Git index behavior")
 
     original.write_text("#!/bin/sh\n[Service]\n[Service]\n", encoding="utf-8")
     result = subprocess.run(["sh", str(WRAPPER)], env=env, text=True, capture_output=True, check=False)
@@ -83,3 +85,4 @@ write_dropin
 
 print("Runtime migration state-write-boundary wrapper validation passed")
 print("Exactly one systemd service block is patched and the original installer gates remain authoritative")
+print("Root-level audits inherit GIT_OPTIONAL_LOCKS=0 and cannot refresh the operator-owned Git index")
