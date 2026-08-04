@@ -10,7 +10,6 @@ import json
 import os
 import pathlib
 import shutil
-import stat
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -20,6 +19,7 @@ from unittest import mock
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools/messaging/execute_outbound_mail_one_message_pilot.py"
 BUILDER = ROOT / "tools/messaging/build_outbound_mail_controlled_activation_bundle.py"
+SCHEMA = ROOT / "schemas/messaging/outbound-mail-one-message-execution.schema.json"
 DOC = ROOT / "docs/messaging-operations/outbound-mail-one-message-execution-20260804.md"
 
 SPEC = importlib.util.spec_from_file_location("pilot_executor", TOOL)
@@ -321,16 +321,19 @@ def test_validate_and_audit() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         fixture = Fixture(pathlib.Path(temporary))
         before = read_runtime(fixture.runtime_root)
+        suppression_before = hashlib.sha256(
+            fixture.suppression_database.read_bytes()
+        ).hexdigest()
         audit = fixture.audit()
+        suppression_after = hashlib.sha256(
+            fixture.suppression_database.read_bytes()
+        ).hexdigest()
         check(audit["authorization"]["authorization_id"] == "WWCX-PILOT-EXEC-0001", "authorization was not accepted")
         check(audit["suppression_state"]["suppression_active"] is False, "recipient was incorrectly suppressed")
-        report = {
-            "runtime_mutated": False,
-            "service_restarted": False,
-            "message_sent": False,
-        }
         check(read_runtime(fixture.runtime_root) == before, "audit mutated runtime files")
-        check(all(value is False for value in report.values()), "audit safety markers changed")
+        check(suppression_after == suppression_before, "audit mutated suppression database")
+        check(not (fixture.root / "delivery-state.sqlite3-wal").exists(), "audit created a suppression WAL")
+        check(not (fixture.root / "delivery-state.sqlite3-shm").exists(), "audit created suppression shared memory")
 
 
 def test_request_and_bundle_tamper_fail_closed() -> None:
@@ -454,6 +457,8 @@ def test_success_sends_once_and_rolls_back() -> None:
         check(record["send_attempt_count"] == 1, "execution record send count changed")
         check(record["submission"]["accepted"] is True, "accepted submission not recorded")
         check(record["rollback_succeeded"] is True, "successful pilot did not rollback")
+        check(record["failure_code"] is None, "successful pilot recorded a failure")
+        check(record["rollback_error_code"] is None, "successful pilot recorded rollback error")
         check(read_runtime(fixture.runtime_root) == before, "runtime was not restored")
         evidence_path = fixture.evidence_dir / "execution.json"
         evidence_text = evidence_path.read_text(encoding="utf-8")
@@ -476,6 +481,9 @@ def test_provider_failure_still_rolls_back_without_retry() -> None:
         record = json.loads((fixture.evidence_dir / "execution.json").read_text())
         check(record["rollback_succeeded"] is True, "provider failure rollback not recorded")
         check(record["send_attempt_count"] == 1, "provider failure send count changed")
+        check(record["failure_code"] == "PilotExecutionError", "provider failure code changed")
+        check(len(record["failure_detail_sha256"]) == 64, "provider failure detail was not hashed")
+        check("provider did not accept" not in json.dumps(record), "provider failure detail leaked")
 
 
 def test_activation_failure_rolls_back_before_send() -> None:
@@ -495,12 +503,28 @@ def test_rollback_failure_is_terminal() -> None:
         adapter = FakeAdapter(fixture.runtime_root, fail_restart_calls={2})
         rejects(lambda: run_execute(fixture, adapter), "automatic rollback failed")
         check(adapter.send_calls == 1, "rollback failure changed send count")
-        record = json.loads((fixture.evidence_dir / "execution.json").read_text())
+        evidence_text = (fixture.evidence_dir / "execution.json").read_text()
+        record = json.loads(evidence_text)
         check(record["rollback_succeeded"] is False, "rollback failure recorded as success")
-        check(record["rollback_error"] is not None, "rollback failure detail missing")
+        check(record["rollback_error_code"] == "PilotExecutionError", "rollback failure code changed")
+        check(len(record["rollback_error_detail_sha256"]) == 64, "rollback failure detail was not hashed")
+        check("synthetic restart failure" not in evidence_text, "rollback failure detail leaked")
 
 
-def test_production_gates_and_static_safety() -> None:
+def test_schema_and_static_safety() -> None:
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    check(schema["additionalProperties"] is False, "execution schema permits extra fields")
+    check(schema["properties"]["send_attempt_count"]["maximum"] == 1, "schema permits retry")
+    for field in (
+        "failure_code",
+        "failure_detail_sha256",
+        "rollback_error_code",
+        "rollback_error_detail_sha256",
+    ):
+        check(field in schema["required"], f"schema does not require {field}")
+    check("failure" not in schema["properties"], "schema permits raw failure detail")
+    check("rollback_error" not in schema["properties"], "schema permits raw rollback detail")
+
     source = TOOL.read_text(encoding="utf-8")
     for required in (
         "Audit is the default and performs no mutation",
@@ -516,9 +540,12 @@ def test_production_gates_and_static_safety() -> None:
         "gateway URL is not the fixed loopback endpoint",
         "activation bundle {section} document is not the expected document",
         "pilot recipient suppression is active",
+        "mode=ro",
         "post-rollback runtime hashes do not match preflight",
         "post-rollback gateway is not safe-disabled",
         "send_attempt_count",
+        "failure_detail_sha256",
+        "rollback_error_detail_sha256",
         "raw_provider_response_stored",
     ):
         check(required in source, f"executor missing safety marker: {required}")
@@ -547,13 +574,15 @@ for test in (
     test_provider_failure_still_rolls_back_without_retry,
     test_activation_failure_rolls_back_before_send,
     test_rollback_failure_is_terminal,
-    test_production_gates_and_static_safety,
+    test_schema_and_static_safety,
 ):
     test()
 
 check(TOOL.is_file() and TOOL.stat().st_size > 10000, "executor is missing or undersized")
+check(DOC.is_file() and DOC.stat().st_size > 1000, "execution runbook is missing")
 print("One-message outbound-mail execution wrapper validation passed")
-print("Audit-only default, exact bundle recomputation, private inputs, and suppression refusal verified")
+print("Audit-only default, read-only suppression lookup, exact bundle recomputation, and suppression refusal verified")
 print("Successful and failed submissions attempt at most one send and always enter rollback")
 print("Activation, provider, and rollback failure paths are covered with a fake runtime")
+print("Failure details and provider evidence are retained only as SHA-256")
 print("No production credential, provider, DNS, service, or message operation occurs in CI")
