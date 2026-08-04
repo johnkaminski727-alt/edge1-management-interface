@@ -220,7 +220,7 @@ def validate_safe_sources(
     except Exception as exc:
         raise ActivationBundleError(f"runtime source document validation failed: {exc}") from exc
     profiles = config["provider"]["profiles"]
-    identity_entries = identities["identities"]
+    sender_profiles = identities["sender_profiles"]
     unsafe = any(
         [
             not config["preparation_api"]["enabled"],
@@ -234,7 +234,8 @@ def validate_safe_sources(
             policy["delivery"]["smtp_cutover_authorized"],
             identities["outbound_activation_authorized"],
             bool(identities["sender_selection"]["live_sender_allowlist"]),
-            any(item.get("live_enabled") is not False for item in identity_entries.values()),
+            any(profile.get("outbound_enabled") is not False for profile in sender_profiles.values()),
+            identities["system_senders"]["noreply"].get("outbound_enabled") is not False,
         ]
     )
     if unsafe:
@@ -254,12 +255,12 @@ def build_bundle(
     auth_status = validate_authorization(authorization, config, policy, identities, now=current)
     identity_key = authorization["sender_identity_key"]
     sender_address = str(authorization["sender_address"]).casefold()
-    identity = identities["identities"].get(identity_key)
+    identity = identities["sender_profiles"].get(identity_key)
     if not isinstance(identity, dict):
-        raise ActivationBundleError("authorized sender identity key does not exist")
+        raise ActivationBundleError("authorized sender profile key does not exist")
     if str(identity.get("address", "")).casefold() != sender_address:
         raise ActivationBundleError("authorized sender address does not match the identity registry")
-    if identity.get("live_enabled") is not False:
+    if identity.get("outbound_enabled") is not False:
         raise ActivationBundleError("authorized sender is not currently disabled")
 
     active_config = copy.deepcopy(config)
@@ -276,7 +277,7 @@ def build_bundle(
 
     active_identities = copy.deepcopy(identities)
     active_identities["outbound_activation_authorized"] = True
-    active_identities["identities"][identity_key]["live_enabled"] = True
+    active_identities["sender_profiles"][identity_key]["outbound_enabled"] = True
     active_identities["sender_selection"]["live_sender_allowlist"] = [sender_address]
 
     try:
@@ -302,7 +303,7 @@ def build_bundle(
     expected_policy = ["delivery.smtp_cutover_authorized", "enabled"]
     expected_identities = sorted(
         [
-            f"identities.{identity_key}.live_enabled",
+            f"sender_profiles.{identity_key}.outbound_enabled",
             "outbound_activation_authorized",
             "sender_selection.live_sender_allowlist",
         ]
