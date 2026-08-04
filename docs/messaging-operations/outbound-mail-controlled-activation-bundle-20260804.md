@@ -1,0 +1,164 @@
+# Controlled outbound-mail activation and rollback bundle
+
+Date: 2026-08-04
+
+## Objective
+
+Generate the exact runtime configuration changes required for one SMTP pilot message, together with exact rollback copies, without installing files, reading credentials, contacting the provider, preparing a message, or sending mail.
+
+Components:
+
+- authorization schema: `schemas/messaging/outbound-mail-controlled-activation.schema.json`;
+- bundle builder: `tools/messaging/build_outbound_mail_controlled_activation_bundle.py`;
+- validator: `tests/validate_outbound_mail_controlled_activation_bundle.py`.
+
+The package is source-only. It is not a production activation wrapper.
+
+## Required safe source state
+
+The three runtime input documents must already be the strict runtime copies created by the disabled migration package. They must validate and remain preparation-only:
+
+```text
+preparation_api_enabled=true
+gateway_enabled=false
+deployment_authorized=false
+external_delivery_authorized=false
+send_endpoint_enabled=false
+selected_provider=none
+all_provider_profiles_enabled=false
+policy_enabled=false
+smtp_cutover_authorized=false
+identity_activation_authorized=false
+live_sender_allowlist=[]
+all_identity_live_enabled=false
+```
+
+Any other state fails closed.
+
+## Closed authorization record
+
+The authorization file is bound to exact SHA-256 values for:
+
+- runtime gateway config;
+- runtime policy;
+- runtime identities;
+- successful SMTP authentication-only canary result;
+- one owned pilot recipient;
+- one exact pilot payload.
+
+It also names one exact registry identity key and sender address and requires all of the following to be true:
+
+- SMTP authentication verified;
+- provider capability for the sender verified;
+- public DKIM DNS verified;
+- monitoring-only DMARC published;
+- aggregate-report mailbox ready;
+- bounce ingestion ready;
+- complaint ingestion ready;
+- suppression gate ready;
+- owned recipient verified;
+- activation authorized;
+- one message authorized;
+- rollback required.
+
+The record expires no more than two hours after evaluation. It authorizes exactly one recipient and explicitly keeps bulk, commercial, regulatory, and emergency traffic false.
+
+## Exact activation changes
+
+The builder permits only six gateway changes:
+
+```text
+enabled=true
+deployment_authorized=true
+external_delivery_authorized=true
+admin.send_endpoint_enabled=true
+provider.selected=smtp_submission
+provider.profiles.smtp_submission.enabled=true
+```
+
+It permits only two policy changes:
+
+```text
+enabled=true
+delivery.smtp_cutover_authorized=true
+```
+
+It permits only three identity changes:
+
+```text
+outbound_activation_authorized=true
+identities.<exact-key>.live_enabled=true
+sender_selection.live_sender_allowlist=[<exact-address>]
+```
+
+The preparation API remains enabled. Every other provider profile and identity remains unchanged.
+
+The generated documents are passed through the existing gateway, policy, and identity validators. A path-level diff must exactly match the allowlists above.
+
+## Bundle contents
+
+The output directory contains:
+
+```text
+activated/outbound-mail-gateway-runtime.json
+activated/outbound-mail-policy-runtime.json
+activated/mail-identities-runtime.json
+rollback/outbound-mail-gateway-runtime.json
+rollback/outbound-mail-policy-runtime.json
+rollback/mail-identities-runtime.json
+manifest.json
+```
+
+All files are mode `0600` during staging. The manifest contains SHA-256 for every activated and rollback file but does not inline the documents.
+
+The manifest retains only the sender-address hash, recipient hash, payload hash, SMTP canary hash, change paths, expiry, and no-action safety markers.
+
+## Offline command
+
+```sh
+python3 tools/messaging/build_outbound_mail_controlled_activation_bundle.py \
+  --config /etc/wwcx/outbound-mail-gateway-runtime.json \
+  --policy /etc/wwcx/outbound-mail-policy-runtime.json \
+  --identities /etc/wwcx/mail-identities-runtime.json \
+  --authorization /restricted/outbound-mail/pilot/activation-authorization.json \
+  --output-dir /restricted/outbound-mail/pilot/activation-bundle
+```
+
+Authorization and output must remain outside Git.
+
+## Required execution wrapper
+
+A later production wrapper must be separately designed and authorized. It must:
+
+1. confirm all bundle hashes and authorization expiry immediately before use;
+2. confirm the SMTP canary result and DNS/mailbox/bounce/complaint evidence are accepted;
+3. verify suppression state for the exact recipient before activation;
+4. back up the active runtime files independently of the bundle rollback copies;
+5. atomically install all three activated documents;
+6. restart and validate the gateway;
+7. prove exactly one provider and one sender are ready;
+8. accept only the exact recipient and payload hashes;
+9. send at most one message;
+10. capture provider acceptance and delivery evidence;
+11. immediately reinstall the rollback documents and restart the safe-disabled gateway;
+12. automatically roll back on any failure, timeout, hash mismatch, second request, or unexpected provider outcome.
+
+The source builder does not implement these operational steps.
+
+## Current blockers
+
+The authorization record cannot truthfully be completed yet because the following live evidence is still missing:
+
+- disabled runtime migration executed and accepted on Edge1;
+- provider credential installed through an approved path;
+- SMTP authentication-only canary executed successfully;
+- exact sender capability verified at the provider;
+- aggregate-report mailbox access and processing proven;
+- monitoring-only DMARC authorized, published, and validated;
+- bounce and complaint ingestion operating;
+- exact owned recipient and pilot payload selected;
+- explicit provider/sender/external-delivery/one-message authorization.
+
+## Preserved boundaries
+
+This package reads no credential, contacts no provider, installs no runtime file, restarts no service, changes no DNS, activates no live gateway, prepares no production message, and sends no mail.
