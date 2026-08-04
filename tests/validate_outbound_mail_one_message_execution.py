@@ -504,7 +504,8 @@ def test_production_gates_and_static_safety() -> None:
     source = TOOL.read_text(encoding="utf-8")
     for required in (
         "Audit is the default and performs no mutation",
-        "fixed loopback send is attempted at most once and is never retried",
+        "fixed loopback send is attempted at",
+        "most once and is never retried",
         "WWCX_ONE_MESSAGE_PILOT_AUTHORIZED",
         "execution requires exact clean main",
         "one-message execution requires root",
@@ -513,7 +514,7 @@ def test_production_gates_and_static_safety() -> None:
         "execution suppression database path is unexpected",
         "execution service name is unexpected",
         "gateway URL is not the fixed loopback endpoint",
-        "activation bundle activated document is not the expected document",
+        "activation bundle {section} document is not the expected document",
         "pilot recipient suppression is active",
         "post-rollback runtime hashes do not match preflight",
         "post-rollback gateway is not safe-disabled",
