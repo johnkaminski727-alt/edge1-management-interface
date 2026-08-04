@@ -1,0 +1,53 @@
+name: Validate outbound mail Phase E readiness
+
+on:
+  pull_request:
+    paths:
+      - 'tools/messaging/outbound_mail_phase_e_readiness.py'
+      - 'tests/validate_outbound_mail_phase_e_readiness.py'
+      - 'docs/messaging-operations/outbound-mail-phase-e-readiness-20260804.md'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'config/messaging/outbound-mail-policy.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/outbound-mail-phase-e-readiness.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/messaging/outbound_mail_phase_e_readiness.py'
+      - 'tests/validate_outbound_mail_phase_e_readiness.py'
+      - 'docs/messaging-operations/outbound-mail-phase-e-readiness-20260804.md'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'config/messaging/outbound-mail-policy.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/outbound-mail-phase-e-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile tools/messaging/outbound_mail_phase_e_readiness.py
+          python3 -m py_compile tests/validate_outbound_mail_phase_e_readiness.py
+      - name: Functional validation
+        run: python3 tests/validate_outbound_mail_phase_e_readiness.py
+      - name: Current safe-state report
+        run: |
+          python3 tools/messaging/outbound_mail_phase_e_readiness.py \
+            --pretty \
+            --require-safe-disabled \
+            --output /tmp/outbound-mail-phase-e-readiness.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/outbound-mail-phase-e-readiness.json').read_text())
+          print('readiness_state=' + report['readiness_state'])
+          print('blocker_count=' + str(report['blocker_count']))
+          print('runtime_credentials_inspected=' + str(report['runtime_credentials_inspected']).lower())
+          print('message_sent=' + str(report['message_sent']).lower())
+          PY
