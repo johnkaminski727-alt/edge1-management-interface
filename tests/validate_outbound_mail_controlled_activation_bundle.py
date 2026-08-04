@@ -98,6 +98,8 @@ policy = load("config/messaging/outbound-mail-policy.json")
 identities = load("config/messaging/mail-identities.json")
 runtime_config = copy.deepcopy(config)
 runtime_config["preparation_api"]["enabled"] = True
+runtime_policy = copy.deepcopy(policy)
+runtime_policy["organization"]["mailing_address"] = "123 Test Street, Regina SK S4P 0A1, Canada"
 now = datetime(2026, 8, 4, 6, 0, 0, tzinfo=timezone.utc)
 
 allowed_addresses = set(identities["sender_selection"]["recipient_to_sender"].values())
@@ -108,9 +110,9 @@ for key, profile in identities["sender_profiles"].items():
     address = str(profile.get("address", "")).casefold()
     if not address or address not in allowed_addresses or profile.get("outbound_enabled") is not False:
         continue
-    candidate = authorization(runtime_config, policy, identities, key, address, now)
+    candidate = authorization(runtime_config, runtime_policy, identities, key, address, now)
     try:
-        bundle = MODULE.build_bundle(runtime_config, policy, identities, candidate, now=now)
+        bundle = MODULE.build_bundle(runtime_config, runtime_policy, identities, candidate, now=now)
     except MODULE.ActivationBundleError as exc:
         errors.append(f"{key}: {exc}")
         continue
@@ -140,7 +142,14 @@ check(bundle["changes"]["gateway"] == sorted([
     "provider.profiles.smtp_submission.enabled",
     "provider.selected",
 ]), "gateway change whitelist mismatch")
-check(bundle["changes"]["policy"] == ["delivery.smtp_cutover_authorized", "enabled"], "policy change whitelist mismatch")
+check(bundle["changes"]["policy"] == sorted([
+    "deployment_authorized",
+    "delivery.allow_external_submission",
+    "delivery.allow_live_delivery",
+    "delivery.provider",
+    "enabled",
+    "smtp_cutover_authorized",
+]), "policy change whitelist mismatch")
 check(bundle["changes"]["identities"] == sorted([
     f"sender_profiles.{identity_key}.outbound_enabled",
     "outbound_activation_authorized",
@@ -157,49 +166,59 @@ check(active_config["admin"]["send_endpoint_enabled"] is True, "activated send e
 check(active_config["provider"]["selected"] == "smtp_submission", "SMTP provider was not selected")
 check(active_config["provider"]["profiles"]["smtp_submission"]["enabled"] is True, "SMTP profile was not enabled")
 check(active_config["preparation_api"]["enabled"] is True, "preparation API was disabled")
-check(active_policy["enabled"] is True and active_policy["delivery"]["smtp_cutover_authorized"] is True, "policy activation mismatch")
+check(active_policy["enabled"] is True, "activated policy remains disabled")
+check(active_policy["deployment_authorized"] is True, "activated policy deployment remains unauthorized")
+check(active_policy["smtp_cutover_authorized"] is True, "activated SMTP cutover remains unauthorized")
+check(active_policy["delivery"]["provider"] == "smtp_submission", "activated policy provider mismatch")
+check(active_policy["delivery"]["allow_external_submission"] is True, "external submission remains disabled")
+check(active_policy["delivery"]["allow_live_delivery"] is True, "live delivery remains disabled")
+check(active_policy["organization"]["mailing_address"] == runtime_policy["organization"]["mailing_address"], "mailing address changed")
 check(active_identities["outbound_activation_authorized"] is True, "identity activation mismatch")
 check(active_identities["sender_profiles"][identity_key]["outbound_enabled"] is True, "selected sender profile not enabled")
 check(active_identities["sender_selection"]["live_sender_allowlist"] == [sender_address], "sender allowlist mismatch")
 check(bundle["rollback"]["outbound-mail-gateway-runtime.json"] == runtime_config, "gateway rollback copy changed")
-check(bundle["rollback"]["outbound-mail-policy-runtime.json"] == policy, "policy rollback copy changed")
+check(bundle["rollback"]["outbound-mail-policy-runtime.json"] == runtime_policy, "policy rollback copy changed")
 check(bundle["rollback"]["mail-identities-runtime.json"] == identities, "identity rollback copy changed")
 for key in ("credentials_read", "runtime_files_modified", "provider_contacted", "message_prepared", "message_sent"):
     check(bundle[key] is False, f"bundle safety marker changed: {key}")
 
 hash_mismatch = copy.deepcopy(auth)
 hash_mismatch["runtime_config_sha256"] = "f" * 64
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, hash_mismatch, now=now), "runtime hash mismatch")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, hash_mismatch, now=now), "runtime hash mismatch")
 expired = copy.deepcopy(auth)
 expired["issued_at"] = (now - timedelta(hours=2)).isoformat()
 expired["expires_at"] = (now - timedelta(seconds=1)).isoformat()
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, expired, now=now), "expired authorization")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, expired, now=now), "expired authorization")
 long_lived = copy.deepcopy(auth)
 long_lived["issued_at"] = now.isoformat()
 long_lived["expires_at"] = (now + timedelta(hours=3)).isoformat()
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, long_lived, now=now), "authorization over two hours")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, long_lived, now=now), "authorization over two hours")
 not_yet = copy.deepcopy(auth)
 not_yet["issued_at"] = (now + timedelta(minutes=1)).isoformat()
 not_yet["expires_at"] = (now + timedelta(minutes=30)).isoformat()
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, not_yet, now=now), "future authorization")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, not_yet, now=now), "future authorization")
 invalid_reference = copy.deepcopy(auth)
 invalid_reference["authorization_reference"] = "bad reference with spaces"
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, invalid_reference, now=now), "invalid authorization reference")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, invalid_reference, now=now), "invalid authorization reference")
 wrong_address = copy.deepcopy(auth)
 wrong_address["sender_address"] = "wrong@example.com"
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, wrong_address, now=now), "sender address mismatch")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, wrong_address, now=now), "sender address mismatch")
 missing_readiness = copy.deepcopy(auth)
 missing_readiness["bounce_ingestion_ready"] = False
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, missing_readiness, now=now), "missing bounce readiness")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, missing_readiness, now=now), "missing bounce readiness")
 bulk = copy.deepcopy(auth)
 bulk["bulk_authorized"] = True
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, bulk, now=now), "bulk authorization")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, bulk, now=now), "bulk authorization")
 multi = copy.deepcopy(auth)
 multi["max_recipient_count"] = 2
-rejects(lambda: MODULE.build_bundle(runtime_config, policy, identities, multi, now=now), "multiple recipients")
+rejects(lambda: MODULE.build_bundle(runtime_config, runtime_policy, identities, multi, now=now), "multiple recipients")
 active_source = copy.deepcopy(runtime_config)
 active_source["enabled"] = True
-rejects(lambda: MODULE.build_bundle(active_source, policy, identities, auth, now=now), "already active gateway")
+rejects(lambda: MODULE.build_bundle(active_source, runtime_policy, identities, auth, now=now), "already active gateway")
+placeholder_policy = copy.deepcopy(runtime_policy)
+placeholder_policy["organization"]["mailing_address"] = "CONFIGURE_AT_DEPLOYMENT"
+placeholder_auth = authorization(runtime_config, placeholder_policy, identities, identity_key, sender_address, now)
+rejects(lambda: MODULE.build_bundle(runtime_config, placeholder_policy, identities, placeholder_auth, now=now), "placeholder mailing address")
 
 with tempfile.TemporaryDirectory() as temporary:
     folder = pathlib.Path(temporary)
@@ -224,11 +243,11 @@ with tempfile.TemporaryDirectory() as temporary:
     identities_path = folder / "identities.json"
     auth_path = folder / "authorization.json"
     config_path.write_text(json.dumps(runtime_config), encoding="utf-8")
-    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    policy_path.write_text(json.dumps(runtime_policy), encoding="utf-8")
     identities_path.write_text(json.dumps(identities), encoding="utf-8")
 
     current = datetime.now(timezone.utc)
-    current_auth = authorization(runtime_config, policy, identities, identity_key, sender_address, current)
+    current_auth = authorization(runtime_config, runtime_policy, identities, identity_key, sender_address, current)
     auth_path.write_text(json.dumps(current_auth), encoding="utf-8")
     os.chmod(auth_path, 0o600)
     cli_output = folder / "cli-bundle"
@@ -346,6 +365,8 @@ for required in (
     "activation gateway changes are unauthorized",
     "activation policy changes are unauthorized",
     "activation identity changes are unauthorized",
+    "PLACEHOLDER_ADDRESS",
+    "delivery.allow_live_delivery",
     "sender_profiles",
     "outbound_enabled",
     "must be private mode 0600 or stricter",
@@ -376,7 +397,7 @@ for prohibited in (
 
 print("Controlled outbound-mail activation bundle validation passed")
 print("Exact runtime and authorization hashes, bounded issuance window, one sender/recipient/payload, and rollback verified")
-print("Authoritative sender_profiles/outbound_enabled activation paths verified")
+print("Authoritative six gateway, six policy, and three sender-profile activation paths verified")
+print("Approved non-placeholder mailing address remains unchanged")
 print("Private operator-owned authorization, symlink refusal, 0700 bundle root, and 0600 files verified")
-print("Only six gateway, two policy, and three identity paths change")
 print("No credential, provider contact, runtime mutation, message preparation, or message traffic occurs")
