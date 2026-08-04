@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/authenticated-dsn-evidence.schema.json",
+  "title": "WW.CX authenticated delivery-status evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "captured_at",
+    "source_authentication",
+    "source_verified",
+    "mailbox_identity_sha256",
+    "evidence_sha256",
+    "provider_profile",
+    "provider_message_id_sha256",
+    "control_id",
+    "raw_message_restricted",
+    "credentials_included",
+    "message_content_committed"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.authenticated-dsn-evidence.v1"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "source_authentication": {"const": "authenticated_mailbox_dsn"},
+    "source_verified": {"const": true},
+    "mailbox_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "provider_profile": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,63}$"},
+    "provider_message_id_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "control_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,159}$"},
+    "raw_message_restricted": {"const": true},
+    "credentials_included": {"const": false},
+    "message_content_committed": {"const": false}
+  }
+}
