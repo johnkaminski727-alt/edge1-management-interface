@@ -22,20 +22,26 @@ The three runtime input documents must already be the strict runtime copies crea
 ```text
 preparation_api_enabled=true
 gateway_enabled=false
-deployment_authorized=false
+gateway_deployment_authorized=false
 external_delivery_authorized=false
 send_endpoint_enabled=false
 selected_provider=none
 all_provider_profiles_enabled=false
 policy_enabled=false
+policy_deployment_authorized=false
 smtp_cutover_authorized=false
+policy_delivery_provider=disabled
+policy_allow_prepare=true
+policy_allow_external_submission=false
+policy_allow_live_delivery=false
+policy_mailing_address_is_approved_and_non_placeholder=true
 identity_activation_authorized=false
 live_sender_allowlist=[]
 all_sender_profiles_outbound_enabled=false
 system_noreply_outbound_enabled=false
 ```
 
-Any other state fails closed.
+Any other state fails closed. In particular, the builder does not choose or insert a mailing address; an approved non-placeholder address must already exist in the runtime policy and remains unchanged by activation.
 
 The CLI refuses runtime inputs inside the Git checkout. Input files must be regular, operator-owned files with no symlink component and must not be group/world writable.
 
@@ -80,11 +86,15 @@ provider.selected=smtp_submission
 provider.profiles.smtp_submission.enabled=true
 ```
 
-It permits only two policy changes:
+It permits only six policy changes:
 
 ```text
 enabled=true
-delivery.smtp_cutover_authorized=true
+deployment_authorized=true
+smtp_cutover_authorized=true
+delivery.provider=smtp_submission
+delivery.allow_external_submission=true
+delivery.allow_live_delivery=true
 ```
 
 It permits only three identity-registry changes:
@@ -95,7 +105,7 @@ sender_profiles.<exact-key>.outbound_enabled=true
 sender_selection.live_sender_allowlist=[<exact-address>]
 ```
 
-The preparation API remains enabled. Every other provider profile, sender profile, system sender, and identity mapping remains unchanged.
+The preparation API and `delivery.allow_prepare` remain enabled. The approved mailing address, every other policy setting, every other provider profile, every other sender profile, the system sender, and all identity mappings remain unchanged.
 
 The generated documents are passed through the existing gateway, policy, and identity validators. A path-level diff must exactly match the allowlists above.
 
@@ -161,6 +171,7 @@ The source builder does not implement these operational steps.
 The authorization record cannot truthfully be completed yet because the following live evidence is still missing:
 
 - disabled runtime migration executed and accepted on Edge1;
+- approved mailing address configured in the runtime policy;
 - provider credential installed through an approved path;
 - SMTP authentication-only canary executed successfully;
 - exact sender capability verified at the provider;
