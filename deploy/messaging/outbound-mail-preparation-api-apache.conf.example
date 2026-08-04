@@ -18,7 +18,7 @@ ProxyPreserveHost On
         Require all denied
     </LimitExcept>
 
-    ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30
+    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30
     ProxyPassReverse "http://127.0.0.1:8104/outbound-mail/api/v1/status"
 </LocationMatch>
 
@@ -30,6 +30,6 @@ ProxyPreserveHost On
         Require all denied
     </LimitExcept>
 
-    ProxyPass "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30
+    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30
     ProxyPassReverse "http://127.0.0.1:8104/outbound-mail/api/v1/prepare"
 </LocationMatch>
