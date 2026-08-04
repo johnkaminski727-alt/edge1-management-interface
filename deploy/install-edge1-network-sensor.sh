@@ -50,6 +50,7 @@ for source in \
   "$ROOT/config/network-sensor/owner-full.env" \
   "$ROOT/config/network-sensor/wwcx-owner-full.zeek" \
   "$ROOT/server/network_sensor_exporter.py" \
+  "$ROOT/server/network_sensor_capture_acceptance.py" \
   "$ROOT/server/security_correlation_sensor_exporter.py" \
   "$ROOT/server/network_defense_sensor_exporter.py" \
   "$ROOT/tools/networking/network-sensor-pcap.sh" \
@@ -239,26 +240,37 @@ install -o root -g root -m 0644 "$ROOT/src/web/network-sensor/index.html" /var/w
 
 python3 -m py_compile \
   "$ROOT/server/network_sensor_exporter.py" \
+  "$ROOT/server/network_sensor_capture_acceptance.py" \
   "$ROOT/server/security_correlation_sensor_exporter.py" \
   "$ROOT/server/network_defense_sensor_exporter.py"
 suricata -T -c /etc/suricata/suricata.yaml > "$EVIDENCE_DIR/suricata-config-test.txt" 2>&1
 systemctl daemon-reload
 
 if [ "$ACTIVATE" = true ]; then
+  SURICATA_ACCEPTANCE_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   systemctl enable --now wwcx-network-sensor-suricata.service wwcx-network-sensor-pcap.service
   if [ "$ENABLE_ZEEK" = true ]; then
     systemctl enable --now wwcx-network-sensor-zeek.service
   fi
   systemctl enable --now wwcx-network-sensor-exporter.timer wwcx-network-sensor-prune.timer
-  systemctl start wwcx-network-sensor-exporter.service
-  systemctl start wwcx-security-correlation.service
-  systemctl start wwcx-network-defense.service
 
   [ "$(systemctl is-active wwcx-network-sensor-suricata.service)" = active ]
   [ "$(systemctl is-active wwcx-network-sensor-pcap.service)" = active ]
   [ "$(systemctl is-enabled wwcx-network-sensor-exporter.timer)" = enabled ]
   [ "$(systemctl is-active wwcx-network-sensor-exporter.timer)" = active ]
   [ "$(systemctl is-enabled wwcx-network-sensor-prune.timer)" = enabled ]
+
+  python3 "$ROOT/server/network_sensor_capture_acceptance.py" \
+    --interface "$INTERFACE" \
+    --started-at "$SURICATA_ACCEPTANCE_STARTED_AT" \
+    --wait-seconds 75 \
+    --output "$EVIDENCE_DIR/suricata-capture-acceptance.json" \
+    | tee "$EVIDENCE_DIR/suricata-capture-acceptance-console.json"
+
+  systemctl start wwcx-network-sensor-exporter.service
+  systemctl start wwcx-security-correlation.service
+  systemctl start wwcx-network-defense.service
+
   [ "$(systemctl show wwcx-network-sensor-exporter.service -p Result --value)" = success ]
   [ "$(systemctl show wwcx-security-correlation.service -p Result --value)" = success ]
   [ "$(systemctl show wwcx-network-defense.service -p Result --value)" = success ]
