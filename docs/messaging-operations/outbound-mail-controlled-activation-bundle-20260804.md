@@ -10,7 +10,8 @@ Components:
 
 - authorization schema: `schemas/messaging/outbound-mail-controlled-activation.schema.json`;
 - bundle builder: `tools/messaging/build_outbound_mail_controlled_activation_bundle.py`;
-- validator: `tests/validate_outbound_mail_controlled_activation_bundle.py`.
+- validator: `tests/validate_outbound_mail_controlled_activation_bundle.py`;
+- workflow: `.github/workflows/validate-outbound-mail-controlled-activation-bundle.yml`.
 
 The package is source-only. It is not a production activation wrapper.
 
@@ -35,18 +36,20 @@ all_identity_live_enabled=false
 
 Any other state fails closed.
 
+The CLI refuses runtime inputs inside the Git checkout. Input files must be regular, operator-owned files with no symlink component and must not be group/world writable.
+
 ## Closed authorization record
 
-The authorization file is bound to exact SHA-256 values for:
+The private authorization file must be mode `0600` or stricter, operator-owned, outside Git, and free of final-file or parent-directory symlinks. It includes:
 
-- runtime gateway config;
-- runtime policy;
-- runtime identities;
-- successful SMTP authentication-only canary result;
-- one owned pilot recipient;
-- one exact pilot payload.
+- a unique authorization ID;
+- the authorizing actor identifier;
+- a durable authorization reference;
+- issuance and expiry timestamps;
+- exact SHA-256 values for the runtime gateway config, policy, identities, successful SMTP authentication-only canary, one owned pilot recipient, and one exact pilot payload;
+- one exact registry identity key and sender address.
 
-It also names one exact registry identity key and sender address and requires all of the following to be true:
+It requires all of the following to be true:
 
 - SMTP authentication verified;
 - provider capability for the sender verified;
@@ -61,7 +64,7 @@ It also names one exact registry identity key and sender address and requires al
 - one message authorized;
 - rollback required.
 
-The record expires no more than two hours after evaluation. It authorizes exactly one recipient and explicitly keeps bulk, commercial, regulatory, and emergency traffic false.
+The authorization must already be valid when evaluated. Its complete issued-to-expiry lifetime may not exceed two hours. It authorizes exactly one recipient and explicitly keeps bulk, commercial, regulatory, and emergency traffic false.
 
 ## Exact activation changes
 
@@ -97,7 +100,7 @@ The generated documents are passed through the existing gateway, policy, and ide
 
 ## Bundle contents
 
-The output directory contains:
+The output path must not already exist. Its parent must be operator-owned, must not be group/world writable, and may not contain a symlink. The builder creates:
 
 ```text
 activated/outbound-mail-gateway-runtime.json
@@ -109,9 +112,16 @@ rollback/mail-identities-runtime.json
 manifest.json
 ```
 
-All files are mode `0600` during staging. The manifest contains SHA-256 for every activated and rollback file but does not inline the documents.
+The bundle root and section directories are mode `0700`; every file is created exclusively as mode `0600` with no symlink following.
 
-The manifest retains only the sender-address hash, recipient hash, payload hash, SMTP canary hash, change paths, expiry, and no-action safety markers.
+The manifest does not inline runtime documents. It contains:
+
+- authorization ID, actor, reference, issued time, expiry, and authorization SHA-256;
+- exact source-runtime SHA-256 values;
+- sender-address, recipient, payload, and SMTP-canary hashes;
+- exact allowed change paths;
+- SHA-256 for every activated and rollback file;
+- explicit no-action safety markers.
 
 ## Offline command
 
@@ -124,13 +134,13 @@ python3 tools/messaging/build_outbound_mail_controlled_activation_bundle.py \
   --output-dir /restricted/outbound-mail/pilot/activation-bundle
 ```
 
-Authorization and output must remain outside Git.
+Runtime inputs, authorization, and output must remain outside Git. The output directory must be new; the builder refuses reuse rather than merging or overwriting staged evidence.
 
 ## Required execution wrapper
 
 A later production wrapper must be separately designed and authorized. It must:
 
-1. confirm all bundle hashes and authorization expiry immediately before use;
+1. confirm the authorization hash, complete issued-to-expiry window, and every bundle/source hash immediately before use;
 2. confirm the SMTP canary result and DNS/mailbox/bounce/complaint evidence are accepted;
 3. verify suppression state for the exact recipient before activation;
 4. back up the active runtime files independently of the bundle rollback copies;
