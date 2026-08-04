@@ -56,7 +56,7 @@ The repair:
 8. verifies public TLS send and health remain HTTP `404`;
 9. changes exactly two proxy target lines;
 10. runs `apache2ctl configtest` before a graceful reload;
-11. restores the exact prior fragment automatically if post-change verification fails;
+11. provides automatic rollback by restoring the exact prior fragment if post-change verification fails;
 12. stores root-owned SHA-256 evidence outside the repository.
 
 ## Required sequence
