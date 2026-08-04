@@ -1,0 +1,37 @@
+name: Validate outbound mail SMTP auth canary
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/messaging/smtp-auth-canary-authorization.schema.json'
+      - 'tools/messaging/outbound_mail_smtp_auth_canary.py'
+      - 'tests/validate_outbound_mail_smtp_auth_canary.py'
+      - 'docs/messaging-operations/outbound-mail-smtp-auth-canary-20260804.md'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - '.github/workflows/outbound-mail-smtp-auth-canary.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'schemas/messaging/smtp-auth-canary-authorization.schema.json'
+      - 'tools/messaging/outbound_mail_smtp_auth_canary.py'
+      - 'tests/validate_outbound_mail_smtp_auth_canary.py'
+      - 'docs/messaging-operations/outbound-mail-smtp-auth-canary-20260804.md'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - '.github/workflows/outbound-mail-smtp-auth-canary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and schema checks
+        run: |
+          python3 -m py_compile tools/messaging/outbound_mail_smtp_auth_canary.py
+          python3 -m py_compile tests/validate_outbound_mail_smtp_auth_canary.py
+          python3 -m json.tool schemas/messaging/smtp-auth-canary-authorization.schema.json >/dev/null
+      - name: Functional and no-message validation
+        run: python3 tests/validate_outbound_mail_smtp_auth_canary.py
