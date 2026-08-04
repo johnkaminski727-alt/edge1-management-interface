@@ -31,7 +31,8 @@ policy_enabled=false
 smtp_cutover_authorized=false
 identity_activation_authorized=false
 live_sender_allowlist=[]
-all_identity_live_enabled=false
+all_sender_profiles_outbound_enabled=false
+system_noreply_outbound_enabled=false
 ```
 
 Any other state fails closed.
@@ -47,7 +48,7 @@ The private authorization file must be mode `0600` or stricter, operator-owned, 
 - a durable authorization reference;
 - issuance and expiry timestamps;
 - exact SHA-256 values for the runtime gateway config, policy, identities, successful SMTP authentication-only canary, one owned pilot recipient, and one exact pilot payload;
-- one exact registry identity key and sender address.
+- one exact sender-profile key and sender address.
 
 It requires all of the following to be true:
 
@@ -86,15 +87,15 @@ enabled=true
 delivery.smtp_cutover_authorized=true
 ```
 
-It permits only three identity changes:
+It permits only three identity-registry changes:
 
 ```text
 outbound_activation_authorized=true
-identities.<exact-key>.live_enabled=true
+sender_profiles.<exact-key>.outbound_enabled=true
 sender_selection.live_sender_allowlist=[<exact-address>]
 ```
 
-The preparation API remains enabled. Every other provider profile and identity remains unchanged.
+The preparation API remains enabled. Every other provider profile, sender profile, system sender, and identity mapping remains unchanged.
 
 The generated documents are passed through the existing gateway, policy, and identity validators. A path-level diff must exactly match the allowlists above.
 
