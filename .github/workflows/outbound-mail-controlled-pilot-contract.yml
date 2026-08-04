@@ -1,0 +1,59 @@
+name: Validate controlled outbound mail pilot contract
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/messaging/outbound-mail-pilot-evidence.schema.json'
+      - 'examples/messaging/outbound-mail-pilot-evidence.not-executed.example.json'
+      - 'tools/messaging/validate_outbound_mail_pilot_evidence.py'
+      - 'tests/validate_outbound_mail_pilot_evidence.py'
+      - 'docs/messaging-operations/outbound-mail-controlled-pilot-contract-20260804.md'
+      - '.github/workflows/outbound-mail-controlled-pilot-contract.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'schemas/messaging/outbound-mail-pilot-evidence.schema.json'
+      - 'examples/messaging/outbound-mail-pilot-evidence.not-executed.example.json'
+      - 'tools/messaging/validate_outbound_mail_pilot_evidence.py'
+      - 'tests/validate_outbound_mail_pilot_evidence.py'
+      - 'docs/messaging-operations/outbound-mail-controlled-pilot-contract-20260804.md'
+      - '.github/workflows/outbound-mail-controlled-pilot-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and JSON checks
+        run: |
+          python3 -m py_compile tools/messaging/validate_outbound_mail_pilot_evidence.py
+          python3 -m py_compile tests/validate_outbound_mail_pilot_evidence.py
+          python3 -m json.tool schemas/messaging/outbound-mail-pilot-evidence.schema.json >/dev/null
+          python3 -m json.tool examples/messaging/outbound-mail-pilot-evidence.not-executed.example.json >/dev/null
+      - name: Functional validation
+        run: python3 tests/validate_outbound_mail_pilot_evidence.py
+      - name: Confirm committed template remains unexecuted
+        run: |
+          python3 tools/messaging/validate_outbound_mail_pilot_evidence.py \
+            examples/messaging/outbound-mail-pilot-evidence.not-executed.example.json \
+            --require-not-executed \
+            --pretty \
+            > /tmp/outbound-mail-pilot-template-validation.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/outbound-mail-pilot-template-validation.json').read_text())
+          assert result['execution_status'] == 'not_executed'
+          assert result['message_count'] == 0
+          assert result['recipient_count'] == 0
+          assert result['message_sent'] is False
+          assert result['provider_credentials_inspected'] is False
+          assert result['message_content_inspected'] is False
+          print('execution_status=not_executed')
+          print('message_sent=false')
+          print('provider_credentials_inspected=false')
+          PY
