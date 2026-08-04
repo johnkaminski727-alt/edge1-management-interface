@@ -10,7 +10,7 @@ The preferred deployment is a managed-switch SPAN/mirror destination or hardware
 
 The package runs:
 
-- a separate Suricata process using the installed `/etc/suricata/suricata.yaml`, libpcap live capture, a dedicated PID, disabled command socket, and dedicated log directory;
+- a separate Suricata process using the installed `/etc/suricata/suricata.yaml`, a deployment-selected live capture backend, a dedicated PID, disabled command socket, and dedicated log directory;
 - a rotating `tcpdump` full-PCAP recorder with snap length zero;
 - optional Zeek live metadata in JSON;
 - a one-minute exporter producing restricted and dashboard snapshots;
@@ -18,9 +18,9 @@ The package runs:
 - a final Network Defense layer that exposes the passive sensor as a first-class observed component;
 - daily age and capacity retention enforcement.
 
-Suricata uses explicit libpcap capture because Linux WireGuard interfaces expose decrypted layer-3 packets with RAW link type. Live Edge1 verification on `wg0` showed forced AF_PACKET polling with zero packets while tcpdump captured traffic, whereas `--pcap=wg0` captured 1,377 packets with zero drops in the bounded acceptance run.
+Unaddressed mirror/TAP interfaces retain Suricata AF_PACKET capture. Passing `--allow-addressed-interface` selects explicit libpcap capture for that deployment. Linux WireGuard interfaces expose decrypted layer-3 packets with RAW link type; live Edge1 verification on `wg0` showed forced AF_PACKET polling with zero packets while tcpdump captured traffic, whereas `--pcap=wg0` captured 1,377 packets with zero drops in the bounded acceptance run.
 
-The guarded installer records `/var/lib/wwcx-deployment-evidence/network-sensor/<timestamp>/suricata-capture-acceptance.json`. It fails and rolls back when the interface packet counters advance during the acceptance window but current-run Suricata statistics remain at zero. A quiet interface is recorded as inconclusive rather than treated as a capture failure.
+The guarded installer records the selected backend in `options.txt` and writes `/var/lib/wwcx-deployment-evidence/network-sensor/<timestamp>/suricata-capture-acceptance.json`. It waits for the first current-run Suricata statistics record before beginning the packet observation window. It fails and rolls back when interface packet counters then advance but current-run Suricata statistics remain at zero. A quiet interface is recorded as inconclusive rather than treated as a capture failure.
 
 The correlation and Network Defense extensions are absent-neutral. Before the sensor snapshot exists, existing source counts and component behavior remain unchanged. Raw packet payloads and raw Suricata/Zeek objects are not copied into Security Correlation or Network Defense.
 
