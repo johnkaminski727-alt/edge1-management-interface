@@ -17,6 +17,8 @@ import hashlib
 import json
 import os
 import pathlib
+import re
+import stat
 import sys
 from datetime import datetime, timezone
 from typing import Any
@@ -34,6 +36,7 @@ AUTH_CONTRACT = "wwcx.outbound-mail-controlled-activation.v1"
 BUNDLE_CONTRACT = "wwcx.outbound-mail-controlled-activation-bundle.v1"
 MAX_AUTHORIZATION_SECONDS = 2 * 60 * 60
 HEX64 = set("0123456789abcdef")
+TOKEN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#-]{2,159}$")
 
 
 class ActivationBundleError(RuntimeError):
@@ -62,6 +65,10 @@ def _sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and set(value) <= HEX64
 
 
+def _token(value: Any) -> bool:
+    return isinstance(value, str) and TOKEN_RE.fullmatch(value) is not None
+
+
 def _changed_paths(before: Any, after: Any, prefix: str = "") -> list[str]:
     if type(before) is not type(after):
         return [prefix or "$"]
@@ -79,6 +86,16 @@ def _changed_paths(before: Any, after: Any, prefix: str = "") -> list[str]:
     return [] if before == after else [prefix or "$"]
 
 
+def _parse_timestamp(value: Any, label: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ActivationBundleError(f"controlled activation {label} is invalid") from exc
+    if parsed.tzinfo is None:
+        raise ActivationBundleError(f"controlled activation {label} lacks a timezone")
+    return parsed.astimezone(timezone.utc)
+
+
 def validate_authorization(
     authorization: dict[str, Any],
     config: dict[str, Any],
@@ -89,6 +106,11 @@ def validate_authorization(
 ) -> dict[str, Any]:
     expected = {
         "contract",
+        "authorization_id",
+        "authorized_by",
+        "authorization_reference",
+        "issued_at",
+        "expires_at",
         "provider_profile",
         "sender_identity_key",
         "sender_address",
@@ -98,7 +120,6 @@ def validate_authorization(
         "smtp_auth_canary_sha256",
         "pilot_recipient_sha256",
         "pilot_payload_sha256",
-        "expires_at",
         "smtp_authentication_verified",
         "sender_provider_capability_verified",
         "dkim_dns_verified",
@@ -121,6 +142,9 @@ def validate_authorization(
         raise ActivationBundleError("controlled activation authorization keys are invalid")
     if authorization["contract"] != AUTH_CONTRACT:
         raise ActivationBundleError("controlled activation authorization contract is unsupported")
+    for key in ("authorization_id", "authorized_by", "authorization_reference"):
+        if not _token(authorization[key]):
+            raise ActivationBundleError(f"controlled activation {key} is invalid")
     if authorization["provider_profile"] != "smtp_submission":
         raise ActivationBundleError("controlled activation provider profile is invalid")
     required_true = (
@@ -160,21 +184,27 @@ def validate_authorization(
         raise ActivationBundleError("runtime policy hash does not match authorization")
     if authorization["runtime_identities_sha256"] != sha256_document(identities):
         raise ActivationBundleError("runtime identities hash does not match authorization")
-    try:
-        expires = datetime.fromisoformat(str(authorization["expires_at"]).replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ActivationBundleError("controlled activation expiry is invalid") from exc
-    if expires.tzinfo is None:
-        raise ActivationBundleError("controlled activation expiry lacks a timezone")
+
+    issued = _parse_timestamp(authorization["issued_at"], "issued_at")
+    expires = _parse_timestamp(authorization["expires_at"], "expires_at")
     current = datetime.now(timezone.utc) if now is None else now.astimezone(timezone.utc)
-    remaining = (expires.astimezone(timezone.utc) - current).total_seconds()
-    if remaining <= 0:
+    lifetime = (expires - issued).total_seconds()
+    if lifetime <= 0:
+        raise ActivationBundleError("controlled activation authorization lifetime is invalid")
+    if lifetime > MAX_AUTHORIZATION_SECONDS:
+        raise ActivationBundleError("controlled activation authorization lifetime exceeds two hours")
+    if issued > current:
+        raise ActivationBundleError("controlled activation authorization is not yet valid")
+    if expires <= current:
         raise ActivationBundleError("controlled activation authorization has expired")
-    if remaining > MAX_AUTHORIZATION_SECONDS:
-        raise ActivationBundleError("controlled activation authorization window exceeds two hours")
     return {
-        "expires_at": expires.astimezone(timezone.utc).isoformat(timespec="seconds"),
-        "remaining_seconds": int(remaining),
+        "authorization_id": authorization["authorization_id"],
+        "authorized_by": authorization["authorized_by"],
+        "authorization_reference": authorization["authorization_reference"],
+        "authorization_sha256": sha256_document(authorization),
+        "issued_at": issued.isoformat(timespec="seconds"),
+        "expires_at": expires.isoformat(timespec="seconds"),
+        "remaining_seconds": int((expires - current).total_seconds()),
     }
 
 
@@ -220,7 +250,8 @@ def build_bundle(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     validate_safe_sources(config, policy, identities)
-    auth_status = validate_authorization(authorization, config, policy, identities, now=now)
+    current = datetime.now(timezone.utc) if now is None else now.astimezone(timezone.utc)
+    auth_status = validate_authorization(authorization, config, policy, identities, now=current)
     identity_key = authorization["sender_identity_key"]
     sender_address = str(authorization["sender_address"]).casefold()
     identity = identities["identities"].get(identity_key)
@@ -285,8 +316,18 @@ def build_bundle(
 
     return {
         "contract": BUNDLE_CONTRACT,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": current.isoformat(timespec="seconds"),
+        "authorization_id": auth_status["authorization_id"],
+        "authorized_by": auth_status["authorized_by"],
+        "authorization_reference": auth_status["authorization_reference"],
+        "authorization_sha256": auth_status["authorization_sha256"],
+        "authorization_issued_at": auth_status["issued_at"],
         "authorization_expires_at": auth_status["expires_at"],
+        "source_runtime_sha256": {
+            "outbound-mail-gateway-runtime.json": authorization["runtime_config_sha256"],
+            "outbound-mail-policy-runtime.json": authorization["runtime_policy_sha256"],
+            "mail-identities-runtime.json": authorization["runtime_identities_sha256"],
+        },
         "provider_profile": "smtp_submission",
         "sender_identity_key": identity_key,
         "sender_address_sha256": hashlib.sha256(sender_address.encode("utf-8")).hexdigest(),
@@ -318,18 +359,81 @@ def build_bundle(
     }
 
 
+def _absolute_without_resolving(path: pathlib.Path) -> pathlib.Path:
+    return pathlib.Path(os.path.abspath(os.fspath(path)))
+
+
+def _inside_repo(path: pathlib.Path) -> bool:
+    resolved = path.resolve()
+    repo = ROOT.resolve()
+    return resolved == repo or repo in resolved.parents
+
+
+def _reject_symlink_components(path: pathlib.Path, label: str) -> pathlib.Path:
+    absolute = _absolute_without_resolving(path)
+    current = pathlib.Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current = current / part
+        if current.is_symlink():
+            raise ActivationBundleError(f"{label} contains a symlink component")
+    return absolute
+
+
+def _validate_input_file(path: pathlib.Path, label: str, *, private: bool) -> pathlib.Path:
+    absolute = _reject_symlink_components(path, label)
+    try:
+        details = absolute.lstat()
+    except OSError as exc:
+        raise ActivationBundleError(f"unable to inspect {label}") from exc
+    if not stat.S_ISREG(details.st_mode):
+        raise ActivationBundleError(f"{label} must be a regular file")
+    mode = stat.S_IMODE(details.st_mode)
+    if mode & 0o022:
+        raise ActivationBundleError(f"{label} is group/world writable")
+    if private and mode & 0o077:
+        raise ActivationBundleError(f"{label} must be private mode 0600 or stricter")
+    if details.st_uid != os.geteuid():
+        raise ActivationBundleError(f"{label} is not owned by the current operator")
+    return absolute
+
+
+def _secure_write(path: pathlib.Path, data: bytes) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb", closefd=False) as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    finally:
+        os.close(descriptor)
+
+
 def write_bundle(bundle: dict[str, Any], output_dir: pathlib.Path) -> dict[str, str]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    if any(output_dir.iterdir()):
-        raise ActivationBundleError("activation bundle output directory must be empty")
+    output = _absolute_without_resolving(output_dir)
+    _reject_symlink_components(output.parent, "activation bundle output parent")
+    if output.exists() or output.is_symlink():
+        raise ActivationBundleError("activation bundle output directory must not already exist")
+    try:
+        parent_details = output.parent.lstat()
+    except OSError as exc:
+        raise ActivationBundleError("activation bundle output parent is unavailable") from exc
+    if not stat.S_ISDIR(parent_details.st_mode):
+        raise ActivationBundleError("activation bundle output parent is not a directory")
+    if stat.S_IMODE(parent_details.st_mode) & 0o022:
+        raise ActivationBundleError("activation bundle output parent is group/world writable")
+    if parent_details.st_uid != os.geteuid():
+        raise ActivationBundleError("activation bundle output parent is not owned by the current operator")
+    output.mkdir(mode=0o700)
     written: dict[str, str] = {}
     for section in ("activated", "rollback"):
-        section_dir = output_dir / section
+        section_dir = output / section
         section_dir.mkdir(mode=0o700)
         for filename, document in bundle[section].items():
             path = section_dir / filename
-            path.write_bytes(canonical_bytes(document))
-            os.chmod(path, 0o600)
+            _secure_write(path, canonical_bytes(document))
             written[f"{section}/{filename}"] = str(path)
     manifest = copy.deepcopy(bundle)
     manifest.pop("activated")
@@ -338,17 +442,10 @@ def write_bundle(bundle: dict[str, Any], output_dir: pathlib.Path) -> dict[str, 
         key: hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
         for key, path in sorted(written.items())
     }
-    manifest_path = output_dir / "manifest.json"
-    manifest_path.write_bytes(canonical_bytes(manifest))
-    os.chmod(manifest_path, 0o600)
+    manifest_path = output / "manifest.json"
+    _secure_write(manifest_path, canonical_bytes(manifest))
     written["manifest.json"] = str(manifest_path)
     return written
-
-
-def _inside_repo(path: pathlib.Path) -> bool:
-    resolved = path.resolve()
-    repo = ROOT.resolve()
-    return resolved == repo or repo in resolved.parents
 
 
 def parse_args() -> argparse.Namespace:
@@ -362,16 +459,32 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    os.umask(0o077)
     args = parse_args()
-    if _inside_repo(args.authorization) or _inside_repo(args.output_dir):
-        print("refusing activation authorization or output inside the Git working tree", file=sys.stderr)
+    all_paths = {
+        "runtime gateway config": args.config,
+        "runtime policy": args.policy,
+        "runtime identities": args.identities,
+        "controlled activation authorization": args.authorization,
+        "activation bundle output": args.output_dir,
+    }
+    if any(_inside_repo(path) for path in all_paths.values()):
+        print("refusing runtime input, activation authorization, or output inside the Git working tree", file=sys.stderr)
         return 2
     try:
+        config_path = _validate_input_file(args.config, "runtime gateway config", private=False)
+        policy_path = _validate_input_file(args.policy, "runtime policy", private=False)
+        identities_path = _validate_input_file(args.identities, "runtime identities", private=False)
+        authorization_path = _validate_input_file(
+            args.authorization,
+            "controlled activation authorization",
+            private=True,
+        )
         bundle = build_bundle(
-            load_json(args.config, "runtime gateway config"),
-            load_json(args.policy, "runtime policy"),
-            load_json(args.identities, "runtime identities"),
-            load_json(args.authorization, "controlled activation authorization"),
+            load_json(config_path, "runtime gateway config"),
+            load_json(policy_path, "runtime policy"),
+            load_json(identities_path, "runtime identities"),
+            load_json(authorization_path, "controlled activation authorization"),
         )
         written = write_bundle(bundle, args.output_dir)
     except ActivationBundleError as exc:
