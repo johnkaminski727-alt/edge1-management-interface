@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/outbound-mail-delivery-event.schema.json",
+  "title": "WW.CX outbound-mail delivery event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "event_id",
+    "event_type",
+    "occurred_at",
+    "provider_profile",
+    "provider_message_id_sha256",
+    "control_id",
+    "recipient_sha256",
+    "source_evidence_sha256",
+    "source_authentication",
+    "source_verified",
+    "diagnostic_class",
+    "retryable",
+    "raw_recipient_stored",
+    "raw_payload_stored",
+    "message_content_stored"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.outbound-mail-delivery-event.v1"},
+    "event_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"},
+    "event_type": {
+      "enum": [
+        "provider_accepted",
+        "delivered",
+        "transient_bounce",
+        "permanent_bounce",
+        "complaint",
+        "unsubscribe",
+        "provider_rejected"
+      ]
+    },
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "provider_profile": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,63}$"},
+    "provider_message_id_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "control_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,159}$"},
+    "recipient_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_authentication": {
+      "enum": [
+        "provider_signature",
+        "authenticated_mailbox_dsn",
+        "manual_evidence_import",
+        "synthetic_test"
+      ]
+    },
+    "source_verified": {"const": true},
+    "diagnostic_class": {
+      "enum": [
+        "none",
+        "mailbox_unavailable",
+        "domain_unavailable",
+        "policy_rejection",
+        "spam_complaint",
+        "user_unsubscribe",
+        "rate_limited",
+        "provider_unavailable",
+        "unknown"
+      ]
+    },
+    "retryable": {"type": "boolean"},
+    "raw_recipient_stored": {"const": false},
+    "raw_payload_stored": {"const": false},
+    "message_content_stored": {"const": false}
+  }
+}
