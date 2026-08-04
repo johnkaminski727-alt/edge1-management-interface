@@ -1,0 +1,35 @@
+name: Validate outbound-mail Apache repair send probe
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/messaging/run-outbound-mail-apache-proxy-mapping-repair.sh'
+      - 'tests/validate_outbound_mail_apache_repair_send_probe_wrapper.py'
+      - 'docs/messaging-operations/outbound-mail-apache-repair-send-probe-correction-20260804.md'
+      - '.github/workflows/validate-outbound-mail-apache-repair-send-probe.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'deploy/messaging/run-outbound-mail-apache-proxy-mapping-repair.sh'
+      - 'tests/validate_outbound_mail_apache_repair_send_probe_wrapper.py'
+      - 'docs/messaging-operations/outbound-mail-apache-repair-send-probe-correction-20260804.md'
+      - '.github/workflows/validate-outbound-mail-apache-repair-send-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate wrapper shell syntax
+        run: sh -n deploy/messaging/run-outbound-mail-apache-proxy-mapping-repair.sh
+      - name: Validate corrected send probe
+        run: python3 tests/validate_outbound_mail_apache_repair_send_probe_wrapper.py
+      - name: Validate underlying repair package
+        run: python3 tests/validate_outbound_mail_phase_b2_apache_proxy_mapping_repair.py
