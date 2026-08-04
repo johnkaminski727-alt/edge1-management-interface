@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import shutil
+import sqlite3
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -22,18 +23,18 @@ BUILDER = ROOT / "tools/messaging/build_outbound_mail_controlled_activation_bund
 SCHEMA = ROOT / "schemas/messaging/outbound-mail-one-message-execution.schema.json"
 DOC = ROOT / "docs/messaging-operations/outbound-mail-one-message-execution-20260804.md"
 
-SPEC = importlib.util.spec_from_file_location("pilot_executor", TOOL)
-if SPEC is None or SPEC.loader is None:
-    raise RuntimeError("unable to load one-message pilot executor")
-MODULE = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(MODULE)
 
-BUILDER_SPEC = importlib.util.spec_from_file_location("activation_builder", BUILDER)
-if BUILDER_SPEC is None or BUILDER_SPEC.loader is None:
-    raise RuntimeError("unable to load activation bundle builder")
-ACTIVATION = importlib.util.module_from_spec(BUILDER_SPEC)
-BUILDER_SPEC.loader.exec_module(ACTIVATION)
+def load_module(name: str, path: pathlib.Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"unable to load {name}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
+
+MODULE = load_module("pilot_executor", TOOL)
+ACTIVATION = load_module("activation_builder", BUILDER)
 SERVER_ROOT = ROOT / "server"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
@@ -45,13 +46,13 @@ def check(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
-def rejects(function, text: str) -> None:
+def rejects(function, expected: str) -> None:
     try:
         function()
     except MODULE.PilotExecutionError as exc:
-        check(text in str(exc), f"unexpected refusal for {text}: {exc}")
+        check(expected in str(exc), f"unexpected refusal for {expected}: {exc}")
         return
-    raise RuntimeError(f"unsafe operation did not fail closed: {text}")
+    raise RuntimeError(f"unsafe operation did not fail closed: {expected}")
 
 
 def load(relative: str) -> dict:
@@ -119,6 +120,20 @@ def build_authorization(
     }
 
 
+def finalize_suppression_database(path: pathlib.Path) -> None:
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()
+        mode = connection.execute("PRAGMA journal_mode=DELETE").fetchone()
+        check(mode is not None and str(mode[0]).casefold() == "delete", "fixture journal mode did not become DELETE")
+    finally:
+        connection.close()
+    for suffix in ("-wal", "-shm"):
+        sidecar = pathlib.Path(str(path) + suffix)
+        if sidecar.exists():
+            sidecar.unlink()
+
+
 class Fixture:
     def __init__(self, root: pathlib.Path) -> None:
         self.root = root
@@ -134,9 +149,7 @@ class Fixture:
         self.config = load("config/messaging/outbound-mail-gateway.json")
         self.config["preparation_api"]["enabled"] = True
         self.policy = load("config/messaging/outbound-mail-policy.json")
-        self.policy["organization"]["mailing_address"] = (
-            "123 Test Street, Regina SK S4P 0A1, Canada"
-        )
+        self.policy["organization"]["mailing_address"] = "123 Test Street, Regina SK S4P 0A1, Canada"
         self.identities = load("config/messaging/mail-identities.json")
         self.sender_key, self.sender_address = choose_sender(self.identities)
         self.recipient = "owned.pilot@example.test"
@@ -177,7 +190,6 @@ class Fixture:
         ):
             write_json(self.runtime_root / filename, document, mode=0o644)
 
-        unrelated_recipient = "f" * 64
         delivery_events.apply_event(
             self.suppression_database,
             {
@@ -188,7 +200,7 @@ class Fixture:
                 "provider_profile": "smtp_submission",
                 "provider_message_id_sha256": "b" * 64,
                 "control_id": "WWCX-PILOT-UNRELATED-0001",
-                "recipient_sha256": unrelated_recipient,
+                "recipient_sha256": "f" * 64,
                 "source_evidence_sha256": "c" * 64,
                 "source_authentication": "synthetic_test",
                 "source_verified": True,
@@ -200,8 +212,8 @@ class Fixture:
             },
             allow_synthetic=True,
         )
+        finalize_suppression_database(self.suppression_database)
         os.chmod(self.suppression_database, 0o600)
-
         self.context = MODULE.ExecutionContext(
             runtime_root=self.runtime_root,
             bundle_dir=self.bundle_dir,
@@ -222,18 +234,9 @@ class Fixture:
             with mock.patch.object(
                 MODULE,
                 "validate_repository",
-                return_value={
-                    "commit": "d" * 40,
-                    "branch": "main",
-                    "clean": True,
-                    "exact": True,
-                },
+                return_value={"commit": "d" * 40, "branch": "main", "clean": True, "exact": True},
             ):
-                return MODULE.audit_context(
-                    self.context,
-                    now=self.now,
-                    execute=False,
-                )
+                return MODULE.audit_context(self.context, now=self.now, execute=False)
         finally:
             MODULE.validate_runtime_file = original
 
@@ -253,11 +256,7 @@ class FakeAdapter(MODULE.RuntimeAdapter):
         self.send_calls = 0
         self.replace_calls = 0
 
-    def replace_runtime(
-        self,
-        source_files: dict[str, pathlib.Path],
-        runtime_root: pathlib.Path,
-    ) -> None:
+    def replace_runtime(self, source_files: dict[str, pathlib.Path], runtime_root: pathlib.Path) -> None:
         self.replace_calls += 1
         for filename, source in source_files.items():
             shutil.copyfile(source, runtime_root / filename)
@@ -272,20 +271,10 @@ class FakeAdapter(MODULE.RuntimeAdapter):
     def get_json(self, url: str) -> tuple[int, dict]:
         if url.endswith("/healthz"):
             return 200, {"status": "ok"}
-        config = json.loads(
-            (self.runtime_root / MODULE.RUNTIME_FILENAMES[0]).read_text(
-                encoding="utf-8"
-            )
-        )
-        identities = json.loads(
-            (self.runtime_root / MODULE.RUNTIME_FILENAMES[2]).read_text(
-                encoding="utf-8"
-            )
-        )
+        config = json.loads((self.runtime_root / MODULE.RUNTIME_FILENAMES[0]).read_text())
+        identities = json.loads((self.runtime_root / MODULE.RUNTIME_FILENAMES[2]).read_text())
         live_count = sum(
-            1
-            for profile in identities["sender_profiles"].values()
-            if profile["outbound_enabled"]
+            1 for profile in identities["sender_profiles"].values() if profile["outbound_enabled"]
         )
         return 200, {
             "external_delivery_enabled": config["external_delivery_authorized"],
@@ -293,10 +282,7 @@ class FakeAdapter(MODULE.RuntimeAdapter):
         }
 
     def send_once(self, url: str, payload: dict) -> tuple[int, dict]:
-        check(
-            url == MODULE.DEFAULT_GATEWAY_URL + "/outbound-mail/send",
-            "executor changed send endpoint",
-        )
+        check(url == MODULE.DEFAULT_GATEWAY_URL + "/outbound-mail/send", "executor changed send endpoint")
         self.send_calls += 1
         check(self.send_calls == 1, "executor attempted more than one send")
         check(payload["to"] == ["owned.pilot@example.test"], "payload changed")
@@ -311,29 +297,23 @@ class FakeAdapter(MODULE.RuntimeAdapter):
 
 
 def read_runtime(root: pathlib.Path) -> dict[str, bytes]:
-    return {
-        filename: (root / filename).read_bytes()
-        for filename in MODULE.RUNTIME_FILENAMES
-    }
+    return {filename: (root / filename).read_bytes() for filename in MODULE.RUNTIME_FILENAMES}
 
 
 def test_validate_and_audit() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         fixture = Fixture(pathlib.Path(temporary))
         before = read_runtime(fixture.runtime_root)
-        suppression_before = hashlib.sha256(
-            fixture.suppression_database.read_bytes()
-        ).hexdigest()
+        db_before = hashlib.sha256(fixture.suppression_database.read_bytes()).hexdigest()
+        check(not pathlib.Path(str(fixture.suppression_database) + "-wal").exists(), "fixture retained a WAL")
+        check(not pathlib.Path(str(fixture.suppression_database) + "-shm").exists(), "fixture retained SHM")
         audit = fixture.audit()
-        suppression_after = hashlib.sha256(
-            fixture.suppression_database.read_bytes()
-        ).hexdigest()
         check(audit["authorization"]["authorization_id"] == "WWCX-PILOT-EXEC-0001", "authorization was not accepted")
         check(audit["suppression_state"]["suppression_active"] is False, "recipient was incorrectly suppressed")
         check(read_runtime(fixture.runtime_root) == before, "audit mutated runtime files")
-        check(suppression_after == suppression_before, "audit mutated suppression database")
-        check(not (fixture.root / "delivery-state.sqlite3-wal").exists(), "audit created a suppression WAL")
-        check(not (fixture.root / "delivery-state.sqlite3-shm").exists(), "audit created suppression shared memory")
+        check(hashlib.sha256(fixture.suppression_database.read_bytes()).hexdigest() == db_before, "audit mutated suppression database")
+        check(not pathlib.Path(str(fixture.suppression_database) + "-wal").exists(), "audit created a suppression WAL")
+        check(not pathlib.Path(str(fixture.suppression_database) + "-shm").exists(), "audit created suppression shared memory")
 
 
 def test_request_and_bundle_tamper_fail_closed() -> None:
@@ -341,24 +321,14 @@ def test_request_and_bundle_tamper_fail_closed() -> None:
         fixture = Fixture(pathlib.Path(temporary))
         changed = copy.deepcopy(fixture.request)
         changed["body"] = "Tampered body"
-        rejects(
-            lambda: MODULE.validate_request(
-                changed,
-                fixture.authorization,
-                fixture.policy,
-            ),
-            "request hash",
-        )
-
+        rejects(lambda: MODULE.validate_request(changed, fixture.authorization, fixture.policy), "request hash")
         activated = fixture.bundle_dir / "activated" / MODULE.RUNTIME_FILENAMES[0]
-        document = json.loads(activated.read_text(encoding="utf-8"))
+        document = json.loads(activated.read_text())
         document["admin"]["max_body_bytes"] += 1
         write_json(activated, document)
         manifest_path = fixture.bundle_dir / "manifest.json"
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["file_sha256"][f"activated/{MODULE.RUNTIME_FILENAMES[0]}"] = hashlib.sha256(
-            activated.read_bytes()
-        ).hexdigest()
+        manifest = json.loads(manifest_path.read_text())
+        manifest["file_sha256"][f"activated/{MODULE.RUNTIME_FILENAMES[0]}"] = hashlib.sha256(activated.read_bytes()).hexdigest()
         write_json(manifest_path, manifest)
         rejects(fixture.audit, "not the expected document")
 
@@ -376,9 +346,7 @@ def test_suppressed_recipient_fails_before_execution() -> None:
                 "provider_profile": "smtp_submission",
                 "provider_message_id_sha256": "e" * 64,
                 "control_id": "WWCX-PILOT-COMPLAINT-0001",
-                "recipient_sha256": fixture.authorization[
-                    "pilot_recipient_sha256"
-                ],
+                "recipient_sha256": fixture.authorization["pilot_recipient_sha256"],
                 "source_evidence_sha256": "f" * 64,
                 "source_authentication": "synthetic_test",
                 "source_verified": True,
@@ -390,59 +358,38 @@ def test_suppressed_recipient_fails_before_execution() -> None:
             },
             allow_synthetic=True,
         )
+        finalize_suppression_database(fixture.suppression_database)
         rejects(fixture.audit, "suppression is active")
 
 
-def run_execute(
-    fixture: Fixture,
-    adapter: FakeAdapter,
-) -> dict:
+def run_execute(fixture: Fixture, adapter: FakeAdapter) -> dict:
     audit = fixture.audit()
 
     def test_runtime_documents(root: pathlib.Path):
-        config = json.loads((root / MODULE.RUNTIME_FILENAMES[0]).read_text())
-        policy = json.loads((root / MODULE.RUNTIME_FILENAMES[1]).read_text())
-        identities = json.loads((root / MODULE.RUNTIME_FILENAMES[2]).read_text())
+        documents = [json.loads((root / filename).read_text()) for filename in MODULE.RUNTIME_FILENAMES]
         paths = {filename: root / filename for filename in MODULE.RUNTIME_FILENAMES}
-        return config, policy, identities, paths
+        return documents[0], documents[1], documents[2], paths
 
     def test_evidence(path: pathlib.Path, *, owner_uid: int):
         del owner_uid
         path.mkdir(mode=0o700)
         return path
 
-    fake_hostname = SimpleNamespace(
-        returncode=0,
-        stdout=MODULE.EXPECTED_HOST + "\n",
-    )
+    fake_hostname = SimpleNamespace(returncode=0, stdout=MODULE.EXPECTED_HOST + "\n")
     with mock.patch.object(MODULE, "validate_execution_targets"), mock.patch.object(
         MODULE.os, "geteuid", return_value=0
     ), mock.patch.dict(
-        MODULE.os.environ,
-        {MODULE.EXECUTION_ENVIRONMENT_GATE: "yes"},
-        clear=False,
+        MODULE.os.environ, {MODULE.EXECUTION_ENVIRONMENT_GATE: "yes"}, clear=False
     ), mock.patch.object(
-        MODULE.subprocess,
-        "run",
-        return_value=fake_hostname,
+        MODULE.subprocess, "run", return_value=fake_hostname
     ), mock.patch.object(
-        MODULE,
-        "audit_context",
-        return_value=audit,
+        MODULE, "audit_context", return_value=audit
     ), mock.patch.object(
-        MODULE,
-        "validate_runtime_documents",
-        side_effect=test_runtime_documents,
+        MODULE, "validate_runtime_documents", side_effect=test_runtime_documents
     ), mock.patch.object(
-        MODULE,
-        "prepare_evidence_directory",
-        side_effect=test_evidence,
+        MODULE, "prepare_evidence_directory", side_effect=test_evidence
     ):
-        return MODULE.execute_pilot(
-            fixture.context,
-            adapter,
-            now=fixture.now,
-        )
+        return MODULE.execute_pilot(fixture.context, adapter, now=fixture.now)
 
 
 def test_success_sends_once_and_rolls_back() -> None:
@@ -452,21 +399,21 @@ def test_success_sends_once_and_rolls_back() -> None:
         adapter = FakeAdapter(fixture.runtime_root)
         record = run_execute(fixture, adapter)
         check(adapter.send_calls == 1, "successful pilot did not send exactly once")
-        check(adapter.restart_calls == 2, "successful pilot did not restart twice")
-        check(adapter.replace_calls == 2, "successful pilot did not activate and rollback")
-        check(record["send_attempt_count"] == 1, "execution record send count changed")
-        check(record["submission"]["accepted"] is True, "accepted submission not recorded")
+        check(adapter.restart_calls == 2 and adapter.replace_calls == 2, "successful pilot transaction count changed")
+        check(record["send_attempt_count"] == 1 and record["submission"]["accepted"] is True, "accepted send evidence changed")
         check(record["rollback_succeeded"] is True, "successful pilot did not rollback")
-        check(record["failure_code"] is None, "successful pilot recorded a failure")
-        check(record["rollback_error_code"] is None, "successful pilot recorded rollback error")
+        check(record["failure_code"] is None and record["rollback_error_code"] is None, "successful pilot recorded an error")
         check(read_runtime(fixture.runtime_root) == before, "runtime was not restored")
         evidence_path = fixture.evidence_dir / "execution.json"
-        evidence_text = evidence_path.read_text(encoding="utf-8")
+        evidence_text = evidence_path.read_text()
         check((evidence_path.stat().st_mode & 0o777) == 0o600, "execution evidence mode too broad")
-        check(fixture.recipient not in evidence_text, "execution evidence leaked recipient")
-        check(fixture.request["body"] not in evidence_text, "execution evidence leaked body")
-        check("sensitive-provider-message-id" not in evidence_text, "execution evidence leaked provider ID")
-        check("sensitive-event-id" not in evidence_text, "execution evidence leaked audit ID")
+        for forbidden in (
+            fixture.recipient,
+            fixture.request["body"],
+            "sensitive-provider-message-id",
+            "sensitive-event-id",
+        ):
+            check(forbidden not in evidence_text, f"execution evidence leaked {forbidden}")
 
 
 def test_provider_failure_still_rolls_back_without_retry() -> None:
@@ -479,8 +426,7 @@ def test_provider_failure_still_rolls_back_without_retry() -> None:
         check(adapter.restart_calls == 2, "provider failure did not rollback service")
         check(read_runtime(fixture.runtime_root) == before, "provider failure did not restore runtime")
         record = json.loads((fixture.evidence_dir / "execution.json").read_text())
-        check(record["rollback_succeeded"] is True, "provider failure rollback not recorded")
-        check(record["send_attempt_count"] == 1, "provider failure send count changed")
+        check(record["rollback_succeeded"] is True and record["send_attempt_count"] == 1, "provider failure transaction evidence changed")
         check(record["failure_code"] == "PilotExecutionError", "provider failure code changed")
         check(len(record["failure_detail_sha256"]) == 64, "provider failure detail was not hashed")
         check("provider did not accept" not in json.dumps(record), "provider failure detail leaked")
@@ -512,7 +458,7 @@ def test_rollback_failure_is_terminal() -> None:
 
 
 def test_schema_and_static_safety() -> None:
-    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA.read_text())
     check(schema["additionalProperties"] is False, "execution schema permits extra fields")
     check(schema["properties"]["send_attempt_count"]["maximum"] == 1, "schema permits retry")
     for field in (
@@ -522,10 +468,9 @@ def test_schema_and_static_safety() -> None:
         "rollback_error_detail_sha256",
     ):
         check(field in schema["required"], f"schema does not require {field}")
-    check("failure" not in schema["properties"], "schema permits raw failure detail")
-    check("rollback_error" not in schema["properties"], "schema permits raw rollback detail")
+    check("failure" not in schema["properties"] and "rollback_error" not in schema["properties"], "schema permits raw failure detail")
 
-    source = TOOL.read_text(encoding="utf-8")
+    source = TOOL.read_text()
     for required in (
         "Audit is the default and performs no mutation",
         "fixed loopback send is attempted at",
