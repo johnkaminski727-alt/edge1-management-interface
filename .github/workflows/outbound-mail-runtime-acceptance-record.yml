@@ -1,0 +1,32 @@
+name: Validate outbound-mail runtime acceptance record
+
+on:
+  pull_request:
+    paths:
+      - records/messaging/deployment-evidence/outbound-mail-safe-disabled-runtime-acceptance-20260804.json
+      - tests/validate_outbound_mail_runtime_acceptance_record.py
+      - docs/messaging-operations/outbound-mail-safe-disabled-runtime-acceptance-20260804.md
+      - .github/workflows/outbound-mail-runtime-acceptance-record.yml
+  push:
+    branches:
+      - main
+    paths:
+      - records/messaging/deployment-evidence/outbound-mail-safe-disabled-runtime-acceptance-20260804.json
+      - tests/validate_outbound_mail_runtime_acceptance_record.py
+      - docs/messaging-operations/outbound-mail-safe-disabled-runtime-acceptance-20260804.md
+      - .github/workflows/outbound-mail-runtime-acceptance-record.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate accepted runtime evidence
+        run: python3 tests/validate_outbound_mail_runtime_acceptance_record.py
+      - name: Reconfirm disabled runtime package
+        run: python3 tests/validate_outbound_mail_disabled_runtime_migration_fixed.py
+      - name: Reconfirm Phase E safe-disabled classification
+        run: python3 tests/validate_outbound_mail_phase_e_readiness.py
