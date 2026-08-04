@@ -87,6 +87,12 @@ def interface_packet_count(interface: str, sys_class_net: Path = Path("/sys/clas
     return rx_packets + tx_packets
 
 
+def packet_total(stats: dict[str, Any] | None) -> int:
+    if not stats:
+        return 0
+    return max(int(stats.get("kernel_packets", 0)), int(stats.get("decoder_packets", 0)))
+
+
 def evaluate(interface_before: int, interface_after: int, stats: dict[str, Any] | None) -> dict[str, Any]:
     stats = stats or {
         "timestamp": None,
@@ -96,7 +102,7 @@ def evaluate(interface_before: int, interface_after: int, stats: dict[str, Any] 
         "decoder_bytes": 0,
     }
     interface_delta = max(0, interface_after - interface_before)
-    suricata_packets = max(int(stats["kernel_packets"]), int(stats["decoder_packets"]))
+    suricata_packets = packet_total(stats)
     if suricata_packets > 0:
         result = "pass"
     elif interface_delta > 0:
@@ -114,27 +120,47 @@ def evaluate(interface_before: int, interface_after: int, stats: dict[str, Any] 
     }
 
 
+def wait_for_stats(eve: Path, started_at: dt.datetime, seconds: float, poll_seconds: float) -> dict[str, Any] | None:
+    deadline = time.monotonic() + max(0.0, seconds)
+    latest = latest_current_run_stats(eve, started_at)
+    while latest is None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(max(0.1, poll_seconds), remaining))
+        latest = latest_current_run_stats(eve, started_at)
+    return latest
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--interface", required=True)
     parser.add_argument("--eve", type=Path, default=Path("/var/log/wwcx-network-sensor/suricata/eve.json"))
     parser.add_argument("--started-at", required=True)
-    parser.add_argument("--wait-seconds", type=float, default=75.0)
+    parser.add_argument("--startup-wait-seconds", type=float, default=75.0)
+    parser.add_argument("--observation-seconds", type=float, default=30.0)
     parser.add_argument("--poll-seconds", type=float, default=3.0)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--sys-class-net", type=Path, default=Path("/sys/class/net"))
     args = parser.parse_args()
 
     started_at = parse_timestamp(args.started_at)
-    interface_before = interface_packet_count(args.interface, args.sys_class_net)
-    deadline = time.monotonic() + max(0.0, args.wait_seconds)
-    latest = latest_current_run_stats(args.eve, started_at)
-    while not latest or max(latest["kernel_packets"], latest["decoder_packets"]) <= 0:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        time.sleep(min(max(0.1, args.poll_seconds), remaining))
-        latest = latest_current_run_stats(args.eve, started_at)
+    startup_interface_before = interface_packet_count(args.interface, args.sys_class_net)
+    latest = wait_for_stats(args.eve, started_at, args.startup_wait_seconds, args.poll_seconds)
+
+    if latest is None:
+        interface_before = startup_interface_before
+        phase = "startup"
+    else:
+        interface_before = interface_packet_count(args.interface, args.sys_class_net)
+        phase = "observation"
+        deadline = time.monotonic() + max(0.0, args.observation_seconds)
+        while packet_total(latest) <= 0:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(max(0.1, args.poll_seconds), remaining))
+            latest = latest_current_run_stats(args.eve, started_at) or latest
 
     interface_after = interface_packet_count(args.interface, args.sys_class_net)
     result = {
@@ -142,7 +168,10 @@ def main() -> int:
         "interface": args.interface,
         "started_at": started_at.isoformat(),
         "checked_at": utc_now().isoformat(),
-        "wait_seconds": args.wait_seconds,
+        "startup_wait_seconds": args.startup_wait_seconds,
+        "observation_seconds": args.observation_seconds,
+        "phase_completed": phase,
+        "current_run_stats_observed": latest is not None,
         **evaluate(interface_before, interface_after, latest),
     }
     encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
