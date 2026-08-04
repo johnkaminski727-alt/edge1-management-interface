@@ -100,11 +100,13 @@ runtime_config = copy.deepcopy(config)
 runtime_config["preparation_api"]["enabled"] = True
 now = datetime(2026, 8, 4, 6, 0, 0, tzinfo=timezone.utc)
 
+allowed_addresses = set(identities["sender_selection"]["recipient_to_sender"].values())
+allowed_addresses.add(identities["sender_selection"]["system_sender"])
 selected = None
 errors: list[str] = []
-for key, identity in identities["identities"].items():
-    address = str(identity.get("address", "")).casefold()
-    if not address or identity.get("live_enabled") is not False:
+for key, profile in identities["sender_profiles"].items():
+    address = str(profile.get("address", "")).casefold()
+    if not address or address not in allowed_addresses or profile.get("outbound_enabled") is not False:
         continue
     candidate = authorization(runtime_config, policy, identities, key, address, now)
     try:
@@ -114,7 +116,7 @@ for key, identity in identities["identities"].items():
         continue
     selected = (key, address, candidate, bundle)
     break
-check(selected is not None, "no disabled identity produced a validator-clean activation bundle: " + " | ".join(errors[:5]))
+check(selected is not None, "no disabled sender profile produced a validator-clean activation bundle: " + " | ".join(errors[:5]))
 identity_key, sender_address, auth, bundle = selected
 
 check(bundle["contract"] == MODULE.BUNDLE_CONTRACT, "bundle contract mismatch")
@@ -140,7 +142,7 @@ check(bundle["changes"]["gateway"] == sorted([
 ]), "gateway change whitelist mismatch")
 check(bundle["changes"]["policy"] == ["delivery.smtp_cutover_authorized", "enabled"], "policy change whitelist mismatch")
 check(bundle["changes"]["identities"] == sorted([
-    f"identities.{identity_key}.live_enabled",
+    f"sender_profiles.{identity_key}.outbound_enabled",
     "outbound_activation_authorized",
     "sender_selection.live_sender_allowlist",
 ]), "identity change whitelist mismatch")
@@ -157,7 +159,7 @@ check(active_config["provider"]["profiles"]["smtp_submission"]["enabled"] is Tru
 check(active_config["preparation_api"]["enabled"] is True, "preparation API was disabled")
 check(active_policy["enabled"] is True and active_policy["delivery"]["smtp_cutover_authorized"] is True, "policy activation mismatch")
 check(active_identities["outbound_activation_authorized"] is True, "identity activation mismatch")
-check(active_identities["identities"][identity_key]["live_enabled"] is True, "selected identity not enabled")
+check(active_identities["sender_profiles"][identity_key]["outbound_enabled"] is True, "selected sender profile not enabled")
 check(active_identities["sender_selection"]["live_sender_allowlist"] == [sender_address], "sender allowlist mismatch")
 check(bundle["rollback"]["outbound-mail-gateway-runtime.json"] == runtime_config, "gateway rollback copy changed")
 check(bundle["rollback"]["outbound-mail-policy-runtime.json"] == policy, "policy rollback copy changed")
@@ -344,6 +346,8 @@ for required in (
     "activation gateway changes are unauthorized",
     "activation policy changes are unauthorized",
     "activation identity changes are unauthorized",
+    "sender_profiles",
+    "outbound_enabled",
     "must be private mode 0600 or stricter",
     "contains a symlink component",
     "output parent is group/world writable",
@@ -372,6 +376,7 @@ for prohibited in (
 
 print("Controlled outbound-mail activation bundle validation passed")
 print("Exact runtime and authorization hashes, bounded issuance window, one sender/recipient/payload, and rollback verified")
+print("Authoritative sender_profiles/outbound_enabled activation paths verified")
 print("Private operator-owned authorization, symlink refusal, 0700 bundle root, and 0600 files verified")
 print("Only six gateway, two policy, and three identity paths change")
 print("No credential, provider contact, runtime mutation, message preparation, or message traffic occurs")
