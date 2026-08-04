@@ -1,0 +1,42 @@
+name: Validate outbound mail runtime paths
+
+on:
+  pull_request:
+    paths:
+      - 'server/outbound_mail_runtime_paths.py'
+      - 'server/outbound_mail_runtime_application.py'
+      - 'server/outbound_mail_gateway_runtime_server.py'
+      - 'server/outbound_mail_gateway_suppressed_server.py'
+      - 'server/outbound_mail_suppression_gate.py'
+      - 'tests/validate_outbound_mail_runtime_paths.py'
+      - 'docs/messaging-operations/outbound-mail-runtime-path-boundary-20260804.md'
+      - '.github/workflows/outbound-mail-runtime-paths.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/outbound_mail_runtime_paths.py'
+      - 'server/outbound_mail_runtime_application.py'
+      - 'server/outbound_mail_gateway_runtime_server.py'
+      - 'server/outbound_mail_gateway_suppressed_server.py'
+      - 'server/outbound_mail_suppression_gate.py'
+      - 'tests/validate_outbound_mail_runtime_paths.py'
+      - 'docs/messaging-operations/outbound-mail-runtime-path-boundary-20260804.md'
+      - '.github/workflows/outbound-mail-runtime-paths.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile server/outbound_mail_runtime_paths.py
+          python3 -m py_compile server/outbound_mail_runtime_application.py
+          python3 -m py_compile server/outbound_mail_gateway_runtime_server.py
+          python3 -m py_compile tests/validate_outbound_mail_runtime_paths.py
+      - name: Functional validation
+        run: python3 tests/validate_outbound_mail_runtime_paths.py
