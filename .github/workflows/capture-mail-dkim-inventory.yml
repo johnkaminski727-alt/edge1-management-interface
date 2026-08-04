@@ -1,0 +1,54 @@
+name: Capture mail DKIM inventory
+
+on:
+  pull_request:
+    paths:
+      - 'config/messaging/mail-dkim-selector-candidates.json'
+      - 'tools/messaging/mail_dkim_inventory.py'
+      - 'tests/test_mail_dkim_inventory.py'
+      - 'tests/validate_mail_dkim_inventory.py'
+      - 'docs/messaging-operations/wwcx-dkim-candidate-discovery-20260804.md'
+      - '.github/workflows/capture-mail-dkim-inventory.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'config/messaging/mail-dkim-selector-candidates.json'
+      - 'tools/messaging/mail_dkim_inventory.py'
+      - 'tests/test_mail_dkim_inventory.py'
+      - 'tests/validate_mail_dkim_inventory.py'
+      - 'docs/messaging-operations/wwcx-dkim-candidate-discovery-20260804.md'
+      - '.github/workflows/capture-mail-dkim-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and deterministic validation
+        run: |
+          python3 -m py_compile tools/messaging/mail_dkim_inventory.py
+          python3 -m unittest tests.test_mail_dkim_inventory
+          python3 tests/validate_mail_dkim_inventory.py
+      - name: Capture current public DKIM candidate evidence
+        run: |
+          mkdir -p /tmp/wwcx-mail-dkim-inventory
+          python3 tools/messaging/mail_dkim_inventory.py \
+            --pretty \
+            --output /tmp/wwcx-mail-dkim-inventory/mail-dkim-inventory.json
+          sha256sum /tmp/wwcx-mail-dkim-inventory/mail-dkim-inventory.json \
+            > /tmp/wwcx-mail-dkim-inventory/SHA256SUMS
+      - name: Upload DKIM inventory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mail-dkim-inventory-${{ github.sha }}
+          path: /tmp/wwcx-mail-dkim-inventory/
+          if-no-files-found: error
+          retention-days: 30
