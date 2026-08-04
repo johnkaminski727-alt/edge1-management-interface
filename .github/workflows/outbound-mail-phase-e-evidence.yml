@@ -1,0 +1,77 @@
+name: Validate outbound mail Phase E evidence readiness
+
+on:
+  pull_request:
+    paths:
+      - 'tools/messaging/outbound_mail_phase_e_readiness.py'
+      - 'tools/messaging/outbound_mail_phase_e_evidence.py'
+      - 'tests/validate_outbound_mail_phase_e_readiness.py'
+      - 'tests/validate_outbound_mail_phase_e_evidence.py'
+      - 'docs/messaging-operations/outbound-mail-phase-e-evidence-readiness-20260804.md'
+      - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
+      - 'records/messaging/dns-inventories/mail-domain-dns-acceptance-20260804.json'
+      - 'records/messaging/dns-inventories/wwcx-dkim-dns-acceptance-20260804.json'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'config/messaging/outbound-mail-policy.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/outbound-mail-phase-e-evidence.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/messaging/outbound_mail_phase_e_readiness.py'
+      - 'tools/messaging/outbound_mail_phase_e_evidence.py'
+      - 'tests/validate_outbound_mail_phase_e_readiness.py'
+      - 'tests/validate_outbound_mail_phase_e_evidence.py'
+      - 'docs/messaging-operations/outbound-mail-phase-e-evidence-readiness-20260804.md'
+      - 'records/messaging/provider-inventories/namecheap-private-email-wwcx-20260802.json'
+      - 'records/messaging/dns-inventories/mail-domain-dns-acceptance-20260804.json'
+      - 'records/messaging/dns-inventories/wwcx-dkim-dns-acceptance-20260804.json'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'config/messaging/outbound-mail-policy.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/outbound-mail-phase-e-evidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile tools/messaging/outbound_mail_phase_e_readiness.py
+          python3 -m py_compile tools/messaging/outbound_mail_phase_e_evidence.py
+          python3 -m py_compile tests/validate_outbound_mail_phase_e_readiness.py
+          python3 -m py_compile tests/validate_outbound_mail_phase_e_evidence.py
+      - name: Functional validation
+        run: |
+          python3 tests/validate_outbound_mail_phase_e_readiness.py
+          python3 tests/validate_outbound_mail_phase_e_evidence.py
+      - name: Generate accepted-evidence report
+        run: |
+          python3 tools/messaging/outbound_mail_phase_e_evidence.py \
+            --pretty \
+            --require-safe-disabled \
+            --output /tmp/outbound-mail-phase-e-evidence.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/outbound-mail-phase-e-evidence.json').read_text())
+          assert report['readiness_state'] == 'safe_disabled'
+          assert report['ready_for_provider_activation'] is False
+          evidence = report['evidence_reconciliation']
+          assert evidence['wwcx_provider_inventory_accepted'] is True
+          assert evidence['wwcx_dkim_dns_record_observed'] is True
+          assert evidence['wwcx_dkim_provider_signing_verified'] is False
+          assert evidence['wwcx_dkim_header_alignment_verified'] is False
+          assert evidence['canonical_sender_observed'] is False
+          assert evidence['message_sent'] is False
+          print('readiness_state=safe_disabled')
+          print('ready_for_provider_activation=false')
+          print('wwcx_dkim_dns_record_observed=true')
+          print('wwcx_dkim_provider_signing_verified=false')
+          print('canonical_sender_observed=false')
+          PY
