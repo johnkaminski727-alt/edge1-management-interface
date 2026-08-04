@@ -1,0 +1,295 @@
+#!/bin/sh
+set -eu
+
+umask 077
+
+REPO_ROOT=${REPO_ROOT:-/opt/edge1-management-interface}
+EXPECTED_HOST=${EXPECTED_HOST:-edge1.ww.cx}
+EXPECTED_COMMIT=${EXPECTED_COMMIT:-}
+ACTION=${ACTION:-audit}
+APACHE_PROXY_TARGET_REPAIR_AUTHORIZED=${APACHE_PROXY_TARGET_REPAIR_AUTHORIZED:-no}
+ROLLBACK_EVIDENCE=${ROLLBACK_EVIDENCE:-}
+
+APACHE_SERVICE=apache2.service
+GATEWAY_SERVICE=wwcx-outbound-mail-gateway.service
+ACTIVE_VHOST=/etc/apache2/sites-enabled/edge1.ww.cx.conf
+VHOST_TARGET=/etc/apache2/sites-available/edge1.ww.cx.conf
+FRAGMENT_PATH=/etc/apache2/wwcx-outbound-mail-preparation-api.conf
+TEMPLATE=$REPO_ROOT/deploy/messaging/outbound-mail-preparation-api-apache.conf.example
+EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/outbound-mail-apache-proxy-target-repair
+ROLLBACK_ROOT=/var/lib/wwcx-deployment-evidence/outbound-mail-apache-proxy-target-rollback
+INCLUDE_LINE='    IncludeOptional /etc/apache2/wwcx-outbound-mail-preparation-api.conf'
+FAULTY_STATUS='    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30'
+FAULTY_PREPARE='    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30'
+REPAIRED_TARGET='    ProxyPassMatch "http://127.0.0.1:8104" retry=0 connectiontimeout=5 timeout=30'
+
+EVIDENCE_DIR=
+MUTATION_STARTED=false
+REPAIR_ACCEPTED=false
+ROLLBACK_IN_PROGRESS=false
+
+fail() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+record() {
+  printf '%s=%s\n' "$1" "$2" >> "$EVIDENCE_DIR/summary.txt"
+}
+
+file_sha256() {
+  sha256sum "$1" | awk '{print $1}'
+}
+
+write_manifest() {
+  (
+    cd "$EVIDENCE_DIR"
+    find . -type f ! -name SHA256SUMS -print | sort | xargs sha256sum > SHA256SUMS
+  )
+  chmod -R go-rwx "$EVIDENCE_DIR"
+}
+
+verify_repository() {
+  [ -n "$EXPECTED_COMMIT" ] || fail "EXPECTED_COMMIT is required"
+  printf '%s\n' "$EXPECTED_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail "EXPECTED_COMMIT must be a full lowercase commit SHA"
+  [ -d "$REPO_ROOT/.git" ] || fail "repository not found at $REPO_ROOT"
+  [ "$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)" = main ] || fail "repository branch is not main"
+  [ "$(git -C "$REPO_ROOT" rev-parse HEAD)" = "$EXPECTED_COMMIT" ] || fail "repository HEAD does not match EXPECTED_COMMIT"
+  [ -z "$(GIT_OPTIONAL_LOCKS=0 git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ] || fail "repository is not clean"
+  [ -f "$TEMPLATE" ] || fail "reviewed Apache fragment template is absent"
+}
+
+probe_disabled_send() {
+  body=$(mktemp)
+  code=$(curl -sS --max-time 5 -H 'Content-Type: application/json' \
+    --data '{"to":["apache-target-canary@example.invalid"],"subject":"Apache proxy target disabled-send canary","body":"This request must remain disabled.","message_class":"business_correspondence","confirm_send":true}' \
+    -o "$body" -w '%{http_code}' http://127.0.0.1:8104/outbound-mail/send || true)
+  error=$(python3 - "$body" <<'PY'
+import json
+import sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        payload = json.load(handle)
+except Exception:
+    print("")
+else:
+    print(payload.get("error", ""))
+PY
+  )
+  rm -f -- "$body"
+  [ "$code" = 403 ] || fail "direct send endpoint is not HTTP 403"
+  [ "$error" = delivery_disabled ] || fail "direct send response is not delivery_disabled"
+}
+
+probe_common_state() {
+  systemctl is-active --quiet "$APACHE_SERVICE" || fail "$APACHE_SERVICE is not active"
+  systemctl is-active --quiet "$GATEWAY_SERVICE" || fail "$GATEWAY_SERVICE is not active"
+  apache2ctl configtest >/dev/null 2>&1 || fail "Apache configuration is invalid"
+
+  [ -L "$ACTIVE_VHOST" ] || fail "active Edge1 vhost is not an enabled-site symlink"
+  [ "$(readlink -f "$ACTIVE_VHOST" || true)" = "$VHOST_TARGET" ] || fail "active Edge1 vhost resolves unexpectedly"
+  [ -f "$VHOST_TARGET" ] || fail "active Edge1 vhost target is absent"
+  [ -f "$FRAGMENT_PATH" ] && [ ! -L "$FRAGMENT_PATH" ] || fail "live preparation fragment is absent or is a symlink"
+  [ "$(stat -c %U:%G "$FRAGMENT_PATH")" = root:root ] || fail "live preparation fragment is not root-owned"
+  [ "$(stat -c %a "$FRAGMENT_PATH")" = 644 ] || fail "live preparation fragment mode is not 0644"
+  [ "$(grep -Fxc "$INCLUDE_LINE" "$VHOST_TARGET")" -eq 1 ] || fail "approved include line is not present exactly once"
+
+  listener=$(ss -lnt 2>/dev/null | awk 'NR > 1 {print $4}' | grep -E ':8104$' || true)
+  [ "$listener" = '127.0.0.1:8104' ] || fail "gateway port 8104 is not isolated to IPv4 loopback"
+
+  direct_status=$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8104/outbound-mail/api/v1/status || true)
+  local_status=$(curl -sS --max-time 10 --resolve edge1.ww.cx:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://edge1.ww.cx/outbound-mail/api/v1/status || true)
+  local_prepare=$(curl -sS --max-time 10 --resolve edge1.ww.cx:443:127.0.0.1 -H 'Content-Type: application/json' -d '{}' -o /dev/null -w '%{http_code}' https://edge1.ww.cx/outbound-mail/api/v1/prepare || true)
+  local_send=$(curl -sS --max-time 10 --resolve edge1.ww.cx:443:127.0.0.1 -H 'Content-Type: application/json' -d '{}' -o /dev/null -w '%{http_code}' https://edge1.ww.cx/outbound-mail/send || true)
+  local_health=$(curl -sS --max-time 10 --resolve edge1.ww.cx:443:127.0.0.1 -o /dev/null -w '%{http_code}' https://edge1.ww.cx/outbound-mail/healthz || true)
+
+  [ "$direct_status" = 401 ] || fail "direct unsigned preparation status is not HTTP 401"
+  probe_disabled_send
+  [ "$local_status" = 403 ] || fail "unapproved local source is not denied on status"
+  [ "$local_prepare" = 403 ] || fail "unapproved local source is not denied on prepare"
+  [ "$local_send" = 404 ] || fail "public TLS send route is unexpectedly exposed"
+  [ "$local_health" = 404 ] || fail "public TLS health route is unexpectedly exposed"
+}
+
+verify_faulty_fragment() {
+  [ "$(grep -Fxc "$FAULTY_STATUS" "$FRAGMENT_PATH")" -eq 1 ] || fail "faulty status proxy target is absent or drifted"
+  [ "$(grep -Fxc "$FAULTY_PREPARE" "$FRAGMENT_PATH")" -eq 1 ] || fail "faulty prepare proxy target is absent or drifted"
+  [ "$(grep -Fxc "$REPAIRED_TARGET" "$FRAGMENT_PATH" || true)" -eq 0 ] || fail "live fragment already contains the repaired target"
+  [ "$(grep -Fc 'Require ip 162.0.217.71/32' "$FRAGMENT_PATH")" -eq 2 ] || fail "approved source restrictions drifted"
+  ! grep -Fq '/outbound-mail/send' "$FRAGMENT_PATH" || fail "live fragment unexpectedly contains a send route"
+}
+
+verify_repaired_fragment() {
+  file=$1
+  [ "$(grep -Fxc "$REPAIRED_TARGET" "$file")" -eq 2 ] || fail "candidate does not contain exactly two origin-only proxy targets"
+  [ "$(grep -Fxc "$FAULTY_STATUS" "$file" || true)" -eq 0 ] || fail "candidate still contains the faulty status target"
+  [ "$(grep -Fxc "$FAULTY_PREPARE" "$file" || true)" -eq 0 ] || fail "candidate still contains the faulty prepare target"
+  [ "$(grep -Fc 'Require ip 162.0.217.71/32' "$file")" -eq 2 ] || fail "candidate source restrictions drifted"
+  ! grep -Fq '/outbound-mail/send' "$file" || fail "candidate unexpectedly contains a send route"
+}
+
+render_candidate() {
+  python3 - "$FRAGMENT_PATH" "$EVIDENCE_DIR/fragment.candidate.conf" <<'PY'
+import pathlib
+import sys
+
+source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+old_status = '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/status" retry=0 connectiontimeout=5 timeout=30'
+old_prepare = '    ProxyPassMatch "http://127.0.0.1:8104/outbound-mail/api/v1/prepare" retry=0 connectiontimeout=5 timeout=30'
+new = '    ProxyPassMatch "http://127.0.0.1:8104" retry=0 connectiontimeout=5 timeout=30'
+if source.count(old_status) != 1 or source.count(old_prepare) != 1:
+    raise SystemExit("expected exactly one faulty status and prepare target")
+if source.count(new) != 0:
+    raise SystemExit("source already contains an origin-only target")
+candidate = source.replace(old_status, new).replace(old_prepare, new)
+changes = [(a, b) for a, b in zip(source.splitlines(), candidate.splitlines()) if a != b]
+if changes != [(old_status, new), (old_prepare, new)]:
+    raise SystemExit("candidate changes more than the two proxy target URLs")
+pathlib.Path(sys.argv[2]).write_text(candidate, encoding="utf-8")
+PY
+  verify_repaired_fragment "$EVIDENCE_DIR/fragment.candidate.conf"
+}
+
+restore_current_evidence() {
+  [ -n "$EVIDENCE_DIR" ] || return 1
+  [ -f "$EVIDENCE_DIR/fragment.before.conf" ] || return 1
+  cp -a -- "$EVIDENCE_DIR/fragment.before.conf" "$FRAGMENT_PATH"
+  apache2ctl configtest > "$EVIDENCE_DIR/rollback-configtest.txt" 2>&1
+  systemctl reload "$APACHE_SERVICE" > "$EVIDENCE_DIR/rollback-reload.txt" 2>&1
+  systemctl is-active --quiet "$APACHE_SERVICE"
+}
+
+rollback_if_needed() {
+  if [ "$MUTATION_STARTED" = true ] && [ "$REPAIR_ACCEPTED" != true ] && [ "$ROLLBACK_IN_PROGRESS" != true ]; then
+    ROLLBACK_IN_PROGRESS=true
+    echo "Apache proxy-target repair failed; restoring the previous fragment." >&2
+    if restore_current_evidence; then
+      printf 'automatic_rollback=pass\nrollback_state=restored\n' >> "$EVIDENCE_DIR/summary.txt"
+    else
+      printf 'automatic_rollback=failed\nrollback_state=uncertain\n' >> "$EVIDENCE_DIR/summary.txt"
+      echo "WARNING: automatic rollback failed; inspect $EVIDENCE_DIR before further action." >&2
+    fi
+    write_manifest || true
+  fi
+}
+
+on_exit() {
+  rc=$?
+  trap - EXIT HUP INT TERM
+  rollback_if_needed
+  exit "$rc"
+}
+
+manual_rollback() {
+  [ -n "$ROLLBACK_EVIDENCE" ] || fail "ROLLBACK_EVIDENCE is required for ACTION=rollback"
+  [ -d "$ROLLBACK_EVIDENCE" ] && [ ! -L "$ROLLBACK_EVIDENCE" ] || fail "rollback evidence is absent or a symlink"
+  [ "$(stat -c %U:%G "$ROLLBACK_EVIDENCE")" = root:root ] || fail "rollback evidence is not root-owned"
+  [ "$(stat -c %a "$ROLLBACK_EVIDENCE")" = 700 ] || fail "rollback evidence mode is not 0700"
+  (cd "$ROLLBACK_EVIDENCE" && sha256sum -c SHA256SUMS >/dev/null) || fail "rollback evidence manifest verification failed"
+  grep -Fqx 'readiness_state=awaiting_business159_source_acceptance' "$ROLLBACK_EVIDENCE/summary.txt" || fail "rollback source is not an accepted target repair"
+  [ "$(file_sha256 "$FRAGMENT_PATH")" = "$(file_sha256 "$ROLLBACK_EVIDENCE/fragment.after.conf")" ] || fail "live fragment drifted after target repair"
+
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  EVIDENCE_DIR=$ROLLBACK_ROOT/$stamp
+  install -d -o root -g root -m 0700 "$EVIDENCE_DIR"
+  : > "$EVIDENCE_DIR/summary.txt"
+  record captured_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  record host "$EXPECTED_HOST"
+  record principal root
+  record source_repair_evidence "$ROLLBACK_EVIDENCE"
+  cp -a -- "$FRAGMENT_PATH" "$EVIDENCE_DIR/fragment.before-rollback.conf"
+  cp -a -- "$ROLLBACK_EVIDENCE/fragment.before.conf" "$FRAGMENT_PATH"
+  apache2ctl configtest > "$EVIDENCE_DIR/configtest.txt" 2>&1
+  systemctl reload "$APACHE_SERVICE" > "$EVIDENCE_DIR/apache-reload.txt" 2>&1
+  systemctl is-active --quiet "$APACHE_SERVICE" || fail "Apache is not active after rollback"
+  verify_faulty_fragment
+  probe_common_state
+  record rollback_state restored
+  record external_delivery_enabled no
+  record message_sent no
+  write_manifest
+  echo "Apache proxy-target repair rolled back successfully."
+  echo "Evidence: $EVIDENCE_DIR"
+}
+
+case "$ACTION" in
+  audit|install|rollback) ;;
+  *) fail "ACTION must be audit, install, or rollback" ;;
+esac
+
+[ "$(id -u)" -eq 0 ] || fail "run as root"
+[ "$(hostname -f 2>/dev/null || hostname)" = "$EXPECTED_HOST" ] || fail "unexpected host"
+verify_repository
+
+if [ "$ACTION" = rollback ]; then
+  probe_common_state
+  manual_rollback
+  exit 0
+fi
+
+probe_common_state
+verify_faulty_fragment
+
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+EVIDENCE_DIR=$EVIDENCE_ROOT/$stamp
+install -d -o root -g root -m 0700 "$EVIDENCE_DIR"
+: > "$EVIDENCE_DIR/summary.txt"
+: > "$EVIDENCE_DIR/failures.txt"
+record captured_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+record host "$EXPECTED_HOST"
+record principal root
+record action "$ACTION"
+record repository "$REPO_ROOT"
+record branch main
+record head_commit "$EXPECTED_COMMIT"
+record fragment_path "$FRAGMENT_PATH"
+record approved_source 162.0.217.71/32
+record observed_business159_status_http 404
+record expected_business159_status_http 401
+record root_cause proxy_target_path_appended_twice
+record hmac_secret_read no
+record provider_or_sender_enabled no
+record external_delivery_enabled no
+record message_prepared no
+record message_sent no
+cp -a -- "$FRAGMENT_PATH" "$EVIDENCE_DIR/fragment.before.conf"
+render_candidate
+diff -u "$EVIDENCE_DIR/fragment.before.conf" "$EVIDENCE_DIR/fragment.candidate.conf" > "$EVIDENCE_DIR/fragment.diff" || true
+
+if [ "$ACTION" = audit ]; then
+  record proxy_target_defect_confirmed yes
+  record proposed_line_change_count 2
+  record apache_reloaded no
+  record readiness_state ready_for_explicit_apache_proxy_target_repair_authorization
+  record failures 0
+  write_manifest
+  echo "Apache proxy-target repair audit completed without mutation."
+  echo "readiness_state=ready_for_explicit_apache_proxy_target_repair_authorization"
+  echo "Evidence: $EVIDENCE_DIR"
+  exit 0
+fi
+
+[ "$APACHE_PROXY_TARGET_REPAIR_AUTHORIZED" = yes ] || fail "install requires APACHE_PROXY_TARGET_REPAIR_AUTHORIZED=yes"
+trap on_exit EXIT HUP INT TERM
+install -o root -g root -m 0644 "$EVIDENCE_DIR/fragment.candidate.conf" "$FRAGMENT_PATH"
+MUTATION_STARTED=true
+apache2ctl configtest > "$EVIDENCE_DIR/configtest.txt" 2>&1
+systemctl reload "$APACHE_SERVICE" > "$EVIDENCE_DIR/apache-reload.txt" 2>&1
+systemctl is-active --quiet "$APACHE_SERVICE" || fail "Apache is not active after target repair reload"
+verify_repaired_fragment "$FRAGMENT_PATH"
+probe_common_state
+cp -a -- "$FRAGMENT_PATH" "$EVIDENCE_DIR/fragment.after.conf"
+record proxy_target_repaired yes
+record proposed_line_change_count 2
+record apache_reloaded yes
+record approved_source_external_canary pending
+record readiness_state awaiting_business159_source_acceptance
+record failures 0
+write_manifest
+REPAIR_ACCEPTED=true
+trap - EXIT HUP INT TERM
+
+echo "Apache proxy-target repair installed and locally verified."
+echo "Business159 external source acceptance must be rerun before credential installation."
+echo "No credential, provider, sender, delivery, or message state was enabled."
+echo "Evidence: $EVIDENCE_DIR"
