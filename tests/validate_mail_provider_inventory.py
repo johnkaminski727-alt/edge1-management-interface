@@ -149,7 +149,7 @@ for token in (
     "spiritcreekgardens.com",
     "accessibility@creekco.ca",
     "noc@creekco.ca",
-    "reconciled into the 37-route registry",
+    "The accepted shared-hosting capture identified seven active CreekCo mailboxes.",
     "No DMARC policy should be tightened",
 ):
     assert token in document, token
