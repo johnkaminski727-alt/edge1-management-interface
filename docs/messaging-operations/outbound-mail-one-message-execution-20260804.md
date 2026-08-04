@@ -29,7 +29,7 @@ The default action performs no runtime replacement, service restart, provider re
 - request and recipient hashes;
 - absence of an active permanent-bounce, complaint, or unsubscribe suppression.
 
-Audit inputs are read-only. Runtime, authorization, request, bundle, and suppression paths may not contain symlinks. Private files must be mode `0600` or stricter.
+Audit inputs are read-only. The suppression database is opened through SQLite URI `mode=ro`; audit does not initialize schema, select a write journal mode, create WAL/SHM sidecars, or update delivery state. Runtime, authorization, request, bundle, and suppression paths may not contain symlinks. Private files must be mode `0600` or stricter.
 
 ## Execute action gates
 
@@ -75,7 +75,7 @@ After every preflight passes:
 1. Create a new mode-`0700` evidence directory.
 2. Copy all three current runtime documents into a mode-`0700` backup directory with mode-`0600` files.
 3. Replace the runtime documents with the exact recomputed activated documents.
-4. Validate the installed activated documents byte-for-byte semantically.
+4. Validate the installed activated documents semantically against the recomputed activation set.
 5. Restart the exact gateway service.
 6. Require loopback health and status showing external delivery enabled with exactly one live sender.
 7. Make exactly one `POST /outbound-mail/send` request.
@@ -103,10 +103,11 @@ It stores only:
 - whether activation and one send attempt occurred;
 - bounded HTTP/provider acceptance metadata;
 - hashes of provider message ID, response, and audit event;
+- bounded failure and rollback exception class names plus SHA-256 of the failure details;
 - rollback and post-rollback state;
 - privacy/safety booleans.
 
-It never stores the recipient address, message body, raw provider response, provider credentials, raw provider message ID, or raw gateway audit event. Independent runtime backups are preserved for evidence and emergency operator recovery.
+It never stores the recipient address, message body, raw provider response, provider credentials, raw provider message ID, raw gateway audit event, or raw failure/rollback text. Independent runtime backups are preserved for evidence and emergency operator recovery.
 
 ## Operator command shape
 
