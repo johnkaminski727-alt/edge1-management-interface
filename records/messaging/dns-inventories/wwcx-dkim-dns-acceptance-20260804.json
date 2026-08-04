@@ -1,0 +1,62 @@
+{
+  "assessment": {
+    "candidate_selector_observed": "default",
+    "dns_record_shape_valid": true,
+    "header_alignment_verified": false,
+    "message_sent": false,
+    "privateemail_candidate_observed": false,
+    "provider_report_consistent": true,
+    "provider_signing_verified": false,
+    "ready_for_sender_activation": false
+  },
+  "contract": "wwcx.mail-dkim-dns-acceptance.v1",
+  "domain": "ww.cx",
+  "observed_at": "2026-08-04T00:44:53+00:00",
+  "provider_family": "namecheap_private_email",
+  "read_only": true,
+  "selectors": {
+    "default": {
+      "authoritative_for_activation": false,
+      "dkim_answer_count": 1,
+      "key_type": "rsa",
+      "public_key_character_count": 392,
+      "query_name": "default._domainkey.ww.cx",
+      "record_character_count": 408,
+      "record_sha256": "3c38973128024f7e0892c6dd7420b6fd144019c0660f80c29eff917cfc6b7962",
+      "record_shape_valid": true,
+      "resolver_consensus": true,
+      "resolver_count": 2,
+      "state": "published_valid_shape",
+      "successful_resolvers": 2
+    },
+    "privateemail": {
+      "authoritative_for_activation": false,
+      "dkim_answer_count": 0,
+      "query_name": "privateemail._domainkey.ww.cx",
+      "record_shape_valid": false,
+      "resolver_consensus": true,
+      "resolver_count": 2,
+      "state": "not_observed",
+      "successful_resolvers": 2
+    }
+  },
+  "source": {
+    "artifact_id": 8876301894,
+    "artifact_name": "mail-dkim-inventory-70aaaf1d8ddb06c7ad7212e561fda3433c14b78c",
+    "artifact_sha256": "9cf22e2e3c643c24e151580865ecf5e7785dfd2678fe0f40376c3cff4432b315",
+    "head_sha": "8458f02398d450f92a720e0fe4aab1f91f06563e",
+    "manifest_record_sha256": "d5b867a893a07628432de2cd5962a99db498ab03fed8a9b92f54283b217d7d6d",
+    "resolvers": [
+      "cloudflare",
+      "google"
+    ],
+    "workflow_run_id": 30866538424
+  },
+  "activation_boundary": {
+    "dns_changes_authorized": false,
+    "provider_login_authorized": false,
+    "sender_activation_authorized": false,
+    "delivery_authorized": false,
+    "message_authorized": false
+  }
+}
