@@ -1,0 +1,36 @@
+name: Validate mail domain DNS acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'records/messaging/dns-inventories/mail-domain-dns-acceptance-20260804.json'
+      - 'docs/messaging-operations/mail-domain-dns-acceptance-20260804.md'
+      - 'tests/validate_mail_domain_dns_acceptance_20260804.py'
+      - 'config/messaging/mail-provider-inventory.json'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/mail-domain-dns-acceptance-20260804.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'records/messaging/dns-inventories/mail-domain-dns-acceptance-20260804.json'
+      - 'docs/messaging-operations/mail-domain-dns-acceptance-20260804.md'
+      - 'tests/validate_mail_domain_dns_acceptance_20260804.py'
+      - 'config/messaging/mail-provider-inventory.json'
+      - 'config/messaging/outbound-mail-gateway.json'
+      - 'config/messaging/mail-identities.json'
+      - '.github/workflows/mail-domain-dns-acceptance-20260804.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        run: python3 -m py_compile tests/validate_mail_domain_dns_acceptance_20260804.py
+      - name: Validate acceptance against canonical inventory
+        run: python3 tests/validate_mail_domain_dns_acceptance_20260804.py

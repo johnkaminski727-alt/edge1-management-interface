@@ -1,0 +1,120 @@
+{
+  "assessment": {
+    "dns_changes_authorized": false,
+    "matches_accepted_20260801_snapshot": true,
+    "message_sent": false,
+    "provider_or_sender_activated": false,
+    "spiritcreekgardens_mail_ready": false,
+    "wwcx_dmarc_published": false
+  },
+  "contract": "wwcx.mail-domain-dns-acceptance.v1",
+  "domains": {
+    "creekco.ca": {
+      "authoritative_nameservers": [
+        "dns1.namecheaphosting.com",
+        "dns2.namecheaphosting.com"
+      ],
+      "dmarc": [
+        "v=DMARC1; p=none;"
+      ],
+      "mx": [
+        "10 mx2-hosting.jellyfish.systems",
+        "20 mx3-hosting.jellyfish.systems",
+        "5 mx1-hosting.jellyfish.systems"
+      ],
+      "provider_confidence": "high",
+      "provider_family": "namecheap_shared_hosting",
+      "resolver_consensus": true,
+      "spf": [
+        "v=spf1 +a +mx +ip4:162.0.217.71 include:spf.web-hosting.com ~all"
+      ]
+    },
+    "omegafx.com": {
+      "authoritative_nameservers": [
+        "dns1.namecheaphosting.com",
+        "dns2.namecheaphosting.com"
+      ],
+      "dmarc": [
+        "v=DMARC1; p=none;"
+      ],
+      "mx": [
+        "10 mx2-hosting.jellyfish.systems",
+        "20 mx3-hosting.jellyfish.systems",
+        "5 mx1-hosting.jellyfish.systems"
+      ],
+      "provider_confidence": "high",
+      "provider_family": "namecheap_shared_hosting",
+      "resolver_consensus": true,
+      "spf": [
+        "v=spf1 +a +mx +ip4:162.0.217.71 include:spf.web-hosting.com ~all"
+      ]
+    },
+    "scgardens.ca": {
+      "authoritative_nameservers": [
+        "dns1.namecheaphosting.com",
+        "dns2.namecheaphosting.com"
+      ],
+      "dmarc": [
+        "v=DMARC1; p=none;"
+      ],
+      "mx": [
+        "10 mx2-hosting.jellyfish.systems",
+        "20 mx3-hosting.jellyfish.systems",
+        "5 mx1-hosting.jellyfish.systems"
+      ],
+      "provider_confidence": "high",
+      "provider_family": "namecheap_shared_hosting",
+      "resolver_consensus": true,
+      "spf": [
+        "v=spf1 +a +mx +ip4:162.0.217.71 include:spf.web-hosting.com ~all"
+      ]
+    },
+    "spiritcreekgardens.com": {
+      "authoritative_nameservers": [
+        "ns1194.dns.dyn.com",
+        "ns2150.dns.dyn.com",
+        "ns3190.dns.dyn.com",
+        "ns4142.dns.dyn.com"
+      ],
+      "dmarc": [],
+      "mx": [],
+      "provider_confidence": "high",
+      "provider_family": "no_published_mx_observed",
+      "resolver_consensus": true,
+      "spf": []
+    },
+    "ww.cx": {
+      "authoritative_nameservers": [
+        "ns1194.dns.dyn.com",
+        "ns2150.dns.dyn.com",
+        "ns3190.dns.dyn.com",
+        "ns4142.dns.dyn.com"
+      ],
+      "dmarc": [],
+      "mx": [
+        "10 mx1.privateemail.com",
+        "20 mx2.privateemail.com"
+      ],
+      "provider_confidence": "high",
+      "provider_family": "namecheap_private_email",
+      "resolver_consensus": true,
+      "spf": [
+        "v=spf1 include:spf.privateemail.com ~all"
+      ]
+    }
+  },
+  "observed_at": "2026-08-04T00:31:11+00:00",
+  "read_only": true,
+  "source": {
+    "artifact_id": 8876043654,
+    "artifact_name": "mail-domain-inventory-75539a311ed6a55da669b191e85fbb1ccf079b40",
+    "artifact_sha256": "002a11bab88c2c2d71de24ca94069650f32bd656356ab264c6e0f92d0329acd2",
+    "head_sha": "3c0997d25411e09f135e06325f47d09268b4f931",
+    "resolver_consensus": true,
+    "resolvers": [
+      "cloudflare",
+      "google"
+    ],
+    "workflow_run_id": 30865819181
+  }
+}
