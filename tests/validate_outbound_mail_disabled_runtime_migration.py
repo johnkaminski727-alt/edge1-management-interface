@@ -63,7 +63,7 @@ for required in (
     "runtime_secret_configured",
     "unsigned-status.json",
     "disabled-send.json",
-    "runtime migration drop-in drift detected; refusing disable",
+    "Runtime migration drop-in drift detected; refusing disable",
     "automatic rollback after runtime migration exit",
     "restore_dropin",
     "40-runtime-paths.conf.before",
