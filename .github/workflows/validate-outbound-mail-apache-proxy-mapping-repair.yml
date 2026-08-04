@@ -1,0 +1,39 @@
+name: Validate outbound-mail Apache proxy mapping repair
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/messaging/outbound-mail-preparation-api-apache.conf.example'
+      - 'deploy/messaging/repair-outbound-mail-phase-b2-apache-proxy-mapping.sh'
+      - 'docs/messaging-operations/outbound-mail-phase-b2-apache-proxy-mapping-repair-20260804.md'
+      - 'tests/validate_outbound_mail_phase_b2_apache_activation.py'
+      - 'tests/validate_outbound_mail_phase_b2_apache_proxy_mapping_repair.py'
+      - '.github/workflows/validate-outbound-mail-apache-proxy-mapping-repair.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'deploy/messaging/outbound-mail-preparation-api-apache.conf.example'
+      - 'deploy/messaging/repair-outbound-mail-phase-b2-apache-proxy-mapping.sh'
+      - 'docs/messaging-operations/outbound-mail-phase-b2-apache-proxy-mapping-repair-20260804.md'
+      - 'tests/validate_outbound_mail_phase_b2_apache_activation.py'
+      - 'tests/validate_outbound_mail_phase_b2_apache_proxy_mapping_repair.py'
+      - '.github/workflows/validate-outbound-mail-apache-proxy-mapping-repair.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate shell syntax
+        run: sh -n deploy/messaging/repair-outbound-mail-phase-b2-apache-proxy-mapping.sh
+      - name: Validate activation template
+        run: python3 tests/validate_outbound_mail_phase_b2_apache_activation.py
+      - name: Validate bounded repair
+        run: python3 tests/validate_outbound_mail_phase_b2_apache_proxy_mapping_repair.py
