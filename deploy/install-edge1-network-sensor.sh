@@ -7,6 +7,7 @@ INSTALL_PACKAGES=false
 ENABLE_ZEEK=false
 ACTIVATE=false
 ALLOW_ADDRESSED=false
+SURICATA_CAPTURE_BACKEND=""
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE_ROOT="${EDGE1_DEPLOYMENT_EVIDENCE_ROOT:-/var/lib/wwcx-deployment-evidence/network-sensor}"
 EVIDENCE_DIR="$EVIDENCE_ROOT/$STAMP"
@@ -45,6 +46,8 @@ ip link show dev "$INTERFACE" >/dev/null
 if [ "$ALLOW_ADDRESSED" = false ] && ip -o addr show dev "$INTERFACE" | grep -q .; then
   fail "interface $INTERFACE has an IP address; use a dedicated mirror/TAP NIC or explicitly pass --allow-addressed-interface"
 fi
+SURICATA_CAPTURE_BACKEND=af-packet
+[ "$ALLOW_ADDRESSED" = true ] && SURICATA_CAPTURE_BACKEND=pcap
 
 for source in \
   "$ROOT/config/network-sensor/owner-full.env" \
@@ -66,7 +69,8 @@ done
 mkdir -p "$BACKUP_DIR"
 printf '%s\n' "$STAMP" > "$EVIDENCE_DIR/started-at.txt"
 printf '%s\n' "$INTERFACE" > "$EVIDENCE_DIR/interface.txt"
-printf 'activate=%s\nenable_zeek=%s\ninstall_packages=%s\n' "$ACTIVATE" "$ENABLE_ZEEK" "$INSTALL_PACKAGES" > "$EVIDENCE_DIR/options.txt"
+printf 'activate=%s\nenable_zeek=%s\ninstall_packages=%s\nsuricata_capture_backend=%s\n' \
+  "$ACTIVATE" "$ENABLE_ZEEK" "$INSTALL_PACKAGES" "$SURICATA_CAPTURE_BACKEND" > "$EVIDENCE_DIR/options.txt"
 git -C "$ROOT" rev-parse HEAD > "$EVIDENCE_DIR/revision.txt"
 git -C "$ROOT" status --short --branch > "$EVIDENCE_DIR/git-status-before.txt"
 ip -br link show dev "$INTERFACE" > "$EVIDENCE_DIR/interface-link-before.txt"
@@ -224,7 +228,9 @@ install -d -o root -g root -m 0755 /var/www/edge1-status/network-sensor/data
 
 zeek_value=no
 [ "$ENABLE_ZEEK" = true ] && zeek_value=yes
-sed "s/^SENSOR_INTERFACE=.*/SENSOR_INTERFACE=$INTERFACE/; s/^ENABLE_ZEEK=.*/ENABLE_ZEEK=$zeek_value/" "$ROOT/config/network-sensor/owner-full.env" > /etc/default/wwcx-network-sensor
+suricata_capture_argument="--$SURICATA_CAPTURE_BACKEND=$INTERFACE"
+sed "s/^SENSOR_INTERFACE=.*/SENSOR_INTERFACE=$INTERFACE/; s|^SURICATA_CAPTURE_ARGUMENT=.*|SURICATA_CAPTURE_ARGUMENT=$suricata_capture_argument|; s/^ENABLE_ZEEK=.*/ENABLE_ZEEK=$zeek_value/" \
+  "$ROOT/config/network-sensor/owner-full.env" > /etc/default/wwcx-network-sensor
 chmod 0640 /etc/default/wwcx-network-sensor
 install -o root -g root -m 0644 "$ROOT/config/network-sensor/wwcx-owner-full.zeek" /etc/wwcx-network-sensor/
 install -o root -g root -m 0755 "$ROOT/server/network_sensor_exporter.py" /usr/local/libexec/wwcx-network-sensor-exporter.py
