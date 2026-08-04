@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import subprocess
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WRAPPER = ROOT / "deploy/messaging/run-outbound-mail-apache-proxy-mapping-repair.sh"
@@ -51,7 +53,25 @@ assert wrapper.count("delivery_disabled") >= 2
 syntax = subprocess.run(["sh", "-n", str(WRAPPER)], cwd=ROOT, check=False)
 assert syntax.returncode == 0
 
+execution_line = 'GIT_OPTIONAL_LOCKS=0 sh "$TEMPORARY"'
+assert wrapper.count(execution_line) == 1
+validation_wrapper = wrapper.replace(execution_line, 'sh -n "$TEMPORARY"')
+with tempfile.TemporaryDirectory() as directory:
+    path = pathlib.Path(directory) / "validate-wrapper.sh"
+    path.write_text(validation_wrapper, encoding="utf-8")
+    path.chmod(0o700)
+    environment = dict(os.environ)
+    environment["REPO_ROOT"] = str(ROOT)
+    patched_syntax = subprocess.run(
+        ["sh", str(path)],
+        cwd=ROOT,
+        env=environment,
+        check=False,
+    )
+    assert patched_syntax.returncode == 0
+
 print("Outbound mail Apache repair send-probe wrapper validation passed")
 print("The empty-object HTTP 400 probe is replaced by a valid disabled-send canary")
+print("The dynamically patched repair script passes shell syntax validation")
 print("HTTP 403 and error=delivery_disabled are both required")
 print("Credentials, provider activation, delivery, and message traffic remain blocked")
