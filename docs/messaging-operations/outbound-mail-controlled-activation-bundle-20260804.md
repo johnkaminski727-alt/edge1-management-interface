@@ -15,6 +15,10 @@ Components:
 
 The package is source-only. It is not a production activation wrapper.
 
+## Repository baseline
+
+The bundle depends on the reviewed delivery-event/suppression foundation and the reconciled runtime-policy, sender-profile, DMARC, and runtime-path contracts now present on `main`. Repository-wide validation must pass against that baseline before this package may merge.
+
 ## Required safe source state
 
 The three runtime input documents must already be the strict runtime copies created by the disabled migration package. They must validate and remain preparation-only:
