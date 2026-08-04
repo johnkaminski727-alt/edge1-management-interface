@@ -28,13 +28,16 @@ assert 'security_correlation_sensor_exporter.py' in correlation
 network_defense = (root / 'deploy/systemd/wwcx-network-defense.service').read_text(encoding='utf-8')
 assert 'network_defense_sensor_exporter.py' in network_defense
 
+sensor_defaults = (root / 'config/network-sensor/owner-full.env').read_text(encoding='utf-8')
+assert 'SURICATA_CAPTURE_ARGUMENT=--af-packet=CHANGE_ME' in sensor_defaults
+
 suricata = (root / 'deploy/systemd/wwcx-network-sensor-suricata.service').read_text(encoding='utf-8')
 for marker in (
     'ExecStartPre=+/usr/bin/install -d -o root -g root -m 0755 /var/log/wwcx-network-sensor',
     'ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-network-sensor/suricata',
     'ExecStartPre=+/usr/bin/chown -R suricata:root /var/log/wwcx-network-sensor/suricata',
     'ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek',
-    '--pcap=${SENSOR_INTERFACE}',
+    'ExecStart=/usr/bin/suricata ${SURICATA_CAPTURE_ARGUMENT}',
     '--user=suricata',
     '--group=suricata',
     'ReadWritePaths=/var/log/wwcx-network-sensor /run/wwcx-network-sensor',
@@ -42,7 +45,8 @@ for marker in (
     'UMask=0007',
 ):
     assert marker in suricata, marker
-assert '--af-packet=' not in suricata
+assert '--af-packet=${SENSOR_INTERFACE}' not in suricata
+assert '--pcap=${SENSOR_INTERFACE}' not in suricata
 assert 'AmbientCapabilities=' not in suricata
 assert 'User=suricata' not in suricata
 assert 'Group=suricata' not in suricata
@@ -76,6 +80,9 @@ for marker in (
 
 installer = (root / 'deploy/install-edge1-network-sensor.sh').read_text(encoding='utf-8')
 for marker in (
+    'SURICATA_CAPTURE_BACKEND=af-packet',
+    '[ "$ALLOW_ADDRESSED" = true ] && SURICATA_CAPTURE_BACKEND=pcap',
+    'SURICATA_CAPTURE_ARGUMENT=$suricata_capture_argument',
     'network_sensor_capture_acceptance.py',
     'suricata-capture-acceptance.json',
     '--startup-wait-seconds 75',
