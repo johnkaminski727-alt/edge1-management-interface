@@ -21,8 +21,10 @@
     "rollback_attempted",
     "rollback_succeeded",
     "post_rollback_safe_disabled",
-    "failure",
-    "rollback_error",
+    "failure_code",
+    "failure_detail_sha256",
+    "rollback_error_code",
+    "rollback_error_detail_sha256",
     "recipient_address_stored",
     "message_content_stored",
     "provider_credentials_read",
@@ -81,8 +83,30 @@
     "rollback_attempted": {"type": "boolean"},
     "rollback_succeeded": {"type": "boolean"},
     "post_rollback_safe_disabled": {"type": "boolean"},
-    "failure": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 256}]},
-    "rollback_error": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 256}]},
+    "failure_code": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+      ]
+    },
+    "failure_detail_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      ]
+    },
+    "rollback_error_code": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"}
+      ]
+    },
+    "rollback_error_detail_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      ]
+    },
     "recipient_address_stored": {"const": false},
     "message_content_stored": {"const": false},
     "provider_credentials_read": {"const": false},
