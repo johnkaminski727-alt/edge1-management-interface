@@ -35,15 +35,16 @@ EXPECTED_COMMIT=<full-merged-commit-sha> \
 The migration:
 
 1. verifies the managed sensor is enabled, active, and has a passing nonzero capture-acceptance record;
-2. validates the collector against the managed EVE source;
-3. backs up the live Project Big Bird collector and records the legacy unit state;
-4. installs and publishes the updated collector before stopping anything;
-5. confirms Security Operations, Security Correlation, and Network Defense accept the managed source;
+2. validates the collector against the managed EVE source and validates the reviewed unit contains bounded `ExecReload` support;
+3. backs up the live Project Big Bird collector, the live managed sensor unit, and the legacy unit state;
+4. installs the reviewed collector and managed unit, runs `systemctl daemon-reload`, and confirms the loaded unit exposes the expected reload command;
+5. publishes the updated collector before stopping anything and confirms Security Operations, Security Correlation, and Network Defense accept the managed source;
 6. disables and stops only `suricata.service`;
 7. verifies exactly one Suricata main process remains and that it uses `--pcap=`;
-8. republishes the observability pipeline and records protected evidence.
+8. performs a bounded reload of the managed service and confirms it remains active;
+9. republishes the observability pipeline and records protected evidence.
 
-Any failure after mutation restores the previous collector and the exact enabled/active state of `suricata.service`.
+Any failure after mutation restores the previous collector, restores the previous managed unit definition followed by `systemctl daemon-reload`, and restores the exact enabled/active state of `suricata.service`.
 
 ## Boundaries
 
