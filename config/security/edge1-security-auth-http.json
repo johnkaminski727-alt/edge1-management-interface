@@ -1,0 +1,55 @@
+{
+  "contract": "wwcx.edge1-security-auth-http.v1",
+  "status": "staged_disabled",
+  "enabled": false,
+  "deployment_authorized": false,
+  "live_route_authorized": false,
+  "allowed_host": "edge1.ww.cx",
+  "business159_origin": "https://business159.ww.cx",
+  "same_origin": "https://edge1.ww.cx",
+  "routes": {
+    "health": "/healthz",
+    "exchange": "/edge1-ops/session/exchange",
+    "session": "/edge1-ops/session",
+    "logout": "/edge1-ops/session/logout",
+    "validate": "/edge1-ops/api/v1/security/validate",
+    "redirect_after_exchange": "/edge1-ops/security/"
+  },
+  "cookies": {
+    "session_name": "__Secure-wwcx_edge1_ops_session",
+    "csrf_name": "__Secure-wwcx_edge1_ops_csrf",
+    "path": "/edge1-ops/",
+    "secure": true,
+    "http_only_session": true,
+    "same_site": "Strict",
+    "persistent": false
+  },
+  "request_limits": {
+    "maximum_body_bytes": 20000,
+    "exchange_requests": 10,
+    "exchange_window_seconds": 600,
+    "session_requests": 120,
+    "session_window_seconds": 60,
+    "action_requests": 6,
+    "action_window_seconds": 60,
+    "logout_requests": 20,
+    "logout_window_seconds": 600,
+    "action_inflight_timeout_seconds": 60,
+    "action_cooldown_seconds": 3
+  },
+  "operations_api": {
+    "origin": "http://127.0.0.1:8097",
+    "secret_path": "/etc/edge1-operations-api.secret",
+    "timeout_seconds": 15,
+    "allowed_action": "security.validate_config"
+  },
+  "boundaries": {
+    "loopback_only": true,
+    "trusted_proxy_required": true,
+    "csrf_required_for_authenticated_post": true,
+    "raw_assertion_storage": false,
+    "raw_session_storage": false,
+    "raw_operations_output_to_browser": false,
+    "mutation_actions_enabled": false
+  }
+}
