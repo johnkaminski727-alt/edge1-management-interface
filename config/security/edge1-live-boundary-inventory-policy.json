@@ -34,7 +34,10 @@
   ],
   "units": [
     "apache2.service",
-    "suricata.service",
+    "wwcx-network-sensor-suricata.service",
+    "wwcx-network-sensor-pcap.service",
+    "wwcx-network-sensor-exporter.timer",
+    "wwcx-network-sensor-prune.timer",
     "wwcx-security-operations.service",
     "wwcx-security-operations.timer",
     "wwcx-network-defense.service",

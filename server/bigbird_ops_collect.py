@@ -12,8 +12,10 @@ from collections import deque
 from pathlib import Path
 
 OUT = Path('/var/lib/bigbird/operations-center')
-EVE = Path('/var/log/suricata/eve.json')
+SURICATA_SERVICE = os.environ.get('WWCX_SURICATA_SERVICE', 'wwcx-network-sensor-suricata.service')
+EVE = Path(os.environ.get('WWCX_SURICATA_EVE', '/var/log/wwcx-network-sensor/suricata/eve.json'))
 COLLECTOR_RELEASE = 'edge1-suricata-enrichment-r1'
+SURICATA_SOURCE_RELEASE = 'edge1-suricata-sensor-consolidation-r1'
 SURICATA_ALERT_SCHEMA = 'wwcx.suricata-source-alert.v1'
 
 
@@ -249,7 +251,21 @@ def suricata(eve_path=None):
                 recent.append(normalized)
         except Exception:
             pass
-    return {'available': eve.is_file(), 'alert_schema': SURICATA_ALERT_SCHEMA, 'counts': dict(sorted(counts.items(), key=lambda item: -item[1])[:50]), 'recent_alerts': recent[-100:], 'privacy': {'packet_payloads_included': False, 'raw_events_included': False, 'credentials_included': False, 'private_keys_included': False}}
+    return {
+        'available': eve.is_file(),
+        'service': SURICATA_SERVICE,
+        'source_path': str(eve),
+        'source_release': SURICATA_SOURCE_RELEASE,
+        'alert_schema': SURICATA_ALERT_SCHEMA,
+        'counts': dict(sorted(counts.items(), key=lambda item: -item[1])[:50]),
+        'recent_alerts': recent[-100:],
+        'privacy': {
+            'packet_payloads_included': False,
+            'raw_events_included': False,
+            'credentials_included': False,
+            'private_keys_included': False,
+        },
+    }
 
 
 def automation():
@@ -277,7 +293,7 @@ def automation():
 
 def logs():
     result = {}
-    for unit in ['bigbird.service', 'bigbird-worker.service', 'nftables.service', 'unbound.service', 'wg-quick@wg0.service', 'suricata.service', 'ssh.service']:
+    for unit in ['bigbird.service', 'bigbird-worker.service', 'nftables.service', 'unbound.service', 'wg-quick@wg0.service', SURICATA_SERVICE, 'ssh.service']:
         _, output, _ = run(['journalctl', '-u', unit, '-n', '100', '--no-pager', '--output=short-iso'], timeout=15)
         result[unit] = [clean(line) for line in output.splitlines()][-100:]
     return result
@@ -297,7 +313,7 @@ def watched_paths():
 
 def build_snapshot():
     now = dt.datetime.now(dt.timezone.utc)
-    units = ['bigbird.service', 'bigbird-worker.service', 'nftables.service', 'unbound.service', 'wg-quick@wg0.service', 'suricata.service', 'bigbird-observatory.timer', 'bigbird-capture-prune.timer', 'bigbird-firewall-observability.service', 'bigbird-ops-push.timer']
+    units = ['bigbird.service', 'bigbird-worker.service', 'nftables.service', 'unbound.service', 'wg-quick@wg0.service', SURICATA_SERVICE, 'bigbird-observatory.timer', 'bigbird-capture-prune.timer', 'bigbird-firewall-observability.service', 'bigbird-ops-push.timer']
     return {'format': 'project-big-bird-operations-center-v1', 'project_version': '4.0.5', 'extension_release': 'v4.0.7-observability-r1', 'collector_release': COLLECTOR_RELEASE, 'generated_at': now.isoformat(), 'generated_unix': int(now.timestamp()), 'read_only': True, 'provisioning_locked': True, 'authoritative_dns_editing_locked': True, 'host': {'node': 'Edge1', 'hostname_fingerprint': hashlib.sha256(os.uname().nodename.encode()).hexdigest()[:16], 'kernel': os.uname().release}, 'services': [service(unit) for unit in units], 'firewall': firewall(), 'dns_cache': unbound(), 'vpn_devices': wireguard(), 'security': suricata(), 'automation': automation(), 'logs': logs(), 'changes_audit': {'watched_paths': watched_paths(), 'notice': 'Observability counters and empty managed block sets are installed. No web mutation endpoint exists.'}, 'settings': {'snapshot_interval_seconds': 120, 'browser_refresh_seconds': 45, 'stale_after_seconds': 360, 'write_controls': 'locked', 'firewall_control_release': 'guarded-control-pending', 'dyn_api_release': '4.0.6-reserved'}}
 
 

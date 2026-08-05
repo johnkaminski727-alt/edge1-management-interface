@@ -38,6 +38,17 @@ class BigBirdSuricataCollectorTests(unittest.TestCase):
             },
         }
 
+    def test_managed_sensor_is_default_source(self):
+        self.assertEqual(MODULE.SURICATA_SERVICE, "wwcx-network-sensor-suricata.service")
+        self.assertEqual(
+            str(MODULE.EVE),
+            "/var/log/wwcx-network-sensor/suricata/eve.json",
+        )
+        self.assertEqual(
+            MODULE.SURICATA_SOURCE_RELEASE,
+            "edge1-suricata-sensor-consolidation-r1",
+        )
+
     def test_normalize_alert_retains_allowlist(self):
         normalized = MODULE.normalize_suricata_alert(self.representative_event())
         self.assertEqual(normalized["source_port"], 53001)
@@ -78,7 +89,7 @@ class BigBirdSuricataCollectorTests(unittest.TestCase):
         self.assertIsNone(normalized["flow_id"])
         self.assertIsNone(normalized["signature_id"])
 
-    def test_suricata_snapshot_is_bounded_and_private(self):
+    def test_suricata_snapshot_is_bounded_private_and_identified(self):
         with tempfile.TemporaryDirectory() as directory:
             eve = pathlib.Path(directory) / "eve.json"
             rows = []
@@ -92,6 +103,9 @@ class BigBirdSuricataCollectorTests(unittest.TestCase):
 
             snapshot = MODULE.suricata(eve)
             self.assertTrue(snapshot["available"])
+            self.assertEqual(snapshot["service"], MODULE.SURICATA_SERVICE)
+            self.assertEqual(snapshot["source_path"], str(eve))
+            self.assertEqual(snapshot["source_release"], MODULE.SURICATA_SOURCE_RELEASE)
             self.assertEqual(snapshot["alert_schema"], MODULE.SURICATA_ALERT_SCHEMA)
             self.assertEqual(len(snapshot["recent_alerts"]), 100)
             self.assertFalse(snapshot["privacy"]["packet_payloads_included"])
