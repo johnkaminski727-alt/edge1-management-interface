@@ -1,0 +1,96 @@
+{
+  "contract": "wwcx.edge1-security-operator-console.v1",
+  "status": "design_only",
+  "enabled": false,
+  "deployment_authorized": false,
+  "authentication_change_authorized": false,
+  "live_route_authorized": false,
+  "title": "Edge1 Security Service Console",
+  "route": "/edge1-ops/security/",
+  "telemetry_source": "/edge1-status/security-operations.json",
+  "operations_api": {
+    "browser_direct_access": false,
+    "loopback_service": "edge1-operations-api.service",
+    "loopback_origin": "http://127.0.0.1:8097",
+    "server_side_gateway_required": true,
+    "browser_signing_secret_allowed": false
+  },
+  "interaction_principles": [
+    "Use plain-language labels and explanations.",
+    "Show the expected effect before an action is submitted.",
+    "Require explicit confirmation for every mutating action.",
+    "Show progress, result, evidence identifier, and recovery guidance.",
+    "Never expose API signatures, secrets, command lines, or raw privileged output to browser JavaScript.",
+    "Fail closed when authentication, authorization, audit, or action state is unavailable."
+  ],
+  "actions": [
+    {
+      "id": "security.validate_config",
+      "label": "Check the security configuration",
+      "description": "Tests the Suricata configuration without changing the running service.",
+      "risk": "read_only",
+      "mutating": false,
+      "available_after_gateway_activation": true,
+      "confirmation": "button",
+      "success_message": "The security configuration passed validation.",
+      "failure_message": "The configuration needs attention. No running service settings were changed."
+    },
+    {
+      "id": "security.rules.reload",
+      "label": "Load updated detection rules",
+      "description": "Asks the managed Suricata service to load reviewed rule updates without restarting packet capture.",
+      "risk": "controlled_change",
+      "mutating": true,
+      "available_after_gateway_activation": false,
+      "confirmation": "type_phrase",
+      "confirmation_phrase": "LOAD RULES",
+      "success_message": "The managed sensor accepted the rule reload request.",
+      "failure_message": "The rule reload did not complete. The console will preserve and display the evidence record."
+    },
+    {
+      "id": "security.logs.rotate",
+      "label": "Rotate security logs now",
+      "description": "Closes the current metadata log files and starts fresh files under the approved retention policy.",
+      "risk": "controlled_change",
+      "mutating": true,
+      "available_after_gateway_activation": false,
+      "confirmation": "type_phrase",
+      "confirmation_phrase": "ROTATE LOGS",
+      "success_message": "Security log rotation completed.",
+      "failure_message": "Log rotation did not complete. Existing logs remain available for investigation."
+    }
+  ],
+  "future_actions": [
+    {
+      "label": "Restart the managed sensor",
+      "reason_deferred": "Requires a dedicated allowlisted action, capture continuity checks, and automatic post-restart acceptance."
+    },
+    {
+      "label": "Update detection rules",
+      "reason_deferred": "Requires a signed or pinned rule source, staged validation, diff review, rollback, and evidence retention."
+    },
+    {
+      "label": "Manage retention",
+      "reason_deferred": "Requires storage forecasting and a reviewed metadata and PCAP retention policy."
+    }
+  ],
+  "required_browser_controls": {
+    "authentication": "OpenID Connect authorization-code flow with PKCE and MFA",
+    "session": "Server-side session with opaque browser identifier",
+    "csrf": true,
+    "typed_confirmation_for_mutations": true,
+    "per_action_authorization": true,
+    "append_only_audit": true,
+    "rate_limiting": true,
+    "no_anonymous_fallback": true
+  },
+  "acceptance": {
+    "read_only_prototype_only": true,
+    "mutations_enabled": false,
+    "browser_api_signing": false,
+    "credentials_in_repository": false,
+    "live_authentication_changed": false,
+    "live_route_changed": false,
+    "traffic_controls_changed": false
+  }
+}
