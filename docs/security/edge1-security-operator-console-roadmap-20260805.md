@@ -2,11 +2,11 @@
 
 Date: 2026-08-05  
 Target route: `/edge1-ops/security/`  
-Current state: repository prototype; not deployed
+Current state: repository prototype and authentication core; not deployed
 
 ## Objective
 
-Provide a human operator with a normal browser interface for the managed Edge1 security sensor. The operator should not need to construct API requests, signatures, shell commands, service names, or JSON payloads.
+Provide a human operator with a normal browser interface for the managed Edge1 security sensor. The browser must not construct Operations API signatures, receive privileged secrets, or submit arbitrary commands, paths, service names, URLs, or targets.
 
 The console should answer four questions clearly:
 
@@ -17,171 +17,145 @@ The console should answer four questions clearly:
 
 ## Existing foundations
 
-The following foundations already exist:
+- managed Suricata and packet-capture services;
+- human-readable security telemetry;
+- the live read-only Security Operations page;
+- a loopback-only, allowlisted Edge1 Operations API;
+- HMAC machine-client authentication, replay protection, bounded execution, and SQLite audit;
+- the locked Security Service Console prototype;
+- the Business159 WW.CX user and role directory;
+- the disabled Business159 assertion and Edge1 session gateway core.
 
-- managed Suricata service: `wwcx-network-sensor-suricata.service`;
-- full PCAP recorder: `wwcx-network-sensor-pcap.service`;
-- human-readable telemetry: `/edge1-status/security-operations.json`;
-- live read-only Security Operations page: `/edge1-status/security/`;
-- loopback-only allowlisted operations API;
-- registered operations for configuration validation, rule reload, and log rotation;
-- HMAC authentication, nonce replay protection, bounded execution, and SQLite audit at the machine-client boundary;
-- a disabled browser authentication and session policy for `/edge1-ops/`.
-
-The browser must not call the loopback operations API directly and must never receive the HMAC signing secret. A future server-side browser gateway will translate an authenticated, authorized browser request into the existing allowlisted operation.
+The browser must never call the loopback Operations API directly and must never receive the Operations API HMAC secret. The server-side browser gateway will translate an authenticated and authorized browser request into an exact allowlisted operation.
 
 ## Phase 1 — Human interface foundation
 
-Implemented in the repository:
+Implemented:
 
 - `src/web/edge1-ops/security/index.html`;
 - `config/security/edge1-security-operator-console.json`;
 - `tests/validate_security_operator_console.py`.
 
-The prototype provides:
+The prototype remains locked. No live route, authentication adapter, service, API, network, firewall, DNS, sensor, or traffic-control change was made.
 
-- plain-language sensor health;
-- live read-only telemetry when the status feed is available;
-- understandable action descriptions;
-- expected effects, success results, and failure behavior;
-- typed-confirmation previews for controlled changes;
-- recent evidence display;
-- an explicit lock notice explaining why production actions are not yet enabled;
-- a planned restart-sensor workflow with automatic post-restart capture acceptance.
+## Phase 2 — Business159 identity assertion and Edge1 session core
 
-No live route, authentication, service, API, network, firewall, DNS, sensor, or traffic-control change is made in this phase.
+Implemented in the repository and disabled:
 
-## Phase 2 — Authenticated browser boundary
+- `server/edge1_security_auth_gateway.py`;
+- `config/security/edge1-security-auth-gateway.json`;
+- `tests/test_edge1_security_auth_gateway.py`;
+- authentication architecture and deployment handoff documentation.
 
-Requires explicit production authentication authorization.
+Architecture:
 
-The restricted browser boundary must provide:
+1. The operator signs in through the established Business159 WW.CX login.
+2. Business159 issues a short-lived, audience-bound, one-time RS256 assertion.
+3. Edge1 validates the pinned issuer, audience, signature, time bounds, active state, exact claim set, nonce, replay status, and scopes.
+4. Edge1 creates its own opaque server-side session and stores only its SHA-256 hash.
+5. Edge1 evaluates exact action scopes independently of the Business159 role name.
 
-- OpenID Connect authorization-code flow;
-- PKCE `S256`;
-- MFA verification;
-- trusted issuer and audience validation;
-- server-side sessions;
-- opaque browser session identifiers;
-- `Secure`, `HttpOnly`, and `SameSite=Strict` cookies;
-- CSRF protection for action requests;
-- per-action scopes;
-- rate limits;
-- append-only browser audit;
-- no anonymous fallback.
+Business159 remains authoritative. Edge1 does not access or synchronize its SQLite database, copy password hashes, or accept its PHP session cookie.
 
-The repository already contains a provider-neutral, disabled policy and an Apache design artifact. An identity provider, adapter, and session store must be selected and verified before activation.
+Initial permissions:
 
-## Phase 3 — Server-side operator gateway
+- `edge1.security.read`;
+- `edge1.security.validate`.
 
-The gateway will be the only component allowed to communicate with the loopback operations API on behalf of a browser session.
+Mutation permissions remain registered but locked:
 
-Required behavior:
+- `edge1.security.rules.reload`;
+- `edge1.security.logs.rotate`;
+- `edge1.security.restart`.
 
-- accept only exact action identifiers defined by policy;
-- accept no command text, service name, path, URL, or arbitrary parameters;
-- obtain actor identity from the verified browser session;
-- create the machine-client signature on the server;
-- use one-time nonces and bounded timestamps;
-- preserve the existing operations API audit event identifier;
-- return a normalized, human-readable result;
-- strip secrets, internal signing fields, and unbounded command output;
-- fail closed when authentication, authorization, CSRF, audit, or API health is unavailable.
+## Phase 3 — Denied-by-default HTTP adapter
 
-## Phase 4 — Enable safe actions incrementally
+Not implemented by the authentication-core change.
 
-### First live action: Check the security configuration
+The adapter must:
+
+- expose only exact assertion-exchange, logout, console-read, and validation routes;
+- use `Secure`, `HttpOnly`, and `SameSite=Strict` cookies;
+- require CSRF protection for state-changing browser requests;
+- enforce request-size limits, rate limits, and duplicate-click suppression;
+- accept no command text, service name, path, URL, target, or arbitrary operation parameter;
+- load only public Business159 verification keys;
+- create the machine-client Operations API signature only on the server;
+- preserve both the authentication event ID and Operations API event ID;
+- normalize and redact technical output;
+- fail closed when authentication, session, authorization, CSRF, audit, rate limiting, or API health is unavailable;
+- remain unavailable on the production route until separately approved after a fresh live inventory.
+
+## Phase 4 — First read-only action
 
 Action: `security.validate_config`  
+Permission: `edge1.security.validate`  
 Risk: read-only
 
 Acceptance:
 
-- one clear confirmation button;
-- visible progress state;
+- plain-language confirmation;
+- visible progress;
 - pass or needs-attention result;
-- no restart or configuration change;
+- no restart or runtime mutation;
 - evidence identifier and timestamp;
-- audit record tied to the authenticated operator.
+- authenticated-operator audit correlated with the Operations API event ID;
+- duplicate-click suppression;
+- tested 401, 403, 404, 405, 409, 429, and timeout behavior.
 
-### Second live action: Load updated detection rules
+## Phase 5 — Controlled mutations
+
+Each mutation requires a separate implementation review and explicit authorization.
+
+### Load updated detection rules
 
 Action: `security.rules.reload`  
-Risk: controlled change
+Permission: `edge1.security.rules.reload`
 
-Acceptance:
+Requires typed confirmation, managed-service preflight, the reviewed reload contract, post-action health and EVE-freshness verification, evidence retention, cooldown, and recovery guidance.
 
-- type `LOAD RULES`;
-- verify the managed service is active before submission;
-- use the reviewed `SIGUSR2` reload contract;
-- verify the service remains active;
-- verify fresh EVE statistics after the request;
-- record evidence and recovery guidance;
-- enforce a cooldown to prevent repeated reloads.
-
-### Third live action: Rotate security logs now
+### Rotate security logs
 
 Action: `security.logs.rotate`  
-Risk: controlled change
+Permission: `edge1.security.logs.rotate`
 
-Acceptance:
+Requires typed confirmation, managed-path validation, preservation checks, a writable-current-log check, evidence retention, cooldown, and recovery guidance.
 
-- type `ROTATE LOGS`;
-- verify the intended managed log path;
-- preserve existing files;
-- verify a current writable log after rotation;
-- record before-and-after metadata and evidence.
+### Restart the managed sensor
 
-## Phase 5 — Additional human operations
+Permission: `edge1.security.restart`
 
-Potential additions, each requiring a separate allowlisted backend action and acceptance contract:
-
-- restart the managed sensor;
-- update detection rules from an approved pinned source;
-- view service logs with privacy filtering;
-- view packet and event counter history;
-- manage metadata and PCAP retention;
-- create an incident note from an alert;
-- export a bounded evidence package;
-- temporarily suppress a reviewed noisy rule with automatic expiry;
-- compare configuration and rule changes before applying them.
-
-A stop or disable control should not be exposed as an ordinary convenience action. Emergency or maintenance shutdown requires a separate high-risk workflow with explicit impact language and recovery steps.
+Requires a new allowlisted backend operation, recent authentication or step-up verification, process-identity checks, capture continuity, service health, fresh nonzero packet acceptance, and rollback evidence.
 
 ## Interface requirements
 
-The console must use ordinary language first. Technical details can remain available under an expandable section.
-
-Each action must show:
+Each action must explain:
 
 - what it does;
 - why an operator might use it;
-- what it changes;
-- what it does not change;
+- what it changes and does not change;
 - expected duration;
 - confirmation requirement;
-- progress;
-- success result;
-- failure result;
+- progress and result;
 - evidence identifier;
 - recovery guidance.
 
-Buttons must never silently issue repeated requests. The browser should disable the submitted action until the first request completes or times out.
+Buttons must not silently repeat a request. The browser must disable an in-flight action until completion or timeout.
 
 ## Current safety boundary
 
-The prototype is intentionally locked. It does not:
+The repository implementation does not:
 
-- deploy `/edge1-ops/security/`;
-- choose or configure an identity provider;
-- create credentials or sessions;
-- expose an API secret to the browser;
-- enable mutations;
-- add a listener;
-- alter Apache;
-- restart or reload the sensor;
-- change rules, logs, retention, firewall, DNS, WireGuard, routes, NAT, or traffic controls.
+- deploy or activate `/edge1-ops/security/`;
+- implement the Business159 assertion issuer;
+- accept Business159 cookies or password material;
+- create a public listener;
+- alter Apache or another web-server route;
+- enable an Operations API action;
+- enable a mutation scope;
+- restart, reload, or reconfigure a service;
+- change rules, logs, retention, firewall, DNS, WireGuard, routes, NAT, packet capture, or traffic controls.
 
 ## Recommended next implementation
 
-Build and test the provider-neutral server-side browser gateway and session adapter behind a denied-by-default local staging route. Keep the production route disabled until the actual identity provider and Apache OIDC adapter are inventoried and explicitly authorized.
+Implement the denied-by-default HTTP adapter around the authentication core and the exact `security.validate_config` server-side action bridge. Keep the production route disabled until a fresh Edge1 inventory, complete staging acceptance, and separate activation approval.
