@@ -19,23 +19,26 @@ required_script = (
     'SENSOR_UNIT_LIVE="/etc/systemd/system/wwcx-network-sensor-suricata.service"',
     'SENSOR_UNIT_BACKUP="$BACKUP_DIR/wwcx-network-sensor-suricata.service"',
     "SENSOR_UNIT_WAS_PRESENT=false",
+    'SENSOR_ENABLED="$(systemctl is-enabled "$SENSOR_SERVICE" 2>/dev/null || true)"',
+    'SENSOR_ACTIVE="$(systemctl is-active "$SENSOR_SERVICE" 2>/dev/null || true)"',
     "EXPECTED_COMMIT is required",
     "network-sensor-capture-acceptance.json",
-    'grep -Fxq \'ExecReload=/bin/kill -HUP $MAINPID\' "$SENSOR_UNIT_SOURCE"',
+    'grep -Fxq \'ExecReload=+/bin/kill -USR2 $MAINPID\' "$SENSOR_UNIT_SOURCE"',
     'cp -a "$SENSOR_UNIT_LIVE" "$SENSOR_UNIT_BACKUP"',
     'install -D -o root -g root -m 0644 "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE"',
     'cmp -s "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE"',
     "systemctl daemon-reload",
     'systemctl cat "$SENSOR_SERVICE"',
-    'systemctl reload "$SENSOR_SERVICE"',
     'systemctl disable --now "$LEGACY_SERVICE"',
     "expected exactly one Suricata main process",
     "--pcap=",
+    "capture_failure_evidence",
+    "failure-service-journal.txt",
     "restore_legacy_state",
     "restore_collector",
-    "restore_sensor_unit",
+    "restore_sensor_state",
     "managed_unit_installed=true",
-    "managed_reload_verified=true",
+    "managed_reload_contract_installed=true",
     "traffic_controls_changed=false",
 )
 missing = [marker for marker in required_script if marker not in script]
@@ -50,10 +53,12 @@ forbidden_script = (
     "wg set",
     "rm -rf",
     "systemctl mask",
+    'systemctl reload "$SENSOR_SERVICE"',
+    "managed_reload_verified=true",
 )
 present = [marker for marker in forbidden_script if marker in script]
 if present:
-    raise SystemExit(f"runtime consolidation contains forbidden mutations: {present}")
+    raise SystemExit(f"runtime consolidation contains forbidden or nonessential mutations: {present}")
 
 required_collector = (
     "wwcx-network-sensor-suricata.service",
@@ -75,8 +80,12 @@ present = [marker for marker in forbidden_collector if marker in collector]
 if present:
     raise SystemExit(f"collector still contains legacy source markers: {present}")
 
-if "ExecReload=/bin/kill -HUP $MAINPID" not in unit:
-    raise SystemExit("managed Suricata unit does not support bounded reload")
+if "ExecReload=+/bin/kill -USR2 $MAINPID" not in unit:
+    raise SystemExit("managed Suricata unit does not use privileged SIGUSR2 rule reload")
+if "ExecReload=/bin/kill -HUP $MAINPID" in unit:
+    raise SystemExit("managed Suricata unit still uses the log-reopen signal for rule reload")
+if "CAP_KILL" in unit:
+    raise SystemExit("managed Suricata daemon capability boundary was broadened unnecessarily")
 
 required_reload = (
     "wwcx-network-sensor-suricata.service",

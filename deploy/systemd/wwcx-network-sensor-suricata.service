@@ -14,7 +14,7 @@ ExecStartPre=+/usr/bin/install -d -o suricata -g root -m 2770 /var/log/wwcx-netw
 ExecStartPre=+/usr/bin/chown -R suricata:root /var/log/wwcx-network-sensor/suricata
 ExecStartPre=+/usr/bin/install -d -o wwsensor -g root -m 2770 /var/log/wwcx-network-sensor/zeek
 ExecStart=/usr/bin/suricata ${SURICATA_CAPTURE_ARGUMENT} -c ${SURICATA_CONFIG} -l /var/log/wwcx-network-sensor/suricata --pidfile /run/wwcx-network-sensor/suricata.pid --user=suricata --group=suricata --set unix-command.enabled=no --init-errors-fatal
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=+/bin/kill -USR2 $MAINPID
 Restart=on-failure
 RestartSec=5s
 UMask=0007

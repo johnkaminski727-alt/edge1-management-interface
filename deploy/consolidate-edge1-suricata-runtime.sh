@@ -22,6 +22,8 @@ COLLECTOR_WAS_PRESENT=false
 SENSOR_UNIT_WAS_PRESENT=false
 LEGACY_ENABLED="$(systemctl is-enabled "$LEGACY_SERVICE" 2>/dev/null || true)"
 LEGACY_ACTIVE="$(systemctl is-active "$LEGACY_SERVICE" 2>/dev/null || true)"
+SENSOR_ENABLED="$(systemctl is-enabled "$SENSOR_SERVICE" 2>/dev/null || true)"
+SENSOR_ACTIVE="$(systemctl is-active "$SENSOR_SERVICE" 2>/dev/null || true)"
 
 fail() {
     printf 'ERROR: %s\n' "$*" >&2
@@ -48,13 +50,22 @@ restore_collector() {
     fi
 }
 
-restore_sensor_unit() {
+restore_sensor_state() {
     if [ "$SENSOR_UNIT_WAS_PRESENT" = true ] && [ -f "$SENSOR_UNIT_BACKUP" ]; then
         cp -a "$SENSOR_UNIT_BACKUP" "$SENSOR_UNIT_LIVE"
     else
         rm -f "$SENSOR_UNIT_LIVE"
     fi
     systemctl daemon-reload >/dev/null 2>&1 || true
+    case "$SENSOR_ENABLED" in
+        enabled|enabled-runtime) systemctl enable "$SENSOR_SERVICE" >/dev/null 2>&1 || true ;;
+        *) systemctl disable "$SENSOR_SERVICE" >/dev/null 2>&1 || true ;;
+    esac
+    if [ "$SENSOR_ACTIVE" = active ]; then
+        systemctl start "$SENSOR_SERVICE" >/dev/null 2>&1 || true
+    else
+        systemctl stop "$SENSOR_SERVICE" >/dev/null 2>&1 || true
+    fi
 }
 
 refresh_pipeline() {
@@ -64,20 +75,30 @@ refresh_pipeline() {
     systemctl start wwcx-network-defense.service
 }
 
+capture_failure_evidence() {
+    systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" "$PUSH_SERVICE" --no-pager \
+        > "$EVIDENCE_DIR/failure-systemd-status.txt" 2>&1 || true
+    journalctl -u "$LEGACY_SERVICE" -u "$SENSOR_SERVICE" -u "$PUSH_SERVICE" --since=-15min --no-pager \
+        > "$EVIDENCE_DIR/failure-service-journal.txt" 2>&1 || true
+    ps -eo user,group,pid,ppid,etimes,rss,cmd | grep '[s]uricata' \
+        > "$EVIDENCE_DIR/failure-suricata-processes.txt" 2>&1 || true
+}
+
 rollback() {
     code=$?
     trap - ERR INT TERM
     set +e
     if [ "$MUTATION_STARTED" = true ]; then
+        capture_failure_evidence
         restore_collector
-        restore_sensor_unit
+        restore_sensor_state
         restore_legacy_state
         refresh_pipeline >/dev/null 2>&1 || true
         systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" "$PUSH_SERVICE" --no-pager \
             > "$EVIDENCE_DIR/rollback-systemd-status.txt" 2>&1 || true
         printf 'completed_at=%s\naccepted=false\nrolled_back=true\nexit_code=%s\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$code" > "$EVIDENCE_DIR/result.txt"
-        printf 'Suricata runtime consolidation failed; previous collector, managed unit, and legacy service state restored.\n' >&2
+        printf 'Suricata runtime consolidation failed; previous collector, managed sensor state, and legacy service state restored.\n' >&2
         printf 'Failure evidence: %s\n' "$EVIDENCE_DIR" >&2
     fi
     exit "$code"
@@ -103,14 +124,16 @@ printf '%s\n' "$EXPECTED_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail "EXPECTED_C
 git -C "$ROOT" merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD || fail "required consolidation commit is missing"
 [ -f "$COLLECTOR_SOURCE" ] || fail "collector source is missing"
 [ -f "$SENSOR_UNIT_SOURCE" ] || fail "managed sensor unit source is missing"
-grep -Fxq 'ExecReload=/bin/kill -HUP $MAINPID' "$SENSOR_UNIT_SOURCE" || fail "managed sensor unit source lacks bounded reload support"
+grep -Fxq 'ExecReload=+/bin/kill -USR2 $MAINPID' "$SENSOR_UNIT_SOURCE" || fail "managed sensor unit source lacks privileged SIGUSR2 rule reload support"
 
 install -d -o root -g root -m 0700 "$EVIDENCE_DIR" "$BACKUP_DIR"
 printf '%s\n' "$HOST" > "$EVIDENCE_DIR/host.txt"
 printf '%s\n' "$EXPECTED_COMMIT" > "$EVIDENCE_DIR/expected-commit.txt"
 git -C "$ROOT" rev-parse HEAD > "$EVIDENCE_DIR/revision.txt"
 git -C "$ROOT" status --short --branch > "$EVIDENCE_DIR/git-status.txt"
-printf 'legacy_enabled=%s\nlegacy_active=%s\n' "$LEGACY_ENABLED" "$LEGACY_ACTIVE" > "$EVIDENCE_DIR/legacy-state-before.txt"
+printf 'legacy_enabled=%s\nlegacy_active=%s\nsensor_enabled=%s\nsensor_active=%s\n' \
+    "$LEGACY_ENABLED" "$LEGACY_ACTIVE" "$SENSOR_ENABLED" "$SENSOR_ACTIVE" \
+    > "$EVIDENCE_DIR/service-state-before.txt"
 systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" --no-pager \
     > "$EVIDENCE_DIR/systemd-status-before.txt" 2>&1 || true
 journalctl -u "$LEGACY_SERVICE" --since=-24h --no-pager \
@@ -173,7 +196,7 @@ install -D -o root -g root -m 0644 "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE"
 cmp -s "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE"
 systemctl daemon-reload
 systemctl cat "$SENSOR_SERVICE" > "$EVIDENCE_DIR/managed-unit-after.txt"
-grep -Fq 'ExecReload=/bin/kill -HUP $MAINPID' "$EVIDENCE_DIR/managed-unit-after.txt" || fail "loaded managed sensor unit lacks bounded reload support"
+grep -Fq 'ExecReload=+/bin/kill -USR2 $MAINPID' "$EVIDENCE_DIR/managed-unit-after.txt" || fail "loaded managed sensor unit lacks privileged SIGUSR2 rule reload support"
 sha256sum "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE" > "$EVIDENCE_DIR/managed-unit-after.sha256"
 
 refresh_pipeline
@@ -218,8 +241,6 @@ set -- $SENSOR_PIDS
 SENSOR_PID=$1
 tr '\0' ' ' < "/proc/$SENSOR_PID/cmdline" > "$EVIDENCE_DIR/suricata-command-after.txt"
 grep -Fq -- '--pcap=' "$EVIDENCE_DIR/suricata-command-after.txt" || fail "remaining Suricata process is not the managed libpcap sensor"
-
-systemctl reload "$SENSOR_SERVICE"
 systemctl is-active --quiet "$SENSOR_SERVICE"
 
 refresh_pipeline
@@ -267,7 +288,7 @@ sha256sum \
     "$EVIDENCE_DIR/managed-unit-after.txt" \
     > "$EVIDENCE_DIR/SHA256SUMS"
 
-printf 'completed_at=%s\naccepted=true\nrolled_back=false\nlegacy_service_disabled=true\nmanaged_sensor_active=true\nmanaged_unit_installed=true\nmanaged_reload_verified=true\ntraffic_controls_changed=false\n' \
+printf 'completed_at=%s\naccepted=true\nrolled_back=false\nlegacy_service_disabled=true\nmanaged_sensor_active=true\nmanaged_unit_installed=true\nmanaged_reload_contract_installed=true\ntraffic_controls_changed=false\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$EVIDENCE_DIR/result.txt"
 
 trap - ERR INT TERM
