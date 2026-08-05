@@ -5,6 +5,8 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 LEGACY_SERVICE="suricata.service"
 SENSOR_SERVICE="wwcx-network-sensor-suricata.service"
+SENSOR_UNIT_SOURCE="$ROOT/deploy/systemd/wwcx-network-sensor-suricata.service"
+SENSOR_UNIT_LIVE="/etc/systemd/system/wwcx-network-sensor-suricata.service"
 COLLECTOR_SOURCE="$ROOT/server/bigbird_ops_collect.py"
 COLLECTOR_LIVE="/usr/local/libexec/bigbird-ops-collect.py"
 PUSH_SERVICE="bigbird-ops-push.service"
@@ -14,8 +16,10 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE_DIR="${1:-$EVIDENCE_ROOT/$STAMP}"
 BACKUP_DIR="$EVIDENCE_DIR/backups"
 COLLECTOR_BACKUP="$BACKUP_DIR/bigbird-ops-collect.py"
+SENSOR_UNIT_BACKUP="$BACKUP_DIR/wwcx-network-sensor-suricata.service"
 MUTATION_STARTED=false
 COLLECTOR_WAS_PRESENT=false
+SENSOR_UNIT_WAS_PRESENT=false
 LEGACY_ENABLED="$(systemctl is-enabled "$LEGACY_SERVICE" 2>/dev/null || true)"
 LEGACY_ACTIVE="$(systemctl is-active "$LEGACY_SERVICE" 2>/dev/null || true)"
 
@@ -44,6 +48,15 @@ restore_collector() {
     fi
 }
 
+restore_sensor_unit() {
+    if [ "$SENSOR_UNIT_WAS_PRESENT" = true ] && [ -f "$SENSOR_UNIT_BACKUP" ]; then
+        cp -a "$SENSOR_UNIT_BACKUP" "$SENSOR_UNIT_LIVE"
+    else
+        rm -f "$SENSOR_UNIT_LIVE"
+    fi
+    systemctl daemon-reload >/dev/null 2>&1 || true
+}
+
 refresh_pipeline() {
     systemctl start "$PUSH_SERVICE"
     systemctl start wwcx-security-operations.service
@@ -57,13 +70,14 @@ rollback() {
     set +e
     if [ "$MUTATION_STARTED" = true ]; then
         restore_collector
+        restore_sensor_unit
         restore_legacy_state
         refresh_pipeline >/dev/null 2>&1 || true
         systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" "$PUSH_SERVICE" --no-pager \
             > "$EVIDENCE_DIR/rollback-systemd-status.txt" 2>&1 || true
         printf 'completed_at=%s\naccepted=false\nrolled_back=true\nexit_code=%s\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$code" > "$EVIDENCE_DIR/result.txt"
-        printf 'Suricata runtime consolidation failed; previous collector and legacy service state restored.\n' >&2
+        printf 'Suricata runtime consolidation failed; previous collector, managed unit, and legacy service state restored.\n' >&2
         printf 'Failure evidence: %s\n' "$EVIDENCE_DIR" >&2
     fi
     exit "$code"
@@ -72,7 +86,7 @@ trap rollback ERR INT TERM
 
 [ "$(id -u)" -eq 0 ] || fail "run as root"
 [ -d "$ROOT/.git" ] || fail "repository not found: $ROOT"
-for command in date find git hostname install jq pgrep ps python3 sha256sum stat systemctl; do
+for command in awk cmp cp date find git grep hostname install journalctl jq pgrep ps python3 sha256sum stat systemctl tr; do
     command -v "$command" >/dev/null 2>&1 || fail "required command unavailable: $command"
 done
 
@@ -88,6 +102,8 @@ printf '%s\n' "$EXPECTED_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail "EXPECTED_C
 [ -z "$(git -C "$ROOT" status --porcelain --untracked-files=all)" ] || fail "repository is not clean"
 git -C "$ROOT" merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD || fail "required consolidation commit is missing"
 [ -f "$COLLECTOR_SOURCE" ] || fail "collector source is missing"
+[ -f "$SENSOR_UNIT_SOURCE" ] || fail "managed sensor unit source is missing"
+grep -Fxq 'ExecReload=/bin/kill -HUP $MAINPID' "$SENSOR_UNIT_SOURCE" || fail "managed sensor unit source lacks bounded reload support"
 
 install -d -o root -g root -m 0700 "$EVIDENCE_DIR" "$BACKUP_DIR"
 printf '%s\n' "$HOST" > "$EVIDENCE_DIR/host.txt"
@@ -142,11 +158,23 @@ if [ -f "$COLLECTOR_LIVE" ]; then
     COLLECTOR_WAS_PRESENT=true
     sha256sum "$COLLECTOR_LIVE" > "$EVIDENCE_DIR/runtime-collector-before.sha256"
 fi
+if [ -e "$SENSOR_UNIT_LIVE" ]; then
+    cp -a "$SENSOR_UNIT_LIVE" "$SENSOR_UNIT_BACKUP"
+    SENSOR_UNIT_WAS_PRESENT=true
+    sha256sum "$SENSOR_UNIT_LIVE" > "$EVIDENCE_DIR/managed-unit-before.sha256"
+fi
 
 MUTATION_STARTED=true
 install -D -o root -g root -m 0700 "$COLLECTOR_SOURCE" "$COLLECTOR_LIVE"
 cmp -s "$COLLECTOR_SOURCE" "$COLLECTOR_LIVE"
 sha256sum "$COLLECTOR_SOURCE" "$COLLECTOR_LIVE" > "$EVIDENCE_DIR/runtime-collector-after.sha256"
+
+install -D -o root -g root -m 0644 "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE"
+cmp -s "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE"
+systemctl daemon-reload
+systemctl cat "$SENSOR_SERVICE" > "$EVIDENCE_DIR/managed-unit-after.txt"
+grep -Fq 'ExecReload=/bin/kill -HUP $MAINPID' "$EVIDENCE_DIR/managed-unit-after.txt" || fail "loaded managed sensor unit lacks bounded reload support"
+sha256sum "$SENSOR_UNIT_SOURCE" "$SENSOR_UNIT_LIVE" > "$EVIDENCE_DIR/managed-unit-after.sha256"
 
 refresh_pipeline
 
@@ -191,6 +219,9 @@ SENSOR_PID=$1
 tr '\0' ' ' < "/proc/$SENSOR_PID/cmdline" > "$EVIDENCE_DIR/suricata-command-after.txt"
 grep -Fq -- '--pcap=' "$EVIDENCE_DIR/suricata-command-after.txt" || fail "remaining Suricata process is not the managed libpcap sensor"
 
+systemctl reload "$SENSOR_SERVICE"
+systemctl is-active --quiet "$SENSOR_SERVICE"
+
 refresh_pipeline
 
 python3 - "$SOURCE_SNAPSHOT" "$EVIDENCE_DIR/source-after-retirement.json" <<'PY'
@@ -223,6 +254,8 @@ jq -e '.overall_state == "observed" and .traffic_controls_changed == false' \
 
 systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" "$PUSH_SERVICE" --no-pager \
     > "$EVIDENCE_DIR/systemd-status-after.txt" 2>&1 || true
+journalctl -u "$SENSOR_SERVICE" --since=-10min --no-pager \
+    > "$EVIDENCE_DIR/managed-sensor-journal-after.txt" 2>&1 || true
 ps -eo user,group,pid,ppid,etimes,rss,cmd | grep '[s]uricata' \
     > "$EVIDENCE_DIR/suricata-processes-after.txt"
 
@@ -231,9 +264,10 @@ sha256sum \
     "$EVIDENCE_DIR/source-after-retirement.json" \
     "$EVIDENCE_DIR/network-defense-after.json" \
     "$EVIDENCE_DIR/suricata-command-after.txt" \
+    "$EVIDENCE_DIR/managed-unit-after.txt" \
     > "$EVIDENCE_DIR/SHA256SUMS"
 
-printf 'completed_at=%s\naccepted=true\nrolled_back=false\nlegacy_service_disabled=true\nmanaged_sensor_active=true\ntraffic_controls_changed=false\n' \
+printf 'completed_at=%s\naccepted=true\nrolled_back=false\nlegacy_service_disabled=true\nmanaged_sensor_active=true\nmanaged_unit_installed=true\nmanaged_reload_verified=true\ntraffic_controls_changed=false\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$EVIDENCE_DIR/result.txt"
 
 trap - ERR INT TERM
