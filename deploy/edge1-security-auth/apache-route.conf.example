@@ -1,0 +1,12 @@
+# Staging example only. Do not install until the live inventory, TLS virtual host,
+# proxy modules, runtime service account, rollback, and route approval are verified.
+ProxyPass        /edge1-ops/session/exchange http://127.0.0.1:8108/edge1-ops/session/exchange retry=0 timeout=20
+ProxyPassReverse /edge1-ops/session/exchange http://127.0.0.1:8108/edge1-ops/session/exchange
+ProxyPass        /edge1-ops/session/logout http://127.0.0.1:8108/edge1-ops/session/logout retry=0 timeout=20
+ProxyPassReverse /edge1-ops/session/logout http://127.0.0.1:8108/edge1-ops/session/logout
+ProxyPass        /edge1-ops/session http://127.0.0.1:8108/edge1-ops/session retry=0 timeout=20
+ProxyPassReverse /edge1-ops/session http://127.0.0.1:8108/edge1-ops/session
+ProxyPass        /edge1-ops/api/v1/security/validate http://127.0.0.1:8108/edge1-ops/api/v1/security/validate retry=0 timeout=30
+ProxyPassReverse /edge1-ops/api/v1/security/validate http://127.0.0.1:8108/edge1-ops/api/v1/security/validate
+
+RequestHeader set X-Forwarded-Proto "https"

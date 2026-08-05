@@ -1,7 +1,8 @@
-"""Edge1-owned replay, opaque-session, and append-only audit storage."""
+"""Edge1-owned replay, opaque-session, CSRF, rate-limit, and audit storage."""
 from __future__ import annotations
 
 import contextlib
+import hmac
 import json
 import os
 import sqlite3
@@ -32,7 +33,7 @@ class JsonlAuditSink:
             raise AuditUnavailableError("audit event identifier is invalid")
         record["event_id"] = event_id
         record.setdefault("timestamp", int(time.time()))
-        forbidden = {"assertion", "token", "cookie", "password", "signature", "private_key"}
+        forbidden = {"assertion", "token", "cookie", "password", "signature", "private_key", "csrf"}
         if forbidden.intersection(record):
             raise AuditUnavailableError("audit record contains prohibited fields")
         try:
@@ -52,7 +53,7 @@ class JsonlAuditSink:
 
 
 class SQLiteGatewayStore:
-    """Atomic replay and hashed opaque-session storage owned by Edge1."""
+    """Atomic replay, hashed session, CSRF, rate-limit, and action-guard storage."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -91,6 +92,25 @@ class SQLiteGatewayStore:
                         revoked_at INTEGER
                     );
                     CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
+                    CREATE TABLE IF NOT EXISTS session_csrf (
+                        session_hash TEXT PRIMARY KEY,
+                        csrf_hash TEXT NOT NULL,
+                        expires_at INTEGER NOT NULL,
+                        FOREIGN KEY(session_hash) REFERENCES sessions(session_hash) ON DELETE CASCADE
+                    );
+                    CREATE TABLE IF NOT EXISTS http_rate_limits (
+                        bucket_key TEXT PRIMARY KEY,
+                        window_started_at INTEGER NOT NULL,
+                        request_count INTEGER NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS action_guards (
+                        session_hash TEXT NOT NULL,
+                        action_id TEXT NOT NULL,
+                        started_at INTEGER NOT NULL,
+                        completed_at INTEGER,
+                        PRIMARY KEY(session_hash, action_id),
+                        FOREIGN KEY(session_hash) REFERENCES sessions(session_hash) ON DELETE CASCADE
+                    );
                     """
                 )
             os.chmod(self.path, 0o600)
@@ -169,6 +189,7 @@ class SQLiteGatewayStore:
                         "UPDATE sessions SET revoked_at = COALESCE(revoked_at, ?) WHERE session_hash = ?",
                         (now, session_hash),
                     )
+                    connection.execute("DELETE FROM session_csrf WHERE session_hash = ?", (session_hash,))
                     connection.execute("COMMIT")
                     return None, reason
                 connection.execute(
@@ -193,10 +214,126 @@ class SQLiteGatewayStore:
     def revoke_session(self, session_hash: str, now: int) -> bool:
         try:
             with contextlib.closing(self._connect()) as connection:
+                connection.execute("BEGIN IMMEDIATE")
                 cursor = connection.execute(
                     "UPDATE sessions SET revoked_at = ? WHERE session_hash = ? AND revoked_at IS NULL",
                     (now, session_hash),
                 )
+                connection.execute("DELETE FROM session_csrf WHERE session_hash = ?", (session_hash,))
+                connection.execute("COMMIT")
                 return cursor.rowcount == 1
         except sqlite3.Error as exc:
             raise AuthenticationError("session store is unavailable") from exc
+
+    def set_csrf(self, session_hash: str, csrf_hash: str, expires_at: int) -> None:
+        try:
+            with contextlib.closing(self._connect()) as connection:
+                connection.execute(
+                    """
+                    INSERT INTO session_csrf(session_hash, csrf_hash, expires_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(session_hash) DO UPDATE SET
+                        csrf_hash = excluded.csrf_hash,
+                        expires_at = excluded.expires_at
+                    """,
+                    (session_hash, csrf_hash, expires_at),
+                )
+        except sqlite3.Error as exc:
+            raise AuthenticationError("CSRF state could not be created") from exc
+
+    def verify_csrf(self, session_hash: str, csrf_hash: str, now: int) -> bool:
+        try:
+            with contextlib.closing(self._connect()) as connection:
+                row = connection.execute(
+                    "SELECT csrf_hash, expires_at FROM session_csrf WHERE session_hash = ?",
+                    (session_hash,),
+                ).fetchone()
+                return bool(
+                    row is not None
+                    and now < int(row["expires_at"])
+                    and hmac.compare_digest(str(row["csrf_hash"]), csrf_hash)
+                )
+        except sqlite3.Error as exc:
+            raise AuthenticationError("CSRF state is unavailable") from exc
+
+    def allow_rate(self, bucket_key: str, now: int, *, limit: int, window_seconds: int) -> bool:
+        try:
+            with contextlib.closing(self._connect()) as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                row = connection.execute(
+                    "SELECT window_started_at, request_count FROM http_rate_limits WHERE bucket_key = ?",
+                    (bucket_key,),
+                ).fetchone()
+                if row is None or now - int(row["window_started_at"]) >= window_seconds:
+                    connection.execute(
+                        """
+                        INSERT INTO http_rate_limits(bucket_key, window_started_at, request_count)
+                        VALUES (?, ?, 1)
+                        ON CONFLICT(bucket_key) DO UPDATE SET
+                            window_started_at = excluded.window_started_at,
+                            request_count = 1
+                        """,
+                        (bucket_key, now),
+                    )
+                    connection.execute("COMMIT")
+                    return True
+                if int(row["request_count"]) >= limit:
+                    connection.execute("ROLLBACK")
+                    return False
+                connection.execute(
+                    "UPDATE http_rate_limits SET request_count = request_count + 1 WHERE bucket_key = ?",
+                    (bucket_key,),
+                )
+                connection.execute("COMMIT")
+                return True
+        except sqlite3.Error as exc:
+            raise AuthenticationError("rate-limit state is unavailable") from exc
+
+    def begin_action(
+        self,
+        session_hash: str,
+        action_id: str,
+        now: int,
+        *,
+        inflight_timeout_seconds: int,
+        cooldown_seconds: int,
+    ) -> str:
+        try:
+            with contextlib.closing(self._connect()) as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                row = connection.execute(
+                    "SELECT started_at, completed_at FROM action_guards WHERE session_hash = ? AND action_id = ?",
+                    (session_hash, action_id),
+                ).fetchone()
+                if row is not None:
+                    completed_at = row["completed_at"]
+                    if completed_at is None and now - int(row["started_at"]) < inflight_timeout_seconds:
+                        connection.execute("ROLLBACK")
+                        return "in_progress"
+                    if completed_at is not None and now - int(completed_at) < cooldown_seconds:
+                        connection.execute("ROLLBACK")
+                        return "cooldown"
+                connection.execute(
+                    """
+                    INSERT INTO action_guards(session_hash, action_id, started_at, completed_at)
+                    VALUES (?, ?, ?, NULL)
+                    ON CONFLICT(session_hash, action_id) DO UPDATE SET
+                        started_at = excluded.started_at,
+                        completed_at = NULL
+                    """,
+                    (session_hash, action_id, now),
+                )
+                connection.execute("COMMIT")
+                return "started"
+        except sqlite3.Error as exc:
+            raise AuthenticationError("action guard is unavailable") from exc
+
+    def finish_action(self, session_hash: str, action_id: str, now: int) -> None:
+        try:
+            with contextlib.closing(self._connect()) as connection:
+                connection.execute(
+                    "UPDATE action_guards SET completed_at = ? WHERE session_hash = ? AND action_id = ?",
+                    (now, session_hash, action_id),
+                )
+        except sqlite3.Error as exc:
+            raise AuthenticationError("action guard is unavailable") from exc
