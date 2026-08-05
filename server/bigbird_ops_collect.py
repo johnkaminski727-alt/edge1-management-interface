@@ -14,7 +14,8 @@ from pathlib import Path
 OUT = Path('/var/lib/bigbird/operations-center')
 SURICATA_SERVICE = os.environ.get('WWCX_SURICATA_SERVICE', 'wwcx-network-sensor-suricata.service')
 EVE = Path(os.environ.get('WWCX_SURICATA_EVE', '/var/log/wwcx-network-sensor/suricata/eve.json'))
-COLLECTOR_RELEASE = 'edge1-suricata-sensor-consolidation-r1'
+COLLECTOR_RELEASE = 'edge1-suricata-enrichment-r1'
+SURICATA_SOURCE_RELEASE = 'edge1-suricata-sensor-consolidation-r1'
 SURICATA_ALERT_SCHEMA = 'wwcx.suricata-source-alert.v1'
 
 
@@ -254,6 +255,7 @@ def suricata(eve_path=None):
         'available': eve.is_file(),
         'service': SURICATA_SERVICE,
         'source_path': str(eve),
+        'source_release': SURICATA_SOURCE_RELEASE,
         'alert_schema': SURICATA_ALERT_SCHEMA,
         'counts': dict(sorted(counts.items(), key=lambda item: -item[1])[:50]),
         'recent_alerts': recent[-100:],
