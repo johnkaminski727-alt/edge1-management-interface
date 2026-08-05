@@ -30,6 +30,7 @@
       "description": "Tests the Suricata configuration without changing the running service.",
       "risk": "read_only",
       "mutating": false,
+      "required_scope": "edge1.security.validate",
       "available_after_gateway_activation": true,
       "confirmation": "button",
       "success_message": "The security configuration passed validation.",
@@ -41,6 +42,7 @@
       "description": "Asks the managed Suricata service to load reviewed rule updates without restarting packet capture.",
       "risk": "controlled_change",
       "mutating": true,
+      "required_scope": "edge1.security.rules.reload",
       "available_after_gateway_activation": false,
       "confirmation": "type_phrase",
       "confirmation_phrase": "LOAD RULES",
@@ -53,6 +55,7 @@
       "description": "Closes the current metadata log files and starts fresh files under the approved retention policy.",
       "risk": "controlled_change",
       "mutating": true,
+      "required_scope": "edge1.security.logs.rotate",
       "available_after_gateway_activation": false,
       "confirmation": "type_phrase",
       "confirmation_phrase": "ROTATE LOGS",
@@ -63,6 +66,7 @@
   "future_actions": [
     {
       "label": "Restart the managed sensor",
+      "required_scope": "edge1.security.restart",
       "reason_deferred": "Requires a dedicated allowlisted action, capture continuity checks, and automatic post-restart acceptance."
     },
     {
@@ -75,12 +79,17 @@
     }
   ],
   "required_browser_controls": {
-    "authentication": "OpenID Connect authorization-code flow with PKCE and MFA",
-    "session": "Server-side session with opaque browser identifier",
+    "authentication": "Business159 one-time RS256 identity assertion exchanged for an Edge1-owned opaque server-side session",
+    "identity_authority": "Business159 WW.CX user and role directory",
+    "business159_cookie_accepted": false,
+    "business159_database_access": false,
+    "password_material_accepted": false,
+    "session": "Server-side session with opaque browser identifier stored as a SHA-256 hash",
     "csrf": true,
     "typed_confirmation_for_mutations": true,
     "per_action_authorization": true,
     "append_only_audit": true,
+    "operations_event_correlation": true,
     "rate_limiting": true,
     "no_anonymous_fallback": true
   },

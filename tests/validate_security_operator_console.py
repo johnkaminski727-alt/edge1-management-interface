@@ -24,6 +24,15 @@ assert policy["acceptance"]["live_authentication_changed"] is False
 assert policy["acceptance"]["live_route_changed"] is False
 assert policy["acceptance"]["traffic_controls_changed"] is False
 
+browser = policy["required_browser_controls"]
+assert "Business159" in browser["authentication"]
+assert browser["identity_authority"] == "Business159 WW.CX user and role directory"
+assert browser["business159_cookie_accepted"] is False
+assert browser["business159_database_access"] is False
+assert browser["password_material_accepted"] is False
+assert browser["operations_event_correlation"] is True
+assert browser["no_anonymous_fallback"] is True
+
 actions = {item["id"]: item for item in policy["actions"]}
 assert set(actions) == {
     "security.validate_config",
@@ -31,8 +40,11 @@ assert set(actions) == {
     "security.logs.rotate",
 }
 assert actions["security.validate_config"]["mutating"] is False
+assert actions["security.validate_config"]["required_scope"] == "edge1.security.validate"
 assert actions["security.rules.reload"]["mutating"] is True
+assert actions["security.rules.reload"]["required_scope"] == "edge1.security.rules.reload"
 assert actions["security.logs.rotate"]["mutating"] is True
+assert actions["security.logs.rotate"]["required_scope"] == "edge1.security.logs.rotate"
 assert actions["security.rules.reload"]["confirmation_phrase"] == "LOAD RULES"
 assert actions["security.logs.rotate"]["confirmation_phrase"] == "ROTATE LOGS"
 

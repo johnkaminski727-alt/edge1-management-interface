@@ -1,0 +1,61 @@
+{
+  "contract": "wwcx.edge1-security-auth-gateway.v1",
+  "status": "staged_disabled",
+  "enabled": false,
+  "deployment_authorized": false,
+  "live_route_authorized": false,
+  "issuer": "https://business159.ww.cx/wwcx-identity",
+  "audience": "urn:wwcx:edge1:security-console",
+  "trusted_jwks_path": "/etc/wwcx-edge1-ops/business159-jwks.json",
+  "state_db_path": "/var/lib/wwcx-edge1-ops/security-auth.sqlite3",
+  "audit_path": "/var/lib/wwcx-edge1-ops/audit/security-auth.jsonl",
+  "assertion": {
+    "algorithm": "RS256",
+    "required_claims": [
+      "iss",
+      "aud",
+      "sub",
+      "display_name",
+      "active",
+      "role",
+      "scope",
+      "iat",
+      "nbf",
+      "exp",
+      "jti",
+      "nonce"
+    ],
+    "scope_claim": "scope",
+    "maximum_lifetime_seconds": 120,
+    "clock_skew_seconds": 10,
+    "one_time_required": true
+  },
+  "session": {
+    "opaque_identifier_bytes": 32,
+    "identifier_storage": "sha256_only",
+    "absolute_timeout_seconds": 300,
+    "idle_timeout_seconds": 180,
+    "persistent": false
+  },
+  "permissions": {
+    "initial": [
+      "edge1.security.read",
+      "edge1.security.validate"
+    ],
+    "mutations": [
+      "edge1.security.rules.reload",
+      "edge1.security.logs.rotate",
+      "edge1.security.restart"
+    ],
+    "unknown_scope_behavior": "deny_assertion"
+  },
+  "boundaries": {
+    "business159_database_access": false,
+    "business159_cookie_acceptance": false,
+    "password_material_acceptance": false,
+    "raw_assertion_storage": false,
+    "raw_session_storage": false,
+    "browser_operations_api_access": false,
+    "mutations_enabled": false
+  }
+}
