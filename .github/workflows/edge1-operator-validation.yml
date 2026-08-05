@@ -27,3 +27,11 @@ jobs:
 
       - name: Validate Edge1 Operator import path
         run: python3 -c "from server.edge1_operator_entrypoint import build_operator; assert callable(build_operator)"
+
+      - name: Validate Security Console prototype
+        run: python3 tests/validate_security_operator_console.py
+
+      - name: Test Business159 assertion and Edge1 session gateway
+        env:
+          PYTHONWARNINGS: error::ResourceWarning
+        run: python3 -m unittest -v tests.test_edge1_security_auth_gateway
