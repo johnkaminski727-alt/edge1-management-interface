@@ -4,8 +4,12 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 SCRIPT = ROOT / "deploy" / "consolidate-edge1-suricata-runtime.sh"
 COLLECTOR = ROOT / "server" / "bigbird_ops_collect.py"
+UNIT = ROOT / "deploy" / "systemd" / "wwcx-network-sensor-suricata.service"
+RELOAD = ROOT / "tools" / "security" / "reload-suricata-rules.sh"
 script = SCRIPT.read_text(encoding="utf-8")
 collector = COLLECTOR.read_text(encoding="utf-8")
+unit = UNIT.read_text(encoding="utf-8")
+reload_script = RELOAD.read_text(encoding="utf-8")
 
 required_script = (
     "set -Eeuo pipefail",
@@ -56,5 +60,20 @@ forbidden_collector = (
 present = [marker for marker in forbidden_collector if marker in collector]
 if present:
     raise SystemExit(f"collector still contains legacy source markers: {present}")
+
+if "ExecReload=/bin/kill -HUP $MAINPID" not in unit:
+    raise SystemExit("managed Suricata unit does not support bounded reload")
+
+required_reload = (
+    "wwcx-network-sensor-suricata.service",
+    'systemctl is-active --quiet "$SURICATA_SERVICE"',
+    'systemctl reload "$SURICATA_SERVICE"',
+    '"service": "$SURICATA_SERVICE"',
+)
+missing = [marker for marker in required_reload if marker not in reload_script]
+if missing:
+    raise SystemExit(f"managed Suricata reload markers missing: {missing}")
+if "systemctl reload suricata.service" in reload_script:
+    raise SystemExit("reload tool still targets the retired legacy service")
 
 print("Suricata runtime consolidation validation passed")
