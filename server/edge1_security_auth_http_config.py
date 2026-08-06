@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Mapping
 
 HTTP_CONTRACT = "wwcx.edge1-security-auth-http.v1"
+
+
 @dataclasses.dataclass(frozen=True)
 class HttpAdapterConfig:
     enabled: bool
@@ -54,13 +56,14 @@ class HttpAdapterConfig:
             raise ValueError("HTTP adapter cannot be enabled without deployment authorization")
         if value["allowed_host"] != "edge1.ww.cx":
             raise ValueError("HTTP adapter host must remain exact")
-        if value["business159_origin"] != "https://business159.ww.cx":
-            raise ValueError("Business159 origin must remain exact")
+        if value["business159_origin"] != "https://ww.cx":
+            raise ValueError("Business159 browser origin must remain exact")
         if value["same_origin"] != "https://edge1.ww.cx":
             raise ValueError("Edge1 origin must remain exact")
         routes = value["routes"]
         expected_routes = {
             "health": "/healthz",
+            "console": "/edge1-ops/security/",
             "exchange": "/edge1-ops/session/exchange",
             "session": "/edge1-ops/session",
             "logout": "/edge1-ops/session/logout",
