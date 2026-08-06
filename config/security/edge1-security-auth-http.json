@@ -5,10 +5,11 @@
   "deployment_authorized": false,
   "live_route_authorized": false,
   "allowed_host": "edge1.ww.cx",
-  "business159_origin": "https://business159.ww.cx",
+  "business159_origin": "https://ww.cx",
   "same_origin": "https://edge1.ww.cx",
   "routes": {
     "health": "/healthz",
+    "console": "/edge1-ops/security/",
     "exchange": "/edge1-ops/session/exchange",
     "session": "/edge1-ops/session",
     "logout": "/edge1-ops/session/logout",
