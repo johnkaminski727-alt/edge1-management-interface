@@ -13,6 +13,8 @@ from .edge1_security_auth_http import Edge1SecurityAuthHttpAdapter, HttpRequest
 from .edge1_security_auth_http_config import HttpAdapterConfig
 
 LOOPBACKS = {"127.0.0.1", "::1"}
+
+
 class Handler(BaseHTTPRequestHandler):
     adapter: Edge1SecurityAuthHttpAdapter
     server_version = "Edge1SecurityAuth/1"
@@ -64,10 +66,18 @@ def build_adapter() -> Edge1SecurityAuthHttpAdapter:
         "EDGE1_SECURITY_AUTH_HTTP_CONFIG",
         str(root / "config/security/edge1-security-auth-http.json"),
     ))
+    console_path = Path(os.environ.get(
+        "EDGE1_SECURITY_CONSOLE_FILE",
+        str(root / "src/web/edge1-ops/security/index.html"),
+    ))
     gateway_config = GatewayConfig.from_path(gateway_config_path)
     http_config = HttpAdapterConfig.from_path(http_config_path)
     gateway = Edge1SecurityAuthGateway(gateway_config)
-    return Edge1SecurityAuthHttpAdapter(http_config, gateway)
+    return Edge1SecurityAuthHttpAdapter(
+        http_config,
+        gateway,
+        console_path=console_path,
+    )
 
 
 def main() -> int:
