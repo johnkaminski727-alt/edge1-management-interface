@@ -1,13 +1,13 @@
 {
   "contract": "wwcx.edge1-security-operator-console.v1",
-  "status": "design_only",
+  "status": "staged_read_only",
   "enabled": false,
   "deployment_authorized": false,
   "authentication_change_authorized": false,
   "live_route_authorized": false,
-  "title": "Edge1 Security Service Console",
+  "title": "WW.CX Edge1 Security Console",
   "route": "/edge1-ops/security/",
-  "telemetry_source": "/edge1-status/security-operations.json",
+  "sign_in_url": "https://ww.cx/admin/edge1-security-login.php",
   "operations_api": {
     "browser_direct_access": false,
     "loopback_service": "edge1-operations-api.service",
@@ -17,11 +17,10 @@
   },
   "interaction_principles": [
     "Use plain-language labels and explanations.",
-    "Show the expected effect before an action is submitted.",
-    "Require explicit confirmation for every mutating action.",
-    "Show progress, result, evidence identifier, and recovery guidance.",
-    "Never expose API signatures, secrets, command lines, or raw privileged output to browser JavaScript.",
-    "Fail closed when authentication, authorization, audit, or action state is unavailable."
+    "Expose only the read-only configuration validation action in the first live phase.",
+    "Show progress, result, and the correlated evidence identifier.",
+    "Never expose API signatures, secrets, command lines, assertions, session identifiers, or raw privileged output to browser JavaScript.",
+    "Fail closed when authentication, authorization, audit, console content, or action state is unavailable."
   ],
   "actions": [
     {
@@ -80,21 +79,23 @@
   ],
   "required_browser_controls": {
     "authentication": "Business159 one-time RS256 identity assertion exchanged for an Edge1-owned opaque server-side session",
+    "browser_origin": "https://ww.cx",
     "identity_authority": "Business159 WW.CX user and role directory",
     "business159_cookie_accepted": false,
     "business159_database_access": false,
     "password_material_accepted": false,
     "session": "Server-side session with opaque browser identifier stored as a SHA-256 hash",
     "csrf": true,
-    "typed_confirmation_for_mutations": true,
     "per_action_authorization": true,
     "append_only_audit": true,
     "operations_event_correlation": true,
     "rate_limiting": true,
+    "nonce_content_security_policy": true,
     "no_anonymous_fallback": true
   },
   "acceptance": {
-    "read_only_prototype_only": true,
+    "authenticated_console_implemented": true,
+    "read_only_validation_implemented": true,
     "mutations_enabled": false,
     "browser_api_signing": false,
     "credentials_in_repository": false,
