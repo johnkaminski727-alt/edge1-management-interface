@@ -5,6 +5,7 @@ import dataclasses
 import hashlib
 import secrets
 import time
+from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs
 
@@ -16,6 +17,8 @@ from .edge1_security_auth_http_config import HttpAdapterConfig
 from .edge1_security_auth_http_helpers import SecurityHttpHelpersMixin
 from .edge1_security_auth_http_types import LOOPBACKS, HttpRequest, HttpResponse
 
+CONSOLE_READ_SCOPE = "edge1.security.read"
+
 
 class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersMixin):
     def __init__(
@@ -24,6 +27,7 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
         gateway: Edge1SecurityAuthGateway,
         operations: Optional[Edge1OperationsClient] = None,
         *,
+        console_path: Optional[Path] = None,
         now: Any = time.time,
     ):
         self.config = config
@@ -34,6 +38,7 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             timeout_seconds=config.operations_timeout_seconds,
             now=now,
         )
+        self.console_path = console_path
         self.now = now
 
     def handle(self, request: HttpRequest) -> HttpResponse:
@@ -42,6 +47,10 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             route = self.config.routes
             if request.path == route["health"]:
                 return self._method(request, {"GET"}, self._health)
+            if not self.config.live_route_authorized:
+                raise GatewayError("live_route_not_authorized")
+            if request.path == route["console"]:
+                return self._method(request, {"GET"}, self._console)
             if request.path == route["exchange"]:
                 return self._method(request, {"POST"}, self._exchange)
             if request.path == route["session"]:
@@ -90,6 +99,52 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             "mutations_enabled": False,
         })
 
+    def _console(self, request: HttpRequest) -> HttpResponse:
+        token = self._session_token(request)
+        context = self.gateway.authenticate_session(token, self._request_id())
+        if CONSOLE_READ_SCOPE not in context.scopes:
+            raise AuthorizationError("console_scope_required")
+        if not self.gateway.store.allow_rate(
+            "console:" + context.session_identifier_hash,
+            int(self.now()),
+            limit=self.config.session_requests,
+            window_seconds=self.config.session_window_seconds,
+        ):
+            return self._json(429, {"error": "rate_limited"})
+        path = self.console_path
+        if path is None or path.is_symlink() or not path.is_file():
+            raise GatewayError("console_unavailable")
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise GatewayError("console_unavailable") from exc
+        if source.count("<style>") != 1 or source.count("<script>") != 1:
+            raise GatewayError("console_template_invalid")
+        nonce = secrets.token_urlsafe(24)
+        rendered = source.replace("<style>", f'<style nonce="{nonce}">', 1)
+        rendered = rendered.replace("<script>", f'<script nonce="{nonce}">', 1)
+        body = rendered.encode("utf-8")
+        headers = (
+            ("Cache-Control", "no-store, max-age=0"),
+            ("Pragma", "no-cache"),
+            ("Content-Type", "text/html; charset=utf-8"),
+            ("Content-Length", str(len(body))),
+            ("Referrer-Policy", "no-referrer"),
+            ("X-Content-Type-Options", "nosniff"),
+            ("X-Frame-Options", "DENY"),
+            ("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()"),
+            ("Cross-Origin-Opener-Policy", "same-origin"),
+            ("Cross-Origin-Resource-Policy", "same-origin"),
+            (
+                "Content-Security-Policy",
+                "default-src 'self'; "
+                f"script-src 'nonce-{nonce}'; style-src 'nonce-{nonce}'; "
+                "connect-src 'self'; img-src 'self' data:; object-src 'none'; "
+                "frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+            ),
+        )
+        return HttpResponse(200, headers, body)
+
     def _exchange(self, request: HttpRequest) -> HttpResponse:
         if self._header(request, "origin") != self.config.business159_origin:
             raise AuthorizationError("origin_invalid")
@@ -131,6 +186,8 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
     def _session(self, request: HttpRequest) -> HttpResponse:
         token = self._session_token(request)
         context = self.gateway.authenticate_session(token, self._request_id())
+        if CONSOLE_READ_SCOPE not in context.scopes:
+            raise AuthorizationError("console_scope_required")
         if not self.gateway.store.allow_rate(
             "session:" + context.session_identifier_hash,
             int(self.now()),

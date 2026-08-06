@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,12 +19,13 @@ def config_mapping(**overrides):
         "status": "staged_disabled",
         "enabled": True,
         "deployment_authorized": True,
-        "live_route_authorized": False,
+        "live_route_authorized": True,
         "allowed_host": "edge1.ww.cx",
-        "business159_origin": "https://business159.ww.cx",
+        "business159_origin": "https://ww.cx",
         "same_origin": "https://edge1.ww.cx",
         "routes": {
             "health": "/healthz",
+            "console": "/edge1-ops/security/",
             "exchange": "/edge1-ops/session/exchange",
             "session": "/edge1-ops/session",
             "logout": "/edge1-ops/session/logout",
@@ -123,33 +125,43 @@ class AdapterTests(unittest.TestCase):
         self.store=SQLiteGatewayStore(Path(self.temp.name)/"state.sqlite3")
         self.gateway=FakeGateway(self.store,self.clock)
         self.operations=FakeOperations()
+        self.console_path=Path(self.temp.name)/"console.html"
+        self.console_path.write_text("<html><style>body{}</style><script>void 0</script></html>",encoding="utf-8")
         self.config=HttpAdapterConfig.from_mapping(config_mapping())
-        self.adapter=Edge1SecurityAuthHttpAdapter(self.config,self.gateway,self.operations,now=self.clock)
+        self.adapter=Edge1SecurityAuthHttpAdapter(self.config,self.gateway,self.operations,console_path=self.console_path,now=self.clock)
     def tearDown(self): self.temp.cleanup()
     def request(self, method, path, *, headers=None, body=b"", remote="127.0.0.1", scheme="https", host="edge1.ww.cx"):
         return self.adapter.handle(HttpRequest(method,path,headers or {},body,remote,scheme,host))
     def exchange(self):
         body=urlencode({"assertion":"valid-assertion","request_id":"b159-0123456789abcdef0123456789abcdef"}).encode()
-        response=self.request("POST","/edge1-ops/session/exchange",headers={"Origin":"https://business159.ww.cx","Content-Type":"application/x-www-form-urlencoded"},body=body)
+        response=self.request("POST","/edge1-ops/session/exchange",headers={"Origin":"https://ww.cx","Content-Type":"application/x-www-form-urlencoded"},body=body)
         self.assertEqual(response.status,303)
         cookies=[v for k,v in response.headers if k=="Set-Cookie"]
         self.assertEqual(len(cookies),2)
         session=cookies[0].split(";",1)[0]
         csrf=cookies[1].split(";",1)[0]
         return session,csrf,response
-    def test_config_rejects_live_route_or_mutations(self):
-        bad=config_mapping(live_route_authorized=True)
-        self.assertTrue(HttpAdapterConfig.from_mapping(bad).live_route_authorized)
+    def test_config_rejects_mutations_and_wrong_browser_origin(self):
         bad=config_mapping();bad["boundaries"]["mutation_actions_enabled"]=True
         with self.assertRaises(ValueError): HttpAdapterConfig.from_mapping(bad)
+        bad=config_mapping(business159_origin="https://business159.ww.cx")
+        with self.assertRaises(ValueError): HttpAdapterConfig.from_mapping(bad)
+    def test_live_route_gate_allows_health_only(self):
+        config=HttpAdapterConfig.from_mapping(config_mapping(live_route_authorized=False))
+        adapter=Edge1SecurityAuthHttpAdapter(config,self.gateway,self.operations,console_path=self.console_path,now=self.clock)
+        self.assertEqual(adapter.handle(HttpRequest("GET","/healthz",{})).status,200)
+        self.assertEqual(adapter.handle(HttpRequest("GET","/edge1-ops/session",{})).status,503)
+        self.assertEqual(adapter.handle(HttpRequest("GET","/edge1-ops/security/",{})).status,503)
     def test_boundary_and_method_statuses(self):
         self.assertEqual(self.request("GET","/missing").status,404)
         self.assertEqual(self.request("GET","/edge1-ops/session/exchange").status,405)
         self.assertEqual(self.request("GET","/healthz",remote="203.0.113.5").status,403)
         self.assertEqual(self.request("GET","/healthz",scheme="http").status,403)
         self.assertEqual(self.request("GET","/healthz").status,200)
-    def test_exchange_requires_business159_origin(self):
+    def test_exchange_requires_real_wwcx_origin(self):
         body=urlencode({"assertion":"valid-assertion","request_id":"b159-0123456789abcdef0123456789abcdef"}).encode()
+        response=self.request("POST","/edge1-ops/session/exchange",headers={"Origin":"https://business159.ww.cx","Content-Type":"application/x-www-form-urlencoded"},body=body)
+        self.assertEqual(response.status,403)
         response=self.request("POST","/edge1-ops/session/exchange",headers={"Origin":"https://evil.example","Content-Type":"application/x-www-form-urlencoded"},body=body)
         self.assertEqual(response.status,403)
     def test_exchange_session_and_cookie_policy(self):
@@ -163,6 +175,26 @@ class AdapterTests(unittest.TestCase):
         self.assertTrue(payload["authenticated"])
         self.assertEqual(payload["scopes"],["edge1.security.read","edge1.security.validate"])
         self.assertNotIn("subject",payload)
+    def test_console_requires_session_and_uses_nonce_csp(self):
+        self.assertEqual(self.request("GET","/edge1-ops/security/").status,401)
+        session,csrf,_=self.exchange()
+        response=self.request("GET","/edge1-ops/security/",headers={"Cookie":session+"; "+csrf})
+        self.assertEqual(response.status,200)
+        headers=dict(response.headers)
+        self.assertEqual(headers["Content-Type"],"text/html; charset=utf-8")
+        csp=headers["Content-Security-Policy"]
+        self.assertNotIn("unsafe-inline",csp)
+        nonce=re.search(r"script-src 'nonce-([^']+)'",csp)
+        self.assertIsNotNone(nonce)
+        value=nonce.group(1)
+        body=response.body.decode("utf-8")
+        self.assertIn(f'<style nonce="{value}">',body)
+        self.assertIn(f'<script nonce="{value}">',body)
+    def test_console_missing_file_fails_closed(self):
+        session,csrf,_=self.exchange()
+        adapter=Edge1SecurityAuthHttpAdapter(self.config,self.gateway,self.operations,console_path=Path(self.temp.name)/"missing.html",now=self.clock)
+        response=adapter.handle(HttpRequest("GET","/edge1-ops/security/",{"Cookie":session+"; "+csrf}))
+        self.assertEqual(response.status,503)
     def test_session_requires_cookie(self):
         self.assertEqual(self.request("GET","/edge1-ops/session").status,401)
     def test_validate_requires_same_origin_and_csrf(self):
@@ -197,9 +229,9 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(self.request("POST","/edge1-ops/api/v1/security/validate",headers=headers,body=b"{}").status,504)
     def test_rate_limit_is_persistent_store_backed(self):
         value=config_mapping();value["request_limits"]["exchange_requests"]=1
-        adapter=Edge1SecurityAuthHttpAdapter(HttpAdapterConfig.from_mapping(value),self.gateway,self.operations,now=self.clock)
+        adapter=Edge1SecurityAuthHttpAdapter(HttpAdapterConfig.from_mapping(value),self.gateway,self.operations,console_path=self.console_path,now=self.clock)
         body=urlencode({"assertion":"valid-assertion","request_id":"b159-0123456789abcdef0123456789abcdef"}).encode()
-        request=HttpRequest("POST","/edge1-ops/session/exchange",{"Origin":"https://business159.ww.cx","Content-Type":"application/x-www-form-urlencoded"},body)
+        request=HttpRequest("POST","/edge1-ops/session/exchange",{"Origin":"https://ww.cx","Content-Type":"application/x-www-form-urlencoded"},body)
         self.assertEqual(adapter.handle(request).status,303)
         self.assertEqual(adapter.handle(request).status,429)
     def test_logout_requires_csrf_and_revokes_session(self):
