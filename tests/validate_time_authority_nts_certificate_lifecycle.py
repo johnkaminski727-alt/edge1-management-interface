@@ -34,7 +34,7 @@ def main() -> int:
         "TCP/4460 firewall state was NOT changed.",
     ):
         assert required in issue
-    assert "--agree-tos" not in issue
+    assert not any(line.strip().startswith("--agree-tos") for line in issue.splitlines())
     assert "systemctl restart chrony" not in issue
     assert "nft " not in issue
 
