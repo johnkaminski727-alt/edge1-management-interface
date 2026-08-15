@@ -8,7 +8,7 @@ User=bigbird-time
 Group=bigbird-time
 WorkingDirectory=/opt/edge1-management-interface
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/time_authority_server.py --host 127.0.0.1 --port 8092
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/time_authority_server.py --host 127.0.0.1 --port 8101
 Restart=on-failure
 RestartSec=3
 UMask=0027
