@@ -9,6 +9,14 @@ fail() {
     exit 1
 }
 
+udp123_listener_present() {
+    ss -H -lun 'sport = :123' 2>/dev/null | grep -q .
+}
+
+show_udp123_listeners() {
+    ss -H -lunp 'sport = :123' 2>/dev/null || true
+}
+
 command -v python3 >/dev/null 2>&1 || fail "python3 is required"
 command -v systemctl >/dev/null 2>&1 || fail "systemctl is required"
 command -v ss >/dev/null 2>&1 || fail "ss is required"
@@ -19,9 +27,9 @@ command -v apt-cache >/dev/null 2>&1 || fail "apt-cache is required"
 
 python3 "$ROOT/tests/validate_time_authority_ntp_server.py"
 
-if ss -lun 2>/dev/null | awk '{print $5}' | grep -Eq '(^|\]):?123$|(^|:)123$'; then
+if udp123_listener_present; then
     echo "Existing UDP/123 listener detected:"
-    ss -lunp 2>/dev/null | grep -E '(^|[[:space:]])[^[:space:]]*:123([[:space:]]|$)' || true
+    show_udp123_listeners
     fail "UDP/123 must be reviewed before NTP server cutover"
 fi
 
