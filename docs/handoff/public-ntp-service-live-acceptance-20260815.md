@@ -55,6 +55,18 @@ Immediately before the outside-in test, attended production evidence had already
 - runtime Big Bird firewall controls were preserved by avoiding a full nftables reload;
 - rollback evidence stored at `/var/lib/wwcx-deployment-evidence/public-ntp-server/firewall-20260815T211902Z`.
 
+## Recurring independent observer accepted
+
+Later on 2026-08-15, Business159 was installed as a recurring independent outside-Edge1 observer. Its first accepted observation at `2026-08-15T22:52:10.480750Z` received a valid NTPv4 response from `89.147.109.253` with stratum `4`, leap indicator `0`, RTT `39.335 ms`, and measured clock offset `+0.212 ms`.
+
+Business159 now repeats the observation every five minutes and writes only sanitized status for the WW.CX and CreekCo public time pages. The public APIs and pages were accepted using observer-backed state.
+
+Detailed acceptance record:
+
+```text
+docs/handoff/public-time-web-observer-live-acceptance-20260815.md
+```
+
 ## Acceptance conclusion
 
 The first production phase of the WW.CX NTP service is complete:
@@ -66,7 +78,9 @@ The first production phase of the WW.CX NTP service is complete:
 - public IPv4 address: `89.147.109.253`;
 - server: Edge1 / `chronyd`;
 - outside-in reachability: verified;
-- synchronized service response: previously verified locally and continuously by chronyd health evidence.
+- synchronized service response: verified;
+- recurring independent Business159 observation: accepted;
+- public observer-backed WW.CX and CreekCo status publication: accepted.
 
 ## Deferred follow-up
 
@@ -74,7 +88,6 @@ Not part of this acceptance:
 
 - public IPv6 NTP / AAAA publication;
 - Network Time Security (NTS) / TCP 4460;
-- certificate lifecycle for NTS;
-- second independent external observer or recurring external NTP monitoring.
+- certificate lifecycle for NTS.
 
 Those are follow-up enhancements, not blockers for the accepted IPv4 NTP service.
