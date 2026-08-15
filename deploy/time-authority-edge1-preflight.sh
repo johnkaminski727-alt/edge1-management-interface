@@ -4,6 +4,7 @@ set -eu
 REPO_ROOT=${EDGE1_MANAGEMENT_ROOT:-/opt/edge1-management-interface}
 SYSTEMCTL_BIN=${EDGE1_TIME_AUTHORITY_SYSTEMCTL:-systemctl}
 SIMULATION=${EDGE1_TIME_AUTHORITY_SIMULATION:-0}
+DASHBOARD_PORT=${EDGE1_TIME_AUTHORITY_DASHBOARD_PORT:-8101}
 
 for command_name in python3 "$SYSTEMCTL_BIN" curl install; do
     command -v "$command_name" >/dev/null 2>&1 || {
@@ -44,6 +45,34 @@ python3 -m json.tool "$REPO_ROOT/modules/time-authority/config/sources.json" >/d
 python3 "$REPO_ROOT/tests/validate_time_authority.py"
 
 if [ "$SIMULATION" != "1" ]; then
+    python3 - "$DASHBOARD_PORT" <<'PY'
+import json
+import socket
+import sys
+import urllib.request
+
+port = int(sys.argv[1])
+if not 1 <= port <= 65535:
+    raise SystemExit(f"Invalid Time Authority dashboard port: {port}")
+
+probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+probe.settimeout(0.5)
+try:
+    in_use = probe.connect_ex(("127.0.0.1", port)) == 0
+finally:
+    probe.close()
+
+if in_use:
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=1.5) as response:
+            payload = json.load(response)
+    except Exception:
+        raise SystemExit(f"Time Authority dashboard port {port} is already in use by an unidentified service")
+    if payload.get("service") != "edge1-time-authority":
+        owner = payload.get("service") or "an unidentified service"
+        raise SystemExit(f"Time Authority dashboard port {port} is already in use by {owner}")
+PY
+
     systemd-analyze verify \
         "$REPO_ROOT/deploy/systemd/edge1-time-authority-collector.service" \
         "$REPO_ROOT/deploy/systemd/edge1-time-authority-collector.timer" \
