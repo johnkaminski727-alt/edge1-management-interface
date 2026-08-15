@@ -3,7 +3,8 @@
 Last repository validation: 2026-08-15  
 Live Edge1 acceptance: 2026-08-15 18:31 UTC  
 Founder account activation: 2026-08-15 18:37 UTC  
-Production revision: `99f16add875bdd6b185821d5491851bba9e12a68`
+Automatic ingestion activation: 2026-08-15 19:19 UTC  
+Current accepted live revision: `359eb977cd8bcc4c986fe688b934303cb53c23d6`
 
 ## Production-ready repository state
 
@@ -19,46 +20,52 @@ Production revision: `99f16add875bdd6b185821d5491851bba9e12a68`
 - Control API has `/healthz`; mutation methods remain disabled.
 - The systemd service has resource ceilings and a restrictive sandbox.
 - Deployment is dry-run-first, requires a clean `main` checkout, supports expected-commit pinning, records evidence, smoke-tests activation and rolls back unit/config/service state on failure.
-- Live activation on 2026-08-15 confirmed that `127.0.0.1:8099` is already assigned to the WW.CX telephony analytics API. The relay control endpoint therefore uses dedicated loopback port `8100`.
+- Live activation confirmed `127.0.0.1:8099` is assigned to the WW.CX telephony analytics API; relay control uses dedicated loopback port `8100`.
+- Candidate configuration apply/rollback preserves the live config owner, group and mode.
 
 ## Live accepted state
 
-- Service: `edge1-comms-relay.service`
+- Service: `edge1-comms-relay.service`.
 - systemd: enabled and active.
 - IRC: `127.0.0.1:16667`.
 - NNTP: `127.0.0.1:1119`.
 - Control/API: `127.0.0.1:8100`.
 - Telephony analytics preserved on `127.0.0.1:8099` and independently healthy.
 - Network exposure remains disabled.
-- Bundled IRC/NNTP/control smoke test passed after activation.
+- Bundled IRC/NNTP/control smoke tests passed after deployment and ingestion activation.
 - Control `/healthz` returned `status: ok`, version `1.0.0`.
-- Deployment evidence directory: `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z`.
-- Pre-migration configuration backup: `/var/lib/wwcx-deployment-evidence/comms-relay/control-port-migration-20260815T183128Z/config.before.json`.
-- The earlier 18:23 UTC `Address already in use` failure belongs to the superseded 8099 control-port attempt; the corrected 18:31 UTC deployment passed smoke tests and remained active during acceptance verification.
+- Initial relay deployment evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z`.
+- Automatic-ingestion activation evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z`.
+- Automatic-ingestion code deployment evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z`.
 
-## Founder identity activation
+## Founder identity
 
 - Local relay login: `john`.
 - Account is enabled with role `founder`.
 - Founder super-role behavior was verified against the live account.
 - IRC SASL PLAIN authentication succeeded against the live IRC listener.
 - NNTP AUTHINFO authentication succeeded against the live NNTP listener.
-- Relay health and the bundled smoke test remained green after account creation; no service restart was required.
-- The sanitized audit trail recorded successful `account.add`, IRC authentication, IRC connect/disconnect, and NNTP authentication events.
-- Founder-account evidence directory: `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`.
-- A consistent pre-account SQLite backup was captured in that evidence directory before mutation.
+- Founder-account evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`.
 - No password, password hash, secret, credential, database copy, or unredacted authentication material is stored in this repository.
 
-## Automatic NNTP ingestion implementation
+## Automatic NNTP ingestion — live
 
-- Controlled automatic article ingestion is implemented on `feature/comms-relay-auto-ingest` pending CI, merge, and live activation.
-- The initial source set is deliberately local-only: stable bootstrap/group-introduction articles plus the local Edge1 repository `main` history into `wwcx.projects.edge1`.
-- Every generated article carries automated-source provenance and uses a deterministic Message-ID derived from source name plus source-item ID.
-- SQLite `ingest_items` and `ingest_state` tables provide deduplication and cursor state; article retention does not erase the source ledger.
-- The daemon runs ingestion after a bounded startup delay and then at a configured interval. Ingestion errors are audited without stopping IRC, NNTP, or control services.
-- Git execution is shell-free, uses `/usr/bin/git`, a strict environment, validated refs, an absolute root-controlled repository path, and an explicit read-only `safe.directory` override.
-- No external RSS/Atom source, NNTP peer, public listener, federation, or automatic IRC mirroring is enabled by this implementation.
-- Live activation requires a consistent pre-change SQLite backup, candidate configuration review/apply, relay restart through the transactional installer, protocol smoke tests, ingestion dry-run, actual ingest run, and article/provenance verification.
+- Controlled automatic article ingestion is active on Edge1.
+- Accepted sources are local-only:
+  - `wwcx-bootstrap` creates stable one-time introduction articles for the seven seeded `wwcx.*` groups;
+  - `edge1-repository` monitors local `/opt/edge1-management-interface` `main` and posts eligible commit articles into `wwcx.projects.edge1`.
+- Scheduled interval: 900 seconds (15 minutes).
+- Startup delay: 5 seconds.
+- Per-run item budget: 25.
+- The live dry run predicted 15 initial candidates: seven bootstrap articles and eight repository articles.
+- The first automatic live run created exactly 15 articles and recorded outcome `ok`.
+- All 15 articles were verified against `ingest_items` for automated-source provenance and deterministic Message-IDs.
+- An immediate second run produced zero candidates and created zero articles, verifying deduplication/idempotency.
+- Current initial group counts after activation: one article each in `wwcx.announce`, `wwcx.general`, `wwcx.projects.bigbird`, `wwcx.security`, `wwcx.telecom`, and `wwcx.test`; nine articles in `wwcx.projects.edge1`.
+- SQLite `ingest_items` and `ingest_state` preserve deduplication and cursor state independently of article retention.
+- Git execution is shell-free, uses `/usr/bin/git`, a restricted environment, validated refs, an absolute root-controlled repository path, and an explicit read-only `safe.directory` override.
+- No external RSS/Atom source, NNTP peer, public listener, federation, or automatic IRC mirroring is enabled.
+- Detailed acceptance record: `docs/communications/edge1-comms-relay-ingestion-live-acceptance-20260815.md`.
 
 ## Safe default listeners
 
@@ -70,4 +77,4 @@ No DNS, firewall, certificate, public listener or federation change is part of t
 
 ## Remaining privileged gates
 
-The private loopback Edge1 Communications Relay deployment and local founder identity activation are complete. Automatic ingestion is repository-implemented but not yet live until the feature is merged and the attended Edge1 activation passes. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved. External account onboarding and external content-source activation also remain separately governed changes.
+The private loopback Edge1 Communications Relay, local founder identity, bootstrap article seeding, and controlled local repository ingestion are complete and live. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved. External account onboarding, external RSS/Atom feeds, other Internet content sources, and automatic IRC-to-NNTP mirroring remain separately governed changes.
