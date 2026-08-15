@@ -22,7 +22,7 @@ fail() {
 [ "${WWCX_NTS_APPROVE_CERTIFICATE_ISSUANCE:-}" = "YES" ] || \
   fail "set WWCX_NTS_APPROVE_CERTIFICATE_ISSUANCE=YES only after explicit approval to request a dedicated public certificate for ntp.ww.cx"
 
-for cmd in certbot openssl getent systemctl ss install cp git awk grep cmp apache2ctl; do
+for cmd in certbot openssl getent systemctl ss install cp git awk grep cmp apache2ctl mktemp stat rm date; do
   command -v "$cmd" >/dev/null 2>&1 || fail "$cmd is required"
 done
 [ -r "$HOST_MATCH_HELPER" ] || fail "hostname-match helper is missing: $HOST_MATCH_HELPER"
