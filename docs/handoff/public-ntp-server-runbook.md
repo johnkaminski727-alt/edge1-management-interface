@@ -40,6 +40,7 @@ modules/time-authority/config/edge1-chrony.conf
 deploy/time-authority-ntp-server-edge1-preflight.sh
 deploy/install-time-authority-ntp-server-edge1.sh
 deploy/time-authority-ntp-server-edge1-smoke-test.sh
+deploy/publish-time-authority-ntp-firewall-edge1.sh
 tests/validate_time_authority_ntp_server.py
 ```
 
@@ -57,7 +58,7 @@ These gates represent separate production decisions:
 1. replace `systemd-timesyncd` with `chronyd` as Edge1's system-clock discipline daemon;
 2. configure chronyd to listen as an NTP server on UDP/123.
 
-The installer does **not** change the perimeter firewall or DNS. Those remain separate privileged production actions.
+The clock-daemon installer does **not** change the perimeter firewall or DNS. Those remain separate privileged production actions. The firewall publication helper separately requires `WWCX_NTP_APPROVE_PUBLIC_UDP123=YES`.
 
 ## Phase 1 — read-only preflight
 
@@ -71,7 +72,7 @@ sudo sh deploy/time-authority-ntp-server-edge1-preflight.sh
 Expected checks:
 
 - repository validation passes;
-- UDP/123 is currently free;
+- UDP/123 is currently free before the chrony cutover;
 - current `systemd-timesyncd` state is displayed but not changed;
 - the Debian `chrony` package is available;
 - all configured upstream hostnames resolve;
@@ -119,7 +120,32 @@ Acceptance requires:
 
 This is a separate privileged change.
 
-Permit **inbound UDP/123** to Edge1's intended public NTP address. Do not expose chronyc's monitoring/control port; the reviewed chrony configuration sets `cmdport 0` and local administration uses the Unix-domain command socket.
+The accepted Edge1 state on 2026-08-15 established `/etc/nftables.conf` as the boot-persistent nftables source, while the live `inet wwcxfw input` chain also contained runtime Big Bird blocklist/logging controls not represented in that base file. Therefore **do not reload the whole persistent file merely to publish NTP**; doing so would flush and reconstruct the live ruleset and could temporarily remove those runtime protections.
+
+Use the guarded publication helper instead:
+
+```bash
+cd /opt/edge1-management-interface
+sudo env \
+  WWCX_NTP_APPROVE_PUBLIC_UDP123=YES \
+  sh deploy/publish-time-authority-ntp-firewall-edge1.sh
+```
+
+The helper:
+
+1. verifies `chrony.service` and the live UDP/123 listener;
+2. requires `ntp.ww.cx` to resolve locally to the reviewed IPv4 address `89.147.109.253`;
+3. backs up `/etc/nftables.conf` and the complete live ruleset under `/var/lib/wwcx-deployment-evidence/public-ntp-server/`;
+4. adds the boot-persistent IPv4 rule `ip daddr 89.147.109.253 udp dport 123 accept comment "wwcx:public-ntp-v4"` immediately before the existing public-web rule;
+5. syntax-checks the complete persistent nftables file without loading it;
+6. inserts the equivalent rule into the live `inet wwcxfw input` chain immediately before the existing `wwcx:public-web` rule, preserving Big Bird runtime rules;
+7. verifies both the live and persistent rules and reruns the local NTP packet smoke test;
+8. records after-state evidence;
+9. intentionally does **not** run `systemctl reload nftables` or `nft -f /etc/nftables.conf`.
+
+The first public publication is IPv4-only. Although chronyd also owns `[::]:123`, do not open public IPv6 NTP until Edge1 IPv6 reachability is reviewed and a corresponding AAAA record is intentionally published.
+
+Do not expose chronyc's monitoring/control port; the reviewed chrony configuration sets `cmdport 0` and local administration uses the Unix-domain command socket.
 
 The command socket is intentionally privileged on the live Edge1 host. An ordinary `wwadmin` shell can therefore receive `506 Cannot talk to daemon` from `chronyc` even while `chronyd` is healthy and serving NTP. Use `sudo chronyc ...` for operational inspection rather than broadening the socket permissions merely for convenience.
 
@@ -156,6 +182,14 @@ From at least one network outside Edge1:
 5. repeat from a second independent network if available;
 6. confirm Edge1 client statistics and logs show the requests without excessive or unexpected traffic.
 
+A Windows operator workstation can perform an outside-in query with:
+
+```powershell
+w32tm /stripchart /computer:ntp.ww.cx /samples:5 /dataonly
+```
+
+Repeat against `time.ww.cx` if the alias is intended to be supported publicly.
+
 The existing Time Authority should continue reporting all configured upstreams. A shared-host or other independent observer can later be extended to probe `ntp.ww.cx` for availability and latency.
 
 ## Operational checks
@@ -175,9 +209,9 @@ Healthy operation requires a synchronized source selection (`*` in `sudo chronyc
 
 ## Rollback
 
-If failure occurs before public DNS/firewall publication, keep the service private and use the protected evidence directory to reconstruct the pre-cutover state.
+If rollback is required after firewall publication but before any chrony rollback, first use the evidence directory printed by the firewall helper to restore the saved persistent `/etc/nftables.conf` and remove only the live rule carrying comment `wwcx:public-ntp-v4`. Do not reload the full base file while runtime Big Bird rules are present unless their reconstruction path has been explicitly reviewed.
 
-If rollback is required after publication:
+If rollback is required after publication of the service itself:
 
 1. withdraw or block public UDP/123 first so clients do not receive an unstable service;
 2. stop/disable `chrony.service`;
@@ -202,9 +236,21 @@ Explicit production authorization has been granted for:
 - opening/publicly exposing UDP/123;
 - creating/changing `ntp.ww.cx` DNS to the reviewed Edge1 service address.
 
-The clock-daemon cutover has been performed and locally validated. Firewall persistence and outside-in UDP/123 acceptance still require live evidence before the public NTP endpoint is considered fully accepted.
+Verified live state before firewall publication:
+
+- `chrony.service` active and synchronized;
+- `systemd-timesyncd` removed/inactive;
+- chronyd listening on `0.0.0.0:123` and `[::]:123`;
+- local packet-level NTP smoke test passing at synchronized stratum 4;
+- Time Authority dashboard healthy on `127.0.0.1:8101`;
+- `ntp.ww.cx`, `time.ww.cx`, and `edge1.ww.cx` resolving on Edge1 to `89.147.109.253`;
+- persistent firewall source confirmed as `/etc/nftables.conf`;
+- public IPv4 UDP/123 not yet accepted by the `inet wwcxfw input` chain.
+
+Firewall publication and outside-in UDP/123 acceptance still require live evidence before the public NTP endpoint is considered fully accepted.
 
 Not authorized or performed in this phase:
 
 - enabling NTS/certificates or TCP/4460;
+- publishing an IPv6 AAAA record or opening public IPv6 NTP;
 - changing unrelated firewall, DNS, authentication, routing, or service policy.
