@@ -1,0 +1,33 @@
+[Unit]
+Description=WW.CX Edge1 Communications Relay (IRC + NNTP + control)
+After=network.target
+Documentation=file:/opt/edge1-management-interface/docs/handoff/edge1-comms-relay-runbook.md
+
+[Service]
+Type=simple
+User=wwcx-comms
+Group=wwcx-comms
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_commsd.py --config /etc/wwcx/comms-relay.json
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/wwcx-comms
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

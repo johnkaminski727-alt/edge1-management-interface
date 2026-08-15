@@ -1,0 +1,48 @@
+{
+  "server_name": "edge1.ww.cx",
+  "network_name": "WW.CX",
+  "database_path": "/var/lib/wwcx-comms/comms.sqlite3",
+  "network_exposure": {
+    "enabled": false
+  },
+  "listeners": {
+    "irc": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 16667,
+      "tls": false,
+      "cert_file": null,
+      "key_file": null
+    },
+    "nntp": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 1119,
+      "tls": false,
+      "cert_file": null,
+      "key_file": null
+    },
+    "control": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 8099,
+      "tls": false,
+      "cert_file": null,
+      "key_file": null
+    }
+  },
+  "security": {
+    "require_auth": true,
+    "allow_anonymous_irc": false,
+    "allow_anonymous_nntp_read": false,
+    "allow_anonymous_nntp_post": false,
+    "max_line_bytes": 8192,
+    "max_article_bytes": 1048576,
+    "password_iterations": 240000
+  },
+  "retention": {
+    "irc_history_enabled": false,
+    "irc_history_days": 30,
+    "default_news_days": 3650
+  }
+}
