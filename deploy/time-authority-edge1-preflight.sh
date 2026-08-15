@@ -13,10 +13,12 @@ for command_name in python3 "$SYSTEMCTL_BIN" curl install; do
 done
 
 if [ "$SIMULATION" != "1" ]; then
-    command -v useradd >/dev/null 2>&1 || {
-        echo "Missing required command: useradd" >&2
-        exit 1
-    }
+    for command_name in useradd systemd-analyze; do
+        command -v "$command_name" >/dev/null 2>&1 || {
+            echo "Missing required command: $command_name" >&2
+            exit 1
+        }
+    done
 fi
 
 python3 - <<'PY'
@@ -40,5 +42,12 @@ done
 
 python3 -m json.tool "$REPO_ROOT/modules/time-authority/config/sources.json" >/dev/null
 python3 "$REPO_ROOT/tests/validate_time_authority.py"
+
+if [ "$SIMULATION" != "1" ]; then
+    systemd-analyze verify \
+        "$REPO_ROOT/deploy/systemd/edge1-time-authority-collector.service" \
+        "$REPO_ROOT/deploy/systemd/edge1-time-authority-collector.timer" \
+        "$REPO_ROOT/deploy/systemd/edge1-time-authority-dashboard.service"
+fi
 
 echo "WW.CX Time Authority Edge1 preflight passed."
