@@ -1,0 +1,52 @@
+[Unit]
+Description=WW.CX Edge1 Communications Relay (IRC + NNTP + control)
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+Documentation=file:/opt/edge1-management-interface/docs/handoff/edge1-comms-relay-runbook.md
+
+[Service]
+Type=simple
+User=wwcx-comms
+Group=wwcx-comms
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStartPre=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_comms_cli.py config validate /etc/wwcx/comms-relay.json
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_commsd.py --config /etc/wwcx/comms-relay.json
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=15
+TimeoutStopSec=15
+KillSignal=SIGTERM
+UMask=0077
+StateDirectory=wwcx-comms
+StateDirectoryMode=0750
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+TasksMax=160
+LimitNOFILE=4096
+MemoryHigh=320M
+MemoryMax=384M
+ReadWritePaths=/var/lib/wwcx-comms
+
+[Install]
+WantedBy=multi-user.target

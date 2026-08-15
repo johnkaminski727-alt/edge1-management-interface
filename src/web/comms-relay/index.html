@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WW.CX Relay | Edge1 Communications</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="shell header">
+    <div>
+      <p class="eyebrow">WW.CX · Edge1</p>
+      <h1>Communications Relay</h1>
+      <p class="lede">IRC and NNTP operational status. This console is intentionally read-only.</p>
+    </div>
+    <div class="status-pill" id="service-state" aria-live="polite">Loading…</div>
+  </header>
+
+  <main class="shell">
+    <section class="grid metrics" aria-label="Service summary">
+      <article><span>IRC users</span><strong id="irc-users">—</strong></article>
+      <article><span>IRC channels</span><strong id="irc-channels">—</strong></article>
+      <article><span>Newsgroups</span><strong id="news-groups">—</strong></article>
+      <article><span>Articles</span><strong id="news-articles">—</strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">Policy</p><h2>Listener posture</h2></div>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+      <div id="listeners" class="listener-list"></div>
+      <p class="policy-note" id="federation"></p>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Live IRC</p><h2>Channels</h2></div></div>
+        <div id="channels" class="empty">No live channel data yet.</div>
+      </article>
+      <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">NNTP</p><h2>Newsgroups</h2></div></div>
+        <div id="groups" class="empty">Loading newsgroups…</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">Evidence</p><h2>Recent audit metadata</h2></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Protocol</th><th>Action</th><th>Target</th><th>Outcome</th></tr></thead>
+          <tbody id="audit"><tr><td colspan="5">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="policy-note">Message bodies and credentials are deliberately excluded from this audit view.</p>
+    </section>
+  </main>
+
+  <footer class="shell footer">WW.CX Relay · Edge1 private-first communications control plane</footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
