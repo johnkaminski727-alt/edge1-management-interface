@@ -132,6 +132,7 @@ def validate_dashboard() -> None:
     handler_text = SERVER_PATH.read_text(encoding="utf-8")
     for header in ("Content-Security-Policy", "Permissions-Policy", "X-Frame-Options", "X-Content-Type-Options"):
         assert header in handler_text
+    assert "default=8101" in handler_text
 
 
 def validate_web() -> None:
@@ -174,9 +175,12 @@ def validate_deployment_assets() -> None:
     assert "EDGE1_TIME_AUTHORITY_BACKUP_ROOT" in edge_installer
     assert "install-metadata.txt" in edge_installer
     assert "Rollback evidence:" in edge_installer
+    assert 'restart edge1-time-authority-dashboard.service' in edge_installer
 
     preflight = (deploy / "time-authority-edge1-preflight.sh").read_text(encoding="utf-8")
     assert "systemd-analyze verify" in preflight
+    assert "EDGE1_TIME_AUTHORITY_DASHBOARD_PORT:-8101" in preflight
+    assert "already in use by" in preflight
 
     for unit_name in ("edge1-time-authority-dashboard.service", "edge1-time-authority-collector.service"):
         unit_text = (deploy / "systemd" / unit_name).read_text(encoding="utf-8")
@@ -197,6 +201,11 @@ def validate_deployment_assets() -> None:
 
     dashboard_unit = (deploy / "systemd" / "edge1-time-authority-dashboard.service").read_text(encoding="utf-8")
     assert "127.0.0.1" in dashboard_unit
+    assert "--port 8101" in dashboard_unit
+
+    smoke_test = (deploy / "time-authority-edge1-smoke-test.sh").read_text(encoding="utf-8")
+    assert "127.0.0.1:8101" in smoke_test
+    assert 'payload.get("service") == "edge1-time-authority"' in smoke_test
 
     workflow = ROOT / ".github" / "workflows" / "validate.yml"
     assert workflow.is_file()
