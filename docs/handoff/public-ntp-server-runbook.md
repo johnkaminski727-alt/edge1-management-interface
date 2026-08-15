@@ -177,10 +177,11 @@ From at least one network outside Edge1:
 
 1. resolve `ntp.ww.cx`;
 2. send an ordinary NTP client request to UDP/123;
-3. verify server mode, synchronized leap state and sensible stratum;
-4. compare returned time/offset against independent public references;
-5. repeat from a second independent network if available;
-6. confirm Edge1 client statistics and logs show the requests without excessive or unexpected traffic.
+3. verify a valid sequence of time samples is returned;
+4. record the observed offset against the independent client clock;
+5. repeat against `time.ww.cx` if the alternate name is supported;
+6. repeat from a second independent network when additional confidence is useful;
+7. confirm Edge1 client statistics and logs show the requests without excessive or unexpected traffic when operational troubleshooting requires it.
 
 A Windows operator workstation can perform an outside-in query with:
 
@@ -189,6 +190,16 @@ w32tm /stripchart /computer:ntp.ww.cx /samples:5 /dataonly
 ```
 
 Repeat against `time.ww.cx` if the alias is intended to be supported publicly.
+
+### Accepted outside-in result — 2026-08-15
+
+The operator disabled the Edge1 WireGuard connection and ran the Windows strip-chart test from the resulting non-WireGuard path.
+
+`ntp.ww.cx` resolved to `89.147.109.253:123` and returned five consecutive samples. `time.ww.cx` resolved to the same address and also returned five consecutive samples. The measured offset between the Windows workstation clock and the NTP service was approximately +1.45 seconds during the test.
+
+This satisfies the initial outside-in Internet reachability requirement for both public names. The canonical IPv4 NTP endpoint is therefore accepted as operational.
+
+See `docs/handoff/public-ntp-service-live-acceptance-20260815.md` for the durable final acceptance record.
 
 The existing Time Authority should continue reporting all configured upstreams. A shared-host or other independent observer can later be extended to probe `ntp.ww.cx` for availability and latency.
 
@@ -228,26 +239,30 @@ Do not run two independent daemons that both attempt to discipline the Edge1 sys
 
 NTS is a later phase, not a prerequisite for the initial NTP endpoint. Chrony supports NTS-KE with a certificate and key and normally uses TCP/4460 for key establishment. Enabling it requires a deliberate certificate lifecycle, NTS-specific firewall publication, renewal/restart procedure and external client validation.
 
-## Production authorization state — 2026-08-15
+## Production authorization and acceptance state — 2026-08-15
 
-Explicit production authorization has been granted for:
+Explicit production authorization was granted for:
 
 - replacing Edge1's active system clock daemon with chronyd;
 - opening/publicly exposing UDP/123;
 - creating/changing `ntp.ww.cx` DNS to the reviewed Edge1 service address.
 
-Verified live state before firewall publication:
+Verified accepted production state:
 
 - `chrony.service` active and synchronized;
 - `systemd-timesyncd` removed/inactive;
 - chronyd listening on `0.0.0.0:123` and `[::]:123`;
 - local packet-level NTP smoke test passing at synchronized stratum 4;
+- leap status `Normal` during acceptance;
 - Time Authority dashboard healthy on `127.0.0.1:8101`;
 - `ntp.ww.cx`, `time.ww.cx`, and `edge1.ww.cx` resolving on Edge1 to `89.147.109.253`;
-- persistent firewall source confirmed as `/etc/nftables.conf`;
-- public IPv4 UDP/123 not yet accepted by the `inet wwcxfw input` chain.
+- live IPv4 UDP/123 firewall rule present in `inet wwcxfw input`;
+- matching persistent IPv4 UDP/123 rule present in `/etc/nftables.conf`;
+- runtime Big Bird firewall protections preserved during publication;
+- rollback evidence recorded under `/var/lib/wwcx-deployment-evidence/public-ntp-server/firewall-20260815T211902Z`;
+- outside-in Windows NTP queries succeeded for both `ntp.ww.cx` and `time.ww.cx` with WireGuard disabled.
 
-Firewall publication and outside-in UDP/123 acceptance still require live evidence before the public NTP endpoint is considered fully accepted.
+**Initial WW.CX public IPv4 NTP service acceptance is complete.**
 
 Not authorized or performed in this phase:
 
