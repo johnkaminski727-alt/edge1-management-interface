@@ -36,17 +36,24 @@ Treat `Permission denied` on a repository shell helper as a packaging/invocation
 
 This preserves reproducible source state and avoids turning a checkout-specific permission repair into undocumented production configuration.
 
-## Privileged system-binary PATH failures
+## Privileged binary PATH failures
 
-Treat `command not found` for an installed privileged daemon or administrative utility as a PATH/invocation problem before concluding the package is missing.
+Treat `command not found` for an administrative daemon or utility as a privilege-context/PATH problem when the related service or package evidence shows the binary is installed.
 
-- interactive operator accounts may intentionally omit `/usr/sbin` and `/sbin` from `PATH`;
-- when the check already requires privilege, resolve and execute the binary in the privileged environment, for example `sudo sh -c 'command -v chronyd && chronyd -v'`;
-- do not globally extend the operator account PATH or create ad-hoc symlinks merely to make one diagnostic command work;
-- distinguish a missing interactive PATH entry from an actually absent package by checking package/service state and the privileged command path;
-- make attended runbooks use the same privilege context that the validated deployment or preflight scripts use.
+- do not modify an operator account PATH, create ad-hoc symlinks, or reinstall a package merely to make an administrative binary visible;
+- resolve or execute administrative binaries in the same privileged environment used by the deployment/preflight, for example `sudo sh -c 'command -v chronyd; chronyd -v'`;
+- keep read-only checks in the correct privilege context when `/usr/sbin`, `/sbin`, protected metadata, or root-only sockets are involved;
+- add an operator-runbook guard when a validated deployment script and an attended shell command would otherwise use different PATH semantics.
 
-This avoids false negatives where the service is installed and active but its administrative binary is intentionally outside an unprivileged interactive PATH.
+## Command diagnostics versus process status
+
+Do not assume a command's process exit status represents the semantic result of every requested check.
+
+- when a tool reports success/failure in diagnostic text or structured output, confirm the documented behavior of the exact deployed version;
+- if live evidence contradicts a supposedly successful predicate, stop and treat the predicate as untrusted until reproduced and fixed;
+- for security-sensitive checks such as certificate hostname matching, fail closed and require an affirmative match signal rather than accepting a generic zero exit code;
+- centralize version-specific compatibility handling in one tested helper instead of duplicating fragile predicates across discovery and deployment scripts;
+- add a positive and negative regression fixture for the real predicate before reusing it as an activation gate.
 
 ## Development rollback
 
