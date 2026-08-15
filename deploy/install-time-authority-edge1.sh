@@ -60,7 +60,8 @@ install -m 0644 "$REPO_ROOT/deploy/systemd/edge1-time-authority-dashboard.servic
 
 "$SYSTEMCTL_BIN" daemon-reload
 "$SYSTEMCTL_BIN" enable --now edge1-time-authority-collector.timer
-"$SYSTEMCTL_BIN" enable --now edge1-time-authority-dashboard.service
+"$SYSTEMCTL_BIN" enable edge1-time-authority-dashboard.service
+"$SYSTEMCTL_BIN" restart edge1-time-authority-dashboard.service
 "$SYSTEMCTL_BIN" start edge1-time-authority-collector.service
 
 "$REPO_ROOT/deploy/time-authority-edge1-smoke-test.sh"
