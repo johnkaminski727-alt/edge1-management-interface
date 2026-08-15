@@ -1,7 +1,8 @@
 # Edge1 Communications Relay State
 
 Last repository validation: 2026-08-15  
-Feature branch: `feature/edge1-comms-relay`
+Live Edge1 acceptance: 2026-08-15 18:31 UTC  
+Production revision: `99f16add875bdd6b185821d5491851bba9e12a68`
 
 ## Production-ready repository state
 
@@ -19,14 +20,29 @@ Feature branch: `feature/edge1-comms-relay`
 - Deployment is dry-run-first, requires a clean `main` checkout, supports expected-commit pinning, records evidence, smoke-tests activation and rolls back unit/config/service state on failure.
 - Live activation on 2026-08-15 confirmed that `127.0.0.1:8099` is already assigned to the WW.CX telephony analytics API. The relay control endpoint therefore uses dedicated loopback port `8100`.
 
+## Live accepted state
+
+- Service: `edge1-comms-relay.service`
+- systemd: enabled and active.
+- IRC: `127.0.0.1:16667`.
+- NNTP: `127.0.0.1:1119`.
+- Control/API: `127.0.0.1:8100`.
+- Telephony analytics preserved on `127.0.0.1:8099` and independently healthy.
+- Network exposure remains disabled.
+- Bundled IRC/NNTP/control smoke test passed after activation.
+- Control `/healthz` returned `status: ok`, version `1.0.0`.
+- Deployment evidence directory: `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z`.
+- Pre-migration configuration backup: `/var/lib/wwcx-deployment-evidence/comms-relay/control-port-migration-20260815T183128Z/config.before.json`.
+- The earlier 18:23 UTC `Address already in use` failure belongs to the superseded 8099 control-port attempt; the corrected 18:31 UTC deployment passed smoke tests and remained active during acceptance verification.
+
 ## Safe default listeners
 
 - IRC `127.0.0.1:16667`
 - NNTP `127.0.0.1:1119`
 - control `127.0.0.1:8100`
 
-No DNS, firewall, certificate, public listener or federation change is part of repository completion.
+No DNS, firewall, certificate, public listener or federation change is part of this accepted deployment.
 
-## Remaining live gate
+## Remaining privileged gates
 
-The repository may be merged after CI. Live Edge1 installation/activation must be performed through an authenticated Edge1 execution path and verified with the bundled deployment smoke test. External exposure remains a separate privileged change requiring explicit authorization.
+The private loopback Edge1 Communications Relay deployment is complete. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved.
