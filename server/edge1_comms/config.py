@@ -15,6 +15,7 @@ DEFAULT_DB_PATH = Path('/var/lib/wwcx-comms/comms.sqlite3')
 GROUP_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9+_-]*(?:\.[A-Za-z0-9][A-Za-z0-9+_-]*)+$')
 SOURCE_RE = re.compile(r'^[a-z0-9][a-z0-9._-]{0,63}$')
 GIT_REF_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$')
+HOST_RE = re.compile(r'^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$')
 
 
 class ConfigError(ValueError):
@@ -123,11 +124,19 @@ class IngestSourceConfig:
     path: str | None = None
     ref: str = 'main'
     base_url: str | None = None
+    host: str | None = None
+    port: int | None = None
+    tls: bool | None = None
+    upstream_group: str | None = None
+    credential_file: str | None = None
+    create_group: bool = False
+    retention_days: int | None = None
+    max_article_bytes: int | None = None
     initial_items: int = 8
     scan_limit: int = 500
 
     def validate(self) -> None:
-        if self.source_type not in {'bootstrap', 'git'}:
+        if self.source_type not in {'bootstrap', 'git', 'nntp'}:
             raise ConfigError(f'ingestion source {self.name!r} has unsupported type')
         if not SOURCE_RE.fullmatch(self.name):
             raise ConfigError('ingestion source name must use lowercase letters, digits, dot, underscore, or hyphen')
@@ -136,19 +145,51 @@ class IngestSourceConfig:
         if not 10 <= self.scan_limit <= 5000:
             raise ConfigError(f'ingestion source {self.name}.scan_limit must be between 10 and 5000')
         if self.source_type == 'bootstrap':
-            if self.group is not None or self.path is not None or self.base_url is not None:
-                raise ConfigError(f'bootstrap source {self.name} does not accept group, path, or base_url')
+            if any(value is not None for value in (self.group, self.path, self.base_url, self.host, self.port, self.tls, self.upstream_group, self.credential_file, self.retention_days, self.max_article_bytes)) or self.create_group:
+                raise ConfigError(f'bootstrap source {self.name} accepts only bootstrap fields')
             return
+        if self.source_type == 'git':
+            if any(value is not None for value in (self.host, self.port, self.tls, self.upstream_group, self.credential_file, self.retention_days, self.max_article_bytes)) or self.create_group:
+                raise ConfigError(f'git source {self.name} contains NNTP-only fields')
+            if not self.group or not GROUP_RE.fullmatch(self.group):
+                raise ConfigError(f'git source {self.name} requires a valid newsgroup')
+            if not self.path or not Path(self.path).is_absolute():
+                raise ConfigError(f'git source {self.name} requires an absolute repository path')
+            if not GIT_REF_RE.fullmatch(self.ref) or '..' in self.ref or self.ref.endswith('/'):
+                raise ConfigError(f'git source {self.name} has an unsafe ref')
+            if self.base_url is not None:
+                parsed = urllib.parse.urlparse(self.base_url)
+                if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+                    raise ConfigError(f'git source {self.name}.base_url must be a credential-free HTTPS URL')
+            return
+        if self.path is not None or self.base_url is not None or self.ref != 'main':
+            raise ConfigError(f'NNTP source {self.name} contains git-only fields')
         if not self.group or not GROUP_RE.fullmatch(self.group):
-            raise ConfigError(f'git source {self.name} requires a valid newsgroup')
-        if not self.path or not Path(self.path).is_absolute():
-            raise ConfigError(f'git source {self.name} requires an absolute repository path')
-        if not GIT_REF_RE.fullmatch(self.ref) or '..' in self.ref or self.ref.endswith('/'):
-            raise ConfigError(f'git source {self.name} has an unsafe ref')
-        if self.base_url is not None:
-            parsed = urllib.parse.urlparse(self.base_url)
-            if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
-                raise ConfigError(f'git source {self.name}.base_url must be a credential-free HTTPS URL')
+            raise ConfigError(f'NNTP source {self.name} requires a valid local newsgroup')
+        if not self.upstream_group or not GROUP_RE.fullmatch(self.upstream_group):
+            raise ConfigError(f'NNTP source {self.name} requires a valid upstream_group')
+        if not self.host or not HOST_RE.fullmatch(self.host):
+            raise ConfigError(f'NNTP source {self.name}.host must be a DNS hostname')
+        try:
+            ipaddress.ip_address(self.host)
+        except ValueError:
+            pass
+        else:
+            raise ConfigError(f'NNTP source {self.name}.host must not be an IP literal')
+        if self.host.lower() == 'localhost' or self.host.lower().endswith('.localhost'):
+            raise ConfigError(f'NNTP source {self.name}.host must not be localhost')
+        if self.port is None or not 1 <= self.port <= 65535:
+            raise ConfigError(f'NNTP source {self.name}.port must be between 1 and 65535')
+        if self.tls is not True:
+            raise ConfigError(f'NNTP source {self.name} requires TLS')
+        if self.credential_file is not None:
+            credential_path = Path(self.credential_file)
+            if not credential_path.is_absolute() or '\x00' in self.credential_file:
+                raise ConfigError(f'NNTP source {self.name}.credential_file must be an absolute path')
+        if self.retention_days is not None and not 1 <= self.retention_days <= 36500:
+            raise ConfigError(f'NNTP source {self.name}.retention_days must be between 1 and 36500')
+        if self.max_article_bytes is None or not 1024 <= self.max_article_bytes <= 1_048_576:
+            raise ConfigError(f'NNTP source {self.name}.max_article_bytes must be between 1024 and 1048576')
 
 
 @dataclass(frozen=True)
@@ -216,14 +257,23 @@ def _listener(value: dict[str, Any], default: ListenerConfig) -> ListenerConfig:
 
 
 def _ingest_source(value: dict[str, Any]) -> IngestSourceConfig:
+    source_type = str(value.get('type', '')).strip().lower()
     return IngestSourceConfig(
-        source_type=str(value.get('type', '')).strip().lower(),
+        source_type=source_type,
         name=str(value.get('name', '')).strip().lower(),
         enabled=bool(value.get('enabled', True)),
         group=str(value['group']).strip().lower() if value.get('group') is not None else None,
         path=str(value['path']) if value.get('path') is not None else None,
         ref=str(value.get('ref', 'main')).strip(),
         base_url=str(value['base_url']).rstrip('/') if value.get('base_url') is not None else None,
+        host=str(value['host']).strip().lower() if value.get('host') is not None else None,
+        port=int(value.get('port', 563)) if source_type == 'nntp' else (int(value['port']) if value.get('port') is not None else None),
+        tls=bool(value.get('tls', True)) if source_type == 'nntp' else (bool(value['tls']) if value.get('tls') is not None else None),
+        upstream_group=str(value['upstream_group']).strip().lower() if value.get('upstream_group') is not None else None,
+        credential_file=str(value['credential_file']) if value.get('credential_file') is not None else None,
+        create_group=bool(value.get('create_group', False)),
+        retention_days=int(value['retention_days']) if value.get('retention_days') is not None else None,
+        max_article_bytes=int(value.get('max_article_bytes', 262144)) if source_type == 'nntp' else (int(value['max_article_bytes']) if value.get('max_article_bytes') is not None else None),
         initial_items=int(value.get('initial_items', 8)),
         scan_limit=int(value.get('scan_limit', 500)),
     )
@@ -348,6 +398,14 @@ def sanitized_config(cfg: RelayConfig) -> dict[str, Any]:
                     'path': source.path,
                     'ref': source.ref,
                     'base_url': source.base_url,
+                    'host': source.host,
+                    'port': source.port,
+                    'tls': source.tls,
+                    'upstream_group': source.upstream_group,
+                    'credential_file_configured': bool(source.credential_file),
+                    'create_group': source.create_group,
+                    'retention_days': source.retention_days,
+                    'max_article_bytes': source.max_article_bytes,
                     'initial_items': source.initial_items,
                     'scan_limit': source.scan_limit,
                 }

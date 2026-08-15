@@ -54,6 +54,22 @@
         "base_url": "https://github.com/johnkaminski727-alt/edge1-management-interface",
         "initial_items": 8,
         "scan_limit": 500
+      },
+      {
+        "type": "nntp",
+        "name": "eternal.comp.lang.python",
+        "enabled": false,
+        "host": "news.eternal-september.org",
+        "port": 563,
+        "tls": true,
+        "upstream_group": "comp.lang.python",
+        "group": "usenet.comp.lang.python",
+        "credential_file": "/etc/wwcx/credentials/eternal-september.json",
+        "create_group": true,
+        "retention_days": 3650,
+        "max_article_bytes": 262144,
+        "initial_items": 8,
+        "scan_limit": 100
       }
     ]
   }

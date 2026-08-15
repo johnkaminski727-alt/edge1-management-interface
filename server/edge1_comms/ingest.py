@@ -12,6 +12,7 @@ from typing import Any, Iterator
 
 from .config import IngestSourceConfig, RelayConfig
 from .storage import CommsStore
+from .upstream_nntp import PullResult, pull_articles
 
 
 class IngestError(RuntimeError):
@@ -27,6 +28,7 @@ class Candidate:
     body: str
     headers: dict[str, str]
     cursor: str | None = None
+    author: str | None = None
 
 
 @contextlib.contextmanager
@@ -168,6 +170,56 @@ def _git_candidates(source: IngestSourceConfig, store: CommsStore) -> tuple[list
     return [_git_candidate(source, commit) for commit in hashes], rewritten, tip
 
 
+def _nntp_candidates(source: IngestSourceConfig, store: CommsStore, *, limit: int) -> tuple[list[Candidate], PullResult]:
+    result = pull_articles(
+        source,
+        store.get_ingest_cursor(source.name),
+        limit=limit,
+        seen=lambda message_id: store.ingest_seen(source.name, message_id),
+    )
+    candidates: list[Candidate] = []
+    for article in result.articles:
+        headers = {
+            'X-WWCX-Source-Type': 'nntp',
+            'X-WWCX-Upstream-Server': source.host or '',
+            'X-WWCX-Upstream-Group': source.upstream_group or '',
+            'X-WWCX-Upstream-Message-ID': article.message_id,
+            'X-WWCX-Upstream-Article-Number': str(article.article_number),
+            'X-WWCX-Upstream-Content-Type': article.content_type,
+        }
+        if article.date:
+            headers['X-WWCX-Upstream-Date'] = article.date
+        if article.references:
+            headers['X-WWCX-Upstream-References'] = article.references[:900]
+        candidates.append(
+            Candidate(
+                source_name=source.name,
+                source_item_id=article.message_id,
+                group=source.group or '',
+                subject=article.subject,
+                body=article.body,
+                headers=headers,
+                cursor=str(article.article_number),
+                author=article.author,
+            )
+        )
+    return candidates, result
+
+
+def _ensure_nntp_group(source: IngestSourceConfig, store: CommsStore) -> None:
+    group = source.group or ''
+    if store.group_info(group):
+        return
+    if not source.create_group:
+        raise IngestError(f'NNTP source {source.name} targets missing group {group}')
+    description = f'Imported read-only mirror of {source.upstream_group} via {source.host}'
+    try:
+        store.add_group(group, description, moderated=False, retention_days=source.retention_days)
+    except Exception:
+        if not store.group_info(group):
+            raise
+
+
 def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False) -> dict[str, Any]:
     if not cfg.ingestion.enabled:
         return {'enabled': False, 'dry_run': dry_run, 'created': 0, 'deduplicated': 0, 'sources': []}
@@ -183,10 +235,21 @@ def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False)
                 continue
             rewritten = False
             tip: str | None = None
+            scan_cursor: str | None = None
+            scanned = 0
+            skipped = 0
             if source.source_type == 'bootstrap':
                 candidates = _bootstrap_candidates(source, store)
             elif source.source_type == 'git':
                 candidates, rewritten, tip = _git_candidates(source, store)
+            elif source.source_type == 'nntp':
+                candidates, pull_result = _nntp_candidates(source, store, limit=remaining)
+                rewritten = pull_result.history_rewritten
+                scan_cursor = pull_result.cursor
+                scanned = pull_result.scanned
+                skipped = pull_result.skipped
+                if not dry_run:
+                    _ensure_nntp_group(source, store)
             else:
                 raise IngestError(f'unsupported source type: {source.source_type}')
             candidates = candidates[:remaining]
@@ -197,6 +260,9 @@ def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False)
                 if dry_run:
                     preview.append({'source_item_id': candidate.source_item_id, 'group': candidate.group, 'subject': candidate.subject})
                     continue
+                kwargs: dict[str, Any] = {}
+                if candidate.author:
+                    kwargs['author'] = candidate.author
                 result = store.post_ingested_article(
                     source_name=candidate.source_name,
                     source_item_id=candidate.source_item_id,
@@ -206,6 +272,7 @@ def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False)
                     server_name=cfg.server_name,
                     extra_headers=candidate.headers,
                     detail={'source_type': source.source_type},
+                    **kwargs,
                 )
                 if result['created']:
                     created += 1
@@ -213,7 +280,7 @@ def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False)
                 else:
                     deduplicated += 1
                     source_deduplicated += 1
-                if candidate.cursor:
+                if candidate.cursor and source.source_type != 'nntp':
                     store.set_ingest_cursor(source.name, candidate.cursor)
                 remaining -= 1
                 if remaining <= 0:
@@ -223,6 +290,11 @@ def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False)
                     store.audit(None, 'ingest', 'source.history_rewritten', source.name, 'ok', {'tip': tip})
                 if not candidates and tip and store.get_ingest_cursor(source.name) != tip:
                     store.set_ingest_cursor(source.name, tip)
+            if source.source_type == 'nntp' and not dry_run:
+                if rewritten:
+                    store.audit(None, 'ingest', 'source.history_rewritten', source.name, 'ok', {'cursor': scan_cursor})
+                if scan_cursor is not None and store.get_ingest_cursor(source.name) != scan_cursor:
+                    store.set_ingest_cursor(source.name, scan_cursor)
             source_results.append(
                 {
                     'name': source.name,
@@ -231,6 +303,8 @@ def run_ingestion(cfg: RelayConfig, store: CommsStore, *, dry_run: bool = False)
                     'deduplicated': source_deduplicated,
                     'candidates': len(candidates),
                     'history_rewritten': rewritten,
+                    'scanned': scanned,
+                    'skipped': skipped,
                     'preview': preview,
                 }
             )
