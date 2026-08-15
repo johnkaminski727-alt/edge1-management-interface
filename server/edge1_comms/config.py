@@ -54,7 +54,7 @@ class RetentionConfig:
 @dataclass(frozen=True)
 class RelayConfig:
     server_name:str='edge1.ww.cx'; network_name:str='WW.CX'; database_path:str=str(DEFAULT_DB_PATH); allow_public_bind:bool=False
-    irc:ListenerConfig=field(default_factory=lambda:ListenerConfig('127.0.0.1',16667,True,False)); nntp:ListenerConfig=field(default_factory=lambda:ListenerConfig('127.0.0.1',1119,True,False)); control:ListenerConfig=field(default_factory=lambda:ListenerConfig('127.0.0.1',8099,True,False)); security:SecurityConfig=field(default_factory=SecurityConfig); retention:RetentionConfig=field(default_factory=RetentionConfig)
+    irc:ListenerConfig=field(default_factory=lambda:ListenerConfig('127.0.0.1',16667,True,False)); nntp:ListenerConfig=field(default_factory=lambda:ListenerConfig('127.0.0.1',1119,True,False)); control:ListenerConfig=field(default_factory=lambda:ListenerConfig('127.0.0.1',8100,True,False)); security:SecurityConfig=field(default_factory=SecurityConfig); retention:RetentionConfig=field(default_factory=RetentionConfig)
     def validate(self)->None:
         if not self.server_name or ' ' in self.server_name: raise ConfigError('server_name must be a non-empty hostname-like token')
         if not self.network_name: raise ConfigError('network_name is required')

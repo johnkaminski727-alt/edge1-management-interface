@@ -42,12 +42,12 @@ If validation/start/smoke fails, the installer restores the prior unit, configur
 systemctl is-enabled edge1-comms-relay.service
 systemctl is-active edge1-comms-relay.service
 python3 deploy/comms-relay/smoke-test.py --config /etc/wwcx/comms-relay.json
-ss -ltnp | grep -E ':(16667|1119|8099)'
+ss -ltnp | grep -E ':(16667|1119|8100)'
 bin/commsctl --config /etc/wwcx/comms-relay.json status
 journalctl -u edge1-comms-relay.service --since '-10 minutes' --no-pager
 ```
 
-The default accepted result is loopback-only listeners at `127.0.0.1:16667`, `127.0.0.1:1119`, and `127.0.0.1:8099`.
+The default accepted result is loopback-only listeners at `127.0.0.1:16667`, `127.0.0.1:1119`, and `127.0.0.1:8100`. Port `8099` is reserved for the existing WW.CX telephony analytics API and must not be reused by the communications relay.
 
 ## Create the founder account
 

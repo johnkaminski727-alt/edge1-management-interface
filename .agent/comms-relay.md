@@ -17,12 +17,13 @@ Feature branch: `feature/edge1-comms-relay`
 - Control API has `/healthz`; mutation methods remain disabled.
 - The systemd service has resource ceilings and a restrictive sandbox.
 - Deployment is dry-run-first, requires a clean `main` checkout, supports expected-commit pinning, records evidence, smoke-tests activation and rolls back unit/config/service state on failure.
+- Live activation on 2026-08-15 confirmed that `127.0.0.1:8099` is already assigned to the WW.CX telephony analytics API. The relay control endpoint therefore uses dedicated loopback port `8100`.
 
 ## Safe default listeners
 
 - IRC `127.0.0.1:16667`
 - NNTP `127.0.0.1:1119`
-- control `127.0.0.1:8099`
+- control `127.0.0.1:8100`
 
 No DNS, firewall, certificate, public listener or federation change is part of repository completion.
 
