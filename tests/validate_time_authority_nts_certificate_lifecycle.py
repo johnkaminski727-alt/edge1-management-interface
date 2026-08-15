@@ -51,6 +51,7 @@ def main() -> int:
         "chronyc waitsync",
         "sport = :123",
         "sport = :4460",
+        "TLS_RC",
         "ALPN protocol: ntske/1",
         "Verify return code: 0 (ok)",
         "rollback_and_fail",
@@ -77,7 +78,7 @@ def main() -> int:
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
+        universal_newlines=True,
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout == ""
