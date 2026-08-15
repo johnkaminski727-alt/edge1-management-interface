@@ -2,6 +2,7 @@
 
 Last repository validation: 2026-08-15  
 Live Edge1 acceptance: 2026-08-15 18:31 UTC  
+Founder account activation: 2026-08-15 18:37 UTC  
 Production revision: `99f16add875bdd6b185821d5491851bba9e12a68`
 
 ## Production-ready repository state
@@ -35,6 +36,19 @@ Production revision: `99f16add875bdd6b185821d5491851bba9e12a68`
 - Pre-migration configuration backup: `/var/lib/wwcx-deployment-evidence/comms-relay/control-port-migration-20260815T183128Z/config.before.json`.
 - The earlier 18:23 UTC `Address already in use` failure belongs to the superseded 8099 control-port attempt; the corrected 18:31 UTC deployment passed smoke tests and remained active during acceptance verification.
 
+## Founder identity activation
+
+- Local relay login: `john`.
+- Account is enabled with role `founder`.
+- Founder super-role behavior was verified against the live account.
+- IRC SASL PLAIN authentication succeeded against the live IRC listener.
+- NNTP AUTHINFO authentication succeeded against the live NNTP listener.
+- Relay health and the bundled smoke test remained green after account creation; no service restart was required.
+- The sanitized audit trail recorded successful `account.add`, IRC authentication, IRC connect/disconnect, and NNTP authentication events.
+- Founder-account evidence directory: `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`.
+- A consistent pre-account SQLite backup was captured in that evidence directory before mutation.
+- No password, password hash, secret, credential, database copy, or unredacted authentication material is stored in this repository.
+
 ## Safe default listeners
 
 - IRC `127.0.0.1:16667`
@@ -45,4 +59,4 @@ No DNS, firewall, certificate, public listener or federation change is part of t
 
 ## Remaining privileged gates
 
-The private loopback Edge1 Communications Relay deployment is complete. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved.
+The private loopback Edge1 Communications Relay deployment and local founder identity activation are complete. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved. External account onboarding and production message seeding also remain separately governed changes.
