@@ -36,6 +36,18 @@ Treat `Permission denied` on a repository shell helper as a packaging/invocation
 
 This preserves reproducible source state and avoids turning a checkout-specific permission repair into undocumented production configuration.
 
+## Privileged system-binary PATH failures
+
+Treat `command not found` for an installed privileged daemon or administrative utility as a PATH/invocation problem before concluding the package is missing.
+
+- interactive operator accounts may intentionally omit `/usr/sbin` and `/sbin` from `PATH`;
+- when the check already requires privilege, resolve and execute the binary in the privileged environment, for example `sudo sh -c 'command -v chronyd && chronyd -v'`;
+- do not globally extend the operator account PATH or create ad-hoc symlinks merely to make one diagnostic command work;
+- distinguish a missing interactive PATH entry from an actually absent package by checking package/service state and the privileged command path;
+- make attended runbooks use the same privilege context that the validated deployment or preflight scripts use.
+
+This avoids false negatives where the service is installed and active but its administrative binary is intentionally outside an unprivileged interactive PATH.
+
 ## Development rollback
 
 For repository-only work:
