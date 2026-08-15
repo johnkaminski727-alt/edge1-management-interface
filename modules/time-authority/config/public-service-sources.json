@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "wwcx-public-ntp",
+      "server_name": "ntp.ww.cx",
+      "provider": "WW.CX",
+      "region": "Edge1 public service",
+      "port": 123,
+      "expected_stratum_min": 1,
+      "expected_stratum_max": 15
+    }
+  ]
+}
