@@ -119,8 +119,23 @@ def validate_dashboard() -> None:
     mode, records = dashboard.load_records([], 500)
     assert mode == "baseline"
     assert len(records) == 10
-    payload = dashboard.summary_payload(500)
+
+    # Validation must be deterministic on both clean CI workers and a live Edge1
+    # host where the default production measurements file already exists.
+    previous_data_paths = os.environ.get("EDGE1_TIME_AUTHORITY_DATA_PATHS")
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        isolated_data_path = Path(raw_tmp) / "measurements.jsonl"
+        os.environ["EDGE1_TIME_AUTHORITY_DATA_PATHS"] = str(isolated_data_path)
+        try:
+            payload = dashboard.summary_payload(500)
+        finally:
+            if previous_data_paths is None:
+                os.environ.pop("EDGE1_TIME_AUTHORITY_DATA_PATHS", None)
+            else:
+                os.environ["EDGE1_TIME_AUTHORITY_DATA_PATHS"] = previous_data_paths
+
     assert payload["schema_version"] == 1
+    assert payload["mode"] == "baseline"
     assert len(payload["latest"]) == 10
     assert len(payload["observers"]) == 2
     assert dashboard.clamp_limit("1") == 10
