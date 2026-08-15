@@ -245,7 +245,7 @@ class TimeAuthorityHandler(SimpleHTTPRequestHandler):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8092)
+    parser.add_argument("--port", type=int, default=8101)
     return parser.parse_args()
 
 
