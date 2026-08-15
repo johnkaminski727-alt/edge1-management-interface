@@ -1,171 +1,105 @@
 # Edge1 Communications Relay Runbook
 
-## Scope
+Version: 1.0.0
 
-This runbook operates the repository implementation of the WW.CX Edge1 Communications Relay. It does not authorize public exposure, DNS changes, firewall changes, certificate issuance, external federation, or production communication traffic.
+## Preflight
 
-## Validate repository assets
+Use a clean `main` checkout on Edge1. Confirm the intended commit and run:
 
 ```sh
-python3 -m compileall -q server tests
+cd /opt/edge1-management-interface
+deploy/comms-relay/install.sh --dry-run --expected-commit=<COMMIT>
 python3 tests/validate_comms_relay.py
-python3 server/edge1_comms_cli.py config validate config/comms-relay.example.json
-sh -n deploy/comms-relay/install.sh
-node --check src/web/comms-relay/app.js
 ```
 
-The protocol validation uses ephemeral `127.0.0.1` sockets only. It exercises IRC capability negotiation/registration/JOIN/TOPIC and NNTP GROUP/POST/OVER in an explicitly anonymous laboratory configuration, while shared storage separately validates randomized credential hashing/authentication and moderated authorization. It also exercises configuration rollback and the read-only HTTP status API. Production defaults remain authentication-required.
+Do not alter DNS, firewall rules, certificates or listener addresses as part of the loopback deployment.
 
-## Deployment preflight
-
-The installer defaults to dry-run:
+## Install without activation
 
 ```sh
-deploy/comms-relay/install.sh
+sudo deploy/comms-relay/install.sh --apply --expected-commit=<COMMIT>
 ```
 
-Review the reported repository, unit, configuration, data paths, and activation intent.
+This creates/preserves the dedicated service identity, safe configuration, data path and systemd unit. It does not start the service.
 
-Install without starting:
+## Activate loopback service
 
 ```sh
-sudo deploy/comms-relay/install.sh --apply
+sudo deploy/comms-relay/install.sh --apply --start --expected-commit=<COMMIT>
 ```
 
-This creates or confirms the `wwcx-comms` system identity, installs the systemd unit, creates `/var/lib/wwcx-comms`, and installs the loopback-only example configuration only when no running configuration exists. An existing configuration is preserved and validated.
+The installer validates the config and unit, enables/starts the service, checks active state, performs the bundled protocol/control smoke test and writes protected evidence under:
 
-Local activation is a separate explicit action:
-
-```sh
-sudo deploy/comms-relay/install.sh --apply --start
+```text
+/var/lib/wwcx-deployment-evidence/comms-relay/<UTC timestamp>/
 ```
 
-Do not use `--start` as a substitute for the acceptance checks below.
+If validation/start/smoke fails, the installer restores the prior unit, configuration and enabled/active state.
 
-## First account
-
-Create an account without placing the password in process arguments or shell history:
-
-```sh
-sudo -u wwcx-comms bin/commsctl --config /etc/wwcx/comms-relay.json \
-  account add john --role founder
-```
-
-For controlled automation, `--password-stdin` is available. The caller is responsible for using a pipe or file descriptor that does not expose the password in logs.
-
-## Local acceptance
-
-After local activation:
+## Verify
 
 ```sh
 systemctl is-enabled edge1-comms-relay.service
 systemctl is-active edge1-comms-relay.service
-systemctl --no-pager --full status edge1-comms-relay.service
-ss -ltnp | grep -E ':(16667|1119|8099)[[:space:]]'
-curl --fail --silent http://127.0.0.1:8099/api/comms/status | python3 -m json.tool
-journalctl -u edge1-comms-relay.service --since '-5 minutes' --no-pager
+python3 deploy/comms-relay/smoke-test.py --config /etc/wwcx/comms-relay.json
+ss -ltnp | grep -E ':(16667|1119|8099)'
+bin/commsctl --config /etc/wwcx/comms-relay.json status
+journalctl -u edge1-comms-relay.service --since '-10 minutes' --no-pager
 ```
 
-Expected default listeners are loopback only:
+The default accepted result is loopback-only listeners at `127.0.0.1:16667`, `127.0.0.1:1119`, and `127.0.0.1:8099`.
 
-```text
-127.0.0.1:16667  IRC laboratory listener
-127.0.0.1:1119   NNTP laboratory listener
-127.0.0.1:8099   read-only control UI/API
-```
+## Create the founder account
 
-Any wildcard or non-loopback listener during this acceptance is a failure unless a separately approved public-exposure change is being executed.
-
-## Client smoke checks
-
-IRC clients must negotiate SASL and authenticate before registration completes. For local protocol debugging, an IRC client can connect to `127.0.0.1:16667` without TLS because the socket is loopback-only.
-
-NNTP reader/poster clients can use `127.0.0.1:1119` and `AUTHINFO USER/PASS`. Posting requires an authenticated account and group policy authorization.
-
-## Newsgroup administration
-
-List groups:
+Use an interactive terminal rather than command-line password arguments:
 
 ```sh
+sudo -u wwcx-comms bin/commsctl --config /etc/wwcx/comms-relay.json account add john --role founder
+```
+
+Passwords must meet the configured minimum length. Password values are never written to audit records.
+
+## Operations
+
+```sh
+bin/commsctl --config /etc/wwcx/comms-relay.json account list
 bin/commsctl --config /etc/wwcx/comms-relay.json group list
+bin/commsctl --config /etc/wwcx/comms-relay.json article list wwcx.projects.edge1
+bin/commsctl --config /etc/wwcx/comms-relay.json audit --limit 100
+bin/commsctl --config /etc/wwcx/comms-relay.json maintenance prune
 ```
 
-Add a group:
+## Configuration changes
+
+Preserve the candidate/running workflow:
 
 ```sh
-bin/commsctl --config /etc/wwcx/comms-relay.json \
-  group add wwcx.projects.example 'Example project discussion' --retention-days 3650
-```
-
-Add `--moderated` when only `founder`, `moderator`, or `moderator:<group>` accounts should post.
-
-## Configuration change
-
-Validate and inspect before staging:
-
-```sh
-bin/commsctl config validate /path/to/candidate.json
-bin/commsctl config diff /etc/wwcx/comms-relay.json /path/to/candidate.json
-```
-
-Stage:
-
-```sh
-sudo -u wwcx-comms bin/commsctl config stage /path/to/candidate.json
-```
-
-Apply atomically with backup evidence:
-
-```sh
+bin/commsctl config validate candidate.json
+bin/commsctl config diff /etc/wwcx/comms-relay.json candidate.json
+sudo -u wwcx-comms bin/commsctl config stage candidate.json
 sudo bin/commsctl config apply
+sudo systemctl restart edge1-comms-relay.service
+python3 deploy/comms-relay/smoke-test.py --config /etc/wwcx/comms-relay.json
 ```
 
-`config apply` does not restart the service. Review the new file and the record under `/var/lib/wwcx-comms/config-control/last-applied.json` before any restart.
-
-Rollback the most recent apply:
+Rollback is:
 
 ```sh
 sudo bin/commsctl config rollback
+sudo systemctl restart edge1-comms-relay.service
+python3 deploy/comms-relay/smoke-test.py --config /etc/wwcx/comms-relay.json
 ```
-
-A service restart remains explicit after apply or rollback.
-
-## Public exposure gate
-
-Do not expose IRC or NNTP publicly until all of these have separate approval and evidence:
-
-- intended public hostnames and DNS records;
-- listener addresses;
-- TLS certificate identity and renewal path;
-- firewall policy;
-- rate-limit and abuse policy;
-- account/provisioning model;
-- operational monitoring and retention;
-- external client compatibility testing;
-- decision on federation policy.
-
-The intended standards-facing ports are IRC/TLS `6697` and NNTP/TLS `563`. The configuration validator rejects a public listener without TLS even when `network_exposure.enabled=true`.
 
 ## Incident containment
 
-To stop the relay without deleting state:
+To stop communications without deleting state:
 
 ```sh
 sudo systemctl stop edge1-comms-relay.service
 ```
 
-Do not delete `/var/lib/wwcx-comms` during containment. Preserve the database and configuration-control records for investigation.
+Do not delete the SQLite database during incident handling. Preserve `/var/lib/wwcx-comms`, configuration, journal logs and deployment evidence for diagnosis.
 
-To prevent boot activation while retaining the installed unit:
+## External exposure gate
 
-```sh
-sudo systemctl disable edge1-comms-relay.service
-```
-
-## Data protection notes
-
-- SQLite state is mode-protected by the service directory and systemd umask.
-- Audit metadata does not contain credentials or message bodies by design.
-- IRC channel message history exists only when explicitly enabled.
-- Direct/private IRC message bodies are never written to history by version 0.1.
-- NNTP article content is durable discussion content and should be backed up according to future records policy before public use.
+Internet-facing IRC/NNTP is not part of this runbook. Before exposure, separately approve and validate TLS identity/certificate handling, DNS, firewall policy, public ports, client compatibility, abuse policy and monitoring. Federation remains disabled unless an explicit peer/trust design is approved.

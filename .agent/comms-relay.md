@@ -1,41 +1,31 @@
 # Edge1 Communications Relay State
 
-Last implementation validation: 2026-08-15  
-Feature branch: `feature/edge1-comms-relay`  
-Base: `c9e3a7a734c4cd75a4c2e3d7e6260aa578b1bb36`
+Last repository validation: 2026-08-15  
+Feature branch: `feature/edge1-comms-relay`
 
-## Implemented
+## Production-ready repository state
 
-- shared SQLite account, authorization, newsgroup, article, IRC-history, and audit store;
-- PBKDF2-HMAC-SHA256 credentials with per-account random salts;
-- IRC listener with IRCv3 CAP/SASL flow, registration, channels, topics, messages, names, and WHO;
-- NNTP reader/poster with authentication, group listing, article retrieval, overview, navigation, and posting;
-- moderated-group authorization;
-- explicit rejection of NNTP federation commands;
-- optional retained IRC channel history and operator-triggered IRC-to-NNTP archival;
-- loopback read-only control HTTP API and responsive browser console;
-- operator CLI for accounts, groups, articles, audit, archival, configuration validation/diff/stage/apply/rollback;
-- candidate configuration backups and rollback evidence;
-- safe loopback example configuration;
-- systemd sandbox unit and dry-run-first installer;
-- protocol integration validator and runbook.
+- IRC and NNTP services share durable local identity, policy, audit and SQLite storage.
+- IRC supports SASL PLAIN, authenticated registration, channels, messaging, topics, NAMES/WHO, operator KICK and moderated `+m` channels.
+- NNTP supports authenticated reader/poster operation, overview/navigation, durable articles, moderated groups and server-side authenticated identity marking.
+- Federation is denied by policy and implementation.
+- Public plaintext protocol binds are rejected; the control API is loopback-only.
+- Runtime defenses include total/per-peer connection caps, per-connection command token buckets, cross-reconnect authentication throttling and idle timeouts.
+- Password hashes use PBKDF2-HMAC-SHA256 with per-account salt and per-account iteration metadata; the production default is 600,000 iterations and 12-character minimum passwords.
+- SQLite uses WAL mode, busy timeout, foreign keys, explicit transactions and restrictive database permissions.
+- NNTP, IRC-history and audit retention are enforced at startup and periodically.
+- Control API has `/healthz`; mutation methods remain disabled.
+- The systemd service has resource ceilings and a restrictive sandbox.
+- Deployment is dry-run-first, requires a clean `main` checkout, supports expected-commit pinning, records evidence, smoke-tests activation and rolls back unit/config/service state on failure.
 
-## Safety state
+## Safe default listeners
 
-No Edge1 runtime deployment, service start, DNS, firewall, certificate, authentication integration, public listener, IRC federation, NNTP federation, or external communication traffic was performed as part of repository implementation.
+- IRC `127.0.0.1:16667`
+- NNTP `127.0.0.1:1119`
+- control `127.0.0.1:8099`
 
-Default laboratory listeners:
+No DNS, firewall, certificate, public listener or federation change is part of repository completion.
 
-- IRC `127.0.0.1:16667`;
-- NNTP `127.0.0.1:1119`;
-- control `127.0.0.1:8099`.
+## Remaining live gate
 
-Public plaintext binds are rejected by configuration validation. Control cannot be configured for a non-loopback bind.
-
-## Next operational gates
-
-1. merge repository implementation after CI/review;
-2. install on Edge1 without starting and inspect paths/ownership;
-3. activate loopback-only service under explicit operational authority and run local acceptance;
-4. separately approve and provision TLS identity, DNS/firewall/listener exposure, account policy, and compatibility testing before Internet-facing IRC/NNTP;
-5. keep federation disabled until an allowlisted peer/trust design is approved.
+The repository may be merged after CI. Live Edge1 installation/activation must be performed through an authenticated Edge1 execution path and verified with the bundled deployment smoke test. External exposure remains a separate privileged change requiring explicit authorization.
