@@ -18,7 +18,7 @@ fail() {
 [ "${WWCX_NTP_APPROVE_PUBLIC_UDP123:-}" = "YES" ] || \
     fail "set WWCX_NTP_APPROVE_PUBLIC_UDP123=YES after explicit approval to expose the NTP daemon on UDP/123"
 
-"$ROOT/deploy/time-authority-ntp-server-edge1-preflight.sh"
+sh "$ROOT/deploy/time-authority-ntp-server-edge1-preflight.sh"
 
 install -d -m 0750 "$EVIDENCE_DIR"
 
@@ -64,7 +64,7 @@ if ! chronyc waitsync 30 0 0 2; then
     fail "chronyd did not synchronize within the acceptance window; rollback evidence is in $EVIDENCE_DIR"
 fi
 
-"$ROOT/deploy/time-authority-ntp-server-edge1-smoke-test.sh"
+sh "$ROOT/deploy/time-authority-ntp-server-edge1-smoke-test.sh"
 
 (systemctl status chrony.service --no-pager 2>&1 || true) > "$EVIDENCE_DIR/chrony-status-after.txt"
 (chronyc tracking 2>&1 || true) > "$EVIDENCE_DIR/chrony-tracking-after.txt"
