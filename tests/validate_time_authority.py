@@ -171,10 +171,32 @@ def validate_deployment_assets() -> None:
     assert "time-authority-edge1-smoke-test.sh" in edge_installer
     assert "EDGE1_TIME_AUTHORITY_SIMULATION" in edge_installer
     assert "explicit non-production EDGE1_TIME_AUTHORITY_SYSTEMCTL" in edge_installer
+    assert "EDGE1_TIME_AUTHORITY_BACKUP_ROOT" in edge_installer
+    assert "install-metadata.txt" in edge_installer
+    assert "Rollback evidence:" in edge_installer
+
+    preflight = (deploy / "time-authority-edge1-preflight.sh").read_text(encoding="utf-8")
+    assert "systemd-analyze verify" in preflight
+
+    for unit_name in ("edge1-time-authority-dashboard.service", "edge1-time-authority-collector.service"):
+        unit_text = (deploy / "systemd" / unit_name).read_text(encoding="utf-8")
+        for directive in (
+            "UMask=0027",
+            "NoNewPrivileges=true",
+            "PrivateDevices=true",
+            "ProtectSystem=strict",
+            "ProtectKernelTunables=true",
+            "ProtectKernelModules=true",
+            "ProtectKernelLogs=true",
+            "ProtectControlGroups=true",
+            "RestrictNamespaces=true",
+            "RestrictRealtime=true",
+            "MemoryDenyWriteExecute=true",
+        ):
+            assert directive in unit_text, (unit_name, directive)
 
     dashboard_unit = (deploy / "systemd" / "edge1-time-authority-dashboard.service").read_text(encoding="utf-8")
-    for directive in ("NoNewPrivileges=true", "ProtectSystem=strict", "127.0.0.1", "MemoryDenyWriteExecute=true"):
-        assert directive in dashboard_unit
+    assert "127.0.0.1" in dashboard_unit
 
     workflow = ROOT / ".github" / "workflows" / "validate.yml"
     assert workflow.is_file()
