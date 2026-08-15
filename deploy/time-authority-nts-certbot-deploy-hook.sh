@@ -51,7 +51,7 @@ rollback_and_fail() {
 }
 
 [ "$(id -u)" -eq 0 ] || fail "hook must run as root"
-for cmd in openssl systemctl chronyc ss install cp mv mktemp ps id awk grep stat; do
+for cmd in openssl systemctl chronyc ss install cp mv mktemp ps id awk grep stat cmp rm date; do
   command -v "$cmd" >/dev/null 2>&1 || fail "$cmd is required"
 done
 
@@ -102,10 +102,14 @@ TCP_LISTENER=$(ss -H -ltnp 'sport = :4460' 2>/dev/null || true)
 [ -n "$TCP_LISTENER" ] || rollback_and_fail "TCP/4460 listener disappeared after renewal"
 printf '%s\n' "$TCP_LISTENER" | grep -q 'chronyd' || rollback_and_fail "TCP/4460 is not owned by chronyd after renewal"
 
-TLS_OUTPUT=$(openssl s_client -connect 127.0.0.1:4460 -servername ntp.ww.cx -alpn ntske/1 -verify_return_error </dev/null 2>&1 || true)
+set +e
+TLS_OUTPUT=$(openssl s_client -connect 127.0.0.1:4460 -servername ntp.ww.cx -alpn ntske/1 -verify_return_error </dev/null 2>&1)
+TLS_RC=$?
+set -e
 printf '%s\n' "$TLS_OUTPUT" > "$EVIDENCE_DIR/nts-tls-smoke.txt"
+[ "$TLS_RC" -eq 0 ] || rollback_and_fail "local NTS-KE TLS verification failed after renewal"
 printf '%s\n' "$TLS_OUTPUT" | grep -Fq 'ALPN protocol: ntske/1' || rollback_and_fail "local NTS-KE ALPN smoke test failed after renewal"
-printf '%s\n' "$TLS_OUTPUT" | grep -Fq 'Verify return code: 0 (ok)' || rollback_and_fail "local NTS-KE certificate verification failed after renewal"
+printf '%s\n' "$TLS_OUTPUT" | grep -Fq 'Verify return code: 0 (ok)' || rollback_and_fail "local NTS-KE trust result was not clean after renewal"
 
 (systemctl status chrony.service --no-pager 2>&1 || true) > "$EVIDENCE_DIR/chrony-status.after.txt"
 (chronyc tracking 2>&1 || true) > "$EVIDENCE_DIR/chrony-tracking.after.txt"
