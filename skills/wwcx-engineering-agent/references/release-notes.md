@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.1.2 — 2026-08-15
+
+- Added a failure-handling rule for privileged administrative binaries that are installed but absent from an unprivileged operator's interactive `PATH`.
+- Prefer resolving and executing administrative binaries in the privileged environment instead of modifying account PATHs or creating ad-hoc symlinks.
+- Require attended operator checks to use the same privilege context as validated deployment and preflight scripts.
+
 ## 1.1.1 — 2026-08-15
 
 - Added a failure-handling rule for repository shell helpers whose executable mode is not part of the package contract.
