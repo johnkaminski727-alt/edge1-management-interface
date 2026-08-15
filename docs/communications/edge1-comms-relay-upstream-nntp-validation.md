@@ -33,14 +33,50 @@ When reader credentials exist, activation must be attended and proceed in this o
 
 If any post-apply verification fails, restore the previous relay config and restart the relay. Already imported articles should be preserved unless a separate reviewed cleanup is explicitly authorized; the source ledger prevents duplicate re-import on a later retry.
 
+## Provenance-aware article accounting
+
+Do not validate an imported local group by assuming every article in that group belongs to the external NNTP source.
+
+Other approved relay sources can legitimately post to the same group. In particular, `wwcx-bootstrap` creates a one-time group introduction when it discovers a new group.
+
+For an imported group, classify and count articles by ingestion provenance:
+
+- external items: match the configured external `source_name` and verify unique upstream `source_item_id` values;
+- bootstrap introduction: if present, match `source_name=wwcx-bootstrap` and source item ID `<group>:v1`;
+- any additional provenance class must be explicitly understood before acceptance.
+
+The accepted `usenet.comp.lang.python` activation demonstrated the expected case:
+
+- 8 `eternal.comp.lang.python` items;
+- 1 `wwcx-bootstrap` introduction (`usenet.comp.lang.python:v1`);
+- 0 duplicate Eternal September source IDs;
+- 9 total local-group articles.
+
+Therefore `group_article_count == external_source_ledger_count` is not a valid general invariant. Validate source-specific ledger counts, duplicate identity, target-group membership, provenance headers, and any independently approved local articles instead.
+
+## Repository movement during attended activation
+
+Do not chase a rapidly advancing remote `main` during a config-only activation if unrelated workstreams are merging concurrently.
+
+Instead:
+
+1. freeze the clean local checkout revision at the start of the attended operation;
+2. require the validated implementation floor to be an ancestor of that local revision;
+3. diff protected Communications Relay paths between the implementation floor and the frozen local revision;
+4. stop if protected relay paths changed unexpectedly;
+5. otherwise perform the bounded config-only activation against that frozen, tested checkout.
+
+Record both the frozen live checkout revision and the later documentation branch/base revision separately when they differ.
+
 ## Deferred gates
 
 The following are not authorized by this implementation:
 
-- Eternal September account registration on the user's behalf;
 - sending a peering request;
 - inbound NNTP feed acceptance;
 - server-to-server streaming;
 - DNS or firewall changes;
 - public Edge1 IRC/NNTP exposure;
 - forwarding WW.CX articles upstream.
+
+Reader-account creation and credential installation are operational prerequisites performed outside the repository and must never place credential values in committed files or shared evidence.
