@@ -120,8 +120,10 @@ Only the canonical hostname `ntp.ww.cx` is advertised for NTS in this phase. `ti
 Before any certificate issuance or installation, inspect existing Edge1 certificate inventory without reading private-key contents:
 
 ```bash
-sudo tools/time_authority/discover-nts-certificate-edge1.sh
+sudo sh tools/time_authority/discover-nts-certificate-edge1.sh
 ```
+
+The explicit `sh` invocation is intentional so this read-only helper does not depend on the source checkout preserving an executable mode bit.
 
 If an existing certificate already covers `ntp.ww.cx`, review its lifecycle and matching key path. If no suitable certificate exists, certificate issuance is a separate privileged production action and must be explicitly approved before execution.
 
