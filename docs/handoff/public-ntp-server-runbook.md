@@ -121,6 +121,8 @@ This is a separate privileged change.
 
 Permit **inbound UDP/123** to Edge1's intended public NTP address. Do not expose chronyc's monitoring/control port; the reviewed chrony configuration sets `cmdport 0` and local administration uses the Unix-domain command socket.
 
+The command socket is intentionally privileged on the live Edge1 host. An ordinary `wwadmin` shell can therefore receive `506 Cannot talk to daemon` from `chronyc` even while `chronyd` is healthy and serving NTP. Use `sudo chronyc ...` for operational inspection rather than broadening the socket permissions merely for convenience.
+
 After the firewall change, verify from a host outside the Edge1 network that UDP/123 receives a valid NTP response. Do not treat a local test as evidence of Internet reachability.
 
 Rate limiting is configured in chronyd as an application-layer guard, but it does not replace network-level filtering, abuse monitoring, or provider policy.
@@ -136,6 +138,8 @@ ntp.ww.cx
 ```
 
 Publish an `A` record to the reviewed Edge1 public IPv4 address. Publish an `AAAA` record only if Edge1 has reviewed, working IPv6 reachability and the firewall permits UDP/123 over IPv6.
+
+`ntp.ww.cx` is the canonical NTP service name. `time.ww.cx` may be published as an alternate name to the same reviewed service address; it must not point to a different clock source unless that is intentionally designed and independently validated.
 
 Do not publish an address merely because it appears on an interface; confirm it is the intended stable public service address.
 
@@ -160,14 +164,14 @@ On Edge1:
 
 ```bash
 systemctl status chrony.service --no-pager
-chronyc tracking
-chronyc sources -v
-chronyc clients
-sudo ss -lunp | grep ':123'
+sudo chronyc tracking
+sudo chronyc sources -v
+sudo chronyc clients
+sudo ss -H -lunp 'sport = :123'
 sudo sh deploy/time-authority-ntp-server-edge1-smoke-test.sh
 ```
 
-Healthy operation requires a synchronized source selection (`*` in `chronyc sources`), normal leap status, bounded offsets and a valid local NTP response.
+Healthy operation requires a synchronized source selection (`*` in `sudo chronyc sources -v`), normal leap status, bounded offsets and a valid local NTP response.
 
 ## Rollback
 
@@ -190,11 +194,17 @@ Do not run two independent daemons that both attempt to discipline the Edge1 sys
 
 NTS is a later phase, not a prerequisite for the initial NTP endpoint. Chrony supports NTS-KE with a certificate and key and normally uses TCP/4460 for key establishment. Enabling it requires a deliberate certificate lifecycle, NTS-specific firewall publication, renewal/restart procedure and external client validation.
 
-## Accepted boundary before final production approval
+## Production authorization state — 2026-08-15
 
-Repository preparation, validation and documentation may proceed without changing live traffic. The following remain blocked until explicitly authorized:
+Explicit production authorization has been granted for:
 
-- replacing Edge1's active system clock daemon;
+- replacing Edge1's active system clock daemon with chronyd;
 - opening/publicly exposing UDP/123;
-- creating or changing `ntp.ww.cx` DNS;
-- enabling NTS/certificates or TCP/4460.
+- creating/changing `ntp.ww.cx` DNS to the reviewed Edge1 service address.
+
+The clock-daemon cutover has been performed and locally validated. Firewall persistence and outside-in UDP/123 acceptance still require live evidence before the public NTP endpoint is considered fully accepted.
+
+Not authorized or performed in this phase:
+
+- enabling NTS/certificates or TCP/4460;
+- changing unrelated firewall, DNS, authentication, routing, or service policy.
