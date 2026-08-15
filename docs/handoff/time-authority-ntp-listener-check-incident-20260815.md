@@ -28,4 +28,13 @@ Accepted observations before the false-negative assertion:
 - `time.cloudflare.com` was the selected source at the observed instant;
 - all five configured upstreams were present in `chronyc sources -v`.
 
+A follow-up run with the corrected socket filter conclusively observed chronyd listening on both wildcard address families:
+
+```text
+0.0.0.0:123
+[::]:123
+```
+
+The same follow-up showed `chrony.service` active while the non-root `wwadmin` invocation `chronyc tracking` returned `506 Cannot talk to daemon`. This is a local control-socket privilege boundary, not evidence that NTP service traffic is unavailable. The reviewed configuration disables the remote chronyc UDP command port (`cmdport 0`); operational chronyc inspection on Edge1 should therefore use `sudo chronyc ...` through the local Unix-domain control socket. Do not weaken socket permissions merely to make unprivileged chronyc commands convenient.
+
 This record does not claim public Internet reachability. Firewall publication and external UDP/123 acceptance remain separate evidence requirements.
