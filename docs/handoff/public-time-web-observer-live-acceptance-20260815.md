@@ -160,8 +160,10 @@ The service is externally observed, not self-certified. The public web clock is 
 The next safe action is read-only certificate discovery on Edge1:
 
 ```bash
-sudo tools/time_authority/discover-nts-certificate-edge1.sh
+sudo sh tools/time_authority/discover-nts-certificate-edge1.sh
 ```
+
+The explicit `sh` invocation avoids relying on the source checkout preserving an executable mode bit.
 
 If no existing certificate covers `ntp.ww.cx`, certificate issuance remains a separate privileged production action requiring explicit approval. If a suitable certificate exists, run the repository NTS read-only preflight with reviewed certificate and key paths before requesting any activation approval.
 

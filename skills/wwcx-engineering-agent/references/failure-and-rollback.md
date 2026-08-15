@@ -24,6 +24,18 @@ Do not treat an evidence or authority failure as proof that the software itself 
 
 Do not repeatedly retry a destructive or state-changing action without new evidence or a corrective change.
 
+## Shell interpreter and execute-bit failures
+
+Treat `Permission denied` on a repository shell helper as a packaging/invocation problem before changing host permissions.
+
+- inspect the repository mode and the caller before applying `chmod` on a live checkout;
+- when a POSIX shell helper is intentionally source-owned as a regular text file, invoke it explicitly with `sh path/to/helper.sh` rather than depending on an executable mode bit;
+- keep shebang-only direct execution for files whose executable mode is verified and intentionally part of the package contract;
+- prefer fixing the source installer/runbook invocation over applying an operator-local permission workaround;
+- add a regression assertion when the invocation path is operationally significant.
+
+This preserves reproducible source state and avoids turning a checkout-specific permission repair into undocumented production configuration.
+
 ## Development rollback
 
 For repository-only work:

@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.1.1 — 2026-08-15
+
+- Added a failure-handling rule for repository shell helpers whose executable mode is not part of the package contract.
+- Prefer explicit `sh path/to/helper.sh` invocation over live-checkout `chmod` workarounds when a POSIX shell helper is source-owned as regular text.
+- Require source installer/runbook fixes and regression assertions when execute-bit assumptions cause operational failures.
+
 ## 1.1.0 — 2026-07-23
 
 - Added capability preflight for access, authority, repository freshness, and execution-path selection.
