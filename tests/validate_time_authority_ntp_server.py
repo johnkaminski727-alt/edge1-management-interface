@@ -44,6 +44,8 @@ def main() -> int:
     assert "UDP/123" in preflight
     assert "systemd-timesyncd" in preflight
     assert "apt-cache show chrony" in preflight
+    assert "ss -H -lun 'sport = :123'" in preflight
+    assert "awk '{print $5}'" not in preflight
     assert "No package, clock-service, firewall, DNS, or listener changes were made." in preflight
 
     installer = INSTALLER.read_text(encoding="utf-8")
@@ -54,6 +56,8 @@ def main() -> int:
     assert "systemctl restart chrony.service" in installer
     assert "chronyc waitsync" in installer
     assert "wwcx-deployment-evidence/public-ntp-server" in installer
+    assert "ss -H -lun 'sport = :123'" in installer
+    assert "awk '{print $5}'" not in installer
     assert "DNS publication and perimeter firewall exposure must be handled as separate approved production changes." in installer
 
     smoke = SMOKE.read_text(encoding="utf-8")
