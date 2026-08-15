@@ -45,6 +45,7 @@ printf '%s\n' "$HEAD" > "$EVIDENCE/repository-commit.txt"
 WAS_ENABLED=0; WAS_ACTIVE=0; HAD_UNIT=0; HAD_CONFIG=0
 systemctl is-enabled --quiet edge1-comms-relay.service 2>/dev/null && WAS_ENABLED=1 || true
 systemctl is-active --quiet edge1-comms-relay.service 2>/dev/null && WAS_ACTIVE=1 || true
+if [ "$WAS_ACTIVE" -eq 1 ] && [ "$START" -ne 1 ]; then echo "active service upgrade requires --start so the validated unit is restarted" >&2; exit 4; fi
 [ -f "$UNIT_TARGET" ] && { HAD_UNIT=1; cp -a "$UNIT_TARGET" "$EVIDENCE/unit.before"; }
 [ -f "$CONFIG_TARGET" ] && { HAD_CONFIG=1; cp -a "$CONFIG_TARGET" "$EVIDENCE/config.before"; }
 rollback() {
@@ -69,7 +70,8 @@ python3 "$REPO_ROOT/server/edge1_comms_cli.py" config validate "$CONFIG_TARGET" 
 systemctl daemon-reload
 systemd-analyze verify "$UNIT_TARGET" 2> "$EVIDENCE/systemd-verify.txt"
 if [ "$START" -eq 1 ]; then
-    systemctl enable --now edge1-comms-relay.service
+    systemctl enable edge1-comms-relay.service
+    if [ "$WAS_ACTIVE" -eq 1 ]; then systemctl restart edge1-comms-relay.service; else systemctl start edge1-comms-relay.service; fi
     systemctl is-active --quiet edge1-comms-relay.service
     python3 "$SMOKE" --config "$CONFIG_TARGET" | tee "$EVIDENCE/smoke-test.txt"
     systemctl status edge1-comms-relay.service --no-pager > "$EVIDENCE/service-status.txt"
