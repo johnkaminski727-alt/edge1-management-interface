@@ -9,11 +9,12 @@ CONFIG = ROOT / "modules" / "time-authority" / "config" / "edge1-chrony.conf"
 PREFLIGHT = ROOT / "deploy" / "time-authority-ntp-server-edge1-preflight.sh"
 INSTALLER = ROOT / "deploy" / "install-time-authority-ntp-server-edge1.sh"
 SMOKE = ROOT / "deploy" / "time-authority-ntp-server-edge1-smoke-test.sh"
+FIREWALL = ROOT / "deploy" / "publish-time-authority-ntp-firewall-edge1.sh"
 RUNBOOK = ROOT / "docs" / "handoff" / "public-ntp-server-runbook.md"
 
 
 def main() -> int:
-    for path in (CONFIG, PREFLIGHT, INSTALLER, SMOKE, RUNBOOK):
+    for path in (CONFIG, PREFLIGHT, INSTALLER, SMOKE, FIREWALL, RUNBOOK):
         assert path.is_file(), f"missing public NTP asset: {path.relative_to(ROOT)}"
 
     config = CONFIG.read_text(encoding="utf-8")
@@ -67,6 +68,23 @@ def main() -> int:
     assert "leap_indicator" in smoke
     assert "chronyc tracking" in smoke
     assert "chronyc sources -v" in smoke
+
+    firewall = FIREWALL.read_text(encoding="utf-8")
+    for required in (
+        "WWCX_NTP_APPROVE_PUBLIC_UDP123",
+        "89.147.109.253",
+        "wwcx:public-ntp-v4",
+        "nft -c -f",
+        "nft insert rule inet wwcxfw input position",
+        "ip daddr $PUBLIC_IP udp dport 123 accept",
+        "nftables.service reload: intentionally not performed",
+        "live-ruleset.before.nft",
+        "nftables.conf.before",
+        "IPv6 firewall publication: not changed",
+    ):
+        assert required in firewall, required
+    assert "systemctl reload nftables" not in firewall
+    assert "nft -f /etc/nftables.conf" not in firewall
 
     runbook = RUNBOOK.read_text(encoding="utf-8")
     assert "ntp.ww.cx" in runbook
