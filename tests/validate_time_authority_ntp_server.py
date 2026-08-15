@@ -75,6 +75,11 @@ def main() -> int:
     assert "chronyd" in runbook
     assert "DNS" in runbook
     assert "firewall" in runbook.lower()
+    assert "sudo chronyc tracking" in runbook
+    assert "sudo chronyc sources -v" in runbook
+    assert "sudo chronyc clients" in runbook
+    assert "506 Cannot talk to daemon" in runbook
+    assert "cmdport 0" in runbook
 
     print("public NTP server deployment validation passed")
     return 0
