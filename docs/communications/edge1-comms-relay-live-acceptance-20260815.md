@@ -41,6 +41,24 @@ The attended Edge1 deployment session verified:
 
 These paths are on Edge1 and are not copied into the repository.
 
+## Founder identity activation
+
+At 18:37 UTC on 2026-08-15, the first local relay identity was created and verified:
+
+- username: `john`;
+- enabled: yes;
+- role: `founder`;
+- live IRC SASL PLAIN authentication: passed;
+- live NNTP AUTHINFO authentication: passed;
+- founder authorization semantics: passed;
+- post-change bundled relay smoke test: passed;
+- relay `/healthz`: remained `status: ok`, version `1.0.0`;
+- no service restart was required.
+
+A consistent SQLite backup was created before the account mutation. The sanitized relay audit records the successful `account.add` and subsequent IRC and NNTP authentication events. No password, password hash, database copy, or unredacted credential material is stored in the repository.
+
+Founder activation evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`
+
 ## Resolved activation incident
 
 An earlier activation attempt used relay control port 8099 and failed with `OSError: [Errno 98] Address already in use`. Investigation established that 8099 was already the intended loopback endpoint for the WW.CX telephony analytics API. The relay control default was corrected to 8100 in PR #310. The later 18:31 UTC deployment used 8100, passed smoke tests, and preserved the 8099 telephony service.
@@ -54,6 +72,7 @@ Accepted:
 - private Edge1 IRC service;
 - private Edge1 NNTP reader/poster service;
 - shared local identity/policy/storage/audit foundation;
+- local `john` founder identity with verified IRC and NNTP authentication;
 - loopback read-only control/API;
 - hardened systemd deployment;
 - tested rollback-capable installer;
@@ -68,6 +87,7 @@ Not accepted or enabled by this record:
 - IRC federation/server-to-server operation;
 - NNTP peering;
 - automatic IRC-to-NNTP mirroring;
-- external account onboarding or production message seeding.
+- external account onboarding beyond the local founder identity;
+- production message seeding.
 
 Those remain separately governed future changes.
