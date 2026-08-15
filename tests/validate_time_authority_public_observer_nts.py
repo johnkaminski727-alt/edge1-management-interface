@@ -145,7 +145,7 @@ def main() -> int:
     assert "*/5 * * * *" in observer_install
     assert "WWCX_NTS_EXPECTED" in observer_install
     assert "nts-expected" in observer_install
-    assert "public-time-observer-shared-host-smoke-test.sh" in observer_install
+    assert 'sh "$REPO_ROOT/deploy/public-time-observer-shared-host-smoke-test.sh"' in observer_install
 
     observer_smoke = read(OBSERVER_SMOKE)
     assert 'ntp.get("reachable") is True' in observer_smoke
