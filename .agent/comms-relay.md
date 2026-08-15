@@ -49,6 +49,17 @@ Production revision: `99f16add875bdd6b185821d5491851bba9e12a68`
 - A consistent pre-account SQLite backup was captured in that evidence directory before mutation.
 - No password, password hash, secret, credential, database copy, or unredacted authentication material is stored in this repository.
 
+## Automatic NNTP ingestion implementation
+
+- Controlled automatic article ingestion is implemented on `feature/comms-relay-auto-ingest` pending CI, merge, and live activation.
+- The initial source set is deliberately local-only: stable bootstrap/group-introduction articles plus the local Edge1 repository `main` history into `wwcx.projects.edge1`.
+- Every generated article carries automated-source provenance and uses a deterministic Message-ID derived from source name plus source-item ID.
+- SQLite `ingest_items` and `ingest_state` tables provide deduplication and cursor state; article retention does not erase the source ledger.
+- The daemon runs ingestion after a bounded startup delay and then at a configured interval. Ingestion errors are audited without stopping IRC, NNTP, or control services.
+- Git execution is shell-free, uses `/usr/bin/git`, a strict environment, validated refs, an absolute root-controlled repository path, and an explicit read-only `safe.directory` override.
+- No external RSS/Atom source, NNTP peer, public listener, federation, or automatic IRC mirroring is enabled by this implementation.
+- Live activation requires a consistent pre-change SQLite backup, candidate configuration review/apply, relay restart through the transactional installer, protocol smoke tests, ingestion dry-run, actual ingest run, and article/provenance verification.
+
 ## Safe default listeners
 
 - IRC `127.0.0.1:16667`
@@ -59,4 +70,4 @@ No DNS, firewall, certificate, public listener or federation change is part of t
 
 ## Remaining privileged gates
 
-The private loopback Edge1 Communications Relay deployment and local founder identity activation are complete. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved. External account onboarding and production message seeding also remain separately governed changes.
+The private loopback Edge1 Communications Relay deployment and local founder identity activation are complete. Automatic ingestion is repository-implemented but not yet live until the feature is merged and the attended Edge1 activation passes. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved. External account onboarding and external content-source activation also remain separately governed changes.
