@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.1.3 — 2026-08-15
+
+- Added fail-closed guidance for commands whose semantic check result is not reliably represented by process exit status on the deployed version.
+- Centralize security-sensitive compatibility handling and require affirmative match signals plus positive/negative regression fixtures.
+- Applied the rule to WW.CX NTS certificate hostname discovery after live OpenSSL 3.0 behavior showed hostname mismatches could still return a zero command status.
+
 ## 1.1.2 — 2026-08-15
 
 - Added a failure-handling rule for privileged administrative binaries that are installed but absent from an unprivileged operator's interactive `PATH`.

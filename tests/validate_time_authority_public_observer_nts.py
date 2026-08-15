@@ -2,6 +2,7 @@
 """Validate the Business159 public observer and guarded Edge1 NTS package."""
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,7 @@ STATUS_BUILDER = ROOT / "tools" / "time_authority" / "build_public_time_status.p
 OBSERVER = ROOT / "tools" / "time_authority" / "observe-public-time-service-shared-host.sh"
 OBSERVER_INSTALL = ROOT / "deploy" / "install-public-time-observer-shared-host.sh"
 OBSERVER_SMOKE = ROOT / "deploy" / "public-time-observer-shared-host-smoke-test.sh"
+CERT_HOST_MATCH = ROOT / "tools" / "time_authority" / "certificate-matches-hostname.sh"
 CERT_DISCOVERY = ROOT / "tools" / "time_authority" / "discover-nts-certificate-edge1.sh"
 NTS_PREFLIGHT = ROOT / "deploy" / "time-authority-nts-edge1-preflight.sh"
 NTS_INSTALL = ROOT / "deploy" / "install-time-authority-nts-edge1.sh"
@@ -102,6 +104,52 @@ def validate_builder() -> None:
         assert "secret" not in rendered
 
 
+def validate_hostname_helper() -> None:
+    openssl = shutil.which("openssl")
+    assert openssl, "openssl is required for certificate hostname regression validation"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp = Path(temp_dir)
+        cert = temp / "cert.pem"
+        key = temp / "key.pem"
+        subprocess.run(
+            [
+                openssl,
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-days",
+                "1",
+                "-subj",
+                "/CN=edge1.ww.cx",
+                "-addext",
+                "subjectAltName=DNS:edge1.ww.cx,DNS:pbx.ww.cx",
+                "-keyout",
+                str(key),
+                "-out",
+                str(cert),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        match = subprocess.run(
+            ["sh", str(CERT_HOST_MATCH), str(cert), "edge1.ww.cx"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        mismatch = subprocess.run(
+            ["sh", str(CERT_HOST_MATCH), str(cert), "ntp.ww.cx"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        assert match.returncode == 0
+        assert mismatch.returncode != 0
+
+
 def main() -> int:
     source = json.loads(read(SOURCE))
     assert source["schema_version"] == 1
@@ -151,8 +199,13 @@ def main() -> int:
     assert 'ntp.get("reachable") is True' in observer_smoke
     assert 'nts.get("alpn") == "ntske/1"' in observer_smoke
 
+    host_match = read(CERT_HOST_MATCH)
+    assert "-checkhost" in host_match
+    assert "does match certificate" in host_match
+    assert "does NOT match certificate" in host_match
+
     discovery = read(CERT_DISCOVERY)
-    assert "-checkhost" in discovery
+    assert "certificate-matches-hostname.sh" in discovery
     assert "contents_read=no" in discovery
     assert "privkey.pem" in discovery
 
@@ -161,7 +214,7 @@ def main() -> int:
         "WWCX_NTS_CERT_SOURCE",
         "WWCX_NTS_KEY_SOURCE",
         "+NTS",
-        "-checkhost ntp.ww.cx",
+        "certificate-matches-hostname.sh",
         "-checkend 604800",
         "cmp -s",
         "sport = :4460",
@@ -205,6 +258,7 @@ def main() -> int:
     assert "nft -f /etc/nftables.conf" not in firewall
 
     validate_builder()
+    validate_hostname_helper()
     print("public time observer and NTS deployment validation passed")
     return 0
 

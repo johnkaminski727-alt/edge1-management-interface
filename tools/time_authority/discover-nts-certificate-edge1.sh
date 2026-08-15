@@ -2,7 +2,8 @@
 set -eu
 
 HOSTNAME_TO_CHECK=${WWCX_NTS_HOSTNAME:-ntp.ww.cx}
-FOUND=0
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+MATCH_HELPER="$SCRIPT_DIR/certificate-matches-hostname.sh"
 
 [ "$(id -u)" -eq 0 ] || {
   echo "Run with sudo/root to inspect certificate path metadata without reading private-key contents." >&2
@@ -11,6 +12,7 @@ FOUND=0
 
 command -v openssl >/dev/null 2>&1 || { echo "openssl is required" >&2; exit 1; }
 command -v find >/dev/null 2>&1 || { echo "find is required" >&2; exit 1; }
+[ -r "$MATCH_HELPER" ] || { echo "hostname-match helper is missing: $MATCH_HELPER" >&2; exit 1; }
 
 printf 'Searching existing public certificates for hostname %s\n' "$HOSTNAME_TO_CHECK"
 
@@ -20,8 +22,7 @@ for root in /etc/letsencrypt/live /var/lib/acme /var/lib/caddy; do
     \( -name 'fullchain.pem' -o -name 'cert.pem' -o -name '*.crt' -o -name '*.cer' \) -print 2>/dev/null |
   while IFS= read -r cert; do
     [ -n "$cert" ] || continue
-    if openssl x509 -in "$cert" -noout -checkhost "$HOSTNAME_TO_CHECK" >/dev/null 2>&1; then
-      FOUND=1
+    if sh "$MATCH_HELPER" "$cert" "$HOSTNAME_TO_CHECK" >/dev/null 2>&1; then
       echo "MATCH certificate=$cert"
       openssl x509 -in "$cert" -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null || true
       cert_dir=$(dirname "$cert")
@@ -42,7 +43,7 @@ done
 MATCH_COUNT=0
 for cert in $(find /etc/letsencrypt/live /var/lib/acme /var/lib/caddy -maxdepth 5 \( -type f -o -type l \) \
   \( -name 'fullchain.pem' -o -name 'cert.pem' -o -name '*.crt' -o -name '*.cer' \) -print 2>/dev/null || true); do
-  if openssl x509 -in "$cert" -noout -checkhost "$HOSTNAME_TO_CHECK" >/dev/null 2>&1; then
+  if sh "$MATCH_HELPER" "$cert" "$HOSTNAME_TO_CHECK" >/dev/null 2>&1; then
     MATCH_COUNT=$((MATCH_COUNT + 1))
   fi
 done
