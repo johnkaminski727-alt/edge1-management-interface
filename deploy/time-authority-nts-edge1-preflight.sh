@@ -6,6 +6,7 @@ CERT_SOURCE=${WWCX_NTS_CERT_SOURCE:-}
 KEY_SOURCE=${WWCX_NTS_KEY_SOURCE:-}
 LIVE_CONF=${WWCX_NTS_CHRONY_CONF:-/etc/chrony/chrony.conf}
 PUBLIC_IP=${WWCX_NTP_PUBLIC_IPV4:-89.147.109.253}
+HOST_MATCH_HELPER="$ROOT/tools/time_authority/certificate-matches-hostname.sh"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
@@ -26,6 +27,7 @@ done
 [ -r "$CERT_SOURCE" ] || fail "certificate source is not readable: $CERT_SOURCE"
 [ -r "$KEY_SOURCE" ] || fail "private-key source is not readable: $KEY_SOURCE"
 [ -r "$LIVE_CONF" ] || fail "chrony configuration is not readable: $LIVE_CONF"
+[ -r "$HOST_MATCH_HELPER" ] || fail "hostname-match helper is missing: $HOST_MATCH_HELPER"
 
 systemctl is-active --quiet chrony.service || fail "chrony.service is not active"
 
@@ -33,7 +35,7 @@ if ! chronyd -v 2>&1 | grep -q '+NTS'; then
   fail "installed chronyd does not report +NTS support"
 fi
 
-if ! openssl x509 -in "$CERT_SOURCE" -noout -checkhost ntp.ww.cx >/dev/null 2>&1; then
+if ! sh "$HOST_MATCH_HELPER" "$CERT_SOURCE" ntp.ww.cx >/dev/null 2>&1; then
   fail "certificate does not validate the hostname ntp.ww.cx"
 fi
 if ! openssl x509 -in "$CERT_SOURCE" -noout -checkend 604800 >/dev/null 2>&1; then
