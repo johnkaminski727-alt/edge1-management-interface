@@ -81,10 +81,10 @@ stat -Lc 'source_key_path=%n owner=%U:%G mode=%a bytes=%s contents_recorded=no' 
 
 install -d -m 0755 /etc/chrony/conf.d || rollback_and_fail "could not create chrony fragment directory"
 install -d -o root -g "$CHRONY_GROUP" -m 0750 "$NTS_DIR" || rollback_and_fail "could not create NTS credential directory"
+MUTATED=1
 install -o root -g "$CHRONY_GROUP" -m 0640 "$CERT_SOURCE" "$TARGET_CERT" || rollback_and_fail "could not stage NTS certificate"
 install -o root -g "$CHRONY_GROUP" -m 0640 "$KEY_SOURCE" "$TARGET_KEY" || rollback_and_fail "could not stage NTS private key"
 install -o root -g root -m 0644 "$FRAGMENT_SOURCE" "$FRAGMENT_TARGET" || rollback_and_fail "could not install NTS chrony fragment"
-MUTATED=1
 
 if ! grep -Fqx 'confdir /etc/chrony/conf.d' "$LIVE_CONF"; then
   {
