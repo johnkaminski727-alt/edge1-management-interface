@@ -111,7 +111,19 @@ if ! live_rule_present; then
         fail "could not locate live public-web rule handle; current-run changes rolled back"
     fi
 
-    if ! nft insert rule inet wwcxfw input position "$WEB_HANDLE" ip daddr "$PUBLIC_IP" udp dport 123 accept comment "$RULE_COMMENT"; then
+    # Render nft language into an evidence file so the comment retains literal
+    # double quotes. Passing the comment as ordinary shell argv removes those
+    # quotes and makes the colon in wwcx:public-ntp-v4 parse as nft syntax.
+    LIVE_BATCH="$EVIDENCE_DIR/live-insert.nft"
+    printf 'insert rule inet wwcxfw input position %s ip daddr %s udp dport 123 accept comment "%s"\n' \
+        "$WEB_HANDLE" "$PUBLIC_IP" "$RULE_COMMENT" > "$LIVE_BATCH"
+
+    if ! nft -c -f "$LIVE_BATCH"; then
+        rollback_current_changes
+        fail "live NTP firewall insertion syntax check failed; current-run changes rolled back"
+    fi
+
+    if ! nft -f "$LIVE_BATCH"; then
         rollback_current_changes
         fail "live NTP firewall insertion failed; current-run changes rolled back"
     fi

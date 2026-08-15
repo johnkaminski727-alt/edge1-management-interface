@@ -75,7 +75,10 @@ def main() -> int:
         "89.147.109.253",
         "wwcx:public-ntp-v4",
         "nft -c -f",
-        "nft insert rule inet wwcxfw input position",
+        "LIVE_BATCH=\"$EVIDENCE_DIR/live-insert.nft\"",
+        "insert rule inet wwcxfw input position %s ip daddr %s udp dport 123 accept comment \"%s\"",
+        "nft -c -f \"$LIVE_BATCH\"",
+        "nft -f \"$LIVE_BATCH\"",
         "ip daddr $PUBLIC_IP udp dport 123 accept",
         "nftables.service reload: intentionally not performed",
         "live-ruleset.before.nft",
@@ -83,6 +86,8 @@ def main() -> int:
         "IPv6 firewall publication: not changed",
     ):
         assert required in firewall, required
+    assert "nft insert rule inet wwcxfw input position" not in firewall
+    assert 'comment "$RULE_COMMENT"' not in firewall
     assert "systemctl reload nftables" not in firewall
     assert "nft -f /etc/nftables.conf" not in firewall
 
