@@ -12,6 +12,10 @@ fail() {
     exit 1
 }
 
+udp123_listener_present() {
+    ss -H -lun 'sport = :123' 2>/dev/null | grep -q .
+}
+
 [ "$(id -u)" -eq 0 ] || fail "run with sudo/root"
 [ "${WWCX_NTP_APPROVE_CLOCK_DAEMON_CUTOVER:-}" = "YES" ] || \
     fail "set WWCX_NTP_APPROVE_CLOCK_DAEMON_CUTOVER=YES after explicit approval to replace systemd-timesyncd with chronyd"
@@ -81,7 +85,7 @@ if ! systemctl is-active --quiet chrony.service; then
     fail "chrony.service is not active"
 fi
 
-if ! ss -lun 2>/dev/null | awk '{print $5}' | grep -Eq '(^|\]):?123$|(^|:)123$'; then
+if ! udp123_listener_present; then
     fail "chronyd is not listening on UDP/123"
 fi
 
