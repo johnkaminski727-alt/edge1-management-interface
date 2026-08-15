@@ -20,11 +20,13 @@ Verified public technical state on 2026-08-15:
 
 ## Repository implementation state
 
-Feature branch: `feature/comms-relay-upstream-nntp-pull`.
+The selective outbound NNTP implementation is merged. The validated implementation floor is:
 
-Implemented on the branch:
+`c7b4b2c9124e072abaa356f0645e10d449c38eea`
 
-- new `nntp` ingestion source type;
+Implemented behavior includes:
+
+- `nntp` ingestion source type;
 - TLS required for upstream reader connections;
 - one upstream group to one local group mapping per source;
 - optional automatic creation of only the explicitly configured local group;
@@ -42,12 +44,64 @@ Implemented on the branch:
 
 ## Live state
 
-No external NNTP source is enabled on Edge1 by this branch. Existing live automatic sources remain `wwcx-bootstrap` and `edge1-repository` only.
+Selective Eternal September ingestion is accepted live on Edge1 as of approximately 23:34 UTC on 2026-08-15.
 
-No account was created with Eternal September, no credentials were generated or stored, no peering request was sent, and no DNS/firewall/listener/certificate change was made.
+Live Edge1 checkout at acceptance:
 
-## Activation gate
+`ffd086389c5c8687c33afae6c072a4ca1972f9b3`
 
-Live upstream activation remains blocked until an operator legitimately creates reader credentials outside the repository, installs them in a protected Edge1 credential file, selects the exact allowlisted groups, and performs the documented backup/candidate/dry-run/health verification sequence.
+Accepted source:
 
-Formal bidirectional NNTP peering is explicitly out of scope for this phase.
+- source name: `eternal.comp.lang.python`;
+- upstream: `news.eternal-september.org:563`;
+- upstream group: `comp.lang.python`;
+- local target: `usenet.comp.lang.python`;
+- TLS required;
+- credential file: `/etc/wwcx/credentials/eternal-september.json`;
+- credential metadata observed as `root:wwcx-comms` mode `0640`;
+- retention: 3650 days;
+- maximum article size: 262144 bytes;
+- initial window: 8;
+- scan ceiling: 10;
+- scheduled through the existing 900-second relay ingestion cycle.
+
+The accepted automatic source order is:
+
+1. `wwcx-bootstrap`;
+2. `eternal.comp.lang.python`;
+3. `edge1-repository`.
+
+Final evidence root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z`
+
+Live acceptance record:
+
+`docs/communications/edge1-comms-relay-upstream-nntp-live-acceptance-20260815.md`
+
+## Accepted data state
+
+The imported local group contains two legitimate provenance classes:
+
+- 8 articles from `eternal.comp.lang.python`;
+- 1 normal one-time introduction from `wwcx-bootstrap` with source item ID `usenet.comp.lang.python:v1`.
+
+Duplicate Eternal September source IDs were verified as zero.
+
+Validation must therefore be provenance-aware. Do not require the total article count of an imported local group to equal the external source ledger count when another approved source, such as `wwcx-bootstrap`, also posts to that group.
+
+## Safety boundaries
+
+The live source is outbound reader-pull only.
+
+Still disabled or separately gated:
+
+- upstream posting;
+- inbound NNTP feeds;
+- server-to-server streaming;
+- formal bidirectional peering;
+- DNS or firewall changes for the relay;
+- public Edge1 IRC/NNTP exposure;
+- forwarding private WW.CX articles upstream.
+
+Additional public groups must be added as separate explicit allowlisted mappings and validated incrementally.
