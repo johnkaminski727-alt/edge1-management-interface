@@ -6,7 +6,7 @@
   "listeners": {
     "irc": {"enabled": true, "host": "127.0.0.1", "port": 16667, "tls": false, "cert_file": null, "key_file": null},
     "nntp": {"enabled": true, "host": "127.0.0.1", "port": 1119, "tls": false, "cert_file": null, "key_file": null},
-    "control": {"enabled": true, "host": "127.0.0.1", "port": 8099, "tls": false, "cert_file": null, "key_file": null}
+    "control": {"enabled": true, "host": "127.0.0.1", "port": 8100, "tls": false, "cert_file": null, "key_file": null}
   },
   "security": {
     "require_auth": true,
