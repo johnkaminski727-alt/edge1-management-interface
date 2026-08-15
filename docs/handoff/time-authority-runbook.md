@@ -25,16 +25,21 @@ deploy/time-authority-edge1-preflight.sh
 sudo deploy/install-time-authority-edge1.sh
 ```
 
-The installer validates the package, creates the unprivileged `bigbird-time` service account, schedules collection every 15 minutes, starts the localhost-only dashboard on port 8092, performs an immediate collection, and runs the production smoke test.
+The installer validates the package, verifies that the dashboard port is either free or already owned by Time Authority, creates the unprivileged `bigbird-time` service account when needed, schedules collection every 15 minutes, starts the localhost-only dashboard on port 8101, performs an immediate collection, and runs the production smoke test.
+
+Port `8092` is not available for Time Authority on the current Edge1 host: a live deployment check on 2026-08-15 identified `wwcx-timekeeping` there. Time Authority therefore uses the dedicated localhost port `8101`. Do not move either service merely to make the other fit; change the Time Authority port only through a reviewed deployment update and preflight it first.
 
 Inspect status:
 
 ```bash
 systemctl status edge1-time-authority-collector.timer --no-pager
 systemctl status edge1-time-authority-dashboard.service --no-pager
-curl -sS http://127.0.0.1:8092/api/time-authority/summary | python3 -m json.tool
+curl -sS http://127.0.0.1:8101/healthz | python3 -m json.tool
+curl -sS http://127.0.0.1:8101/api/time-authority/summary | python3 -m json.tool
 sudo deploy/time-authority-edge1-smoke-test.sh
 ```
+
+The expected health identity is `service: edge1-time-authority` with `read_only: true`. A successful response from a different service is a port collision, not a successful Time Authority deployment.
 
 ## Shared-host installation
 
@@ -80,6 +85,8 @@ EDGE1_TIME_AUTHORITY_DATA_PATHS=/var/lib/edge1-time-authority/measurements.jsonl
 ```bash
 sudo systemctl disable --now edge1-time-authority-collector.timer edge1-time-authority-dashboard.service
 ```
+
+Production installation preserves pre-existing Time Authority unit files and install metadata under `/var/lib/wwcx-deployment-evidence/time-authority/install-<UTC timestamp>/` before unit replacement. Review that evidence before restoring an earlier unit definition.
 
 On shared hosting, remove only the exact managed cron line:
 

@@ -2,7 +2,7 @@
 set -eu
 
 DATA_FILE=${EDGE1_TIME_AUTHORITY_OUTPUT:-/var/lib/edge1-time-authority/measurements.jsonl}
-BASE_URL=${EDGE1_TIME_AUTHORITY_BASE_URL:-http://127.0.0.1:8092}
+BASE_URL=${EDGE1_TIME_AUTHORITY_BASE_URL:-http://127.0.0.1:8101}
 API_URL=${EDGE1_TIME_AUTHORITY_API_URL:-$BASE_URL/api/time-authority/summary?limit=200}
 SYSTEMCTL_BIN=${EDGE1_TIME_AUTHORITY_SYSTEMCTL:-systemctl}
 
@@ -13,7 +13,13 @@ SYSTEMCTL_BIN=${EDGE1_TIME_AUTHORITY_SYSTEMCTL:-systemctl}
 "$SYSTEMCTL_BIN" start edge1-time-authority-collector.service
 
 test -s "$DATA_FILE"
-curl -fsS "$BASE_URL/healthz" >/dev/null
+curl -fsS "$BASE_URL/healthz" | python3 -c '
+import json, sys
+payload = json.load(sys.stdin)
+assert payload.get("ok") is True, payload
+assert payload.get("service") == "edge1-time-authority", payload
+assert payload.get("read_only") is True, payload
+'
 curl -fsS "$API_URL" | python3 -c '
 import json, sys
 payload = json.load(sys.stdin)
