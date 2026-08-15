@@ -55,7 +55,7 @@ WWCX_TIME_AUTHORITY_PYTHON="$PYTHON_BIN" \
 WWCX_PUBLIC_TIME_OBSERVER_ROOT="$DEST" \
 WWCX_PUBLIC_TIME_OBSERVER_PRIVATE="$PRIVATE_DIR" \
 WWCX_PUBLIC_TIME_STATUS_DIR="$PUBLIC_DIR" \
-  "$REPO_ROOT/deploy/public-time-observer-shared-host-smoke-test.sh"
+  sh "$REPO_ROOT/deploy/public-time-observer-shared-host-smoke-test.sh"
 
 printf '%s\n' \
   "Business159 public WW.CX time observer installed and verified." \
