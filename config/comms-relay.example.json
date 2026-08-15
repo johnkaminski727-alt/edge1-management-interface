@@ -30,5 +30,31 @@
     "default_news_days": 3650,
     "audit_days": 365,
     "maintenance_interval_seconds": 3600
+  },
+  "ingestion": {
+    "enabled": true,
+    "startup_delay_seconds": 5,
+    "interval_seconds": 900,
+    "max_items_per_run": 25,
+    "sources": [
+      {
+        "type": "bootstrap",
+        "name": "wwcx-bootstrap",
+        "enabled": true,
+        "initial_items": 8,
+        "scan_limit": 500
+      },
+      {
+        "type": "git",
+        "name": "edge1-repository",
+        "enabled": true,
+        "group": "wwcx.projects.edge1",
+        "path": "/opt/edge1-management-interface",
+        "ref": "main",
+        "base_url": "https://github.com/johnkaminski727-alt/edge1-management-interface",
+        "initial_items": 8,
+        "scan_limit": 500
+      }
+    ]
   }
 }
