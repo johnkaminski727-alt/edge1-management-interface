@@ -1,0 +1,62 @@
+name: Temporary external NTS acceptance probe
+
+on:
+  push:
+    branches:
+      - probe/nts-external-20260816
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed repository
+        uses: actions/checkout@v4
+
+      - name: Record external runner identity and DNS
+        run: |
+          set -euxo pipefail
+          date -u '+%Y-%m-%dT%H:%M:%SZ'
+          uname -a
+          getent ahostsv4 ntp.ww.cx
+
+      - name: Verify NTS-KE certificate and ALPN externally
+        run: |
+          set -euxo pipefail
+          python3 tools/time_authority/nts_ke_probe.py \
+            --observer-id github-actions \
+            --observer-host github-actions \
+            --server-name ntp.ww.cx \
+            --port 4460 \
+            --timeout 10 \
+            --pretty
+
+      - name: Install an NTS-capable chrony client
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y chrony
+          sudo systemctl stop chrony.service 2>/dev/null || true
+          /usr/sbin/chronyd -v
+          /usr/sbin/chronyd -v | grep -F '+NTS'
+
+      - name: Perform authenticated NTS time exchange without setting runner clock
+        run: |
+          set -euxo pipefail
+          sudo timeout 30 /usr/sbin/chronyd \
+            -Q \
+            -4 \
+            -t 20 \
+            -f /dev/null \
+            -d \
+            -d \
+            'server ntp.ww.cx iburst nts maxsamples 1' \
+            2>&1 | tee /tmp/wwcx-nts-authenticated-exchange.log
+
+      - name: Acceptance marker
+        run: |
+          echo 'WW.CX external NTS-KE verification: PASS'
+          echo 'WW.CX authenticated NTS time exchange: PASS'
