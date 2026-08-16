@@ -111,6 +111,36 @@ The independent GitHub-hosted authenticated NTS exchange then proved the public 
 
 Do not set Business159 `WWCX_NTS_EXPECTED=1` while its hosting network cannot successfully reach TCP/4460; doing so would intentionally make its fail-closed observer report an error.
 
+## Public web presentation accepted
+
+Website revision `d7f0ea3c94ff525424e21670d1d3de864f1f6852` was deployed to WW.CX and CreekCo from Business159 on 2026-08-16.
+
+The attended deployment validated and then verified live:
+
+- `https://ww.cx/api/time-status.php`;
+- `https://creekco.ca/api/time-status.php`;
+- `https://ww.cx/time/`;
+- `https://creekco.ca/time/`;
+- the cache-busted `20260816-1` JavaScript presentation on both sites.
+
+Both public APIs reported:
+
+```text
+ok:                 true
+clock source:       wwcx-ntp-via-business159
+observer:           business159 healthy
+observer stale:     false
+ntp reachable:      true
+stratum:            4
+nts accepted:       true
+nts acceptance:     external-authenticated
+nts accepted at:    2026-08-16T00:05:28Z
+B159 nts expected:  false
+B159 nts reachable: false
+```
+
+The public presentation now truthfully separates service-level NTS acceptance from Business159's source-specific TCP/4460 limitation.
+
 ## Acceptance conclusion
 
 The initial WW.CX public time service now has these accepted production capabilities:
@@ -124,15 +154,18 @@ The initial WW.CX public time service now has these accepted production capabili
 - authenticated NTS time exchange: accepted from an independent external chrony client;
 - certificate renewal lifecycle: installed and live-validated;
 - standard NTP regression after NTS activation: accepted;
+- WW.CX and CreekCo public NTS presentation: deployed and live-validated;
 - public IPv6 NTP/NTS: still deferred.
 
-## Remaining observer/web follow-up
+## Remaining optional follow-up
 
-The service itself is accepted. Remaining convenience work is observer presentation, not NTS service activation:
+No blocker remains for the initial public NTP/NTS objective.
 
-1. keep Business159's five-minute standard-NTP observer active;
-2. keep Business159 NTS expectation disabled until its TCP/4460 path is resolved or the public status schema is updated to distinguish service acceptance from Business159-specific NTS reachability;
-3. update the WW.CX and CreekCo public pages so they can truthfully present NTS as externally authenticated while separately disclosing Business159's current TCP/4460 observer limitation;
-4. optionally investigate the Business159 path with a simultaneous Edge1 packet capture and Business159 connection attempt or with the hosting provider.
+Optional later work:
+
+1. investigate the Business159 TCP/4460 path with a simultaneous Edge1 packet capture and Business159 connection attempt or with the hosting provider;
+2. keep Business159's five-minute standard-NTP observer active;
+3. keep Business159 NTS expectation disabled while that source-specific path remains unavailable;
+4. consider public IPv6 NTP/NTS only as a separate reviewed project.
 
 No claim of legal metrology, guaranteed accuracy, or public IPv6 support is made by this acceptance.
