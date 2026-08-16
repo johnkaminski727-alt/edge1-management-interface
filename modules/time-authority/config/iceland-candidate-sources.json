@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "isnic-ht-time01",
+      "server_name": "ht-time01.isnic.is",
+      "provider": "ISNIC",
+      "region": "Reykjavik, Iceland",
+      "authority": "ISNIC GNSS-backed time service",
+      "expected_stratum": 1,
+      "expected_refids": [],
+      "transport": "NTPv4/UDP",
+      "authentication": "none",
+      "reference_type_documented": "GNSS (GPS, GLONASS, Galileo)",
+      "documentation_url": "https://www.isnic.is/en/ntp",
+      "reference_history_url": "https://www.isnic.is/en/news/view?id=585",
+      "candidate_only": true
+    },
+    {
+      "source_id": "isnic-mh-time01",
+      "server_name": "mh-time01.isnic.is",
+      "provider": "ISNIC",
+      "region": "Iceland",
+      "authority": "ISNIC time service",
+      "expected_stratum": 2,
+      "expected_refids": [],
+      "transport": "NTPv4/UDP",
+      "authentication": "none",
+      "documentation_url": "https://www.isnic.is/en/ntp",
+      "candidate_only": true
+    }
+  ]
+}
