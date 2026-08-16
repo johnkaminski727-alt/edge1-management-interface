@@ -15,15 +15,43 @@ class ControlHandler(SimpleHTTPRequestHandler):
         self.send_header('Cache-Control','no-store'); self.send_header('Content-Security-Policy',"default-src 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'"); self.send_header('Permissions-Policy','camera=(), geolocation=(), microphone=()'); self.send_header('Referrer-Policy','no-referrer'); self.send_header('X-Content-Type-Options','nosniff'); self.send_header('X-Frame-Options','DENY'); super().end_headers()
     def send_json(self,status:HTTPStatus,payload:dict[str,Any]|list[Any])->None:
         body=json.dumps(payload,sort_keys=True,indent=2).encode(); self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
+    def _limit(self,params:dict[str,list[str]],default:int=100,maximum:int=250)->int:
+        try:return max(1,min(int(params.get('limit',[str(default)])[0]),maximum))
+        except ValueError:return default
+    def _news_sources(self)->list[dict[str,Any]]:
+        state={item['source_name']:item for item in self.server.store.list_ingest_state()}
+        sources=[]
+        for source in sanitized_config(self.server.cfg)['ingestion']['sources']:
+            item=dict(source); current=state.get(str(item.get('name')),{}); item['cursor']=current.get('cursor'); item['items']=current.get('items',0); item['updated_at_utc']=current.get('updated_at_utc'); sources.append(item)
+        return sources
     def do_GET(self)->None:
         parsed=urllib.parse.urlparse(self.path); params=urllib.parse.parse_qs(parsed.query)
         if parsed.path=='/healthz': self.send_json(HTTPStatus.OK,{'status':'ok','service':'edge1-comms-relay','version':'1.0.0'}); return
         if parsed.path=='/api/comms/status': self.send_json(HTTPStatus.OK,{'service':'edge1-comms-relay','version':'1.0.0','config':sanitized_config(self.server.cfg),'storage':self.server.store.stats(),'irc':self.server.irc_summary(),'federation':{'irc':'disabled','nntp':'disabled'}}); return
         if parsed.path=='/api/comms/news/groups': self.send_json(HTTPStatus.OK,self.server.store.list_groups()); return
+        if parsed.path=='/api/comms/news/sources': self.send_json(HTTPStatus.OK,self._news_sources()); return
+        if parsed.path.startswith('/api/comms/news/articles/'):
+            value=parsed.path.removeprefix('/api/comms/news/articles/')
+            try:article_id=int(value)
+            except ValueError:self.send_json(HTTPStatus.BAD_REQUEST,{'error':'invalid_article_id'});return
+            article=self.server.store.get_news_article(article_id)
+            if article is None:self.send_json(HTTPStatus.NOT_FOUND,{'error':'article_not_found'});return
+            self.send_json(HTTPStatus.OK,article);return
+        prefix='/api/comms/news/groups/'
+        if parsed.path.startswith(prefix):
+            tail=urllib.parse.unquote(parsed.path[len(prefix):])
+            if tail.endswith('/articles'):
+                group=tail[:-len('/articles')]
+                info=self.server.store.group_info(group)
+                if info is None:self.send_json(HTTPStatus.NOT_FOUND,{'error':'group_not_found'});return
+                search=params.get('q',[''])[0]
+                articles=self.server.store.list_news_articles(group,limit=self._limit(params),search=search)
+                self.send_json(HTTPStatus.OK,{'group':info,'articles':articles,'query':search});return
+            info=self.server.store.group_info(tail)
+            if info is None:self.send_json(HTTPStatus.NOT_FOUND,{'error':'group_not_found'});return
+            self.send_json(HTTPStatus.OK,info);return
         if parsed.path=='/api/comms/audit':
-            try:limit=max(1,min(int(params.get('limit',['100'])[0]),500))
-            except ValueError:limit=100
-            self.send_json(HTTPStatus.OK,self.server.store.recent_audit(limit)); return
+            self.send_json(HTTPStatus.OK,self.server.store.recent_audit(self._limit(params,100,500))); return
         if parsed.path.startswith('/api/'): self.send_json(HTTPStatus.NOT_FOUND,{'error':'not_found'}); return
         super().do_GET()
     def do_POST(self)->None:self.send_json(HTTPStatus.METHOD_NOT_ALLOWED,{'error':'read_only_control_api'})
