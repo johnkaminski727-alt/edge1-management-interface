@@ -1,0 +1,51 @@
+name: Validate time source discovery
+
+on:
+  pull_request:
+    paths:
+      - 'modules/time-authority/config/iceland-candidate-sources.json'
+      - 'tools/time_authority/discover_edge1_time_sources.py'
+      - 'tools/time_authority/ntp_rtt_probe.py'
+      - 'deploy/time-authority-edge1-source-discovery.sh'
+      - 'tests/test_time_source_discovery.py'
+      - 'docs/handoff/iceland-time-source-discovery-runbook.md'
+      - '.github/workflows/time-source-discovery-validation.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'modules/time-authority/config/iceland-candidate-sources.json'
+      - 'tools/time_authority/discover_edge1_time_sources.py'
+      - 'tools/time_authority/ntp_rtt_probe.py'
+      - 'deploy/time-authority-edge1-source-discovery.sh'
+      - 'tests/test_time_source_discovery.py'
+      - 'docs/handoff/iceland-time-source-discovery-runbook.md'
+      - '.github/workflows/time-source-discovery-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate syntax and candidate data
+        run: |
+          sh -n deploy/time-authority-edge1-source-discovery.sh
+          python3 -m json.tool modules/time-authority/config/iceland-candidate-sources.json >/dev/null
+          python3 -m py_compile \
+            tools/time_authority/ntp_rtt_probe.py \
+            tools/time_authority/discover_edge1_time_sources.py \
+            tests/test_time_source_discovery.py
+          python3 tools/time_authority/discover_edge1_time_sources.py --help >/dev/null
+
+      - name: Run discovery unit tests
+        run: python3 -m unittest -v tests.test_time_source_discovery
