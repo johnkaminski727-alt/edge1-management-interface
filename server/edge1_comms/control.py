@@ -6,6 +6,7 @@ from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from typing import Any,Callable
 from .config import RelayConfig,sanitized_config
+from .news_reader import list_news_page
 from .storage import CommsStore
 class ControlHandler(SimpleHTTPRequestHandler):
     server:'ControlServer'
@@ -18,6 +19,9 @@ class ControlHandler(SimpleHTTPRequestHandler):
     def _limit(self,params:dict[str,list[str]],default:int=100,maximum:int=250)->int:
         try:return max(1,min(int(params.get('limit',[str(default)])[0]),maximum))
         except ValueError:return default
+    def _offset(self,params:dict[str,list[str]])->int:
+        try:return max(0,min(int(params.get('offset',['0'])[0]),1_000_000))
+        except ValueError:return 0
     def _news_sources(self)->list[dict[str,Any]]:
         state={item['source_name']:item for item in self.server.store.list_ingest_state()}
         sources=[]
@@ -44,9 +48,10 @@ class ControlHandler(SimpleHTTPRequestHandler):
                 group=tail[:-len('/articles')]
                 info=self.server.store.group_info(group)
                 if info is None:self.send_json(HTTPStatus.NOT_FOUND,{'error':'group_not_found'});return
-                search=params.get('q',[''])[0]
-                articles=self.server.store.list_news_articles(group,limit=self._limit(params),search=search)
-                self.send_json(HTTPStatus.OK,{'group':info,'articles':articles,'query':search});return
+                search=params.get('q',[''])[0][:256]
+                source=params.get('source',[''])[0][:128]
+                page=list_news_page(self.server.store,group,limit=self._limit(params,50,100),offset=self._offset(params),search=search,source=source)
+                self.send_json(HTTPStatus.OK,{'group':info,'query':search,'source':source,**page});return
             info=self.server.store.group_info(tail)
             if info is None:self.send_json(HTTPStatus.NOT_FOUND,{'error':'group_not_found'});return
             self.send_json(HTTPStatus.OK,info);return
