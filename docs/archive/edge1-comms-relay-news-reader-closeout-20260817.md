@@ -39,9 +39,11 @@ Important repository milestones:
 - PR #341 merge commit: `6a0397a7f39c07afa3a779c0578e06d165df41e8`;
 - durable state PR: #342;
 - PR #342 merge commit: `1c115663fb23de82e51fcfd0520d91fa196261be`;
-- PR #337: closed as superseded development history, not merged.
+- PR #337: closed as superseded development history, not merged;
+- comprehensive documentation/archive-preparation PR: #344;
+- PR #344 merge commit: `1610d3c57efac50f30db7780b9875fa3fe6da870`.
 
-The documentation/archive-preparation PR created from this closeout should be recorded here after merge as the final repository seal point for the documentation set.
+PR #344 is the repository documentation closeout point for the prepared archive set. It does **not** mark the protected host archive sealed; sealing remains gated on the host-side evidence inventory described below.
 
 ## Production checkout boundary
 
