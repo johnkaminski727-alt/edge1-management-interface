@@ -114,8 +114,9 @@ function makeArticleRow(article, threaded) {
     if (index === 0) {
       td.className = "article-subject-cell";
       if (threaded && article.thread_depth) {
+        const depth = Math.min(Number(article.thread_depth) || 0, 6);
         td.classList.add("threaded-subject");
-        td.style.setProperty("--thread-depth", String(Math.min(Number(article.thread_depth) || 0, 6)));
+        td.style.paddingLeft = `${8 + depth * 16}px`;
       }
     }
     if (index === 3 && article.source_name) td.title = article.source_name;
