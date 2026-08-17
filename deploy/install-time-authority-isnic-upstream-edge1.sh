@@ -51,7 +51,7 @@ fail() {
 grep -Fxq 'server ht-time01.isnic.is iburst' "$SOURCE" || fail "reviewed fragment does not contain the expected ISNIC source"
 ! grep -Eq '(^|[[:space:]])prefer([[:space:]]|$)' "$SOURCE" || fail "ISNIC source must not be forced with prefer"
 
-for command in python3 systemctl chronyc getent ss openssl install mkdir cp rm chown chmod; do
+for command in python3 systemctl chronyc getent ss openssl timeout install mkdir cp rm chown chmod; do
     command -v "$command" >/dev/null 2>&1 || fail "$command is required"
 done
 
@@ -141,12 +141,13 @@ grep -q . "$EVIDENCE_DIR/tcp4460.after.txt" || fail "TCP/4460 NTS-KE listener mi
 
 sh "$ROOT/deploy/time-authority-ntp-server-edge1-smoke-test.sh" >"$EVIDENCE_DIR/public-ntp-smoke.after.txt" 2>&1 || fail "local public NTP smoke test failed"
 
-if ! timeout 8 openssl s_client \
+# OpenSSL can return a non-zero status after a successful TLS handshake when
+# the NTS-KE peer closes an otherwise empty application session. The acceptance
+# criterion is therefore the negotiated ALPN recorded in the bounded capture.
+timeout 8 openssl s_client \
     -connect 127.0.0.1:4460 \
     -servername ntp.ww.cx \
-    -alpn ntske/1 </dev/null >"$EVIDENCE_DIR/nts-local-tls.after.txt" 2>&1; then
-    fail "local NTS TLS handshake failed"
-fi
+    -alpn ntske/1 </dev/null >"$EVIDENCE_DIR/nts-local-tls.after.txt" 2>&1 || true
 grep -Fq 'ALPN protocol: ntske/1' "$EVIDENCE_DIR/nts-local-tls.after.txt" || fail "NTS ALPN ntske/1 was not negotiated"
 
 APPLIED=0
