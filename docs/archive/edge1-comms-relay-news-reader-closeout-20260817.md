@@ -1,17 +1,29 @@
 # Edge1 Communications Relay / Upstream NNTP / News Reader Closeout
 
 Date: 2026-08-17  
-Classification: sanitized operational closeout and archive-preparation record  
+Classification: sanitized operational closeout  
 System: `edge1.ww.cx`  
 Repository: `johnkaminski727-alt/edge1-management-interface`
 
 ## Archive status
 
-**Prepared, not yet sealed.**
+**SEALED.**
 
-Repository history, sanitized acceptance records, evidence-root references, exclusions, and the production checkout boundary are reconciled. Final archive sealing still requires a fresh host-side SHA-256 inventory of the retained protected evidence and confirmation of the exact News Reader v2 evidence directory.
+The authenticated host-side archive inventory completed with `ARCHIVE_SEAL_GATE=PASS`. Repository documentation, sanitized acceptance records, the complete top-level Communications Relay evidence boundary, explicit exclusions, live-object hash metadata, duplicate accounting, terminal unavailable-source disposition, and production-checkout boundary are reconciled.
 
-No source evidence should be moved, deleted, compressed, or pruned merely because this closeout exists.
+Final protected seal record:
+
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
+
+Protected archive root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
+
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+No source evidence should be moved, deleted, compressed, rewritten, or pruned merely because the archive is sealed.
 
 ## Accepted production scope
 
@@ -24,7 +36,8 @@ The closeout covers:
 5. accepted `comp.lang.python` mapping;
 6. accepted `news.admin.peering` mapping;
 7. private read-only News Reader v2;
-8. repository reconciliation and durable state documentation.
+8. repository reconciliation and durable state documentation;
+9. protected host-side evidence inventory and archive seal.
 
 It does not cover public protocol exposure, inbound NNTP feeds, formal peering, upstream posting, DNS/firewall/certificate changes, or forwarding private `wwcx.*` articles upstream.
 
@@ -35,72 +48,118 @@ Important repository milestones:
 - upstream NNTP implementation floor: `c7b4b2c9124e072abaa356f0645e10d449c38eea`;
 - News Reader validated development head: `b06233c0ce2210b58f9fe88ccb2b64cd14a959f6`;
 - News Reader production deployment head: `974c7141e18deac92671f81fb1bd3c3ed02a6c68`;
-- clean News Reader integration PR: #341;
-- PR #341 merge commit: `6a0397a7f39c07afa3a779c0578e06d165df41e8`;
-- durable state PR: #342;
-- PR #342 merge commit: `1c115663fb23de82e51fcfd0520d91fa196261be`;
+- PR #341 merge commit: `6a0397a7f39c07afa3a779c0578e06d165df41e8` — exact validated News Reader integration;
+- PR #342 merge commit: `1c115663fb23de82e51fcfd0520d91fa196261be` — durable relay state;
 - PR #337: closed as superseded development history, not merged;
-- comprehensive documentation/archive-preparation PR: #344;
-- PR #344 merge commit: `1610d3c57efac50f30db7780b9875fa3fe6da870`.
+- PR #344 merge commit: `1610d3c57efac50f30db7780b9875fa3fe6da870` — comprehensive documentation/archive preparation;
+- PR #345 merge commit: `6ecd450b84c8cc22e83a4afca6ebded9f48e1f8e` — documentation closeout merge-point record.
 
-PR #344 is the repository documentation closeout point for the prepared archive set. It does **not** mark the protected host archive sealed; sealing remains gated on the host-side evidence inventory described below.
+Git history for the final archive-seal documentation merge is the authoritative repository seal point.
 
 ## Production checkout boundary
 
-The accepted News Reader production checkout is intentionally not the same thing as current remote `main`:
+The accepted News Reader production checkout remains intentionally separate from repository `main`:
 
 - branch: `deploy/private-nntp-news-reader-v2-20260817`;
 - head: `974c7141e18deac92671f81fb1bd3c3ed02a6c68`;
 - result: `NEWS_READER_V2_DEPLOYMENT=PASS`.
 
-Remote `main` also contains unrelated time-authority work. Do not update the live Edge1 checkout merely to make it resemble repository history. Any later production reconciliation must be reviewed and validated as its own change.
+Do not update the live Edge1 checkout merely to make it resemble repository history. Unrelated work on `main` requires its own review and production acceptance.
 
-## Protected evidence source ledger
+## Final evidence boundary
 
-The following known Edge1 evidence roots must be preserved as archive sources:
+The host-side seal froze every pre-existing top-level directory under:
 
-| Source key | Purpose | Protected path | Disposition |
-| --- | --- | --- | --- |
-| `COMMS-DEPLOY-20260815-183129` | Initial relay deployment | `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z` | retain |
-| `COMMS-FOUNDER-20260815-183745` | Founder-account activation | `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z` | retain |
-| `COMMS-INGEST-ACT-20260815-191918` | Automatic-ingestion activation | `/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z` | retain |
-| `COMMS-INGEST-CODE-20260815-191922` | Automatic-ingestion code deployment | `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z` | retain |
-| `COMMS-ES-PYTHON-20260815-233435` | Eternal September `comp.lang.python` activation | `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z` | retain |
-| `COMMS-ES-PEERING-PREP-20260816-001246` | Second-source candidate, backups and TLS dry run | `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z` | retain |
-| `COMMS-ES-PEERING-RECOVERY-20260816-002007` | Guarded failed activation/recovery evidence | `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T002007Z` | retain as failed-attempt history if present |
-| `COMMS-ES-PEERING-LIVE-20260816-005124` | Accepted second-source activation | `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z` | retain |
-| `COMMS-NEWS-READER-V2` | News Reader v2 deployment/acceptance | exact protected path not re-read during repository closeout | **reconcile before seal** |
+`/var/lib/wwcx-deployment-evidence/comms-relay`
 
-The archive source ledger is intentionally explicit about the one unresolved path rather than inventing it.
+before creating the seal directory. Sixteen top-level evidence roots were discovered and retained:
 
-## Live state that should be captured by hash, not copied into Git
+1. `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T181730Z`;
+2. `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T182259Z`;
+3. `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z`;
+4. `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z`;
+5. `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T225037Z`;
+6. `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T225527Z`;
+7. `/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z`;
+8. `/var/lib/wwcx-deployment-evidence/comms-relay/control-port-migration-20260815T183128Z`;
+9. `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T002007Z`;
+10. `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z`;
+11. `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z`;
+12. `/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z`;
+13. `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`;
+14. `/var/lib/wwcx-deployment-evidence/comms-relay/upstream-nntp-20260815T225026Z`;
+15. `/var/lib/wwcx-deployment-evidence/comms-relay/upstream-nntp-20260815T225524Z`;
+16. `/var/lib/wwcx-deployment-evidence/comms-relay/upstream-nntp-recovery-20260815T230816Z`.
 
-Before archive sealing, record SHA-256 and metadata for:
+`/var/lib/wwcx-comms/config-control` was also included in the evidence-file inventory as relevant configuration-control history.
 
-- `/etc/wwcx/comms-relay.json` — live canonical config;
-- `/var/lib/wwcx-comms/comms.sqlite3` — live relay SQLite database;
-- `/var/lib/wwcx-comms/config-control/` — candidate/apply/rollback metadata and retained backups relevant to the activation history;
-- each retained evidence file under the source-ledger roots above.
+## News Reader v2 evidence disposition
 
-The SQLite database may contain durable article bodies, local identity state, password-derivation material, and other private operational data. It is a restricted archive object and must not be committed to Git.
+`COMMS-NEWS-READER-V2` has terminal disposition:
 
-## Explicit exclusions
+`unavailable-not-created`
 
-Never include these in the repository archive or general-purpose evidence bundle:
+The accepted News Reader v2 deployment procedure did not create a dedicated protected deployment-evidence directory. Subsequent pathname and accepted branch/head/result marker searches under `/var/lib/wwcx-deployment-evidence` returned no candidate. The closeout therefore records the absence explicitly rather than inventing a path.
 
-- `/etc/wwcx/credentials/eternal-september.json` contents;
-- Eternal September username/password values;
-- plaintext passwords or authentication transcripts;
-- private keys, tokens, cookies, or unrelated credentials;
-- raw account password hashes or database extracts intended only for operational recovery;
-- unrelated Edge1 evidence trees;
-- public claims that successful reader pulling constitutes formal NNTP peering.
+This is not treated as a missing retained artifact. News Reader production acceptance remains independently established by:
 
-Credential metadata such as owner/group/mode may be recorded without reading credential values.
+- deployment branch `deploy/private-nntp-news-reader-v2-20260817`;
+- deployment head `974c7141e18deac92671f81fb1bd3c3ed02a6c68`;
+- result `NEWS_READER_V2_DEPLOYMENT=PASS`;
+- dated acceptance record `docs/communications/edge1-comms-relay-news-reader-live-acceptance-20260817.md`;
+- exact reader integration through PR #341.
+
+## Final reconciliation
+
+```text
+top_level_evidence_roots=16
+retained_evidence_files=138
+news_reader_v2_evidence_root=unavailable-not-created
+unavailable_source_records=1
+exact_duplicate_hash_groups=20
+exact_duplicate_file_rows=73
+historical_credential_file_exclusions=0
+live_credential_content_exclusions=1
+live_object_unavailable=0
+errors=0
+inventory_idempotence=PASS
+```
+
+Twenty exact-duplicate SHA-256 groups covering 73 file rows are retained and reported. Duplicate records were not silently deleted or collapsed.
+
+Two complete evidence-inventory passes were byte-for-byte identical.
+
+## Final manifest hashes
+
+```text
+roots_sha256=b322bf286c7496f8e55f0ae5701590392ffbd7318da9a4c28beafe0506131981
+source_ledger_sha256=d7c76f258a65a164a967797f98d0128351d91b7ea5aa9f2cc4fd946cfb5d3541
+exceptions_sha256=ad18741e801394b8bf56fee777cedd47a49758248e55f0ff33b37f94bf00a327
+evidence_inventory_sha256=19c99641a72e8d7218e27f15f9247bcad9a8e8b0e20a640a2b2985d90809bf77
+duplicates_sha256=cce6652075b310b9dbb02c91ddea94048f27396c1f71b07d0f234fef9eebab16
+live_objects_sha256=b84020a1bf046b376e79ef0d3ef1093e5222a0eb58c14b7200861d5a2f4f58e5
+credential_exclusion_sha256=21d459ee1da36ead73bee3fb2cfe88c17e9c335054b82ba5a9adcf50825cd596
+archive_package_manifest_sha256=e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8
+```
+
+## Live restricted objects
+
+The seal recorded hash/metadata for the live canonical config and SQLite database without copying either into Git:
+
+- `/etc/wwcx/comms-relay.json`;
+- `/var/lib/wwcx-comms/comms.sqlite3`.
+
+`live_object_unavailable=0`.
+
+The SQLite database remains a restricted operational/archive object because it can contain article bodies, local identity state, password-derivation material, and other private data.
+
+## Credential exclusion
+
+`/etc/wwcx/credentials/eternal-september.json` contents were explicitly excluded. The archive records non-secret metadata/exclusion state only. Credential contents, passwords, private keys, tokens, cookies, and authentication transcripts are not part of the repository archive.
 
 ## Sanitized repository records to retain
 
-Living and acceptance documentation:
+Current and historical records include:
 
 - `docs/communications/README.md`;
 - `docs/communications/edge1-comms-relay-architecture.md`;
@@ -109,45 +168,29 @@ Living and acceptance documentation:
 - `docs/communications/edge1-comms-relay-upstream-nntp-validation.md`;
 - `docs/communications/edge1-comms-relay-news-reader.md`;
 - `docs/handoff/edge1-comms-relay-runbook.md`;
-- `docs/communications/edge1-comms-relay-live-acceptance-20260815.md`;
-- `docs/communications/edge1-comms-relay-ingestion-live-acceptance-20260815.md`;
-- `docs/communications/edge1-comms-relay-upstream-nntp-live-acceptance-20260815.md`;
-- `docs/communications/edge1-comms-relay-upstream-nntp-second-source-live-acceptance-20260816.md`;
-- `docs/communications/edge1-comms-relay-news-reader-live-acceptance-20260817.md`;
+- dated relay, ingestion, first-source, second-source, and News Reader acceptance records;
 - `.agent/comms-relay.md`;
 - `.agent/comms-relay-upstream-nntp.md`;
+- `docs/archive/edge1-comms-relay-archive-seal-20260817.md`;
 - this closeout record.
 
-Historical acceptance records should remain unchanged except for later correction records when a factual error is discovered. Do not rewrite history simply to make all dated files read like the current system.
+Historical acceptance records remain immutable operational history unless a separate factual correction record is required.
 
-## Host-side archive sealing procedure
+## Completion gate
 
-Run only from an authenticated Edge1 session after confirming the live service remains healthy. Do not display file contents.
+Archive completion requirements are satisfied:
 
-1. Resolve the exact News Reader v2 evidence root from retained deployment evidence.
-2. Enumerate every file under the protected source-ledger roots.
-3. Record path, size, mode, owner/group, modification time, and SHA-256 for each retained file.
-4. Hash the live config and SQLite database without copying them into the repository.
-5. Verify that the Eternal September credential file is absent from the inventory payload except for metadata-only exclusion evidence if desired.
-6. Reconcile counts: source roots, files, retained files, unavailable paths, exact duplicates by hash, and errors.
-7. Write the final manifest into a new protected archive-preparation evidence directory under `/var/lib/wwcx-deployment-evidence/comms-relay/`.
-8. Re-run the inventory and require idempotent totals with no unexplained new duplicate records.
-9. Update this record with the final manifest path and SHA-256, then merge that documentation-only seal update.
-
-## Archive completion gate
-
-Do not mark the Communications Relay archive **sealed** until all are true:
-
-- exact News Reader v2 evidence path resolved;
-- all listed evidence roots checked for existence or explicitly marked unavailable;
-- every retained file has a SHA-256;
-- live config and SQLite metadata/hash captured without credential disclosure;
-- exact duplicates distinguished from materially different versions;
-- final totals reconcile;
-- manifest rerun is idempotent;
-- final documentation PR is merged;
-- no production checkout or service change was made solely for archival housekeeping.
+- actual evidence-tree boundary enumerated to a terminal top-level directory set;
+- every retained evidence file hashed;
+- live config and SQLite metadata/hash captured without committing private objects;
+- credential contents excluded;
+- exact duplicates distinguished and retained;
+- unavailable News Reader source record given a terminal, evidence-backed disposition;
+- totals reconcile;
+- inventory rerun is idempotent;
+- final protected archive package manifest exists;
+- no production checkout or service change was made solely for archive housekeeping.
 
 ## Resume point
 
-If archive sealing is deferred, resume from this record. The next safe action is a read-only Edge1 evidence inventory and SHA-256 manifest over the source-ledger paths above. No production service change is required.
+The Communications Relay archive is sealed. Future Communications Relay work should start from the living documentation and accepted production state, not by reopening this archive. Reopen archival investigation only if a factual discrepancy, new retained historical source, integrity failure, or explicitly authorized superseding archive action requires it.

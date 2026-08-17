@@ -16,7 +16,7 @@ The Edge1 Communications Relay is live and accepted as a private-first communica
 - Telephony analytics remains separate on `127.0.0.1:8099`.
 - `network_exposure.enabled` remains false.
 - systemd service is enabled and active at the accepted runtime state.
-- control `/healthz` returned `status: ok`, version `1.0.0` at final acceptance.
+- control `/healthz` returned `status: ok`, version `1.0.0` at final acceptance and archive-seal preflight.
 - mutation methods on the control API remain blocked with HTTP 405.
 - federation is disabled.
 
@@ -26,7 +26,7 @@ The accepted production checkout for News Reader v2 is deliberately isolated fro
 - head: `974c7141e18deac92671f81fb1bd3c3ed02a6c68`;
 - result: `NEWS_READER_V2_DEPLOYMENT=PASS`.
 
-Do not move the live checkout to current remote `main` merely to reconcile repository history. Separate time-authority work is also present there and requires its own production review.
+Do not move the live checkout to current remote `main` merely to reconcile repository history. Separate work on `main` requires its own production review.
 
 ## Core relay capabilities
 
@@ -150,30 +150,46 @@ Acceptance record:
 
 `docs/communications/edge1-comms-relay-news-reader-live-acceptance-20260817.md`
 
-## Key evidence roots
+## Protected archive — sealed
 
-```text
-/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z
-/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z
-/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z
-/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T002007Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z
-```
-
-The exact News Reader v2 protected evidence directory must be re-resolved from the live evidence tree before archive sealing.
-
-## Archive state
-
-Archive preparation is documented at:
+Archive closeout:
 
 `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-State: **prepared, not sealed**.
+Final seal record:
 
-Final sealing requires a read-only host-side SHA-256 inventory of retained evidence, live config/database hash metadata, exact News Reader evidence-path reconciliation, count reconciliation and an idempotent rerun. No production runtime change is required for archive sealing.
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
+
+Protected archive root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
+
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+Final archive reconciliation:
+
+```text
+top_level_evidence_roots=16
+retained_evidence_files=138
+news_reader_v2_evidence_root=unavailable-not-created
+unavailable_source_records=1
+exact_duplicate_hash_groups=20
+exact_duplicate_file_rows=73
+historical_credential_file_exclusions=0
+live_credential_content_exclusions=1
+live_object_unavailable=0
+errors=0
+inventory_idempotence=PASS
+ARCHIVE_SEAL_GATE=PASS
+```
+
+The News Reader v2 dedicated evidence source has terminal disposition `unavailable-not-created`: its accepted deployment did not create a dedicated protected evidence directory and later discovery found none. Do not retry discovery without new contrary evidence. Production acceptance remains preserved by branch/head/result and the dated acceptance/repository records.
+
+The final inventory froze all 16 pre-existing top-level Communications Relay evidence directories and included `/var/lib/wwcx-comms/config-control` history. Two complete inventory passes were byte-for-byte identical. Exact duplicates were reported and retained rather than deleted.
+
+The live config and SQLite database were hashed/metadata-recorded as restricted objects and were not copied into Git. Eternal September credential contents were explicitly excluded; only non-secret exclusion metadata was retained.
 
 ## Safety boundary
 
@@ -187,4 +203,4 @@ Still disabled or separately gated:
 - DNS or firewall changes for the relay;
 - certificate changes for the relay;
 - forwarding private `wwcx.*` articles upstream;
-- deletion or pruning of retained evidence solely for archive housekeeping.
+- deletion or pruning of retained evidence solely because the archive is sealed.
