@@ -12,7 +12,9 @@ Current sanitized acceptance chain:
 - `eternal.news.admin.peering` accepted live;
 - private News Reader v2 accepted live;
 - exact validated News Reader blobs reconciled to repository `main` through PR #341;
-- durable state reconciled through PR #342.
+- durable state reconciled through PR #342;
+- comprehensive documentation/archive preparation reconciled through PR #344 and PR #345;
+- protected archive seal reconciled through PR #346.
 
 Accepted News Reader production checkout:
 
@@ -57,18 +59,37 @@ Archive state:
 
 ```text
 docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md
-status: prepared, not sealed
+docs/archive/edge1-comms-relay-archive-seal-20260817.md
+status: SEALED
 ```
 
-Remaining archive-validation gate:
+Protected archive root:
 
-1. resolve exact protected News Reader v2 evidence path;
-2. SHA-256 inventory all retained Communications Relay evidence files;
-3. capture live config/SQLite metadata and hashes without committing private objects;
-4. exclude credential contents;
-5. reconcile unavailable/duplicate/error totals;
-6. rerun inventory for idempotence;
-7. merge final sanitized archive-seal update.
+```text
+/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z
+```
+
+Final archive validation:
+
+```text
+ARCHIVE_SEAL_GATE=PASS
+inventory_idempotence=PASS
+top_level_evidence_roots=16
+retained_evidence_files=138
+news_reader_v2_evidence_root=unavailable-not-created
+unavailable_source_records=1
+exact_duplicate_hash_groups=20
+exact_duplicate_file_rows=73
+historical_credential_file_exclusions=0
+live_credential_content_exclusions=1
+live_object_unavailable=0
+errors=0
+archive_package_manifest_sha256=e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8
+```
+
+`COMMS-NEWS-READER-V2` has terminal archival disposition `unavailable-not-created`: the accepted deployment did not create a dedicated protected evidence directory and later discovery found none. Production acceptance remains independently established by the accepted branch/head/result and repository acceptance records.
+
+The final archive froze all 16 pre-existing top-level Communications Relay evidence directories and relevant config-control history. Credential contents were explicitly excluded. Live config/SQLite were hashed and metadata-recorded without being committed. Exact duplicates were reported/retained. Two complete evidence-inventory passes were byte-for-byte identical.
 
 The live production checkout must not be moved to current remote `main` solely for documentation/archive reconciliation.
 
