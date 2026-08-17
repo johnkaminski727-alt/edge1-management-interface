@@ -3,8 +3,13 @@
 
 The harness intentionally reads the HMAC secret only from an environment variable.
 It never accepts the secret on the command line and never prints the secret or the
-resulting signature.  It is suitable for local Edge1 loopback acceptance when the
+resulting signature. It is suitable for local Edge1 loopback acceptance when the
 operator deliberately supplies the existing gateway environment.
+
+Scenario identities mirror the live gateway authorization contract:
+- default: registered_user + chat:general;
+- missing-scope: internal_viewer + chat:general, without communications:read;
+- authorized: internal_viewer + chat:general + communications:read.
 """
 
 from __future__ import annotations
@@ -44,15 +49,33 @@ def compact_json_bytes(value: dict[str, Any]) -> bytes:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
+def scenario_identity(scenario: str, role_override: str | None = None) -> tuple[str, list[str]]:
+    if scenario == "default":
+        role = "registered_user"
+        scopes = ["chat:general"]
+    elif scenario == "missing-scope":
+        role = "internal_viewer"
+        scopes = ["chat:general"]
+    elif scenario == "authorized":
+        role = "internal_viewer"
+        scopes = ["chat:general", "communications:read"]
+    else:
+        raise ValueError(f"unsupported scenario: {scenario}")
+
+    if role_override:
+        role = role_override
+    return role, scopes
+
+
 def scenario_payload(
     scenario: str,
     *,
     request_id: str,
     user_id: str,
-    role: str,
+    role: str | None,
     group: str,
 ) -> dict[str, Any]:
-    scopes: list[str] = []
+    resolved_role, scopes = scenario_identity(scenario, role)
     include_communications = False
     communications_groups: list[str] = []
     message = "E2E default omission check. Reply briefly."
@@ -62,7 +85,6 @@ def scenario_payload(
         communications_groups = [group]
         message = "Python"
     elif scenario == "authorized":
-        scopes = ["communications:read"]
         include_communications = True
         communications_groups = [group]
         message = "Python"
@@ -73,7 +95,7 @@ def scenario_payload(
         "request_id": request_id,
         "user": {
             "id": user_id,
-            "role": role,
+            "role": resolved_role,
             "scopes": scopes,
         },
         "message": message,
@@ -220,7 +242,11 @@ def main() -> int:
     parser.add_argument("--key-id-env", default=DEFAULT_KEY_ID_ENV)
     parser.add_argument("--key-id", help="Non-secret gateway key identifier; overrides --key-id-env")
     parser.add_argument("--user-id", default="edge1-e2e-acceptance")
-    parser.add_argument("--role", default="operator")
+    parser.add_argument(
+        "--role",
+        default=None,
+        help="Optional explicit role override. By default each scenario uses the live gateway role contract.",
+    )
     parser.add_argument("--group", default=DEFAULT_GROUP)
     parser.add_argument("--timeout", type=float, default=60.0)
     args = parser.parse_args()
