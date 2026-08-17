@@ -1,5 +1,35 @@
 # Backlog
 
+## Communications Relay / upstream NNTP / News Reader closeout
+
+- [x] Accept private loopback Communications Relay service.
+- [x] Accept founder/local relay identity.
+- [x] Accept local `wwcx-bootstrap` and `edge1-repository` automatic ingestion.
+- [x] Accept `eternal.comp.lang.python` -> `usenet.comp.lang.python` over TLS reader mode.
+- [x] Accept `eternal.news.admin.peering` -> `usenet.news.admin.peering` over TLS reader mode.
+- [x] Preserve provenance-aware accounting and zero duplicate external source IDs at acceptance.
+- [x] Accept private News Reader v2 with search, exact source filters, pagination, threaded/flat views and HTTP 405 mutation enforcement.
+- [x] Reconcile exact validated News Reader blobs into repository history through PR #341.
+- [x] Close PR #337 as superseded development history.
+- [x] Reconcile durable Communications Relay state through PR #342.
+- [x] Create dated second-source and News Reader v2 acceptance records.
+- [x] Reconcile living architecture, ingestion, validation, News Reader and runbook documentation.
+- [x] Create sanitized archive closeout and protected-evidence source ledger.
+- [ ] Resolve the exact protected News Reader v2 deployment-evidence directory on Edge1.
+- [ ] Generate a read-only SHA-256 inventory for every retained Communications Relay evidence file.
+- [ ] Capture metadata/hash for live config and SQLite without committing private objects.
+- [ ] Confirm Eternal September credential contents are excluded from the archive payload.
+- [ ] Reconcile retained, unavailable, exact-duplicate and error totals.
+- [ ] Rerun the inventory and require idempotent totals.
+- [ ] Update the closeout with the final manifest path and SHA-256.
+- [ ] Merge the final documentation-only archive-seal update.
+
+Archive closeout:
+
+`docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
+
+Production checkout discipline: do not move the accepted relay/News Reader checkout to current remote `main` merely for archive or documentation reconciliation.
+
 ## Completed live phases
 
 - [x] Security Correlation and Network Defense deployed and accepted.
