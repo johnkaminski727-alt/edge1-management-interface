@@ -70,9 +70,13 @@ deploy/comms-relay/install.sh --dry-run --expected-commit=<COMMIT>
 python3 tests/validate_comms_relay.py
 ```
 
+The installer permits dry-run inspection on a frozen feature/deployment checkout, but its live `--apply` path explicitly requires a clean `main` checkout. Therefore do **not** run the live installer from the accepted News Reader deployment branch. Before any future installer-based production change, first reconcile the exact intended implementation into a separately reviewed `main` commit, freeze that commit, and use it as `<COMMIT>`.
+
+This installer rule does not require moving the currently accepted production checkout merely to complete documentation or archive work.
+
 Do not alter DNS, firewall rules, certificates or listener addresses as part of the private loopback deployment.
 
-Install without activation:
+Install without activation from the reviewed clean `main` commit:
 
 ```sh
 sudo deploy/comms-relay/install.sh --apply --expected-commit=<COMMIT>
