@@ -1,80 +1,190 @@
 # Edge1 Communications Relay State
 
-Last repository validation: 2026-08-15  
-Live Edge1 acceptance: 2026-08-15 18:31 UTC  
-Founder account activation: 2026-08-15 18:37 UTC  
-Automatic ingestion activation: 2026-08-15 19:19 UTC  
-Current accepted live revision: `359eb977cd8bcc4c986fe688b934303cb53c23d6`
+Last reconciled: 2026-08-17  
+Repository: `johnkaminski727-alt/edge1-management-interface`  
+Authoritative repository branch: `main`  
+Service: `edge1-comms-relay.service`  
+Service version: `1.0.0`
 
-## Production-ready repository state
+## Current accepted production state
 
-- IRC and NNTP services share durable local identity, policy, audit and SQLite storage.
-- IRC supports SASL PLAIN, authenticated registration, channels, messaging, topics, NAMES/WHO, operator KICK and moderated `+m` channels.
-- NNTP supports authenticated reader/poster operation, overview/navigation, durable articles, moderated groups and server-side authenticated identity marking.
-- Federation is denied by policy and implementation.
-- Public plaintext protocol binds are rejected; the control API is loopback-only.
-- Runtime defenses include total/per-peer connection caps, per-connection command token buckets, cross-reconnect authentication throttling and idle timeouts.
-- Password hashes use PBKDF2-HMAC-SHA256 with per-account salt and per-account iteration metadata; the production default is 600,000 iterations and 12-character minimum passwords.
-- SQLite uses WAL mode, busy timeout, foreign keys, explicit transactions and restrictive database permissions.
-- NNTP, IRC-history and audit retention are enforced at startup and periodically.
-- Control API has `/healthz`; mutation methods remain disabled.
-- The systemd service has resource ceilings and a restrictive sandbox.
-- Deployment is dry-run-first, requires a clean `main` checkout, supports expected-commit pinning, records evidence, smoke-tests activation and rolls back unit/config/service state on failure.
-- Live activation confirmed `127.0.0.1:8099` is assigned to the WW.CX telephony analytics API; relay control uses dedicated loopback port `8100`.
-- Candidate configuration apply/rollback preserves the live config owner, group and mode.
+The Edge1 Communications Relay is live and accepted as a private-first communications service.
 
-## Live accepted state
-
-- Service: `edge1-comms-relay.service`.
-- systemd: enabled and active.
 - IRC: `127.0.0.1:16667`.
 - NNTP: `127.0.0.1:1119`.
-- Control/API: `127.0.0.1:8100`.
-- Telephony analytics preserved on `127.0.0.1:8099` and independently healthy.
-- Network exposure remains disabled.
-- Bundled IRC/NNTP/control smoke tests passed after deployment and ingestion activation.
-- Control `/healthz` returned `status: ok`, version `1.0.0`.
-- Initial relay deployment evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z`.
-- Automatic-ingestion activation evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z`.
-- Automatic-ingestion code deployment evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z`.
+- Control/API/News Reader: `127.0.0.1:8100`.
+- Telephony analytics remains separate on `127.0.0.1:8099`.
+- `network_exposure.enabled` remains false.
+- systemd service is enabled and active at the accepted runtime state.
+- control `/healthz` returned `status: ok`, version `1.0.0` at final acceptance.
+- mutation methods on the control API remain blocked with HTTP 405.
+- federation is disabled.
+
+The accepted production checkout for News Reader v2 is deliberately isolated from later unrelated remote `main` changes:
+
+- branch: `deploy/private-nntp-news-reader-v2-20260817`;
+- head: `974c7141e18deac92671f81fb1bd3c3ed02a6c68`;
+- result: `NEWS_READER_V2_DEPLOYMENT=PASS`.
+
+Do not move the live checkout to current remote `main` merely to reconcile repository history. Separate time-authority work is also present there and requires its own production review.
+
+## Core relay capabilities
+
+- IRC and NNTP share durable local identity, policy, audit and SQLite storage.
+- IRC supports SASL PLAIN, authenticated registration, channels, messaging, topics, NAMES/WHO, operator KICK and moderated `+m` channels.
+- NNTP supports authenticated reader/poster operation, overview/navigation, durable articles and moderated groups.
+- authenticated NNTP posts receive server-side canonical WW.CX identity marking.
+- public plaintext protocol binds are rejected unless the separately gated exposure/TLS policy is satisfied.
+- control/API is always loopback-only and read-only.
+- runtime defenses include total/per-peer connection caps, command token buckets, cross-reconnect authentication throttling and idle timeouts.
+- password hashes use PBKDF2-HMAC-SHA256 with per-account salt and iteration metadata; production default is 600,000 iterations and 12-character minimum passwords.
+- SQLite uses WAL mode, busy timeout, foreign keys, explicit transactions and restrictive permissions.
+- NNTP, IRC-history and audit retention are enforced at startup and periodically.
+- candidate configuration apply/rollback preserves live config owner, group and mode.
 
 ## Founder identity
 
-- Local relay login: `john`.
-- Account is enabled with role `founder`.
-- Founder super-role behavior was verified against the live account.
-- IRC SASL PLAIN authentication succeeded against the live IRC listener.
-- NNTP AUTHINFO authentication succeeded against the live NNTP listener.
-- Founder-account evidence: `/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`.
-- No password, password hash, secret, credential, database copy, or unredacted authentication material is stored in this repository.
+- local relay login: `john`;
+- account enabled with role `founder`;
+- founder super-role behavior accepted live;
+- IRC SASL PLAIN authentication accepted live;
+- NNTP AUTHINFO authentication accepted live.
 
-## Automatic NNTP ingestion — live
+Founder-account evidence:
 
-- Controlled automatic article ingestion is active on Edge1.
-- Accepted sources are local-only:
-  - `wwcx-bootstrap` creates stable one-time introduction articles for the seven seeded `wwcx.*` groups;
-  - `edge1-repository` monitors local `/opt/edge1-management-interface` `main` and posts eligible commit articles into `wwcx.projects.edge1`.
-- Scheduled interval: 900 seconds (15 minutes).
-- Startup delay: 5 seconds.
-- Per-run item budget: 25.
-- The live dry run predicted 15 initial candidates: seven bootstrap articles and eight repository articles.
-- The first automatic live run created exactly 15 articles and recorded outcome `ok`.
-- All 15 articles were verified against `ingest_items` for automated-source provenance and deterministic Message-IDs.
-- An immediate second run produced zero candidates and created zero articles, verifying deduplication/idempotency.
-- Current initial group counts after activation: one article each in `wwcx.announce`, `wwcx.general`, `wwcx.projects.bigbird`, `wwcx.security`, `wwcx.telecom`, and `wwcx.test`; nine articles in `wwcx.projects.edge1`.
-- SQLite `ingest_items` and `ingest_state` preserve deduplication and cursor state independently of article retention.
-- Git execution is shell-free, uses `/usr/bin/git`, a restricted environment, validated refs, an absolute root-controlled repository path, and an explicit read-only `safe.directory` override.
-- No external RSS/Atom source, NNTP peer, public listener, federation, or automatic IRC mirroring is enabled.
-- Detailed acceptance record: `docs/communications/edge1-comms-relay-ingestion-live-acceptance-20260815.md`.
+`/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z`
 
-## Safe default listeners
+No password, password hash, credential value, database copy, or unredacted authentication material belongs in repository documentation.
 
-- IRC `127.0.0.1:16667`
-- NNTP `127.0.0.1:1119`
-- control `127.0.0.1:8100`
+## Automatic ingestion — accepted live
 
-No DNS, firewall, certificate, public listener or federation change is part of this accepted deployment.
+Automatic ingestion runs inside `edge1-comms-relay.service` on the existing 900-second cycle with a startup delay and per-run item budget. A per-database lock prevents overlapping runs.
 
-## Remaining privileged gates
+Accepted source order:
 
-The private loopback Edge1 Communications Relay, local founder identity, bootstrap article seeding, and controlled local repository ingestion are complete and live. Internet exposure remains a separate privileged change requiring explicit authorization and independent TLS, DNS, firewall, abuse-policy, monitoring and client-compatibility validation. Federation and NNTP peering remain disabled unless separately designed and approved. External account onboarding, external RSS/Atom feeds, other Internet content sources, and automatic IRC-to-NNTP mirroring remain separately governed changes.
+1. `wwcx-bootstrap`;
+2. `eternal.comp.lang.python`;
+3. `eternal.news.admin.peering`;
+4. `edge1-repository`.
+
+### Local sources
+
+- `wwcx-bootstrap` creates stable one-time introduction articles for groups discovered by the relay.
+- `edge1-repository` monitors the local Edge1 repository and posts eligible commit articles into `wwcx.projects.edge1`.
+
+### Eternal September source 1
+
+- source: `eternal.comp.lang.python`;
+- upstream: `news.eternal-september.org:563`;
+- upstream group: `comp.lang.python`;
+- local group: `usenet.comp.lang.python`;
+- TLS required;
+- retention 3650 days;
+- max article bytes 262144;
+- initial items 8;
+- scan limit 10;
+- accepted external items: 8;
+- accepted bootstrap introduction: 1 (`usenet.comp.lang.python:v1`);
+- duplicate external source IDs: 0.
+
+Evidence:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z`
+
+### Eternal September source 2
+
+- source: `eternal.news.admin.peering`;
+- upstream: `news.eternal-september.org:563`;
+- upstream group: `news.admin.peering`;
+- local group: `usenet.news.admin.peering`;
+- TLS required;
+- retention 3650 days;
+- max article bytes 262144;
+- initial items 8;
+- scan limit 10;
+- accepted external items: 8;
+- accepted bootstrap introduction: 1 (`usenet.news.admin.peering:v1`);
+- duplicate external source IDs: 0;
+- wrong-group/orphan/bad-provenance/unexpected-provenance counts: 0 at acceptance;
+- ingestion errors since activation: 0 at acceptance.
+
+Evidence:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z`
+
+Credential values remain outside Git. The protected credential file is `/etc/wwcx/credentials/eternal-september.json`; accepted metadata is `root:wwcx-comms` mode `0640`.
+
+## Provenance accounting rule
+
+Imported local groups can contain more than one legitimate provenance class. In particular, `wwcx-bootstrap` adds a one-time group introduction.
+
+Do not require total group article count to equal external-source ledger count. Validate by:
+
+- `ingest_items.source_name`;
+- unique `source_item_id`;
+- target-group membership;
+- stored `X-WWCX-*` provenance;
+- duplicate count;
+- explicitly understood local provenance classes.
+
+## Private News Reader v2 — accepted live
+
+The read-only News Reader is served by the existing control listener at:
+
+`http://127.0.0.1:8100/news.html`
+
+Accepted capabilities:
+
+- newsgroup browsing;
+- bounded search;
+- article body/detail view;
+- raw stored headers;
+- source/provenance and cursor information;
+- exact source filters including Eternal September, WW.CX Bootstrap, Edge1 Repository and native/local;
+- 25/50/100 pagination with exact totals and previous/next offsets;
+- threaded and flat-list views using stored `References` or `X-WWCX-Upstream-References` ancestry.
+
+The exact validated reader blob set was reconciled to repository history through PR #341, merge commit `6a0397a7f39c07afa3a779c0578e06d165df41e8`. PR #337 is historical/superseded. Durable relay state was updated through PR #342, merge commit `1c115663fb23de82e51fcfd0520d91fa196261be`.
+
+Acceptance record:
+
+`docs/communications/edge1-comms-relay-news-reader-live-acceptance-20260817.md`
+
+## Key evidence roots
+
+```text
+/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z
+/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z
+/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z
+/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T002007Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z
+```
+
+The exact News Reader v2 protected evidence directory must be re-resolved from the live evidence tree before archive sealing.
+
+## Archive state
+
+Archive preparation is documented at:
+
+`docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
+
+State: **prepared, not sealed**.
+
+Final sealing requires a read-only host-side SHA-256 inventory of retained evidence, live config/database hash metadata, exact News Reader evidence-path reconciliation, count reconciliation and an idempotent rerun. No production runtime change is required for archive sealing.
+
+## Safety boundary
+
+Still disabled or separately gated:
+
+- public IRC/NNTP exposure;
+- upstream posting;
+- inbound NNTP feeds;
+- server-to-server streaming;
+- formal bidirectional peering;
+- DNS or firewall changes for the relay;
+- certificate changes for the relay;
+- forwarding private `wwcx.*` articles upstream;
+- deletion or pruning of retained evidence solely for archive housekeeping.
