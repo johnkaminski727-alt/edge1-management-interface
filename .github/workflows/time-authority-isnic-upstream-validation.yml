@@ -1,0 +1,41 @@
+name: Validate ISNIC time upstream rollout
+
+on:
+  pull_request:
+    paths:
+      - 'modules/time-authority/config/wwcx-isnic-upstream.conf'
+      - 'deploy/install-time-authority-isnic-upstream-edge1.sh'
+      - 'tests/validate_time_authority_isnic_upstream.py'
+      - 'docs/handoff/iceland-time-source-live-evidence-20260817.md'
+      - '.github/workflows/time-authority-isnic-upstream-validation.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'modules/time-authority/config/wwcx-isnic-upstream.conf'
+      - 'deploy/install-time-authority-isnic-upstream-edge1.sh'
+      - 'tests/validate_time_authority_isnic_upstream.py'
+      - 'docs/handoff/iceland-time-source-live-evidence-20260817.md'
+      - '.github/workflows/time-authority-isnic-upstream-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate shell and rollout contract
+        run: |
+          sh -n deploy/install-time-authority-isnic-upstream-edge1.sh
+          python3 -m py_compile tests/validate_time_authority_isnic_upstream.py
+          python3 tests/validate_time_authority_isnic_upstream.py
+          python3 tests/validate_time_authority_ntp_server.py
