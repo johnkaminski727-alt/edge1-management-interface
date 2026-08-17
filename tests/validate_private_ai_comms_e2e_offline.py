@@ -63,11 +63,16 @@ def exec_function(node: ast.FunctionDef | ast.AsyncFunctionDef, namespace: dict[
     return namespace[node.name]
 
 
-def attr_call_name(node: ast.Call) -> str | None:
-    func = node.func
-    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-        return f"{func.value.id}.{func.attr}"
-    return None
+def communications_member_refs(node: ast.AST, names: set[str]) -> list[str]:
+    refs: list[str] = []
+    for item in ast.walk(node):
+        if not isinstance(item, ast.Attribute):
+            continue
+        if not isinstance(item.value, ast.Name) or item.value.id != "COMMUNICATIONS":
+            continue
+        if item.attr in names:
+            refs.append(f"COMMUNICATIONS.{item.attr}")
+    return refs
 
 
 def communications_error_handler(chat_node: ast.AsyncFunctionDef | ast.FunctionDef) -> ast.ExceptHandler:
@@ -90,12 +95,8 @@ def communications_error_handler(chat_node: ast.AsyncFunctionDef | ast.FunctionD
 def execute_degradation_handler(handler: ast.ExceptHandler) -> tuple[str | None, list[Any], list[tuple[str, dict[str, Any]]]]:
     require(not any(isinstance(node, ast.Raise) for node in ast.walk(handler)), "Relay error handler raises instead of degrading")
 
-    retry_calls = [
-        attr_call_name(node)
-        for node in ast.walk(handler)
-        if isinstance(node, ast.Call) and attr_call_name(node) in {"COMMUNICATIONS.search", "COMMUNICATIONS.status"}
-    ]
-    require(not retry_calls, f"Relay error handler retries Communications calls: {retry_calls}")
+    retry_refs = communications_member_refs(handler, {"search", "status"})
+    require(not retry_refs, f"Relay error handler retries Communications calls: {retry_refs}")
 
     function = ast.FunctionDef(
         name="_simulate_degradation",
@@ -215,12 +216,8 @@ def validate_gateway(root: Path) -> list[str]:
     require(details.get("degraded") is True, "degradation audit did not mark degraded=true")
     require(details.get("request_id") == "offline-e2e-relay-failure", "degradation audit lost request id")
 
-    search_calls = [
-        node
-        for node in ast.walk(chat_node)
-        if isinstance(node, ast.Call) and attr_call_name(node) == "COMMUNICATIONS.search"
-    ]
-    require(len(search_calls) == 1, f"expected one Communications search attempt, found {len(search_calls)}")
+    search_refs = communications_member_refs(chat_node, {"search"})
+    require(len(search_refs) == 1, f"expected one Communications search attempt, found {len(search_refs)}")
     require('"communications_warning": communications_warning' in text, "chat response lost communications_warning")
     require('"communications_degraded": communications_warning is not None' in text, "chat audit lost communications_degraded")
     checks.append("controlled Relay failure yields warning, zero results, one degraded audit, and no retry")
