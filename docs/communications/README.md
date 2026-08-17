@@ -48,13 +48,23 @@ These dated records are immutable operational history. They should not be rewrit
 
 `edge1-comms-relay-production-readiness-20260815.md` records the earlier production-readiness gate and should be interpreted in its date context.
 
-## Archive preparation
+## Archive status
 
-The sanitized closeout and archive-preparation record is:
+The sanitized closeout record is:
 
 `../archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-Archive state is **prepared, not yet sealed**. Final sealing requires a read-only host-side SHA-256 inventory of the retained protected evidence, reconciliation of the exact News Reader v2 evidence directory, and a final manifest update. Credential values and the raw live SQLite database must never be committed to Git.
+The final protected archive seal record is:
+
+`../archive/edge1-comms-relay-archive-seal-20260817.md`
+
+Archive state is **SEALED**. The authenticated Edge1 inventory completed with `ARCHIVE_SEAL_GATE=PASS`, 16 top-level evidence roots, 138 retained evidence files, 20 exact-duplicate SHA-256 groups covering 73 rows, zero errors, zero unavailable live objects, and byte-for-byte idempotence across two inventory passes.
+
+The protected archive root is `/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`; its package manifest SHA-256 is `e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`.
+
+The News Reader v2 source record has terminal disposition `unavailable-not-created`: the accepted deployment did not create a dedicated protected evidence directory, and later pathname/marker discovery found none. Its production acceptance remains independently preserved by deployment branch/head and repository acceptance records.
+
+Credential values and the raw live SQLite database remain excluded from Git. The Eternal September credential contents were explicitly excluded from the archive payload; only non-secret metadata was retained.
 
 ## Safety boundary
 
