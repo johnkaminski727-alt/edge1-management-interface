@@ -55,6 +55,15 @@ class ControlHandler(SimpleHTTPRequestHandler):
             info=self.server.store.group_info(tail)
             if info is None:self.send_json(HTTPStatus.NOT_FOUND,{'error':'group_not_found'});return
             self.send_json(HTTPStatus.OK,info);return
+        irc_prefix='/api/comms/irc/channels/'
+        if parsed.path.startswith(irc_prefix) and parsed.path.endswith('/history'):
+            channel=urllib.parse.unquote(parsed.path[len(irc_prefix):-len('/history')])
+            if not channel.startswith('#') or len(channel)>128:
+                self.send_json(HTTPStatus.BAD_REQUEST,{'error':'invalid_channel'});return
+            events=[]
+            for item in self.server.store.recent_irc(channel,self._limit(params,50,100)):
+                events.append({key:item.get(key) for key in ('created_at_utc','event','nick','body')})
+            self.send_json(HTTPStatus.OK,{'channel':channel,'events':events,'mode':'read_only'});return
         if parsed.path=='/api/comms/audit':
             self.send_json(HTTPStatus.OK,self.server.store.recent_audit(self._limit(params,100,500))); return
         if parsed.path.startswith('/api/'): self.send_json(HTTPStatus.NOT_FOUND,{'error':'not_found'}); return
