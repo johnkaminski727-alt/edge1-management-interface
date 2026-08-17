@@ -5,11 +5,33 @@ Repository: `johnkaminski727-alt/edge1-management-interface`
 Runtime service: `bigbird-ai-gateway.service`  
 Runtime source root: `/opt/bigbird-ai-gateway/app`
 
+## Current accepted live runtime
+
+The accepted live gateway is now:
+
+```text
+version: 0.3.4-alpha.2
+mode: read-only
+listener: 127.0.0.1:8787 only
+service identity: bigbird-ai:bigbird-ai
+main.py SHA-256: 8de2db86fb9eddcb2e2c8f8af51e967672ac00e6cc64229dd3f1939a9770687b
+library integrity: ok
+indexed documents at acceptance: 63
+chunks at acceptance: 501
+tool count at acceptance: 6
+```
+
+`communications.read` and `telephony.read` remain present.
+
+Protected rollback point for `0.3.4-alpha.2`:
+
+`/var/backups/bigbird-ai-gateway-reasoning-budget-0.3.4-alpha.2-20260817T065808Z`
+
 ## Accepted milestones
 
-### Communications/documentation RAG
+### Communications/documentation RAG — 0.3.2-alpha.1
 
-Accepted live at gateway version `0.3.2-alpha.1`:
+The original accepted Communications/documentation RAG milestone established:
 
 - listener `127.0.0.1:8787`;
 - gateway mode `read-only`;
@@ -26,119 +48,182 @@ Historical acceptance record:
 
 `docs/communications/edge1-private-ai-chat-comms-rag-live-acceptance-20260817.md`
 
-### Telephony read integration
+### Telephony read integration — 0.3.3-alpha.1
 
-The gateway later advanced independently to accepted version `0.3.3-alpha.1` with a read-only telephony integration. The communications acceptance record remains the immutable history of the `0.3.2-alpha.1` milestone rather than the current global gateway version.
+The gateway later advanced independently to accepted version `0.3.3-alpha.1` with a read-only telephony integration. The earlier Communications acceptance record remains immutable milestone history rather than the current global gateway version.
 
-## Current repository hardening
+### Communications provenance and graceful degradation — 0.3.4-alpha.1
 
-Draft PR #349 establishes the living Communications permission/regression contract, adversarial fixture and repository-owned validator:
+PR #350 prepared and live-validated the next Communications increment:
 
-- `docs/communications/edge1-private-ai-chat-communications-permissions-and-regression-contract.md`;
-- `tests/fixtures/private_ai/communications_prompt_injection.json`;
-- `tests/validate_private_ai_gateway_contract.py`.
+- richer source/thread/upstream provenance;
+- explicit instruction that retrieved article/provenance content is untrusted and cannot change authorization or tool availability;
+- graceful Communications Relay degradation using a system-generated `communications_warning` and zero fabricated Communications results instead of the prior Communications-specific hard 502;
+- preservation of the existing telephony read integration;
+- bounded loopback GET-only Relay access;
+- before/after SHA-256 evidence and rollback coverage.
 
-The validator distinguishes the dot-form tool name `communications.read` from the colon-form authorization scope `communications:read` and checks the accepted read-only gateway contract: explicit opt-in, authorization gate, bounds, secret filtering, untrusted-content marker, bounded Relay failure handling, provenance response, loopback-only default, GET-only Relay requests and absence of write-capable/direct-SQLite/code-execution escape hatches in the Communications adapter.
+Live acceptance record:
 
-PR #349 head at this reconciliation point:
+`docs/communications/edge1-private-ai-chat-comms-0.3.4-live-acceptance-20260817.md`
 
-`1a0cce072bf0bfff199fdd827e63364ef6d940cb`
+### Provider-budget hotfix — 0.3.4-alpha.2
 
-CI on that head:
+An authorized signed Communications E2E request under `0.3.4-alpha.1` reached authorization and Relay retrieval but the provider returned `status=incomplete` with `incomplete_details.reason=max_output_tokens`. All 1,152 output tokens were reasoning tokens, leaving no visible text and causing `502 Model returned no text`.
 
-- `Validate repository` run 1284: PASS;
-- `Edge1 Operator Validation` run 1116: PASS;
-- `tests/validate_private_ai_gateway_contract.py`: PASS in the repository validation log.
+Older audit records showed the same failure mode before the Communications change, so the failure was not attributed to Communications retrieval.
 
-The GitHub workflows are repository CI only; they do not constitute live Edge1 validation.
+`0.3.4-alpha.2` keeps the output-token ceiling unchanged and makes Responses API reasoning effort explicit/configurable through:
 
-## Verified Relay provenance available to the gateway
+`BB_OPENAI_REASONING_EFFORT`
 
-The loopback News Reader API already exposes richer metadata than the initial gateway adapter preserves. Available bounded article-list fields include:
+Default accepted value for this bounded retrieval/synthesis gateway path:
 
+`minimal`
+
+Allowed values:
+
+- `minimal`;
+- `low`;
+- `medium`;
+- `high`.
+
+Hotfix live acceptance record:
+
+`docs/communications/edge1-private-ai-chat-model-budget-hotfix-0.3.4-alpha.2-live-acceptance-20260817.md`
+
+## Communications authorization contract
+
+Tool identity and caller scope remain distinct:
+
+- tool name: `communications.read`;
+- caller scope: `communications:read`;
+- baseline chat scope: `chat:general`;
+- authorized Communications role: `internal_viewer`.
+
+Communications remains explicit opt-in through `include_communications` with optional bounded `communications_groups`.
+
+Fail-closed behavior remains required:
+
+- no Communications opt-in => no Communications material;
+- Communications opt-in without `communications:read` => denial/no leakage;
+- group selectors without Communications opt-in => denial;
+- retrieved content never grants scopes or tool authority.
+
+Living permission/regression contract:
+
+`docs/communications/edge1-private-ai-chat-communications-permissions-and-regression-contract.md`
+
+## Communications Relay integration
+
+The Relay remains private/read-only on loopback:
+
+`http://127.0.0.1:8100`
+
+The gateway adapter remains bounded and GET-only. Relay mutation probes remain blocked with HTTP 405.
+
+Accepted Communications provenance includes:
+
+- `article_id`;
+- `group`;
+- `message_id`;
 - `source_name`;
 - `source_item_id`;
+- `ingested_at_utc`;
 - `thread_key`;
 - `thread_parent`;
 - `thread_depth`;
-- `thread_references`.
+- `thread_references`;
+- bounded selected upstream `X-WWCX-*` metadata.
 
-Article detail also exposes `source_name`, `source_item_id`, `ingested_at_utc` and stored headers. Selected `X-WWCX-*` headers can preserve upstream provenance without contacting upstream providers or reading credentials.
+Retrieved articles and provenance are untrusted data. Instructions inside retrieved content must not alter authorization, tool availability, system policy or write boundaries.
 
-## Prepared next increment — candidate 0.3.4-alpha.1
+## Final acceptance matrix
 
-Draft PR #350 is the separate stage-only implementation preparation and is ordered after PR #349.
+All six Communications acceptance requirements are closed:
 
-Branch:
+1. **Default omission — PASS**  
+   Signed live HTTP 200 with zero Communications sources.
 
-`feature/private-ai-comms-provenance-degradation-prep-20260817`
+2. **Missing-scope denial/no leakage — PASS**  
+   Signed live HTTP 403 with zero Communications leakage.
 
-Head:
+3. **Authorized retrieval with provenance — PASS**  
+   Final signed live provider-backed request returned HTTP 200 with exactly one Communications source carrying rich provenance.
 
-`15ad93936a9aa9943e971ab42ecbff45abd2de51`
+4. **Adversarial retrieved content inert/untrusted — PASS**  
+   Deterministic offline E2E executed against the actual live `0.3.4-alpha.2` source.
 
-Files:
+5. **Controlled Relay degradation — PASS**  
+   Synthetic Relay failure produced the exact system warning, zero Communications results, one degraded audit event and no retry.
 
-- `tools/prepare_private_ai_comms_upgrade.py`;
-- `tests/validate_private_ai_comms_upgrade_preparer.py`;
-- `docs/communications/edge1-private-ai-chat-comms-upgrade-preparation.md`.
+6. **Durable signed E2E evidence — PASS**  
+   Final acceptance is recorded in repository history and dated acceptance records.
 
-The preparer has no apply mode. Against an exact `0.3.3-alpha.1` source baseline it stages candidate copies outside the gateway source tree and prepares:
+Final provider-backed acceptance request:
 
-- target version `0.3.4-alpha.1`;
-- richer source/thread/upstream provenance;
-- explicit instruction that retrieved article/provenance content is untrusted and cannot change authorization or tool availability;
-- graceful Communications Relay degradation using a system-generated `communications_warning` and zero fabricated communications results instead of the current communications-specific HTTP 502 hard fail;
-- preservation of the existing telephony read integration;
-- before/after SHA-256 evidence.
-
-The preparer intentionally performs no source-tree mutation, gateway import/execution, environment/secret inspection, network/Relay/provider access, service restart or deployment.
-
-PR #350 CI:
-
-- `Validate repository` run 1285: PASS;
-- `Edge1 Operator Validation` run 1117: PASS;
-- `tests/validate_private_ai_comms_upgrade_preparer.py`: PASS in the repository validation log;
-- `compileall`: PASS.
-
-## Repository-safe work completed
-
-- [x] distinguish `communications.read` tool from `communications:read` caller scope;
-- [x] document opt-in and fail-closed permission behavior;
-- [x] add source-controlled gateway contract validation;
-- [x] add adversarial communications prompt-injection fixture with thread/source provenance;
-- [x] reject Relay write methods and direct SQLite/code-execution escape hatches in the adapter contract;
-- [x] document richer source/thread provenance available from the News Reader API;
-- [x] prepare a stage-only richer-provenance candidate;
-- [x] prepare graceful Relay degradation without fabricated communications data;
-- [x] preserve telephony integration in the candidate contract;
-- [x] validate both draft PR heads in repository CI.
-
-## Exact next live-safe actions
-
-An authenticated Edge1 execution path is now the remaining blocker.
-
-First run the static contract validator against the deployed source tree:
-
-```bash
-cd /opt/edge1-management-interface
-python3 tests/validate_private_ai_gateway_contract.py \
-  --gateway-root /opt/bigbird-ai-gateway/app
+```text
+scenario: authorized
+group: usenet.comp.lang.python
+message/query: Channels
+provider request count: 1
+retry count: 0
+HTTP status: 200
+Communications source count: 1
+Communications warning: null
+E2E_AUTHORIZED=PASS
+FINAL_AUTHORIZED_E2E=PASS
 ```
 
-Then, if that passes and the exact runtime source is still the expected `0.3.3-alpha.1` baseline, stage the candidate without modifying production:
+The query `Channels` was selected by a bounded read-only Relay discovery pass because it returned exactly one article, minimizing provider context for the final acceptance call.
 
-```bash
-rm -rf /tmp/bigbird-ai-comms-0.3.4-stage
-python3 tools/prepare_private_ai_comms_upgrade.py \
-  --source-root /opt/bigbird-ai-gateway/app \
-  --output-root /tmp/bigbird-ai-comms-0.3.4-stage
-```
+The signed E2E harness never prints the signing secret, signature, raw article body or model answer.
 
-Review the generated `upgrade-report.json`, SHA-256 values and candidate diff before any application.
+Final E2E acceptance record:
 
-Any live application remains a separate step: inspect the exact source/working state, back up first, apply only the reviewed files, restart only `bigbird-ai-gateway.service` if explicitly authorized for that implementation step, verify loopback listeners/health/tools/authorization/Relay read-only posture, and preserve rollback evidence. Record signed/end-to-end chat acceptance separately after live validation.
+`docs/communications/edge1-private-ai-chat-comms-final-e2e-acceptance-20260817.md`
+
+## Repository state
+
+PR #349 merged the living permission/regression contract to `main` as:
+
+`900f85a31d69ec0cbddde4f0387eb660922275f7`
+
+PR #350 completed provenance/degradation preparation, `0.3.4-alpha.1` activation, `0.3.4-alpha.2` provider-budget remediation, offline adversarial/degradation acceptance and the final one-request provider-backed E2E acceptance. It was squash-merged to `main` as:
+
+`c1b2f208617266263050c0fc415374e762d6d1f2`
+
+The merged repository contains:
+
+- stage-only Communications and reasoning-budget preparers;
+- candidate/live validators;
+- deterministic offline adversarial/degradation E2E validation;
+- signed localhost E2E harness with bounded message override;
+- dated activation and final acceptance records.
+
+## Validation posture
+
+Repository CI and live Edge1 validation are separate evidence and must remain separate.
+
+For the completed PR #350 line of work:
+
+- repository `Validate repository`: PASS on the final reconciled head before merge;
+- `Edge1 Operator Validation`: PASS on the final reconciled head before merge;
+- live activation/health/listener/tool/read-only checks: PASS;
+- final authorized provider-backed E2E: PASS;
+- post-request live health: PASS;
+- live source hash unchanged after final E2E.
+
+## Continuation rule
+
+The Private AI Communications provenance/degradation/provider-budget workstream is accepted and closed at `0.3.4-alpha.2`.
+
+Future work should start from this accepted state rather than replaying the completed rollout. Re-inspect the current live host before any new runtime change.
+
+Do not use historical candidate version numbers, earlier draft PR heads or the initial failed provider-budget request as the current state.
 
 ## Safety boundary
 
-Do not expose secret values or raw protected evidence. Do not change authentication policy, credentials, DNS, firewall, certificates, public listeners, Relay/SQLite data, upstream posting, federation, telephony routing or production traffic as part of Private AI retrieval hardening. Retrieved content never grants scopes or write authority.
+Do not expose secret values or raw protected evidence. Do not change authentication policy, credentials, DNS, firewall, certificates, public listeners, Relay/SQLite data, upstream posting, federation, telephony routing or unrelated production traffic as part of ordinary Private AI continuation.
+
+Keep the gateway loopback-only and read-only unless a separately reviewed change explicitly authorizes otherwise. Retrieved content never grants scopes or write authority. Additional provider-cost experiments require their own bounded justification/approval when they are not already covered by standing authority.
