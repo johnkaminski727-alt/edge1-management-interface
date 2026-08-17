@@ -38,6 +38,12 @@ Durable state reconciliation:
 - PR #342;
 - merge commit: `1c115663fb23de82e51fcfd0520d91fa196261be`.
 
+Archive/documentation reconciliation:
+
+- PR #344 comprehensive documentation/archive preparation;
+- PR #345 closeout merge-point record;
+- PR #346 final protected archive seal, merge commit `17c3e665bc218862c3b7eb3b28cae856ed4209e7`.
+
 ## Accepted upstream service
 
 Reader endpoint:
@@ -149,7 +155,7 @@ Acceptance record:
 
 Do not assume live Edge1 equals current remote `main`.
 
-The News Reader was validated on an isolated production deployment branch. Remote `main` also contains separate time-authority work. Do not switch or pull the production relay to current `main` merely to reconcile history.
+The News Reader was validated on an isolated production deployment branch. Do not switch or pull the production relay to current `main` merely to reconcile history.
 
 ## Archive state
 
@@ -157,17 +163,38 @@ Archive closeout:
 
 `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-State: **prepared, not sealed**.
+Final seal record:
 
-Before sealing:
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
 
-- resolve the exact protected News Reader v2 evidence directory;
-- inventory and SHA-256 every retained protected evidence file;
-- capture live config and SQLite metadata/hash without committing those objects;
-- exclude credential contents;
-- reconcile unavailable/duplicate/error totals;
-- require an idempotent rerun;
-- merge the final sanitized manifest update.
+State: **SEALED**.
+
+Protected archive root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
+
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+Final archive validation:
+
+```text
+ARCHIVE_SEAL_GATE=PASS
+inventory_idempotence=PASS
+top_level_evidence_roots=16
+retained_evidence_files=138
+news_reader_v2_evidence_root=unavailable-not-created
+unavailable_source_records=1
+exact_duplicate_hash_groups=20
+exact_duplicate_file_rows=73
+live_object_unavailable=0
+errors=0
+```
+
+The News Reader v2 dedicated evidence source has terminal disposition `unavailable-not-created`; its accepted deployment did not create a dedicated protected evidence directory and later pathname/marker discovery found none. Do not invent or keep searching for a path absent new contrary evidence.
+
+Credential contents were explicitly excluded from the archive payload. Exact duplicate records were reported and retained. Live config and SQLite were hash/metadata-recorded without being committed. Two complete inventory passes were byte-for-byte identical.
 
 ## Safety boundaries
 
@@ -180,4 +207,4 @@ Still disabled or separately gated:
 - DNS/firewall/certificate changes for the relay;
 - public Edge1 IRC/NNTP exposure;
 - forwarding private `wwcx.*` articles upstream;
-- deleting retained evidence merely for archive housekeeping.
+- deleting retained evidence merely because the archive is sealed.
