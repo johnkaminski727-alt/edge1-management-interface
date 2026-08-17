@@ -15,18 +15,32 @@
 - [x] Create dated second-source and News Reader v2 acceptance records.
 - [x] Reconcile living architecture, ingestion, validation, News Reader and runbook documentation.
 - [x] Create sanitized archive closeout and protected-evidence source ledger.
-- [ ] Resolve the exact protected News Reader v2 deployment-evidence directory on Edge1.
-- [ ] Generate a read-only SHA-256 inventory for every retained Communications Relay evidence file.
-- [ ] Capture metadata/hash for live config and SQLite without committing private objects.
-- [ ] Confirm Eternal September credential contents are excluded from the archive payload.
-- [ ] Reconcile retained, unavailable, exact-duplicate and error totals.
-- [ ] Rerun the inventory and require idempotent totals.
-- [ ] Update the closeout with the final manifest path and SHA-256.
-- [ ] Merge the final documentation-only archive-seal update.
+- [x] Determine News Reader v2 dedicated evidence-root disposition as `unavailable-not-created`; no dedicated protected directory was created and later discovery found none.
+- [x] Generate a read-only SHA-256 inventory for every retained Communications Relay evidence file.
+- [x] Capture metadata/hash for live config and SQLite without committing private objects.
+- [x] Confirm Eternal September credential contents are excluded from the archive payload.
+- [x] Reconcile retained, unavailable, exact-duplicate and error totals.
+- [x] Rerun the inventory and require idempotent totals.
+- [x] Update the closeout with the final manifest path and SHA-256.
+- [x] Merge the final documentation-only archive-seal update through PR #346 as `17c3e665bc218862c3b7eb3b28cae856ed4209e7`.
 
 Archive closeout:
 
 `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
+
+Final seal record:
+
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
+
+Protected archive root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
+
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+Archive state: **SEALED** with `ARCHIVE_SEAL_GATE=PASS`, `inventory_idempotence=PASS`, 16 top-level evidence roots, 138 retained evidence files, 20 exact-duplicate hash groups covering 73 rows, one terminal `unavailable-not-created` News Reader source record, zero unavailable live objects, and zero errors.
 
 Production checkout discipline: do not move the accepted relay/News Reader checkout to current remote `main` merely for archive or documentation reconciliation.
 
