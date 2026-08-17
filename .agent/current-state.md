@@ -20,7 +20,7 @@ result: NEWS_READER_V2_DEPLOYMENT=PASS
 
 The exact validated News Reader blobs were reconciled into repository history through PR #341, merge commit `6a0397a7f39c07afa3a779c0578e06d165df41e8`. Durable Communications Relay state was reconciled through PR #342, merge commit `1c115663fb23de82e51fcfd0520d91fa196261be`.
 
-Remote `main` also contains separate time-authority work. Do not pull/switch the accepted relay checkout to current `main` solely for documentation, archive or history reconciliation.
+Remote `main` also contains separate workstreams. Do not pull/switch the accepted relay checkout to current `main` solely for documentation, archive or history reconciliation.
 
 ## Communications Relay — accepted live state
 
@@ -85,19 +85,40 @@ Closeout:
 
 `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-Status: **prepared, not sealed**.
+Final seal record:
 
-Remaining archive gate:
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
 
-1. resolve exact protected News Reader v2 evidence directory;
-2. SHA-256 inventory retained Communications Relay evidence files;
-3. capture live config/SQLite metadata and hashes without committing private objects;
-4. exclude Eternal September credential contents;
-5. reconcile retained/unavailable/duplicate/error totals;
-6. rerun for idempotence;
-7. merge final sanitized archive-seal update.
+Status: **SEALED**.
 
-No service, production checkout, DNS, firewall, certificate or credential change is required for archive sealing.
+Protected archive root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
+
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+Final reconciliation:
+
+```text
+top_level_evidence_roots=16
+retained_evidence_files=138
+news_reader_v2_evidence_root=unavailable-not-created
+unavailable_source_records=1
+exact_duplicate_hash_groups=20
+exact_duplicate_file_rows=73
+historical_credential_file_exclusions=0
+live_credential_content_exclusions=1
+live_object_unavailable=0
+errors=0
+inventory_idempotence=PASS
+ARCHIVE_SEAL_GATE=PASS
+```
+
+The News Reader v2 evidence-root record has terminal disposition `unavailable-not-created`; the accepted deployment did not create a dedicated protected evidence directory and later discovery found none. Production acceptance remains preserved by the accepted deployment branch/head/result and repository acceptance records.
+
+No service, production checkout, DNS, firewall, certificate or credential change was made for archive sealing.
 
 ## Security / Network Defense — last accepted workstream state
 
@@ -146,18 +167,9 @@ Do not change transports, service-startup policy, certificates, listeners or fir
 
 ## Key Communications Relay protected evidence
 
-```text
-/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z
-/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z
-/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z
-/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T002007Z
-/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z
-```
+The final archive froze every pre-existing top-level directory under `/var/lib/wwcx-deployment-evidence/comms-relay` before creating the archive-seal directory. The authoritative frozen root list and per-file hashes are stored in the protected archive package and summarized in `docs/archive/edge1-comms-relay-archive-seal-20260817.md`.
 
-The exact News Reader v2 protected evidence path is intentionally marked unresolved until re-read from Edge1 during archive sealing.
+Do not reopen News Reader evidence-root discovery unless new contrary evidence appears; its terminal archival disposition is `unavailable-not-created`.
 
 ## Current continuation order
 
@@ -167,7 +179,7 @@ For Communications Relay:
 2. read `.agent/comms-relay.md` and `.agent/comms-relay-upstream-nntp.md`;
 3. use `docs/handoff/edge1-comms-relay-runbook.md`;
 4. use dated acceptance records for historical evidence;
-5. resume archive sealing from `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`.
+5. use `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md` and `docs/archive/edge1-comms-relay-archive-seal-20260817.md` for the sealed archive record.
 
 For security, telephony, alerting, time authority, private library and other Edge1 workstreams, use their dedicated current state/runbooks and fresh inspection rather than inferring state from Communications Relay records.
 
