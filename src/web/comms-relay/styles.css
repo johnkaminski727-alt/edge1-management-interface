@@ -75,7 +75,6 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
 .article-row:hover, .article-row:focus { background: rgba(127,210,255,.08); outline: none; }
 .article-subject-cell { font-weight: 700; }
 .thread-heading td { background: rgba(127,210,255,.06); color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .03em; border-top: 1px solid var(--line); }
-.threaded-subject { padding-left: calc(8px + (var(--thread-depth, 0) * 16px)); }
 .threaded-subject::before { content: "↳ "; color: var(--accent); }
 .pagination-bar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-top: 14px; }
 .pagination-bar .policy-note { margin: 0; min-width: 90px; text-align: center; }
