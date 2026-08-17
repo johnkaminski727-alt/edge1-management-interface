@@ -4,6 +4,8 @@ const byId = (id) => document.getElementById(id);
 let groups = [];
 let sources = [];
 let selectedGroup = "";
+let pageOffset = 0;
+let lastPayload = null;
 
 async function getJson(path) {
   const response = await fetch(path, {cache: "no-store", credentials: "same-origin"});
@@ -29,11 +31,17 @@ function badge(value, className = "") {
 }
 
 function sourceLabel(name) {
-  if (!name) return "native";
+  if (!name) return "Native / local";
   if (name === "wwcx-bootstrap") return "WW.CX Bootstrap";
   if (name === "edge1-repository") return "Edge1 Repository";
   if (name.startsWith("eternal.")) return "Eternal September";
   return name;
+}
+
+function sourceFilterLabel(name) {
+  if (!name) return "Native / local";
+  const label = sourceLabel(name);
+  return label === name ? name : `${label} · ${name}`;
 }
 
 function renderGroups() {
@@ -78,6 +86,52 @@ function renderSources() {
   }
 }
 
+function renderSourceFilter(payload) {
+  const select = byId("source-filter");
+  const previous = select.value;
+  select.replaceChildren();
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = "All sources";
+  select.append(all);
+  for (const item of payload.source_counts || []) {
+    const option = document.createElement("option");
+    option.value = item.source_name || "native";
+    option.textContent = `${sourceFilterLabel(item.source_name)} (${item.count})`;
+    select.append(option);
+  }
+  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+}
+
+function makeArticleRow(article, threaded) {
+  const tr = document.createElement("tr");
+  tr.className = "article-row";
+  tr.tabIndex = 0;
+  const values = [article.subject, article.author, fmtDate(article.created_at_utc), sourceLabel(article.source_name)];
+  values.forEach((value, index) => {
+    const td = document.createElement("td");
+    td.textContent = text(value);
+    if (index === 0) {
+      td.className = "article-subject-cell";
+      if (threaded && article.thread_depth) {
+        td.classList.add("threaded-subject");
+        td.style.setProperty("--thread-depth", String(Math.min(Number(article.thread_depth) || 0, 6)));
+      }
+    }
+    if (index === 3 && article.source_name) td.title = article.source_name;
+    tr.append(td);
+  });
+  const open = () => openArticle(article.id);
+  tr.addEventListener("click", open);
+  tr.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      open();
+    }
+  });
+  return tr;
+}
+
 function renderArticles(payload) {
   const body = byId("article-list");
   body.replaceChildren();
@@ -86,46 +140,78 @@ function renderArticles(payload) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
     td.colSpan = 4;
-    td.textContent = payload.query ? "No matching articles." : "No articles in this group.";
+    td.textContent = payload.query || payload.source ? "No matching articles." : "No articles in this group.";
     tr.append(td);
     body.append(tr);
     return;
   }
-  for (const article of rows) {
-    const tr = document.createElement("tr");
-    tr.className = "article-row";
-    tr.tabIndex = 0;
-    const values = [article.subject, article.author, fmtDate(article.created_at_utc), sourceLabel(article.source_name)];
-    values.forEach((value, index) => {
-      const td = document.createElement("td");
-      td.textContent = text(value);
-      if (index === 0) td.className = "article-subject-cell";
-      tr.append(td);
-    });
-    const open = () => openArticle(article.id);
-    tr.addEventListener("click", open);
-    tr.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
-    body.append(tr);
+
+  const threaded = byId("thread-view").value === "threads";
+  if (!threaded) {
+    for (const article of rows) body.append(makeArticleRow(article, false));
+    return;
   }
+
+  const threadMap = new Map();
+  for (const article of rows) {
+    const key = article.thread_key || article.message_id || String(article.id);
+    if (!threadMap.has(key)) threadMap.set(key, []);
+    threadMap.get(key).push(article);
+  }
+  for (const items of threadMap.values()) {
+    items.sort((a, b) => a.id - b.id);
+    const root = items.find((item) => Number(item.thread_depth) === 0) || items[0];
+    const heading = document.createElement("tr");
+    heading.className = "thread-heading";
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.textContent = `Thread · ${root.subject} · ${items.length} article${items.length === 1 ? "" : "s"} on this page`;
+    heading.append(td);
+    body.append(heading);
+    for (const article of items) body.append(makeArticleRow(article, true));
+  }
+}
+
+function renderPagination(pagination) {
+  const total = Number(pagination?.total || 0);
+  const offset = Number(pagination?.offset || 0);
+  const returned = Number(pagination?.returned || 0);
+  const start = total && returned ? offset + 1 : 0;
+  const end = returned ? offset + returned : 0;
+  byId("page-status").textContent = `${start}–${end} of ${total}`;
+  byId("previous-page").disabled = !pagination?.has_previous;
+  byId("next-page").disabled = !pagination?.has_next;
 }
 
 async function loadArticles() {
   if (!selectedGroup) return;
   const query = byId("article-search").value.trim();
-  const params = new URLSearchParams({limit: "200"});
+  const source = byId("source-filter").value;
+  const params = new URLSearchParams({
+    limit: byId("page-size").value,
+    offset: String(pageOffset)
+  });
   if (query) params.set("q", query);
+  if (source) params.set("source", source);
   const payload = await getJson(`/api/comms/news/groups/${encodeURIComponent(selectedGroup)}/articles?${params}`);
+  lastPayload = payload;
+  pageOffset = Number(payload.pagination?.offset || 0);
+  renderSourceFilter(payload);
   renderArticles(payload);
-  byId("metric-selected").textContent = payload.group.count;
+  renderPagination(payload.pagination);
+  byId("metric-selected").textContent = payload.pagination?.total ?? payload.group.count;
 }
 
 async function selectGroup(name) {
   selectedGroup = name;
+  pageOffset = 0;
+  lastPayload = null;
   renderGroups();
   const group = groups.find((item) => item.name === name);
   byId("selected-group").textContent = name;
   byId("selected-description").textContent = group ? group.description : "";
   byId("article-search").value = "";
+  byId("source-filter").innerHTML = '<option value="">All sources</option>';
   byId("article-panel").hidden = true;
   await loadArticles();
 }
@@ -188,6 +274,31 @@ async function refresh() {
 }
 
 byId("refresh-reader").addEventListener("click", refresh);
-byId("search-form").addEventListener("submit", async (event) => { event.preventDefault(); await loadArticles(); });
+byId("search-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  pageOffset = 0;
+  await loadArticles();
+});
+byId("source-filter").addEventListener("change", async () => {
+  pageOffset = 0;
+  await loadArticles();
+});
+byId("page-size").addEventListener("change", async () => {
+  pageOffset = 0;
+  await loadArticles();
+});
+byId("thread-view").addEventListener("change", () => {
+  if (lastPayload) renderArticles(lastPayload);
+});
+byId("previous-page").addEventListener("click", async () => {
+  if (lastPayload?.pagination?.previous_offset === null || lastPayload?.pagination?.previous_offset === undefined) return;
+  pageOffset = Number(lastPayload.pagination.previous_offset);
+  await loadArticles();
+});
+byId("next-page").addEventListener("click", async () => {
+  if (lastPayload?.pagination?.next_offset === null || lastPayload?.pagination?.next_offset === undefined) return;
+  pageOffset = Number(lastPayload.pagination.next_offset);
+  await loadArticles();
+});
 byId("close-article").addEventListener("click", () => { byId("article-panel").hidden = true; });
 refresh();
