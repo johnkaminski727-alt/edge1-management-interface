@@ -16,7 +16,7 @@ head: 974c7141e18deac92671f81fb1bd3c3ed02a6c68
 result: NEWS_READER_V2_DEPLOYMENT=PASS
 ```
 
-Remote `main` also contains separate time-authority work. Do not switch/pull the relay production checkout to current `main` solely for documentation, archive, or history reconciliation. Review/deploy unrelated production changes independently.
+Do not switch/pull the relay production checkout to current `main` solely for documentation, archive, or history reconciliation. Review/deploy unrelated production changes independently.
 
 ## Communications Relay — accepted current state
 
@@ -48,7 +48,10 @@ Repository reconciliation:
 
 - PR #341 merged the exact validated News Reader blob set as `6a0397a7f39c07afa3a779c0578e06d165df41e8`;
 - PR #337 was closed as superseded development history;
-- PR #342 merged durable Communications Relay state as `1c115663fb23de82e51fcfd0520d91fa196261be`.
+- PR #342 merged durable Communications Relay state as `1c115663fb23de82e51fcfd0520d91fa196261be`;
+- PR #344 merged comprehensive documentation/archive preparation as `1610d3c57efac50f30db7780b9875fa3fe6da870`;
+- PR #345 recorded the documentation closeout merge point as `6ecd450b84c8cc22e83a4afca6ebded9f48e1f8e`;
+- PR #346 merged the final archive seal as `17c3e665bc218862c3b7eb3b28cae856ed4209e7`.
 
 Current documentation index:
 
@@ -64,24 +67,42 @@ Archive closeout:
 
 `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-State: **prepared, not sealed**.
+Final seal record:
 
-The next safe action is read-only host evidence inventory:
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
 
-1. resolve the exact News Reader v2 protected evidence directory;
-2. enumerate/hash every retained Communications Relay evidence file;
-3. record path, size, mode, owner/group, mtime and SHA-256;
-4. hash live config and SQLite without committing them;
-5. exclude Eternal September credential contents;
-6. reconcile retained/unavailable/duplicate/error totals;
-7. rerun for idempotence;
-8. update the closeout with final manifest path/hash.
+State: **SEALED**.
 
-Do not move/delete evidence or restart/change the service solely for archive sealing.
+Protected archive root:
 
-Key known protected evidence roots are listed in the closeout. The accepted second-source evidence root is:
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
 
-`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z`
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+Final reconciliation:
+
+```text
+top_level_evidence_roots=16
+retained_evidence_files=138
+news_reader_v2_evidence_root=unavailable-not-created
+unavailable_source_records=1
+exact_duplicate_hash_groups=20
+exact_duplicate_file_rows=73
+historical_credential_file_exclusions=0
+live_credential_content_exclusions=1
+live_object_unavailable=0
+errors=0
+inventory_idempotence=PASS
+ARCHIVE_SEAL_GATE=PASS
+```
+
+`COMMS-NEWS-READER-V2` has terminal disposition `unavailable-not-created`; the accepted News Reader deployment did not create a dedicated protected evidence directory and subsequent discovery found none. Do not invent or keep searching for a path unless new contrary evidence appears.
+
+The archive inventory covered every pre-existing top-level Communications Relay evidence directory plus relevant config-control history. Credential contents were excluded, exact duplicates were reported/retained, and the two inventory passes were byte-for-byte identical.
+
+Do not move/delete evidence or restart/change the service merely because the archive is sealed.
 
 ## Communications Relay readiness rule
 
@@ -127,8 +148,9 @@ For Communications Relay continuation, use in order:
 4. `docs/handoff/edge1-comms-relay-runbook.md`;
 5. dated acceptance records;
 6. `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`;
-7. current GitHub history/PRs;
-8. fresh authenticated Edge1 inspection when live state matters.
+7. `docs/archive/edge1-comms-relay-archive-seal-20260817.md`;
+8. current GitHub history/PRs;
+9. fresh authenticated Edge1 inspection when live state matters.
 
 ## Safety boundary
 
