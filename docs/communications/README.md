@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-08-17
 
-This directory contains the design, operations, validation and acceptance records for the WW.CX Edge1 Communications Relay, selective outbound NNTP ingestion, and the private News Reader.
+This directory contains the design, operations, validation and acceptance records for the WW.CX Edge1 Communications Relay, selective outbound NNTP ingestion, the private News Reader, and the private AI read-only communications integration.
 
 ## Current living documentation
 
@@ -16,6 +16,9 @@ Read these first for the current design and operating model:
 6. `../handoff/edge1-comms-relay-runbook.md` — operator runbook, readiness, rollback and archive handling.
 7. `../../.agent/comms-relay.md` — concise current relay state.
 8. `../../.agent/comms-relay-upstream-nntp.md` — current upstream NNTP and News Reader state.
+9. `edge1-private-ai-chat-communications-permissions-and-regression-contract.md` — Private AI tool/scope distinction, consent boundary and source-controlled regression contract.
+
+The Private AI contract is validated by `../../tests/validate_private_ai_gateway_contract.py`. The dependency-free suite exercises positive and negative fixtures; on Edge1 the same validator can inspect `/opt/bigbird-ai-gateway/app` statically with `--gateway-root` without importing the service or contacting the Relay.
 
 ## Accepted production state
 
@@ -44,9 +47,12 @@ These dated records are immutable operational history. They should not be rewrit
 - `edge1-comms-relay-ingestion-live-acceptance-20260815.md` — local automatic ingestion acceptance;
 - `edge1-comms-relay-upstream-nntp-live-acceptance-20260815.md` — first Eternal September source acceptance;
 - `edge1-comms-relay-upstream-nntp-second-source-live-acceptance-20260816.md` — second Eternal September source acceptance;
-- `edge1-comms-relay-news-reader-live-acceptance-20260817.md` — News Reader v2 acceptance.
+- `edge1-comms-relay-news-reader-live-acceptance-20260817.md` — News Reader v2 acceptance;
+- `edge1-private-ai-chat-comms-rag-live-acceptance-20260817.md` — accepted Private AI communications/documentation RAG deployment at gateway version `0.3.2-alpha.1`.
 
 `edge1-comms-relay-production-readiness-20260815.md` records the earlier production-readiness gate and should be interpreted in its date context.
+
+Later Private AI work may advance the gateway version independently; the dated communications acceptance record remains the history of the `0.3.2-alpha.1` milestone rather than a statement of the gateway's current global version.
 
 ## Archive status
 
