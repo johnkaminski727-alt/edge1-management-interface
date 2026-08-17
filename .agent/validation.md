@@ -1,6 +1,76 @@
 # Validation State
 
-Last verified: 2026-08-01T21:03:42Z
+Last verified: 2026-08-17
+
+## Communications Relay / upstream NNTP / News Reader closeout
+
+Current sanitized acceptance chain:
+
+- relay service accepted private on loopback;
+- local automatic ingestion accepted;
+- `eternal.comp.lang.python` accepted live;
+- `eternal.news.admin.peering` accepted live;
+- private News Reader v2 accepted live;
+- exact validated News Reader blobs reconciled to repository `main` through PR #341;
+- durable state reconciled through PR #342.
+
+Accepted News Reader production checkout:
+
+```text
+branch: deploy/private-nntp-news-reader-v2-20260817
+head: 974c7141e18deac92671f81fb1bd3c3ed02a6c68
+result: NEWS_READER_V2_DEPLOYMENT=PASS
+```
+
+Accepted loopback listeners:
+
+```text
+127.0.0.1:1119   NNTP
+127.0.0.1:16667  IRC
+127.0.0.1:8100   control/API/News Reader
+```
+
+Validated live behavior includes:
+
+- relay health `ok`, version `1.0.0`;
+- production-readiness test passed;
+- controlled-ingestion regression passed;
+- upstream NNTP TLS validation passed;
+- config-control metadata validation passed;
+- News Reader threaded pagination/source-filter validation passed;
+- JavaScript syntax passed;
+- exact Eternal September filtering passed;
+- bootstrap-only filtering passed;
+- HTTP mutation attempts remained 405 `read_only_control_api`;
+- duplicate external source IDs remained zero;
+- listener posture remained loopback-only;
+- second-source wrong-group/orphan/bad-provenance/unexpected-provenance counts were zero at acceptance;
+- second-source ingestion errors since activation were zero at acceptance.
+
+Service-readiness rule:
+
+- `edge1-comms-relay.service` uses `Type=simple`;
+- `systemctl is-active` is not an application-readiness signal;
+- bounded `/healthz` plus listener verification is required after restart.
+
+Archive state:
+
+```text
+docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md
+status: prepared, not sealed
+```
+
+Remaining archive-validation gate:
+
+1. resolve exact protected News Reader v2 evidence path;
+2. SHA-256 inventory all retained Communications Relay evidence files;
+3. capture live config/SQLite metadata and hashes without committing private objects;
+4. exclude credential contents;
+5. reconcile unavailable/duplicate/error totals;
+6. rerun inventory for idempotence;
+7. merge final sanitized archive-seal update.
+
+The live production checkout must not be moved to current remote `main` solely for documentation/archive reconciliation.
 
 ## DTMF provider technical-response intake live acceptance
 
