@@ -24,7 +24,7 @@ Accepted News Reader deployment:
 - head `974c7141e18deac92671f81fb1bd3c3ed02a6c68`;
 - result `NEWS_READER_V2_DEPLOYMENT=PASS`.
 
-Do not assume current remote `main` is the production checkout. Unrelated time-authority work is present on remote `main`; deploy it only through its own acceptance process.
+Do not assume current remote `main` is the production checkout. Deploy unrelated repository work only through its own acceptance process.
 
 ## Standard health verification
 
@@ -181,26 +181,33 @@ sudo systemctl stop edge1-comms-relay.service
 
 Do not delete the SQLite database during incident handling. Preserve `/var/lib/wwcx-comms`, configuration, relevant journal logs and deployment evidence for diagnosis.
 
-## Archive preparation
+## Sealed archive
 
-Current closeout:
+Archive closeout:
 
 `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-Archive state is **prepared, not sealed**.
+Final seal record:
 
-The next archive action is read-only:
+`docs/archive/edge1-comms-relay-archive-seal-20260817.md`
 
-1. locate the exact News Reader v2 protected evidence directory;
-2. inventory every retained file in the closeout source ledger;
-3. record SHA-256, path, size, mode, owner/group and mtime;
-4. hash live config and SQLite without copying them into Git;
-5. prove credential contents are excluded;
-6. reconcile retained/unavailable/duplicate/error totals;
-7. rerun for idempotence;
-8. update the closeout with the final manifest path/hash.
+Archive state is **SEALED**.
 
-Do not move, delete or prune evidence merely to make an archive package tidy.
+Protected archive root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/archive-seal-20260817T023340Z`
+
+Archive package manifest SHA-256:
+
+`e218e3939ef823d2b36f7a413fb78fad836879bbffd958824254c421008eb3b8`
+
+The final host inventory froze all 16 pre-existing top-level Communications Relay evidence directories, hashed 138 retained evidence files, reported 20 exact-duplicate SHA-256 groups covering 73 rows, recorded zero errors and zero unavailable live objects, explicitly excluded credential contents, and passed a byte-for-byte idempotent second inventory pass.
+
+`COMMS-NEWS-READER-V2` has terminal disposition `unavailable-not-created`. The accepted News Reader deployment did not create a dedicated protected evidence directory and later pathname/marker discovery found none. Do not invent or keep searching for an evidence path unless new contrary evidence appears.
+
+The sealed archive is a preservation record, not a cleanup instruction. Do not move, delete, consolidate or prune retained evidence merely because the archive is sealed.
+
+If a later factual discrepancy, new historical source, or integrity failure is discovered, create a new superseding archive action rather than silently editing or deleting the sealed protected package.
 
 ## External exposure gate
 
