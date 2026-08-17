@@ -1,22 +1,21 @@
 # Edge1 Communications Relay Upstream NNTP State
 
-Date: 2026-08-15
+Date: 2026-08-17
 
 ## Objective
 
-Add a controlled outbound-only NNTP reader source so Edge1 can selectively mirror explicitly allowlisted public Usenet groups into a separate local `usenet.*` namespace without enabling inbound peering, federation, or public listeners.
+Operate Edge1 as a controlled outbound-only NNTP reader that selectively mirrors explicitly allowlisted public Usenet groups into a separate local `usenet.*` namespace, while keeping the Communications Relay private-first and read-only from its web control surface.
 
 ## Reference upstream
 
 Eternal September is the initial reference provider.
 
-Verified public technical state on 2026-08-15:
+Verified public technical state used by this implementation:
 
 - reader hostname: `news.eternal-september.org`;
 - TLS reader port: `563`;
 - separate peering/transit hostname: `feeder.eternal-september.org`;
-- peering/transit port: `433`;
-- formal peering has operational prerequisites and is not part of this phase.
+- formal peering/transit is not part of the current phase.
 
 ## Repository implementation state
 
@@ -39,18 +38,19 @@ Implemented behavior includes:
 - upstream author and provenance headers preserved;
 - article-number cursor with bounded reset/rewrite recovery;
 - scripted no-network protocol validation for AUTHINFO/GROUP/ARTICLE parsing;
-- example disabled Eternal September source;
-- operator/design documentation.
+- private read-only News Reader for stored relay articles.
 
-## Live state
+The private News Reader repository reconciliation was merged to `main` by PR #341 at merge commit:
 
-Selective Eternal September ingestion is accepted live on Edge1 as of approximately 23:34 UTC on 2026-08-15.
+`6a0397a7f39c07afa3a779c0578e06d165df41e8`
 
-Live Edge1 checkout at acceptance:
+PR #337 is retained only as superseded development history.
 
-`ffd086389c5c8687c33afae6c072a4ca1972f9b3`
+## Live upstream state
 
-Accepted source:
+Two Eternal September sources are accepted live on Edge1.
+
+### 1. comp.lang.python
 
 - source name: `eternal.comp.lang.python`;
 - upstream: `news.eternal-september.org:563`;
@@ -65,34 +65,102 @@ Accepted source:
 - scan ceiling: 10;
 - scheduled through the existing 900-second relay ingestion cycle.
 
+Acceptance evidence root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z`
+
+Accepted data state:
+
+- 8 articles from `eternal.comp.lang.python`;
+- 1 one-time `wwcx-bootstrap` introduction with source item ID `usenet.comp.lang.python:v1`;
+- duplicate Eternal September source IDs: 0.
+
+### 2. news.admin.peering
+
+- source name: `eternal.news.admin.peering`;
+- upstream: `news.eternal-september.org:563`;
+- upstream group: `news.admin.peering`;
+- local target: `usenet.news.admin.peering`;
+- TLS required;
+- same protected Eternal September credential file;
+- retention: 3650 days;
+- maximum article size: 262144 bytes;
+- initial window: 8;
+- scan ceiling: 10;
+- scheduled through the existing 900-second relay ingestion cycle.
+
+Acceptance evidence root:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z`
+
+Accepted data state:
+
+- 8 articles from `eternal.news.admin.peering`;
+- 1 one-time `wwcx-bootstrap` introduction with source item ID `usenet.news.admin.peering:v1`;
+- cursor present and accepted at activation;
+- duplicate Eternal September source IDs: 0;
+- wrong-group, orphan, bad-provenance, and unexpected-provenance counts: 0;
+- ingestion errors since activation: 0 at acceptance.
+
 The accepted automatic source order is:
 
 1. `wwcx-bootstrap`;
 2. `eternal.comp.lang.python`;
-3. `edge1-repository`.
+3. `eternal.news.admin.peering`;
+4. `edge1-repository`.
 
-Final evidence root:
+Validation must remain provenance-aware. Do not require a local group's total article count to equal its external source ledger count when another approved source, such as `wwcx-bootstrap`, also posts to the group.
 
-`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z`
+## Private News Reader live state
 
-Live acceptance record:
+News Reader v2 is accepted live on Edge1.
 
-`docs/communications/edge1-comms-relay-upstream-nntp-live-acceptance-20260815.md`
+Live deployment branch:
 
-## Accepted data state
+`deploy/private-nntp-news-reader-v2-20260817`
 
-The imported local group contains two legitimate provenance classes:
+Live deployment head:
 
-- 8 articles from `eternal.comp.lang.python`;
-- 1 normal one-time introduction from `wwcx-bootstrap` with source item ID `usenet.comp.lang.python:v1`.
+`974c7141e18deac92671f81fb1bd3c3ed02a6c68`
 
-Duplicate Eternal September source IDs were verified as zero.
+Acceptance result:
 
-Validation must therefore be provenance-aware. Do not require the total article count of an imported local group to equal the external source ledger count when another approved source, such as `wwcx-bootstrap`, also posts to that group.
+`NEWS_READER_V2_DEPLOYMENT=PASS`
+
+The reader is served by the existing loopback-only control listener at:
+
+`http://127.0.0.1:8100/news.html`
+
+It provides:
+
+- newsgroup browsing;
+- bounded article search;
+- article body/detail and raw stored headers;
+- source/provenance and cursor information;
+- exact source filters including Eternal September, WW.CX Bootstrap, Edge1 Repository, and native/local articles;
+- 25 / 50 / 100 article pagination with previous/next offsets and exact totals;
+- threaded and flat-list views using actual stored `References` or `X-WWCX-Upstream-References` ancestry.
+
+Live validation passed for:
+
+- News Reader threaded pagination/source-filter tests;
+- Communications Relay production-readiness, ingestion, upstream NNTP TLS, and config-control metadata tests;
+- JavaScript syntax;
+- bounded service readiness;
+- loopback-only listeners on `127.0.0.1:1119`, `127.0.0.1:16667`, and `127.0.0.1:8100`;
+- read-only mutation enforcement (`405 read_only_control_api`);
+- preservation of both accepted Eternal September source ledgers;
+- final relay health.
+
+## Checkout discipline
+
+Do not assume the live Edge1 repository checkout equals current remote `main`.
+
+The News Reader was validated on an isolated local deployment branch. Remote `main` subsequently also contains separate time-authority work. Do not switch/pull Edge1 to current `main` merely to reconcile repository history; unrelated production work must be reviewed and deployed under its own acceptance process.
 
 ## Safety boundaries
 
-The live source is outbound reader-pull only.
+The live upstream sources are outbound reader-pull only.
 
 Still disabled or separately gated:
 
@@ -104,4 +172,4 @@ Still disabled or separately gated:
 - public Edge1 IRC/NNTP exposure;
 - forwarding private WW.CX articles upstream.
 
-Additional public groups must be added as separate explicit allowlisted mappings and validated incrementally.
+The News Reader remains private and read-only. Additional public groups must be added as separate explicit allowlisted mappings and validated incrementally.
