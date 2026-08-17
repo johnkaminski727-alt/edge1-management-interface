@@ -5,9 +5,9 @@
 [![Python](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0000--9523--8529-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0009-0000-9523-8529)
 
-A private-first management interface for Edge1 AI, digital-library, and infrastructure services.
+A private-first management interface for Edge1 AI, digital-library, communications, time-authority, and infrastructure services.
 
-The project combines responsive browser tools, narrow API wrappers, service diagnostics, operational documentation, and bounded automation. Its first production-oriented module is **Private Library Search**, an authenticated interface for searching the Big Bird operations collection with mobile-friendly results and source traceability.
+The project combines responsive browser tools, narrow API wrappers, service diagnostics, operational documentation, bounded automation, and evidence-backed deployment workflows.
 
 > **Public-repository boundary:** buildable source and sanitized documentation belong here. Credentials, private records, production databases, search indexes, personal information, and unredacted diagnostics do not.
 
@@ -17,24 +17,23 @@ The project combines responsive browser tools, narrow API wrappers, service diag
 - Read-only-first service design
 - Private Library Search with source traceability
 - Local Big Bird SQLite FTS5 integration
-- Fixture fallback for offline validation
-- Managed localhost-only service deployment
-- Staged and audited filesystem-change proposals
-- Operator-controlled approval, apply, and rollback boundaries
+- Private Edge1 IRC/NNTP Communications Relay
+- Selective outbound TLS NNTP reader ingestion with explicit provenance
+- Private read-only NNTP News Reader with source filters and threaded views
 - Dual-observer WW.CX Time Authority monitoring
-- Longitudinal NTP RTT, offset, stratum, and source-health records
+- Staged and audited filesystem-change proposals
+- Operator-controlled approval, apply, rollback, evidence, and archive boundaries
 - Validation, smoke-test, handoff, and runbook assets
 
 ## Architecture at a glance
 
 ```text
-Browser UI
+Private browser/operator tools
     |
-    v
-Local read-only API wrapper
-    |-- Big Bird SQLite FTS5 library engine
-    |-- configured local HTTP backend
-    `-- sanitized fixture fallback
+    +-- Private Library Search -> Big Bird SQLite / local backend
+    +-- Communications Relay UI -> loopback control API -> IRC / NNTP / SQLite
+    +-- Time Authority UI/API -> read-only NTP observations
+    `-- staged filesystem / operational tooling
 ```
 
 See [the public project overview](docs/PUBLIC_OVERVIEW.md) for the project purpose, design principles, components, and repository map.
@@ -42,14 +41,15 @@ See [the public project overview](docs/PUBLIC_OVERVIEW.md) for the project purpo
 ## Repository structure
 
 ```text
-docs/       architecture, runbooks, decisions, and handoffs
+docs/       architecture, runbooks, decisions, acceptance, archive, and handoffs
 src/api/    narrow API contracts and wrappers
-src/web/    responsive browser interface
+src/web/    responsive browser interfaces
 server/     local service entry points
 tests/      validation and smoke tests
 deploy/     deployment and service assets
 tools/      diagnostics and operator utilities
 registers/  project and completion registers
+.agent/     durable sanitized workstream state
 ```
 
 ## Private Library Search
@@ -76,15 +76,45 @@ bin/run_private_library_search.sh 8091
 
 When the local Big Bird library engine and database are available, successful direct responses use `mode: live_direct`.
 
+## Communications Relay
+
+The accepted Edge1 Communications Relay is a private-first IRC and NNTP service with durable SQLite storage, local identity/moderation, automatic ingestion, and a loopback read-only control surface.
+
+Accepted private listener baseline:
+
+```text
+127.0.0.1:16667  IRC
+127.0.0.1:1119   NNTP
+127.0.0.1:8100   control/API/News Reader
+```
+
+Accepted selective Eternal September reader mappings:
+
+- `comp.lang.python` -> `usenet.comp.lang.python`;
+- `news.admin.peering` -> `usenet.news.admin.peering`.
+
+These are outbound TLS reader pulls from `news.eternal-september.org:563`, not formal peering. Upstream posting, inbound feeds, streaming federation, public IRC/NNTP exposure, and forwarding private `wwcx.*` articles upstream remain disabled or separately gated.
+
+The private News Reader v2 supports bounded search, exact source filters, 25/50/100 pagination, article detail/provenance, and threaded/flat views using stored reference ancestry. Web mutation methods remain blocked.
+
+Start with:
+
+- `docs/communications/README.md`;
+- `docs/handoff/edge1-comms-relay-runbook.md`;
+- `.agent/comms-relay.md`;
+- `.agent/comms-relay-upstream-nntp.md`.
+
+The sanitized closeout/archive-preparation record is `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`.
+
 ## Static preview
 
-The browser interface has no required build step:
+The browser interfaces have no required build step:
 
 ```bash
 python3 -m http.server 8088 --directory src/web
 ```
 
-Then browse to `http://127.0.0.1:8088/` from the host or through an approved private tunnel.
+Browse from the host or through an approved private tunnel. Static preview is not a substitute for the authenticated/live service boundary.
 
 ## WW.CX Time Authority
 
@@ -101,9 +131,15 @@ Deployment profiles, source registers, baseline observations, preflight checks, 
 
 ## Validation
 
+Representative repository checks include:
+
 ```bash
 python3 tests/validate_static_ui.py
 python3 tests/validate_search_service_assets.py
+python3 tests/validate_comms_relay.py
+python3 tests/validate_comms_ingestion.py
+python3 tests/validate_comms_upstream_nntp.py
+python3 tests/validate_comms_news_reader.py
 python3 tests/validate_time_authority.py
 python3 tests/validate_time_authority_collector_compat.py
 python3 tests/validate_records_evidence.py
@@ -113,11 +149,11 @@ python3 -m json.tool src/api/time_authority_contract.json >/dev/null
 python3 -m json.tool src/web/private-library-search.fixture.json >/dev/null
 ```
 
-The same validation suite runs automatically for pull requests and pushes to `main`, including a Python 3.6 container check for the shared-host collector.
+Use workstream-specific runbooks for production validation and live acceptance; passing repository tests alone does not authorize deployment.
 
 ## Managed service
 
-Install and test the localhost-only search wrapper:
+Install and test the localhost-only Private Library Search wrapper:
 
 ```bash
 sudo deploy/install-private-library-search-service.sh
@@ -125,6 +161,8 @@ deploy/private-library-search-service-smoke-test.sh
 ```
 
 Operator guidance is available in `docs/handoff/private-library-search-service-runbook.md`.
+
+Communications Relay operational guidance is in `docs/handoff/edge1-comms-relay-runbook.md`.
 
 ## AI Filesystem Connector
 
@@ -145,7 +183,7 @@ Key references:
 
 ## Security
 
-Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or contributing configuration examples. Never open a public issue containing credentials, production data, private records, or unredacted diagnostic output.
+Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or contributing configuration examples. Never open a public issue containing credentials, production data, private records, production databases, or unredacted diagnostic output.
 
 ## Project records
 
@@ -160,6 +198,8 @@ The autonomous-completion index is maintained at:
 ```text
 docs/autonomous-completion/04-combined-register-index.md
 ```
+
+Workstream-specific current state is also maintained under `.agent/`.
 
 ## Records governance
 

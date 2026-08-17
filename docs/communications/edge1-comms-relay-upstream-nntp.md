@@ -1,71 +1,107 @@
 # Edge1 Communications Relay: Selective Upstream NNTP Pull
 
-Date: 2026-08-15
+Status: two allowlisted sources accepted live  
+Last reconciled: 2026-08-17
 
 ## Purpose
 
-Extend the private WW.CX Edge1 Communications Relay with a controlled outbound-only NNTP reader source. The source is designed to copy a small allowlisted set of public Usenet groups into a clearly separated local `usenet.*` namespace without enabling NNTP peering, inbound feeds, public listeners, or federation.
+The private WW.CX Edge1 Communications Relay supports controlled outbound-only NNTP reader sources. Each source copies one explicitly allowlisted public Usenet group into a clearly separated local `usenet.*` namespace without enabling NNTP peering, inbound feeds, public listeners, or federation.
 
-The initial reference provider is Eternal September. This is a reference integration only until an operator separately establishes reader credentials and explicitly activates one or more sources.
+Eternal September is the current upstream reader provider.
 
-## External reference state
+## Upstream service boundary
 
-As checked on 2026-08-15 against Eternal September's public technical pages:
+The implementation uses:
 
-- reader service: `news.eternal-september.org`;
-- authenticated NNRP is available on port 119 and TLS port 563;
-- the separate transit/peering endpoint is `feeder.eternal-september.org` on port 433;
-- formal peering lists prerequisites including a static IP, 24/7 availability, and Cleanfeed.
+- reader host: `news.eternal-september.org`;
+- TLS reader port: `563`;
+- authenticated reader mode;
+- normal TLS certificate and hostname verification.
 
-References:
+The separate Eternal September feeder/peering service is not used. Successful reader pulling must never be described as formal NNTP peering.
 
-- https://www.eternal-september.org/serverstatus.php?language=en
-- https://www.eternal-september.org/index.php?showpage=peering
-- https://www.eternal-september.org/index.php?showpage=faq
+## Accepted live mappings
 
-The WW.CX pull adapter deliberately targets the authenticated reader service, not the feeder service.
+### `eternal.comp.lang.python`
+
+- upstream group: `comp.lang.python`;
+- local group: `usenet.comp.lang.python`;
+- retention: 3650 days;
+- max article bytes: 262144;
+- initial items: 8;
+- scan limit: 10;
+- accepted external items: 8;
+- accepted bootstrap introduction: 1;
+- duplicate external source IDs: 0.
+
+Acceptance evidence:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z`
+
+### `eternal.news.admin.peering`
+
+- upstream group: `news.admin.peering`;
+- local group: `usenet.news.admin.peering`;
+- retention: 3650 days;
+- max article bytes: 262144;
+- initial items: 8;
+- scan limit: 10;
+- accepted external items: 8;
+- accepted bootstrap introduction: 1;
+- duplicate external source IDs: 0;
+- wrong-group/orphan/bad-provenance/unexpected-provenance counts: 0 at acceptance;
+- ingestion errors since activation: 0 at acceptance.
+
+Candidate/dry-run evidence:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z`
+
+Accepted live evidence:
+
+`/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z`
+
+The guarded failed/recovery attempt around `20260816T002007Z` is retained as operational history because it demonstrated the service-readiness race and successful config rollback without candidate-era database mutation.
 
 ## Security boundary
 
-The upstream reader implementation is outbound-only and requires TLS. It does not:
+The upstream reader implementation is outbound-only and TLS-required. It does not:
 
 - listen on a new port;
 - change DNS or firewall policy;
 - accept incoming NNTP feeds;
 - send WW.CX articles upstream;
 - enable `IHAVE`, `CHECK`, `TAKETHIS`, streaming feeds, or server-to-server peering;
-- create or transmit account credentials through the repository;
+- store account credential values in the repository;
 - automatically enumerate and mirror every upstream group.
 
-Every source maps exactly one explicitly allowlisted upstream group to one local group. This provides separate enable/disable state, cursor, retention, scan budget, article-size limit, and audit/provenance identity for each mapping.
+Every source maps exactly one explicitly allowlisted upstream group to one local group. This gives each mapping separate enable/disable state, cursor, retention, scan budget, article-size ceiling and audit/provenance identity.
 
 ## Namespace policy
 
-External groups should be mirrored beneath `usenet.*` rather than imported directly into the native WW.CX hierarchy. Examples:
+External groups belong beneath `usenet.*`, never directly inside the native `wwcx.*` hierarchy.
 
-- `comp.lang.python` -> `usenet.comp.lang.python`
-- `news.admin.peering` -> `usenet.news.admin.peering`
-- `news.software.nntp` -> `usenet.news.software.nntp`
-- `news.software.readers` -> `usenet.news.software.readers`
-- `comp.protocols.time.ntp` -> `usenet.comp.protocols.time.ntp`
+Accepted examples:
 
-This keeps `wwcx.*` authoritative for WW.CX-originated material while making the source of mirrored public discussion obvious to readers and operators.
+- `comp.lang.python` -> `usenet.comp.lang.python`;
+- `news.admin.peering` -> `usenet.news.admin.peering`.
+
+Future possible mappings such as `news.software.nntp`, `news.software.readers`, or `comp.protocols.time.ntp` remain unapproved until separately allowlisted and validated.
 
 ## Article identity and provenance
 
 For an imported article:
 
-- the upstream Message-ID is the ingestion source-item ID and therefore the deduplication identity;
-- WW.CX generates a deterministic local Message-ID rather than reusing the upstream Message-ID;
-- the upstream author is preserved as the local displayed author;
-- upstream group, server, Message-ID, article number, content type, date, and References are preserved in `X-WWCX-Upstream-*` headers when available;
+- upstream Message-ID is the ingestion source-item ID and deduplication identity;
+- WW.CX generates a deterministic local Message-ID rather than reusing the upstream identity;
+- upstream author is preserved as the displayed author;
+- upstream group, server, Message-ID, article number, content type, date and References are preserved in `X-WWCX-Upstream-*` headers when available;
 - `X-WWCX-Automated`, `X-WWCX-Source`, and `X-WWCX-Source-ID` remain present through the common ingestion ledger.
 
-The local deterministic Message-ID prevents an imported item from impersonating a native WW.CX article while the upstream Message-ID still provides exact deduplication and traceability.
+The local deterministic Message-ID prevents imported content from impersonating a native WW.CX article while preserving exact upstream traceability.
 
 ## Content controls
 
-The initial adapter accepts only single-part `text/*` articles. It rejects or skips:
+The adapter accepts only bounded single-part `text/*` articles and skips/rejects:
 
 - multipart MIME articles;
 - non-text content types;
@@ -74,63 +110,73 @@ The initial adapter accepts only single-part `text/*` articles. It rejects or sk
 - articles beyond the configured byte ceiling;
 - unavailable or expired article numbers.
 
-Each source has `initial_items`, `scan_limit`, and `max_article_bytes` bounds. The global ingestion `max_items_per_run` limit still applies.
+The global ingestion `max_items_per_run` limit still applies in addition to each source's `initial_items` and `scan_limit` bounds.
 
-## Cursor behavior
+## Cursor and rewrite behavior
 
-The local ingestion state stores the last scanned upstream article number independently for each source. Normal runs scan only newer article numbers. If the upstream high-water mark moves behind the local cursor, the source is treated as rewritten/reset and performs only the configured bounded initial lookback. The event is audited.
+Each source stores its last scanned upstream article number independently in `ingest_state`. Normal runs scan newer article numbers. If the upstream high-water mark moves behind the stored cursor, the source treats that as a bounded reset/rewrite condition rather than blindly replaying history.
 
-Deduplication uses the upstream Message-ID, so an article is not duplicated merely because an upstream server renumbers it.
+Deduplication uses upstream Message-ID, so upstream renumbering alone does not duplicate an article.
 
 ## Credential handling
 
-Credentials are not permitted in the relay JSON configuration. A source may reference an absolute JSON credential file containing:
-
-```json
-{
-  "username": "operator-supplied-user",
-  "password": "operator-supplied-password"
-}
-```
-
-Recommended production location:
+Credentials are not permitted in the relay JSON. The accepted sources reference:
 
 `/etc/wwcx/credentials/eternal-september.json`
 
-Recommended ownership/mode:
+Accepted metadata:
 
 `root:wwcx-comms 0640`
 
-Do not commit the credential file, paste its contents into tickets or chat, or include it in deployment evidence. The sanitized relay configuration reports only whether a credential file is configured, not its path or values.
+The credential file contents must never be committed, pasted into chat/tickets, printed during archival work, or copied into deployment evidence. Sanitized configuration exposes only safe source configuration state.
 
-## Example disabled source
+## Provenance-aware acceptance
 
-The repository example configuration includes a disabled Eternal September mapping for `comp.lang.python` to `usenet.comp.lang.python`. Enabling it is intentionally a separate attended activation step after credentials exist and a dry-run succeeds.
+Do not require `local_group_article_count == external_source_item_count`.
 
-## Suggested initial cohort
+`wwcx-bootstrap` can legitimately add a one-time introduction to a newly created imported group. Acceptance must instead reconcile:
 
-Eternal September's public group listings showed current article activity on 2026-08-15 for several groups relevant to WW.CX operations and experimentation. A conservative first cohort would be:
+- external source-item count;
+- unique upstream Message-IDs/source-item IDs;
+- group membership;
+- cursor state;
+- stored provenance headers;
+- bootstrap introduction count;
+- any other explicitly understood source class;
+- duplicate/orphan/unexpected-provenance counts.
 
-1. `news.admin.peering` -> `usenet.news.admin.peering`
-2. `news.software.nntp` -> `usenet.news.software.nntp`
-3. `news.software.readers` -> `usenet.news.software.readers`
-4. `comp.lang.python` -> `usenet.comp.lang.python`
-5. `comp.protocols.time.ntp` -> `usenet.comp.protocols.time.ntp`
+## Service readiness lesson
 
-Add one mapping at a time and verify article quality, volume, retention, and abuse characteristics before expanding.
+The relay systemd unit uses `Type=simple`. After restart, `systemctl is-active` can become true before the HTTP control listener has bound. Use bounded `/healthz` and listener readiness checks rather than an immediate one-shot curl.
 
-## Activation gate
+The second-source activation proved the rollback path and then succeeded using bounded readiness.
 
-Repository support can be merged without activating external access. Live activation remains blocked until all of the following are true:
+## Adding another source
 
-1. an Eternal September reader account exists through a legitimate operator-created registration;
-2. the credential file is installed on Edge1 without exposing its contents;
-3. the chosen upstream groups are reviewed and explicitly allowlisted;
-4. a pre-change SQLite/config backup is captured;
-5. the candidate configuration validates and shows only the intended `nntp` source additions;
-6. an attended `ingest run --dry-run` succeeds over TLS;
-7. actual ingestion produces expected local groups/articles and provenance;
-8. a repeat run proves idempotency;
-9. IRC, local NNTP, control, telephony, and loopback listener safety remain healthy.
+Add only one mapping at a time:
 
-Formal server-to-server peering with Eternal September is a later and separate project. It must not be inferred from successful reader-mode pulling.
+1. freeze a clean tested local checkout and record it;
+2. verify the NNTP implementation floor is present;
+3. back up live config and SQLite;
+4. create one candidate source mapping;
+5. validate and diff the candidate;
+6. run an attended real-TLS dry run;
+7. prove dry-run non-mutation;
+8. stage/apply and restart only the relay;
+9. wait for bounded health/listener readiness;
+10. run attended ingestion as needed;
+11. validate external provenance, duplicate count, cursor and bootstrap introduction;
+12. preserve sanitized evidence and update the acceptance/state records.
+
+Do not chase unrelated remote `main` movement during a config-only operation.
+
+## Accepted records
+
+- first source: `edge1-comms-relay-upstream-nntp-live-acceptance-20260815.md`;
+- second source: `edge1-comms-relay-upstream-nntp-second-source-live-acceptance-20260816.md`;
+- validation rules: `edge1-comms-relay-upstream-nntp-validation.md`;
+- current state: `../../.agent/comms-relay-upstream-nntp.md`.
+
+## Archive status
+
+Archive preparation is tracked in `../archive/edge1-comms-relay-news-reader-closeout-20260817.md`. The documentation is ready; the archive is not sealed until the protected evidence SHA-256 inventory and exact News Reader evidence path are reconciled.

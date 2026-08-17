@@ -1,212 +1,176 @@
 # Current State
 
-Last verified: 2026-08-01  
+Last reconciled: 2026-08-17  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
-Authoritative branch: `main`  
-Accepted security live revision: `a06f035e7fcf933a03ec752c66ce0261c5a65ba7`  
-Minimum confirmed alerting live repository state: contains `03d219e853bd8a373cd9d0503c45579901615017`  
-DTMF readiness implementation merge: `0703b88b227b346e022a40ca931e34d0874559cd`  
-Repository state used for DTMF live acceptance: `a600a341bdaaefde8b6bde89cfb9dba48877f500`  
-PJSIP endpoint-policy implementation and live-audit repository state: `6906d1bb7f5aa517c249bf893ab23675b63f062f`
+Authoritative repository branch: `main`
 
-## Verified live baseline
+This file is a concise cross-project state index. Detailed evidence and workstream history remain in the dedicated `.agent/`, acceptance, runbook, register and archive records referenced below.
 
-- Security Correlation and Network Defense are live and accepted.
-- Suricata drill-down, caching, normalization, and enrichment are live.
-- Network Defense applies the accepted network-source freshness threshold of `600` seconds.
-- Overall Network Defense state is `limited`.
-- DNS remains `not_staged`; DNS enforcement is false.
-- Verified enforcement count remained `1` before and after freshness activation.
-- Traffic controls and Network Defense timer state remained unchanged.
-- Asterisk was successfully updated from directly observed version `22.8.2` to `22.10.1`.
-- The guarded update completed with zero active calls, preserved configuration evidence, restarted the PBX, and validated the running binary against the installed package.
-- Kamailio remained active after the PBX restart.
-- `app_playtones`, `app_senddtmf`, DSP, `chan_pjsip`, `res_pjsip`, and `res_pjsip_sdp_rtp` were running after the update.
-- The authenticated DTMF readiness audit completed with exit code `0`, one warning, zero failures, and no runtime mutation.
-- Runtime `SendDTMF()` help advertised `0-9`, `*`, `#`, and `A-D`.
-- The offline DTMF probe passed all sixteen keypad symbols and recorded RFC 4733 event range `0-15`.
-- The authenticated PJSIP endpoint-policy reconciliation completed with exit code `0`, two informational warnings, zero failures, and no runtime mutation.
-- The PJSIP runtime registry exposed zero endpoints, AORs, contacts, and transports.
-- Twenty-three generated PJSIP configuration files contained zero explicit endpoint-policy records.
-- Runtime and generated endpoint counts matched at zero.
-- FreePBX CLI `17.0.30` was present; FreePBX source metadata and hashes were recorded without reading contents or querying the database.
-- Active runtime/generated endpoint-policy evidence is accepted; dormant database, backup, inactive, module-private, and external provisioning data remains unverified.
-- Carrier and end-to-end DTMF behavior remains unverified.
-- The offline alerting laboratory is installed under `/opt/wwcx-alerting-lab`.
-- The installed bilingual CAP-CP structural fixture and lifecycle/replay smoke test both passed with no errors or warnings.
-- No CAP feed, `Actual` alert path, call origination, page route, alert-tone transmission, carrier route, DTMF transmission, database query, or public alert distribution was enabled.
+## Repository versus production checkouts
 
-Protected live evidence:
+Do not assume repository `main` is the production checkout for every Edge1 service.
+
+Communications Relay / News Reader accepted production checkout:
 
 ```text
-/var/lib/wwcx-deployment-evidence/edge1-project-completion-preflight/20260730T193415Z
-/var/lib/wwcx-deployment-evidence/network-defense-freshness/20260730T195031Z
-/var/lib/wwcx-deployment-evidence/asterisk-security-update/20260731T231305Z
-/var/lib/wwcx-deployment-evidence/asterisk-security-update/20260731T233728Z
-/var/lib/wwcx-deployment-evidence/alerting-lab-install/20260731T233821Z
-/var/lib/wwcx-deployment-evidence/asterisk-dtmf-readiness/20260801T073955Z
-/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z
+branch: deploy/private-nntp-news-reader-v2-20260817
+head: 974c7141e18deac92671f81fb1bd3c3ed02a6c68
+result: NEWS_READER_V2_DEPLOYMENT=PASS
 ```
 
-Operator-local rollout evidence:
+The exact validated News Reader blobs were reconciled into repository history through PR #341, merge commit `6a0397a7f39c07afa3a779c0578e06d165df41e8`. Durable Communications Relay state was reconciled through PR #342, merge commit `1c115663fb23de82e51fcfd0520d91fa196261be`.
 
-```text
-/home/wwadmin/edge1-alerting-rollout-20260731T233717Z
-```
+Remote `main` also contains separate time-authority work. Do not pull/switch the accepted relay checkout to current `main` solely for documentation, archive or history reconciliation.
 
-## Completed repository programs
+## Communications Relay — accepted live state
 
-- Protected Suricata retention runtime and closeout: PRs #138-139.
-- Minimized public-summary route, CSP, staging runtime, and closeout: PRs #140-145.
-- Authenticated detailed-operations browser/session boundary and closeout: PRs #146-147.
-- Restricted-artifact migration manifest and closeout: PRs #148-149.
-- Security-boundary live inventory bundle merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
-- Test-only EBS and CAP-CP compatibility foundation merged through PR #157 as `7456304d41063075be15ff894af815877dd8a554`.
-- Alerting continuity state merged through PR #159 as `03d219e853bd8a373cd9d0503c45579901615017`.
-- Read-only Asterisk DTMF inventory, offline 16-key probe, capability matrix, and runbook merged through PR #197 as `0703b88b227b346e022a40ca931e34d0874559cd`.
-- Authenticated DTMF live acceptance merged through PR #201 as `6ff2183b0b1857548e549504e7064d39c519aefe`.
-- Read-only PJSIP runtime-to-generated endpoint-policy reconciliation merged through PR #202 as `6906d1bb7f5aa517c249bf893ab23675b63f062f`.
+Service: `edge1-comms-relay.service`.
 
-No public-summary staging, authenticated restricted route, restricted release, detailed-artifact migration, public cutover, detailed-artifact removal, protected-retention installation, operational CAP feed, `Actual` alert handling, alert origination, Asterisk alert dialplan, page delivery, alert-tone transmission, DTMF transmission, carrier routing, FreePBX database query, or public alert distribution has occurred.
+Private listener baseline:
 
-## Alerting compatibility live acceptance
+- IRC `127.0.0.1:16667`;
+- NNTP `127.0.0.1:1119`;
+- control/API/News Reader `127.0.0.1:8100`.
 
-Accepted live changes:
+Telephony analytics remains separate on `127.0.0.1:8099`.
 
-- Asterisk `22.10.1` installed and running;
-- Asterisk restart completed successfully;
-- zero active channels and calls after restart;
-- offline laboratory installed under `/opt/wwcx-alerting-lab`;
-- synthetic CAP-CP `Test`/`Restricted` bilingual validation passed;
-- lifecycle/replay smoke validation passed;
-- protected evidence recorded and retained.
+Control `/healthz` accepted `status: ok`, version `1.0.0`. Mutation methods remain blocked with HTTP 405. Network exposure and federation remain disabled.
+
+Current accepted ingestion source order:
+
+1. `wwcx-bootstrap`;
+2. `eternal.comp.lang.python`;
+3. `eternal.news.admin.peering`;
+4. `edge1-repository`.
+
+Accepted Eternal September mappings:
+
+- `comp.lang.python` -> `usenet.comp.lang.python`;
+- `news.admin.peering` -> `usenet.news.admin.peering`.
+
+Both use outbound TLS reader mode to `news.eternal-september.org:563`. Upstream posting, inbound feeds, streaming federation and formal peering remain disabled.
+
+Accepted provenance state at activation:
+
+- `usenet.comp.lang.python`: 8 external items + 1 `wwcx-bootstrap` introduction, duplicate external source IDs 0;
+- `usenet.news.admin.peering`: 8 external items + 1 `wwcx-bootstrap` introduction, duplicate external source IDs 0, wrong-group/orphan/bad-provenance/unexpected-provenance counts 0, ingestion errors since activation 0.
+
+Do not validate imported groups by raw total count alone; use source-specific provenance.
+
+Detailed state:
+
+- `.agent/comms-relay.md`;
+- `.agent/comms-relay-upstream-nntp.md`;
+- `docs/communications/README.md`.
+
+## Private News Reader v2
+
+Accepted live capabilities:
+
+- newsgroup browsing;
+- bounded search;
+- exact source filters including native/local, WW.CX Bootstrap, Edge1 Repository and both Eternal September sources;
+- 25/50/100 pagination with exact totals and previous/next offsets;
+- article body/detail, raw stored headers and provenance;
+- threaded and flat-list views using stored `References` / `X-WWCX-Upstream-References` ancestry;
+- read-only HTTP mutation enforcement.
 
 Acceptance record:
 
-```text
-docs/telecom/wwcx-alerting-live-acceptance-20260731.md
-```
+`docs/communications/edge1-comms-relay-news-reader-live-acceptance-20260817.md`
 
-## DTMF readiness live acceptance
+## Communications Relay archive state
 
-Authenticated execution on `edge1.ww.cx` as `wwadmin` accepted the local read-only DTMF result.
+Closeout:
 
-Acceptance record:
+`docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`
 
-```text
-docs/telephony/asterisk-dtmf-readiness-live-acceptance-20260801.md
-```
+Status: **prepared, not sealed**.
 
-Evidence and hashes:
+Remaining archive gate:
 
-```text
-/var/lib/wwcx-deployment-evidence/asterisk-dtmf-readiness/20260801T073955Z/operator-console.txt
-SHA-256: e1676f4caa8ff56caf91049080f20b41a46f654e678b64eca3c17fd628c786f4
+1. resolve exact protected News Reader v2 evidence directory;
+2. SHA-256 inventory retained Communications Relay evidence files;
+3. capture live config/SQLite metadata and hashes without committing private objects;
+4. exclude Eternal September credential contents;
+5. reconcile retained/unavailable/duplicate/error totals;
+6. rerun for idempotence;
+7. merge final sanitized archive-seal update.
 
-/var/lib/wwcx-deployment-evidence/asterisk-dtmf-readiness/20260801T073955Z/evidence-files.sha256
-SHA-256: 8424ad369ccb0f9c2a2990f3320572a44c1543ce0963e4b58fd0c71cdadd3107
-```
+No service, production checkout, DNS, firewall, certificate or credential change is required for archive sealing.
 
-Accepted:
+## Security / Network Defense — last accepted workstream state
 
-- Asterisk `22.10.1` local DTMF modules and CLI capability;
-- all sixteen offline symbols `0-9`, `*`, `#`, and `A-D`;
-- RFC 4733 event-range model `0-15`;
-- zero calls, channels, processed calls, transmissions, and runtime mutations.
+The previously accepted security baseline remains independently documented:
 
-## PJSIP endpoint-policy live acceptance
+- Security Correlation and Network Defense live/accepted at its acceptance checkpoint;
+- network-source freshness threshold `600` seconds;
+- overall Network Defense state recorded as `limited`;
+- DNS `not_staged`;
+- DNS enforcement false;
+- verified enforcement count remained `1` before/after freshness activation;
+- traffic controls and timer state unchanged by that activation.
 
-Authenticated execution on `edge1.ww.cx` as `wwadmin` accepted the active runtime/generated endpoint-policy reconciliation.
+Use the dedicated security acceptance records and a fresh authenticated inspection when present-day security state matters. Communications Relay documentation reconciliation does not re-validate or modify the security workstream.
 
-Acceptance record:
+## Telephony / DTMF — last accepted workstream state
 
-```text
-docs/telephony/asterisk-pjsip-endpoint-policy-live-acceptance-20260801.md
-```
+The last recorded accepted telephony baseline includes:
 
-Evidence and hashes:
+- Asterisk updated from `22.8.2` to `22.10.1` at its acceptance checkpoint;
+- DTMF runtime help exposed `0-9`, `*`, `#`, `A-D`;
+- offline probe passed RFC 4733 event range `0-15`;
+- active runtime/generated PJSIP endpoint-policy reconciliation found zero endpoints, AORs, contacts and transports and zero explicit generated endpoint-policy records at its checkpoint;
+- carrier/end-to-end DTMF behavior remains separately gated/unverified unless newer evidence supersedes it;
+- provider technical-response state remains tracked in `.agent/dtmf-provider-response-tracker.md`.
 
-```text
-/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z/operator-console.txt
-SHA-256: fa370b2a9fa085b7301fcf64c54326b1362321342873610e94710d9588bf3a26
+No call origination, DTMF transmission, carrier-route change or emergency-path test is implied by these records.
 
-/var/lib/wwcx-deployment-evidence/asterisk-pjsip-endpoint-policy/20260801T085814Z/evidence-files.sha256
-SHA-256: c9183f3e7ff838dc2beae038c2a206b408114ed64eea0787b2b4195a9582623d
-```
+## Alerting compatibility — last accepted workstream state
 
-Accepted:
+The offline alerting foundation remains separately documented:
 
-- zero runtime endpoints, AORs, contacts, and transports;
-- 23 generated PJSIP configuration files inspected;
-- zero explicit generated endpoint-policy records;
-- runtime and generated endpoint counts matched at zero;
-- FreePBX source metadata and hashes captured without reading contents;
-- no database query, credential read, identifier retention, call, channel, DTMF transmission, or runtime mutation;
-- database inspection deferred because it is unnecessary for the verified active-state conclusion.
+- offline CAP-CP/EBS laboratory installed under `/opt/wwcx-alerting-lab` at its acceptance checkpoint;
+- synthetic bilingual CAP-CP structural/lifecycle tests passed;
+- no operational CAP feed;
+- `Actual` alerts blocked/not accepted by the test-only program;
+- no alert call/page origination, tone transmission, carrier route or public distribution enabled by that work.
 
-Still unverified:
+Historical residual warnings remain subject to fresh verification before action:
 
-- dormant, historical, backup, inactive, module-private, or externally provisioned endpoint data;
-- live SDP negotiation;
-- carrier, SBC, gateway, SIP INFO, in-band, codec, transcoding, and end-to-end behavior;
-- emergency-calling paths and every production route.
+1. PJSIP runtime-object visibility versus UDP `127.0.0.1:5061`;
+2. SysV-backed Asterisk startup wrapper versus systemd enablement state;
+3. Asterisk TCP `8089` non-loopback wildcard listener.
 
-## Residual alerting warnings
+Do not change transports, service-startup policy, certificates, listeners or firewall rules from these notes alone.
 
-1. `pjsip show transports` returned `No objects found`, although the Asterisk process owned UDP `127.0.0.1:5061`. The endpoint-policy audit confirmed zero PJSIP runtime objects and zero generated endpoints, but the separate socket/transport discrepancy remains unresolved.
-2. The legacy SysV-backed Asterisk wrapper was active, while `systemctl is-enabled asterisk` reported disabled. Boot persistence is not yet accepted.
-3. Asterisk TCP `8089` listened on a non-loopback wildcard address. TLS, certificate identity, authentication, firewall reachability, and operational need require read-only verification.
-
-The repository includes a read-only follow-up audit:
+## Key Communications Relay protected evidence
 
 ```text
-tools/alerting/asterisk_warning_followup_audit.sh
+/var/lib/wwcx-deployment-evidence/comms-relay/20260815T183129Z
+/var/lib/wwcx-deployment-evidence/comms-relay/founder-account-20260815T183745Z
+/var/lib/wwcx-deployment-evidence/comms-relay/auto-ingest-20260815T191918Z
+/var/lib/wwcx-deployment-evidence/comms-relay/20260815T191922Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-september-live-20260815T233435Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-prep-20260816T001246Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T002007Z
+/var/lib/wwcx-deployment-evidence/comms-relay/eternal-news-admin-peering-live-20260816T005124Z
 ```
 
-No listener, firewall, certificate, service-startup, transport, or dialplan change is authorized by the audit.
+The exact News Reader v2 protected evidence path is intentionally marked unresolved until re-read from Edge1 during archive sealing.
 
-## Security-boundary live inventory repository completion
+## Current continuation order
 
-The authenticated read-only host-evidence bundle is implemented and merged.
+For Communications Relay:
 
-Assets:
+1. read `docs/communications/README.md`;
+2. read `.agent/comms-relay.md` and `.agent/comms-relay-upstream-nntp.md`;
+3. use `docs/handoff/edge1-comms-relay-runbook.md`;
+4. use dated acceptance records for historical evidence;
+5. resume archive sealing from `docs/archive/edge1-comms-relay-news-reader-closeout-20260817.md`.
 
-- `config/security/edge1-security-completion-authorization-20260730.json`;
-- `tools/security/edge1-security-boundary-live-inventory.sh`;
-- `tools/security/reconcile-edge1-live-inventory.py`;
-- `tools/security/redact-edge1-boundary-text.py`;
-- `tests/test_edge1_security_boundary_live_inventory.py`;
-- runbook, validation checklist, register, and continuity records.
-
-Exact implementation head `4a18c05f2a6f31369a3abfa695330ac5bf39d40a` passed `Validate repository` run 662 and `Edge1 Operator Validation` run 494, then merged through PR #151 as `85d9a9cb43e5ca4dd09f2d955b00997ef28e2cf0`.
-
-The bundle records exact public-tree hashes and modes, filesystem anomalies, manifest reconciliation, Apache/module readiness, redacted service definitions, anonymous route/header observations, listeners, capacity, candidate roots, audit metadata, retention metadata, and an evidence SHA-256 manifest. It does not collect credentials, secret values, cookie values, environment dumps, SSH material, private keys, password-file contents, or audit-log contents.
-
-## Telephony next gates
-
-1. populate the sanitized carrier DTMF capability matrix from reliable provider documentation only;
-2. leave unsupported or undocumented capabilities as `unknown`;
-3. keep carrier and end-to-end paths `unverified` pending separate controlled-test authority;
-4. do not originate calls, transmit DTMF, query credential-bearing databases, alter routes, or test emergency-calling paths under the read-only acceptance.
-
-## Alerting next gates
-
-1. run and review `tools/alerting/asterisk_warning_followup_audit.sh` on Edge1;
-2. reconcile the PJSIP CLI/socket discrepancy without changing transport configuration;
-3. verify SysV boot links and generated service behavior before any startup-policy change;
-4. verify local TLS identity, authentication and firewall reachability for TCP `8089` before any listener decision;
-5. obtain written authority and trust details before connecting a CAP-CP source;
-6. implement persistent issuer trust, signatures where required, reference lists, replay state, geographic policy, bilingual rendering, accessibility, audit and retention before any delivery adapter;
-7. keep `Actual` alerts, call/page delivery, tone generation, carrier routing and public compatibility claims blocked pending separate authorization and conformance evidence.
-
-## Security next gates
-
-1. run the merged inventory on a clean authenticated Edge1 `main` checkout;
-2. review unknown, missing, prefix-contained, duplicate, stale, historical, and operator-maintained artifacts;
-3. verify an actually available approved identity-provider/Apache adapter path;
-4. construct restricted and public staging installers from measured host evidence;
-5. preserve authentication-first, archive-before-withdrawal, rollback, and no-traffic-change gates.
+For security, telephony, alerting, time authority, private library and other Edge1 workstreams, use their dedicated current state/runbooks and fresh inspection rather than inferring state from Communications Relay records.
 
 ## Safety boundary
 
-No DNS, Unbound, RPZ, nftables, firewall, Fail2ban enforcement, routing, proxying, IDS rules, reputation lists, authentication, certificates, public or restricted routes, production traffic, timer scheduling, `/var/www` publication or removal, operational alert feed, `Actual` alert acceptance, call/page origination, alert-tone transmission, DTMF transmission, carrier routing, FreePBX database query, source pruning, or data deletion changed as part of the accepted alerting, DTMF, and PJSIP read-only work.
+Do not expose credentials or secret values. Do not change DNS, firewall, certificates, authentication policy, public listeners, production traffic, alert delivery, call/DTMF transmission, carrier routing, upstream posting, inbound NNTP feeds, formal peering, or retained evidence/data solely from this state record. Reversible documentation and read-only inspection remain the default continuation path.
