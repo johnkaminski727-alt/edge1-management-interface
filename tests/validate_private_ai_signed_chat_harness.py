@@ -34,6 +34,7 @@ def main() -> int:
         "user_id": "test-user",
         "role": None,
         "group": "usenet.comp.lang.python",
+        "message_override": None,
     }
 
     default = module.scenario_payload("default", **common)
@@ -53,8 +54,34 @@ def main() -> int:
     assert authorized["communications_groups"] == ["usenet.comp.lang.python"]
     assert authorized["user"]["role"] == "internal_viewer"
     assert authorized["user"]["scopes"] == ["chat:general", "communications:read"]
+    assert authorized["message"] == "Python"
 
-    override = module.scenario_payload("default", **{**common, "role": "internal_viewer"})
+    minimized = module.scenario_payload(
+        "authorized",
+        **{**common, "message_override": "Channels"},
+    )
+    assert minimized["message"] == "Channels"
+    assert minimized["communications_groups"] == ["usenet.comp.lang.python"]
+    assert minimized["user"]["scopes"] == ["chat:general", "communications:read"]
+
+    try:
+        module.scenario_payload("authorized", **{**common, "message_override": "   "})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("empty message override was accepted")
+
+    try:
+        module.scenario_payload("authorized", **{**common, "message_override": "x" * 257})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("oversized message override was accepted")
+
+    override = module.scenario_payload(
+        "default",
+        **{**common, "role": "internal_viewer"},
+    )
     assert override["user"]["role"] == "internal_viewer"
     assert override["user"]["scopes"] == ["chat:general"]
 
@@ -71,6 +98,8 @@ def main() -> int:
     print("PASS default registered_user + chat:general omission payload")
     print("PASS missing-scope internal_viewer + chat:general payload")
     print("PASS authorized internal_viewer + chat:general + communications:read payload")
+    print("PASS bounded message override preserves authorized identity/scopes")
+    print("PASS empty and oversized message overrides fail closed")
     print("PASS explicit role override does not alter scenario scopes")
     print("PASS authorized communications provenance assertion")
     return 0
