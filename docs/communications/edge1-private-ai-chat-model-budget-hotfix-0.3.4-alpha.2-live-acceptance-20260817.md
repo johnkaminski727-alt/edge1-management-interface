@@ -2,6 +2,7 @@
 
 Accepted: 2026-08-17 06:58 UTC  
 Offline E2E acceptance recorded: 2026-08-17 07:10 UTC  
+Minimal final-query discovery recorded: 2026-08-17 07:13 UTC  
 System: `edge1.ww.cx`
 
 ## Purpose
@@ -121,16 +122,43 @@ This closes the adversarial-content and controlled-Relay-degradation acceptance 
 
 Two earlier revisions of the offline harness failed only because they assumed a specific outer `COMMUNICATIONS.search` syntax in `chat()`. The live gateway was not changed in response. The final harness removed that implementation-specific invariant and instead directly executes the actual `CommunicationsRelayError` handler, verifies no retry/mutation references occur inside that handler, and includes a negative self-test that injects a retry and confirms rejection.
 
+## Minimal final-query discovery
+
+A bounded read-only Relay query-selection pass was run before the final provider-backed acceptance request. It did not call the provider or access credentials.
+
+Observed evidence:
+
+```text
+initial_python_results=9
+selected_query=Channels
+selected_result_count=1
+MINIMAL_QUERY_DISCOVERY=PASS
+provider_call_performed=false
+credential_access_performed=false
+```
+
+The selected final request query is therefore `Channels` against group `usenet.comp.lang.python`. This reduces the expected Communications retrieval from the broad `Python` query to one Relay article before the provider-backed acceptance call.
+
+The signed E2E harness now supports a bounded `--message` override (1-256 characters), with offline tests confirming that the override preserves the authorized role/scopes and rejects empty or oversized values.
+
 ## Remaining acceptance work
 
 Exactly one functional acceptance blocker remains before PR #350 can leave draft state: a separately authorized live provider-backed Communications request against `0.3.4-alpha.2` must return a successful visible answer with non-empty Communications provenance under the new `reasoning=minimal` behavior.
 
-That request is intentionally not performed as part of this offline acceptance record because it consumes provider tokens and crosses the explicit provider-use approval boundary.
+The prepared minimal request uses:
+
+```text
+scenario=authorized
+group=usenet.comp.lang.python
+message=Channels
+```
+
+That request is intentionally not performed as part of this record because it consumes provider tokens and crosses the explicit provider-use approval boundary.
 
 ## Source-control state
 
 - PR: #350, `feature/private-ai-comms-provenance-degradation-prep-20260817`.
 - Hotfix validator/preparation head before live activation: `823052a3a342a2aa5caf22ccef30acd82a395954`.
-- Final offline E2E harness head before this record update: `b3bc863e79e8ec0d9221fae0b5e8c40c85b9ff6f`.
-- Both `Validate repository` and `Edge1 Operator Validation` were green on the final offline harness head.
+- Final offline E2E harness head before acceptance record update: `b3bc863e79e8ec0d9221fae0b5e8c40c85b9ff6f`.
+- Signed harness bounded-message support was added after query discovery and is covered by its offline validator.
 - PR #350 remains draft pending the single provider-backed authorized retrieval/provenance acceptance request.
