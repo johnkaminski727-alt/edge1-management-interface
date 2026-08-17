@@ -74,6 +74,7 @@ def scenario_payload(
     user_id: str,
     role: str | None,
     group: str,
+    message_override: str | None = None,
 ) -> dict[str, Any]:
     resolved_role, scopes = scenario_identity(scenario, role)
     include_communications = False
@@ -90,6 +91,14 @@ def scenario_payload(
         message = "Python"
     elif scenario != "default":
         raise ValueError(f"unsupported scenario: {scenario}")
+
+    if message_override is not None:
+        message_override = message_override.strip()
+        if not message_override:
+            raise ValueError("message override must not be empty")
+        if len(message_override) > 256:
+            raise ValueError("message override must be at most 256 characters")
+        message = message_override
 
     return {
         "request_id": request_id,
@@ -248,6 +257,11 @@ def main() -> int:
         help="Optional explicit role override. By default each scenario uses the live gateway role contract.",
     )
     parser.add_argument("--group", default=DEFAULT_GROUP)
+    parser.add_argument(
+        "--message",
+        default=None,
+        help="Optional bounded message/query override (1-256 characters). Useful for minimizing authorized Relay retrieval.",
+    )
     parser.add_argument("--timeout", type=float, default=60.0)
     args = parser.parse_args()
 
@@ -260,6 +274,7 @@ def main() -> int:
         user_id=args.user_id,
         role=args.role,
         group=args.group,
+        message_override=args.message,
     )
     body = compact_json_bytes(payload)
     headers = signing_headers(body=body, url=args.url, key_id=key_id, secret=secret)
