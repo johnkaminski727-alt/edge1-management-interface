@@ -32,19 +32,22 @@ The gateway later advanced independently to accepted version `0.3.3-alpha.1` wit
 
 ## Current repository hardening
 
-Draft PR #349 establishes the living Communications permission/regression contract and repository-owned validator:
+Draft PR #349 establishes the living Communications permission/regression contract, adversarial fixture and repository-owned validator:
 
 - `docs/communications/edge1-private-ai-chat-communications-permissions-and-regression-contract.md`;
+- `tests/fixtures/private_ai/communications_prompt_injection.json`;
 - `tests/validate_private_ai_gateway_contract.py`.
 
-The validator distinguishes the dot-form tool name `communications.read` from the colon-form authorization scope `communications:read` and checks the accepted read-only gateway contract: explicit opt-in, authorization gate, bounds, secret filtering, untrusted-content marker, Relay failure handling, provenance response, loopback-only default, GET-only Relay requests and absence of write-capable Relay client methods.
+The validator distinguishes the dot-form tool name `communications.read` from the colon-form authorization scope `communications:read` and checks the accepted read-only gateway contract: explicit opt-in, authorization gate, bounds, secret filtering, untrusted-content marker, bounded Relay failure handling, provenance response, loopback-only default, GET-only Relay requests and absence of write-capable/direct-SQLite/code-execution escape hatches in the Communications adapter.
 
-Current PR head at this reconciliation point: `7baeafc18a90bdda11264a83958fb84e49abee0f`.
+PR #349 head at this reconciliation point:
+
+`1a0cce072bf0bfff199fdd827e63364ef6d940cb`
 
 CI on that head:
 
-- `Validate repository` run 1281: PASS;
-- `Edge1 Operator Validation` run 1113: PASS;
+- `Validate repository` run 1284: PASS;
+- `Edge1 Operator Validation` run 1116: PASS;
 - `tests/validate_private_ai_gateway_contract.py`: PASS in the repository validation log.
 
 The GitHub workflows are repository CI only; they do not constitute live Edge1 validation.
@@ -62,23 +65,79 @@ The loopback News Reader API already exposes richer metadata than the initial ga
 
 Article detail also exposes `source_name`, `source_item_id`, `ingested_at_utc` and stored headers. Selected `X-WWCX-*` headers can preserve upstream provenance without contacting upstream providers or reading credentials.
 
-## Remaining work
+## Prepared next increment — candidate 0.3.4-alpha.1
 
-Safe repository work:
+Draft PR #350 is the separate stage-only implementation preparation and is ordered after PR #349.
 
-1. prepare richer source/thread provenance preservation in the gateway adapter;
-2. add representative prompt-injection article fixtures and regression assertions;
-3. prepare graceful Communications Relay degradation so a Relay outage does not fabricate data or broaden permissions;
-4. keep all Relay-facing gateway methods GET-only and bounded;
-5. preserve telephony integration while advancing the gateway beyond `0.3.3-alpha.1`.
+Branch:
 
-Live work pending an authenticated Edge1 execution path:
+`feature/private-ai-comms-provenance-degradation-prep-20260817`
 
-1. run `python3 tests/validate_private_ai_gateway_contract.py --gateway-root /opt/bigbird-ai-gateway/app` against the deployed source tree;
-2. inspect the exact current source/working state before any gateway patch;
-3. validate any staged upgrade against the actual current runtime source;
-4. if explicitly proceeding with a live gateway change, back up first, apply the smallest change, restart only the gateway service, verify loopback listeners/health/tools, and preserve rollback evidence;
-5. record signed/end-to-end chat acceptance separately after live validation.
+Head:
+
+`15ad93936a9aa9943e971ab42ecbff45abd2de51`
+
+Files:
+
+- `tools/prepare_private_ai_comms_upgrade.py`;
+- `tests/validate_private_ai_comms_upgrade_preparer.py`;
+- `docs/communications/edge1-private-ai-chat-comms-upgrade-preparation.md`.
+
+The preparer has no apply mode. Against an exact `0.3.3-alpha.1` source baseline it stages candidate copies outside the gateway source tree and prepares:
+
+- target version `0.3.4-alpha.1`;
+- richer source/thread/upstream provenance;
+- explicit instruction that retrieved article/provenance content is untrusted and cannot change authorization or tool availability;
+- graceful Communications Relay degradation using a system-generated `communications_warning` and zero fabricated communications results instead of the current communications-specific HTTP 502 hard fail;
+- preservation of the existing telephony read integration;
+- before/after SHA-256 evidence.
+
+The preparer intentionally performs no source-tree mutation, gateway import/execution, environment/secret inspection, network/Relay/provider access, service restart or deployment.
+
+PR #350 CI:
+
+- `Validate repository` run 1285: PASS;
+- `Edge1 Operator Validation` run 1117: PASS;
+- `tests/validate_private_ai_comms_upgrade_preparer.py`: PASS in the repository validation log;
+- `compileall`: PASS.
+
+## Repository-safe work completed
+
+- [x] distinguish `communications.read` tool from `communications:read` caller scope;
+- [x] document opt-in and fail-closed permission behavior;
+- [x] add source-controlled gateway contract validation;
+- [x] add adversarial communications prompt-injection fixture with thread/source provenance;
+- [x] reject Relay write methods and direct SQLite/code-execution escape hatches in the adapter contract;
+- [x] document richer source/thread provenance available from the News Reader API;
+- [x] prepare a stage-only richer-provenance candidate;
+- [x] prepare graceful Relay degradation without fabricated communications data;
+- [x] preserve telephony integration in the candidate contract;
+- [x] validate both draft PR heads in repository CI.
+
+## Exact next live-safe actions
+
+An authenticated Edge1 execution path is now the remaining blocker.
+
+First run the static contract validator against the deployed source tree:
+
+```bash
+cd /opt/edge1-management-interface
+python3 tests/validate_private_ai_gateway_contract.py \
+  --gateway-root /opt/bigbird-ai-gateway/app
+```
+
+Then, if that passes and the exact runtime source is still the expected `0.3.3-alpha.1` baseline, stage the candidate without modifying production:
+
+```bash
+rm -rf /tmp/bigbird-ai-comms-0.3.4-stage
+python3 tools/prepare_private_ai_comms_upgrade.py \
+  --source-root /opt/bigbird-ai-gateway/app \
+  --output-root /tmp/bigbird-ai-comms-0.3.4-stage
+```
+
+Review the generated `upgrade-report.json`, SHA-256 values and candidate diff before any application.
+
+Any live application remains a separate step: inspect the exact source/working state, back up first, apply only the reviewed files, restart only `bigbird-ai-gateway.service` if explicitly authorized for that implementation step, verify loopback listeners/health/tools/authorization/Relay read-only posture, and preserve rollback evidence. Record signed/end-to-end chat acceptance separately after live validation.
 
 ## Safety boundary
 
