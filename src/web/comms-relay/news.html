@@ -24,7 +24,7 @@
       <article><span>Groups</span><strong id="metric-groups">—</strong></article>
       <article><span>Articles</span><strong id="metric-articles">—</strong></article>
       <article><span>Sources</span><strong id="metric-sources">—</strong></article>
-      <article><span>Selected</span><strong id="metric-selected">—</strong></article>
+      <article><span>Matches</span><strong id="metric-selected">—</strong></article>
     </section>
 
     <section class="reader-layout">
@@ -48,17 +48,45 @@
               <h2 id="selected-group">Choose a newsgroup</h2>
               <p class="policy-note" id="selected-description">Select a group to browse its articles.</p>
             </div>
+          </div>
+
+          <div class="reader-controls">
             <form id="search-form" class="search-form" role="search">
               <label class="sr-only" for="article-search">Search articles</label>
               <input id="article-search" name="q" type="search" placeholder="Search subject, author, Message-ID or source">
               <button type="submit">Search</button>
             </form>
+            <label class="reader-select-label" for="source-filter">
+              <span>Source</span>
+              <select id="source-filter"><option value="">All sources</option></select>
+            </label>
+            <label class="reader-select-label" for="thread-view">
+              <span>View</span>
+              <select id="thread-view">
+                <option value="threads">Threads</option>
+                <option value="flat">Flat list</option>
+              </select>
+            </label>
+            <label class="reader-select-label" for="page-size">
+              <span>Page size</span>
+              <select id="page-size">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
           </div>
+
           <div class="table-wrap">
             <table class="reader-table">
               <thead><tr><th>Subject</th><th>Author</th><th>Date</th><th>Source</th></tr></thead>
               <tbody id="article-list"><tr><td colspan="4">Choose a newsgroup.</td></tr></tbody>
             </table>
+          </div>
+          <div class="pagination-bar" aria-label="Article pages">
+            <button id="previous-page" type="button" disabled>Previous</button>
+            <span id="page-status" class="policy-note">—</span>
+            <button id="next-page" type="button" disabled>Next</button>
           </div>
         </article>
 
