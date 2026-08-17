@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WW.CX News Reader | Edge1 Communications</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="shell header reader-header">
+    <div>
+      <p class="eyebrow">WW.CX · Edge1 · Private</p>
+      <h1>News Reader</h1>
+      <p class="lede">Read-only view of the articles carried by the Edge1 NNTP service.</p>
+    </div>
+    <div class="header-actions">
+      <a class="button-link" href="index.html">Operations</a>
+      <div class="status-pill" id="reader-state" aria-live="polite">Loading…</div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="grid metrics reader-metrics" aria-label="News summary">
+      <article><span>Groups</span><strong id="metric-groups">—</strong></article>
+      <article><span>Articles</span><strong id="metric-articles">—</strong></article>
+      <article><span>Sources</span><strong id="metric-sources">—</strong></article>
+      <article><span>Matches</span><strong id="metric-selected">—</strong></article>
+    </section>
+
+    <section class="reader-layout">
+      <aside class="panel reader-sidebar">
+        <div class="panel-heading">
+          <div><p class="eyebrow">NNTP</p><h2>Newsgroups</h2></div>
+          <button id="refresh-reader" type="button">Refresh</button>
+        </div>
+        <div id="reader-groups" class="row-stack"><div class="empty">Loading groups…</div></div>
+        <div class="reader-sources-block">
+          <p class="eyebrow">Sources</p>
+          <div id="reader-sources" class="row-stack"><div class="empty">Loading sources…</div></div>
+        </div>
+      </aside>
+
+      <section class="reader-main">
+        <article class="panel">
+          <div class="panel-heading reader-toolbar">
+            <div>
+              <p class="eyebrow">Group</p>
+              <h2 id="selected-group">Choose a newsgroup</h2>
+              <p class="policy-note" id="selected-description">Select a group to browse its articles.</p>
+            </div>
+          </div>
+
+          <div class="reader-controls">
+            <form id="search-form" class="search-form" role="search">
+              <label class="sr-only" for="article-search">Search articles</label>
+              <input id="article-search" name="q" type="search" placeholder="Search subject, author, Message-ID or source">
+              <button type="submit">Search</button>
+            </form>
+            <label class="reader-select-label" for="source-filter">
+              <span>Source</span>
+              <select id="source-filter"><option value="">All sources</option></select>
+            </label>
+            <label class="reader-select-label" for="thread-view">
+              <span>View</span>
+              <select id="thread-view">
+                <option value="threads">Threads</option>
+                <option value="flat">Flat list</option>
+              </select>
+            </label>
+            <label class="reader-select-label" for="page-size">
+              <span>Page size</span>
+              <select id="page-size">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table class="reader-table">
+              <thead><tr><th>Subject</th><th>Author</th><th>Date</th><th>Source</th></tr></thead>
+              <tbody id="article-list"><tr><td colspan="4">Choose a newsgroup.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination-bar" aria-label="Article pages">
+            <button id="previous-page" type="button" disabled>Previous</button>
+            <span id="page-status" class="policy-note">—</span>
+            <button id="next-page" type="button" disabled>Next</button>
+          </div>
+        </article>
+
+        <article class="panel article-panel" id="article-panel" hidden>
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow" id="article-group">Article</p>
+              <h2 id="article-subject">—</h2>
+              <p class="policy-note" id="article-meta">—</p>
+            </div>
+            <button id="close-article" type="button">Close</button>
+          </div>
+          <pre class="article-body" id="article-body"></pre>
+          <details class="provenance-panel">
+            <summary>Source and provenance</summary>
+            <dl id="article-provenance" class="provenance-grid"></dl>
+          </details>
+          <details class="provenance-panel">
+            <summary>Raw stored headers</summary>
+            <pre class="headers-body" id="article-headers"></pre>
+          </details>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <footer class="shell footer">WW.CX News Reader · private read-only access to Edge1 Communications Relay data</footer>
+  <script src="news.js" defer></script>
+</body>
+</html>
