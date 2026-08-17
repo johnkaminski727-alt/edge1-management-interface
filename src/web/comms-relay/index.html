@@ -13,7 +13,10 @@
       <h1>Communications Relay</h1>
       <p class="lede">IRC and NNTP operational status. This console is intentionally read-only.</p>
     </div>
-    <div class="status-pill" id="service-state" aria-live="polite">Loading…</div>
+    <div class="header-actions">
+      <a class="button-link" href="news.html">News Reader</a>
+      <div class="status-pill" id="service-state" aria-live="polite">Loading…</div>
+    </div>
   </header>
 
   <main class="shell">
@@ -39,7 +42,7 @@
         <div id="channels" class="empty">No live channel data yet.</div>
       </article>
       <article class="panel">
-        <div class="panel-heading"><div><p class="eyebrow">NNTP</p><h2>Newsgroups</h2></div></div>
+        <div class="panel-heading"><div><p class="eyebrow">NNTP</p><h2>Newsgroups</h2></div><a class="button-link" href="news.html">Browse</a></div>
         <div id="groups" class="empty">Loading newsgroups…</div>
       </article>
     </section>

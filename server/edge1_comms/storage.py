@@ -443,6 +443,50 @@ class CommsStore:
             out.append(item)
         return out
 
+    def list_news_articles(self, group_name: str, *, limit: int = 100, search: str = '') -> list[dict[str, Any]]:
+        limit = max(1, min(limit, 250))
+        term = search.strip()
+        query = '''
+            SELECT a.id,a.group_name,a.message_id,a.author,a.subject,a.date_rfc5322,
+                   a.references_text,a.created_at_utc,i.source_name,i.source_item_id
+            FROM articles a
+            LEFT JOIN ingest_items i ON i.article_id=a.id
+            WHERE a.group_name=?
+        '''
+        args: list[Any] = [group_name]
+        if term:
+            needle = f'%{term}%'
+            query += ''' AND (
+                a.subject LIKE ? COLLATE NOCASE OR
+                a.author LIKE ? COLLATE NOCASE OR
+                a.message_id LIKE ? COLLATE NOCASE OR
+                COALESCE(i.source_name,'') LIKE ? COLLATE NOCASE OR
+                COALESCE(i.source_item_id,'') LIKE ? COLLATE NOCASE
+            )'''
+            args.extend([needle] * 5)
+        query += ' ORDER BY a.id DESC LIMIT ?'
+        args.append(limit)
+        with self.connect() as conn:
+            rows = conn.execute(query, args).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_news_article(self, article_id: int) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                '''
+                SELECT a.*,i.source_name,i.source_item_id,i.created_at_utc AS ingested_at_utc
+                FROM articles a
+                LEFT JOIN ingest_items i ON i.article_id=a.id
+                WHERE a.id=?
+                ''',
+                (article_id,),
+            ).fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        item['headers'] = json.loads(item.pop('headers_json'))
+        return item
+
     def record_irc(self, channel: str, account: str | None, nick: str, event: str, body: str | None) -> None:
         with self._lock, self.connect() as conn:
             conn.execute('INSERT INTO irc_history(channel,account,nick,event,body,created_at_utc) VALUES(?,?,?,?,?,?)', (channel, account, nick, event, body, utc_now()))
