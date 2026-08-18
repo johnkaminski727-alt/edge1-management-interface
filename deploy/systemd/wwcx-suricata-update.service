@@ -1,0 +1,14 @@
+[Unit]
+Description=Project Big Bird Suricata Rules Update
+Wants=network-online.target
+Requires=wwcx-network-sensor-suricata.service
+After=network-online.target wwcx-network-sensor-suricata.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wwcx-suricata-update
+User=root
+Group=root
+UMask=0027
+Nice=10
+TimeoutStartSec=15min
