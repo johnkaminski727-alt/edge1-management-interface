@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import pathlib
 import sys
@@ -21,6 +22,12 @@ class MailThreatDecisionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+
+    def active_policy(self) -> dict:
+        policy = copy.deepcopy(self.policy)
+        policy["enabled"] = True
+        policy["deployment_authorized"] = True
+        return policy
 
     def clean_facts(self) -> dict:
         return {
@@ -45,8 +52,18 @@ class MailThreatDecisionTests(unittest.TestCase):
             "ai_risk": "low",
         }
 
-    def test_clean_normalized_facts_can_deliver(self) -> None:
+    def test_committed_inactive_policy_fails_closed_even_for_clean_facts(self) -> None:
         result = MODULE.evaluate(self.policy, self.clean_facts())
+        self.assertEqual(result["disposition"], "quarantine")
+        self.assertTrue(result["hard_security_block"])
+        self.assertIn("threat_policy_disabled", result["reason_codes"])
+        self.assertIn(
+            "threat_policy_deployment_not_authorized",
+            result["reason_codes"],
+        )
+
+    def test_clean_normalized_facts_can_deliver_only_with_active_policy(self) -> None:
+        result = MODULE.evaluate(self.active_policy(), self.clean_facts())
         self.assertEqual(result["disposition"], "deliver")
         self.assertFalse(result["hard_security_block"])
         self.assertTrue(result["scan_complete"])
@@ -54,7 +71,7 @@ class MailThreatDecisionTests(unittest.TestCase):
     def test_required_scan_missing_fails_closed(self) -> None:
         facts = self.clean_facts()
         facts["scan_results"] = []
-        result = MODULE.evaluate(self.policy, facts)
+        result = MODULE.evaluate(self.active_policy(), facts)
         self.assertEqual(result["disposition"], "quarantine")
         self.assertTrue(result["hard_security_block"])
         self.assertIn("required_scan_missing", result["reason_codes"])
@@ -66,14 +83,14 @@ class MailThreatDecisionTests(unittest.TestCase):
             with self.subTest(state=state):
                 facts = self.clean_facts()
                 facts["scan_results"][0]["state"] = state
-                result = MODULE.evaluate(self.policy, facts)
+                result = MODULE.evaluate(self.active_policy(), facts)
                 self.assertEqual(result["disposition"], "quarantine")
                 self.assertTrue(result["hard_security_block"])
 
     def test_dmarc_failure_is_hard_block(self) -> None:
         facts = self.clean_facts()
         facts["authentication"]["dmarc"] = "fail"
-        result = MODULE.evaluate(self.policy, facts)
+        result = MODULE.evaluate(self.active_policy(), facts)
         self.assertEqual(result["disposition"], "quarantine")
         self.assertTrue(result["hard_security_block"])
         self.assertIn("dmarc_fail", result["reason_codes"])
@@ -82,7 +99,7 @@ class MailThreatDecisionTests(unittest.TestCase):
         facts = self.clean_facts()
         facts["scan_results"][0]["state"] = "infected"
         facts["ai_risk"] = "none"
-        result = MODULE.evaluate(self.policy, facts)
+        result = MODULE.evaluate(self.active_policy(), facts)
         self.assertEqual(result["disposition"], "quarantine")
         self.assertTrue(result["hard_security_block"])
         self.assertFalse(result["ai_may_reduce_hard_security_risk"])
@@ -90,7 +107,7 @@ class MailThreatDecisionTests(unittest.TestCase):
     def test_ai_high_risk_may_escalate_otherwise_clean_message(self) -> None:
         facts = self.clean_facts()
         facts["ai_risk"] = "high"
-        result = MODULE.evaluate(self.policy, facts)
+        result = MODULE.evaluate(self.active_policy(), facts)
         self.assertEqual(result["disposition"], "quarantine")
         self.assertFalse(result["hard_security_block"])
         self.assertIn("ai_risk_high", result["reason_codes"])
@@ -100,7 +117,7 @@ class MailThreatDecisionTests(unittest.TestCase):
             with self.subTest(field=field):
                 facts = self.clean_facts()
                 facts[field] = "critical"
-                result = MODULE.evaluate(self.policy, facts)
+                result = MODULE.evaluate(self.active_policy(), facts)
                 self.assertEqual(result["disposition"], "quarantine")
                 self.assertTrue(result["hard_security_block"])
 
