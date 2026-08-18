@@ -1,7 +1,7 @@
 # Edge1 Secure MCP Tunnel activation
 
 Last reconciled: 2026-08-18
-Status: repository staging prepared; compatible live tunnel-client verified; account/credential enrollment and Edge1 Operator tunnel acceptance pending
+Status: live non-secret staging accepted; account/credential enrollment and Edge1 Operator tunnel acceptance pending
 
 ## Objective
 
@@ -81,6 +81,25 @@ Expected post-stage state:
 - Big Bird's tunnel service remains active and unchanged;
 - no tunnel ID or API key is generated;
 - no public listener, firewall rule, DNS record, Apache proxy, MCP auth change, or Operator restart is performed.
+
+## Accepted live non-secret staging
+
+Live staging completed on 2026-08-18 from reviewed repository revision `c1390fc973c7afd3fabebff922bb10b1a0213a51`.
+
+Accepted production evidence:
+
+- evidence bundle: `/var/lib/wwcx-deployment-evidence/secure-mcp-tunnel-stage/20260818T195627Z`;
+- rollback: `/var/lib/wwcx-deployment-evidence/secure-mcp-tunnel-stage/20260818T195627Z/rollback.sh`;
+- shared tunnel-client remained version `0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144` and SHA-256 `937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100`;
+- `bigbird-ai-tunnel.service` remained active with MainPID `449` before and after staging and kept loopback listener `127.0.0.1:8080`;
+- `edge1-operator-mcp.service` remained active on `127.0.0.1:8102`, and an unauthenticated request still returned HTTP `401`;
+- `/etc/edge1-tunnel/tunnel-client.yaml`, `/usr/local/libexec/edge1-tunnel/edge1-secure-mcp-tunnel.sh`, and `/etc/systemd/system/edge1-secure-mcp-tunnel.service` were staged with the intended ownership/modes;
+- `edge1-secure-mcp-tunnel.service` remained disabled and inactive;
+- `/etc/edge1-tunnel/tunnel-id` and `/etc/edge1-tunnel/runtime-api-key` remained absent;
+- no second tunnel-client process was started;
+- the primary checkout remained untouched at its pre-existing commit.
+
+This establishes the end of the non-secret host-side staging phase. The next phase begins only after authorized OpenAI workspace/account enrollment supplies a tunnel ID and runtime API key locally on Edge1.
 
 ## Human credential/account gate
 
