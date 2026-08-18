@@ -101,7 +101,7 @@ case "$HOST" in
     edge1|edge1.ww.cx) ;;
     *) fail "repair is restricted to Edge1; observed host: $HOST" ;;
 esac
-[ -d "$ROOT/.git" ] || fail "repository not found: $ROOT"
+git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "repository worktree not found: $ROOT"
 [ -n "$EXPECTED_COMMIT" ] || fail "EXPECTED_COMMIT is required"
 printf '%s\n' "$EXPECTED_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail "EXPECTED_COMMIT must be a full lowercase commit SHA"
 [ -z "$(git -C "$ROOT" status --porcelain --untracked-files=all)" ] || fail "repository is not clean"
