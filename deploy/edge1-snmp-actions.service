@@ -1,0 +1,21 @@
+[Unit]
+Description=WW.CX Edge1 SNMP bounded remediation action runner
+After=network-online.target edge1-snmp-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface/server
+Environment=EDGE1_SNMP_DB=/var/lib/edge1-snmp/snmp.sqlite3
+Environment=EDGE1_SNMP_CONFIG=/etc/edge1-snmp/config.json
+Environment=EDGE1_SNMP_PROFILE_DIR=/etc/edge1-snmp/profiles
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_snmp_action_runner.py --limit 10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/edge1-management-interface /etc/edge1-snmp
+ReadWritePaths=/var/lib/edge1-snmp
+UMask=0077
