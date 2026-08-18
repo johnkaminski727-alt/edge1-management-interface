@@ -83,16 +83,25 @@ class IncidentAndSetTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             execute_set(self.conn, device_id=device["device_id"], oid="1.3.6.1.2.1.1.4.0", value_type="s", value="noc", config={"snmp_set_enabled": True}, resolver=self._profile())
 
-    def test_set_executes_only_after_both_gates(self):
+    def test_set_executes_only_after_both_gates_without_secret_argv(self):
         device = add_device(self.conn, {"display_name": "rw", "management_address": "10.2.0.3", "credential_reference": "v3", "write_enabled": True})
         captured = {}
         def runner(argv, **kwargs):
             captured["argv"] = list(argv)
+            captured["env"] = dict(kwargs["env"])
+            conf = Path(captured["env"]["SNMPCONFPATH"]) / "snmp.conf"
+            captured["conf_mode"] = conf.stat().st_mode & 0o777
+            captured["conf"] = conf.read_text(encoding="utf-8")
             return SimpleNamespace(returncode=0, stdout="1.3.6.1.2.1.1.4.0 = noc\n", stderr="")
         result = execute_set(self.conn, device_id=device["device_id"], oid="1.3.6.1.2.1.1.4.0", value_type="s", value="noc", config={"snmp_set_enabled": True}, resolver=self._profile(), runner=runner)
         self.assertEqual(result["status"], "succeeded")
         self.assertEqual(captured["argv"][0], "snmpset")
-        self.assertIn("authPriv", captured["argv"])
+        self.assertNotIn("-A", captured["argv"])
+        self.assertNotIn("-X", captured["argv"])
+        self.assertNotIn("dummy-auth", captured["argv"])
+        self.assertNotIn("dummy-priv", captured["argv"])
+        self.assertEqual(captured["conf_mode"], 0o600)
+        self.assertIn("defSecurityLevel authPriv", captured["conf"])
 
 
 if __name__ == "__main__":
