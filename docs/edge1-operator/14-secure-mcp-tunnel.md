@@ -1,7 +1,7 @@
 # Edge1 Secure MCP Tunnel activation
 
 Last reconciled: 2026-08-18
-Status: repository staging prepared; account/credential enrollment and live tunnel acceptance pending
+Status: repository staging prepared; compatible live tunnel-client verified; account/credential enrollment and Edge1 Operator tunnel acceptance pending
 
 ## Objective
 
@@ -15,6 +15,25 @@ The local service remains:
 - bearer token source `/etc/edge1-operator/mcp-token`
 - no generic `edge1.exec`; only the reviewed named parameterless tool contract
 
+## Live tunnel-client compatibility discovery
+
+Fresh production inspection on 2026-08-18 found an existing root-owned `/usr/local/bin/tunnel-client` already carrying the active `bigbird-ai-tunnel.service` runtime.
+
+Verified identity:
+
+- version `0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144`;
+- upstream source commit `105e17a79a36e4e5c897fd698ed2b8dbf935b144` exists in `openai/tunnel-client`;
+- live binary SHA-256 `937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100`;
+- root-owned executable at `/usr/local/bin/tunnel-client`;
+- active Big Bird tunnel process uses `tunnel-client run --profile bigbird-edge1`;
+- Big Bird tunnel health listener is loopback `127.0.0.1:8080`.
+
+The exact upstream 0.0.10 source documents support for `mcp.extra_headers`, `mcp.discovery_extra_headers`, and `env:` / `file:` secret references. Those are the features required by the Edge1 Operator transport.
+
+Do **not** replace or upgrade `/usr/local/bin/tunnel-client` merely to stage the Edge1 Operator tunnel while the Big Bird tunnel is active. The Edge1 Operator assets deliberately reuse this compatible binary and isolate their own runtime files and dynamic loopback health listener.
+
+The installer requires tunnel-client 0.0.10 or later and verifies the `run` and `doctor` command surfaces before staging. It does not install or replace the shared binary.
+
 ## Transport design
 
 Use OpenAI Secure MCP Tunnel as an outbound-only transport.
@@ -27,15 +46,23 @@ The launcher runs as `edge1-operator`, reads the already-existing `/etc/edge1-op
 
 The OpenAI runtime API key is expected at `/etc/edge1-tunnel/runtime-api-key` and is consumed by tunnel-client through a `file:` reference. The tunnel ID is expected as the raw ID in `/etc/edge1-tunnel/tunnel-id` and is exported by the launcher as `CONTROL_PLANE_TUNNEL_ID`.
 
+Runtime namespace is intentionally separate from Big Bird:
+
+- Edge1 Operator tunnel health: dynamic `127.0.0.1:0` with URL written under `/run/edge1-secure-mcp-tunnel/`;
+- Edge1 Operator tunnel PID: `/run/edge1-secure-mcp-tunnel/tunnel-client.pid`;
+- Edge1 Operator tunnel config: `/etc/edge1-tunnel/tunnel-client.yaml`;
+- Big Bird's existing profile/service is not modified or restarted.
+
 ## Repository staging
 
 The installer is intentionally two-phase. It never creates credentials and never enables or starts the tunnel service.
 
 Preconditions:
 
-1. The official `tunnel-client` binary is installed at `/usr/local/bin/tunnel-client`.
+1. A compatible official `tunnel-client` version 0.0.10 or later exists at `/usr/local/bin/tunnel-client`.
 2. `edge1-operator` and `edge1-operator-mcp.service` already exist.
 3. The local Operator remains healthy on loopback `8102`.
+4. Any existing tunnel-client consumer, including Big Bird, remains untouched.
 
 Dry run and staging:
 
@@ -50,6 +77,8 @@ Expected post-stage state:
 - `/usr/local/libexec/edge1-tunnel/edge1-secure-mcp-tunnel.sh` is root-owned executable code;
 - `/etc/systemd/system/edge1-secure-mcp-tunnel.service` is installed;
 - service is disabled and inactive;
+- shared `/usr/local/bin/tunnel-client` is unchanged;
+- Big Bird's tunnel service remains active and unchanged;
 - no tunnel ID or API key is generated;
 - no public listener, firewall rule, DNS record, Apache proxy, MCP auth change, or Operator restart is performed.
 
@@ -90,7 +119,7 @@ Read the dynamically selected loopback health URL without assuming a port:
 sudo cat /run/edge1-secure-mcp-tunnel/health-url
 ```
 
-Verify there is still no public Edge1 MCP listener and that the original Operator remains loopback-only on `127.0.0.1:8102`.
+Verify there is still no public Edge1 MCP listener, the original Operator remains loopback-only on `127.0.0.1:8102`, and `bigbird-ai-tunnel.service` remains healthy.
 
 Only after doctor, tunnel readiness, ChatGPT discovery, identity/health calls, evidence, and rollback checks pass should persistence be enabled:
 
@@ -129,13 +158,14 @@ sudo systemctl disable --now edge1-secure-mcp-tunnel.service
 
 Tunnel revocation/deletion and runtime API-key revocation are account actions and must be performed by the authorized human operator through the OpenAI account/workspace boundary.
 
-Removing the tunnel transport must not require any change to `edge1-operator-mcp.service`, its local token, the Operations API, firewall, DNS, SSH, Apache, SIP, SNMP, or other Edge1 services.
+Removing the Edge1 Operator tunnel transport must not remove, replace, restart, or reconfigure the shared tunnel-client binary or `bigbird-ai-tunnel.service`, and must not require any change to `edge1-operator-mcp.service`, its local token, the Operations API, firewall, DNS, SSH, Apache, SIP, SNMP, or other Edge1 services.
 
 ## Completion condition
 
 The permanent Operator is complete only when all of the following agree:
 
-- Edge1 tunnel service is healthy and outbound-only;
+- Edge1 Operator tunnel service is healthy and outbound-only;
+- existing Big Bird tunnel remains healthy;
 - local MCP remains bearer-protected and loopback-only;
 - ChatGPT can discover exactly the reviewed bounded tools through the selected tunnel;
 - `edge1.identity` and `edge1.health` succeed from ChatGPT;
