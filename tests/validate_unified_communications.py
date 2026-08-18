@@ -14,8 +14,23 @@ HUB_PATH = ROOT / "src" / "web" / "communications" / "index.html"
 STYLE_PATH = ROOT / "src" / "web" / "communications" / "styles.css"
 DOC_PATH = ROOT / "docs" / "communications" / "unified-communications-convergence-20260818.md"
 AGENT_PATH = ROOT / ".agent" / "unified-communications.md"
+CORE_EVENT_PATH = ROOT / "config" / "communications" / "communications-event-v1.json"
+IDENTITY_PATH = ROOT / "config" / "communications" / "identity-registry-v1.json"
+READINESS_PATH = ROOT / "config" / "communications" / "readiness-matrix-v1.json"
+CORE_MODULE_PATH = ROOT / "server" / "unified_communications.py"
 
-for path in (REGISTRY_PATH, ROOT_INDEX_PATH, HUB_PATH, STYLE_PATH, DOC_PATH, AGENT_PATH):
+for path in (
+    REGISTRY_PATH,
+    ROOT_INDEX_PATH,
+    HUB_PATH,
+    STYLE_PATH,
+    DOC_PATH,
+    AGENT_PATH,
+    CORE_EVENT_PATH,
+    IDENTITY_PATH,
+    READINESS_PATH,
+    CORE_MODULE_PATH,
+):
     assert path.is_file(), path
     assert path.stat().st_size > 100, path
 
@@ -48,7 +63,13 @@ assert by_id["mail"]["ai_integration"]["capabilities"] == [
     "mail.draft.prepare",
 ]
 assert by_id["sms_mms"]["current_mode"] == "operations_and_simulator"
-assert by_id["sms_mms"]["ai_integration"]["state"] == "not_yet_integrated"
+assert by_id["sms_mms"]["ai_integration"]["state"] == "repository_ready_read_only"
+assert by_id["sms_mms"]["ai_integration"]["live_acceptance"] == "unverified"
+assert by_id["sms_mms"]["ai_integration"]["capabilities"] == [
+    "messages.status.read",
+    "messages.conversation.read",
+    "messages.draft.prepare",
+]
 assert by_id["voice_sip"]["ai_integration"] == {
     "state": "accepted_read_only",
     "capabilities": ["telephony.read"],
@@ -63,12 +84,28 @@ assert assistant["product"] == "WW.CX AI"
 assert assistant["edge1_gateway_version"] == "0.3.4-alpha.2"
 assert assistant["edge1_mode"] == "read_only"
 assert assistant["edge1_listener"] == "127.0.0.1:8787"
-assert set(assistant["accepted_capabilities"]) == {"communications.read", "telephony.read"}
+assert set(assistant["accepted_live_capabilities"]) == {"communications.read", "telephony.read"}
+assert set(assistant["repository_ready_capabilities"]) == {
+    "messages.status.read",
+    "messages.conversation.read",
+    "messages.draft.prepare",
+}
 assert assistant["browser_route"] == "/admin/ai/"
 assert assistant["browser_production_acceptance"] == "unverified"
 
 rules = registry["rules"]
 assert all(value is True for value in rules.values())
+
+core_event = json.loads(CORE_EVENT_PATH.read_text(encoding="utf-8"))
+assert core_event["$id"] == "wwcx.communications-event.v1"
+assert core_event["properties"]["security"]["properties"]["quarantine_release_authorized"]["const"] is False
+identity = json.loads(IDENTITY_PATH.read_text(encoding="utf-8"))
+assert identity["correlation_policy"]["explicit_evidence_required"] is True
+assert identity["correlation_policy"]["name_similarity_is_evidence"] is False
+readiness = json.loads(READINESS_PATH.read_text(encoding="utf-8"))
+assert readiness["fresh_edge1_runtime_verified"] is False
+assert readiness["rules"]["repository_ready_does_not_imply_runtime_ready"] is True
+assert readiness["rules"]["runtime_ready_does_not_imply_live_authorized"] is True
 
 root_page = ROOT_INDEX_PATH.read_text(encoding="utf-8")
 page = HUB_PATH.read_text(encoding="utf-8")
@@ -106,8 +143,6 @@ assert "@media(max-width:980px)" in style
 assert "@media(max-width:700px)" in style
 assert "prefers-reduced-motion" in style
 
-# The convergence surface is navigation/readiness only. It must not grow
-# direct provider or telephony mutation endpoints by accident.
 for forbidden in (
     "/send-sms",
     "/send-mms",
@@ -120,6 +155,7 @@ for forbidden in (
 
 print("Unified Communications convergence validation passed")
 print("Channels: Mail Room, SMS/MMS, Voice/SIP, News/Relay")
-print("Accepted AI reads: communications.read, telephony.read")
-print("Mail AI scopes remain planned; SMS/MMS AI integration remains future work")
+print("Accepted live AI reads: communications.read, telephony.read")
+print("Repository-ready SMS AI: messages.status.read, messages.conversation.read, messages.draft.prepare")
+print("Mail AI scopes remain planned; SMS live acceptance remains unverified")
 print("No production call, message, email, carrier, route, or generic execution authority added")
