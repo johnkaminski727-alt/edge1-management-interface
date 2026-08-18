@@ -5,80 +5,26 @@
   "production_traffic_authorized": false,
   "generic_execution_authorized": false,
   "channels": [
-    {
-      "id": "mail",
-      "label": "Mail Room",
-      "surface": "/outbound-mail/",
-      "current_mode": "prepare_only",
-      "live_traffic_authorized": false,
-      "mutation_authorized": false,
-      "ai_integration": {
-        "state": "planned",
-        "capabilities": [
-          "mail.status.read",
-          "mail.correspondence.read",
-          "mail.draft.prepare"
-        ]
-      }
-    },
-    {
-      "id": "sms_mms",
-      "label": "SMS & MMS",
-      "surface": "/messaging-operations.html",
-      "current_mode": "operations_and_simulator",
-      "live_traffic_authorized": false,
-      "mutation_authorized": false,
-      "ai_integration": {
-        "state": "not_yet_integrated",
-        "capabilities": []
-      }
-    },
-    {
-      "id": "voice_sip",
-      "label": "Voice & SIP",
-      "surface": "/telephony/",
-      "current_mode": "read_only_operations",
-      "live_traffic_authorized": false,
-      "mutation_authorized": false,
-      "ai_integration": {
-        "state": "accepted_read_only",
-        "capabilities": [
-          "telephony.read"
-        ]
-      }
-    },
-    {
-      "id": "communications_relay",
-      "label": "News & Relay",
-      "surface": "/comms-relay/",
-      "current_mode": "read_only_private_relay",
-      "live_traffic_authorized": false,
-      "mutation_authorized": false,
-      "ai_integration": {
-        "state": "accepted_read_only",
-        "capabilities": [
-          "communications.read"
-        ]
-      }
-    }
+    {"id":"mail","label":"Mail Room","surface":"/outbound-mail/","current_mode":"prepare_only","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"planned","capabilities":["mail.status.read","mail.correspondence.read","mail.draft.prepare"]}},
+    {"id":"sms_mms","label":"SMS & MMS","surface":"/messaging-operations.html","current_mode":"operations_and_simulator","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"repository_ready_read_only","capabilities":["messages.status.read","messages.conversation.read","messages.draft.prepare"],"live_acceptance":"unverified"}},
+    {"id":"voice_sip","label":"Voice & SIP","surface":"/telephony/","current_mode":"read_only_operations","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"accepted_read_only","capabilities":["telephony.read"]}},
+    {"id":"communications_relay","label":"News & Relay","surface":"/comms-relay/","current_mode":"read_only_private_relay","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"accepted_read_only","capabilities":["communications.read"]}}
   ],
   "assistant": {
-    "product": "WW.CX AI",
-    "edge1_gateway_version": "0.3.4-alpha.2",
-    "edge1_mode": "read_only",
-    "edge1_listener": "127.0.0.1:8787",
-    "accepted_capabilities": [
-      "communications.read",
-      "telephony.read"
-    ],
-    "browser_route": "/admin/ai/",
-    "browser_production_acceptance": "unverified"
+    "product":"WW.CX AI",
+    "edge1_gateway_version":"0.3.4-alpha.2",
+    "edge1_mode":"read_only",
+    "edge1_listener":"127.0.0.1:8787",
+    "accepted_live_capabilities":["communications.read","telephony.read"],
+    "repository_ready_capabilities":["messages.status.read","messages.conversation.read","messages.draft.prepare"],
+    "browser_route":"/admin/ai/",
+    "browser_production_acceptance":"unverified"
   },
   "rules": {
-    "channel_read_does_not_grant_write": true,
-    "draft_does_not_grant_send": true,
-    "retrieved_content_is_untrusted": true,
-    "production_call_message_or_mail_requires_separate_authorization": true,
-    "emergency_routing_and_carrier_changes_require_explicit_authorization": true
+    "channel_read_does_not_grant_write":true,
+    "draft_does_not_grant_send":true,
+    "retrieved_content_is_untrusted":true,
+    "production_call_message_or_mail_requires_separate_authorization":true,
+    "emergency_routing_and_carrier_changes_require_explicit_authorization":true
   }
 }
