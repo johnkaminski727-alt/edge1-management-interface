@@ -34,7 +34,7 @@
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
       "edge1_runtime": "unknown",
-      "private_ai_adapter": "blocked",
+      "private_ai_adapter": "repository_ready",
       "identity_mapping": "identity_verified",
       "security_quarantine": "security_ready",
       "provider_configuration": "unknown",
@@ -44,13 +44,13 @@
       "production_authorization": "blocked",
       "live_acceptance": "blocked",
       "rollback_evidence": "repository_ready",
-      "notes": "Mail Room repository foundations, preparation, identity, final-scan and quarantine controls are present. Unified AI mail adapter is not yet accepted and no live send is authorized from this project."
+      "notes": "Mail Room status and prepared-not-sent AI draft preparation are repository-ready through PR #386. mail.correspondence.read remains blocked pending an explicitly authorized authoritative native correspondence source. No live send is authorized by Unified Communications."
     },
     "sms_mms": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
       "edge1_runtime": "unknown",
-      "private_ai_adapter": "blocked",
+      "private_ai_adapter": "repository_ready",
       "identity_mapping": "unknown",
       "security_quarantine": "degraded",
       "provider_configuration": "unknown",
@@ -60,7 +60,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "blocked",
       "rollback_evidence": "repository_ready",
-      "notes": "Provider-neutral gateway and simulator exist. AI read adapter and MMS media quarantine completion remain repository work; live carrier traffic is not authorized."
+      "notes": "Authenticated sanitized status/conversation reads and prepared-not-sent drafts are repository-ready through PR #385. PR #389 adds fail-closed MMS quarantine metadata; private quarantine storage and a trusted scanner are not attached, so security remains degraded rather than overstated. Live carrier traffic is not authorized."
     },
     "voice_sip": {
       "repository_implementation": "repository_ready",
@@ -76,7 +76,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "unknown",
       "rollback_evidence": "repository_ready",
-      "notes": "telephony.read has historical accepted live evidence. This matrix does not convert that historical evidence into a fresh host assertion or authorize call origination/routing changes."
+      "notes": "telephony.read has historical accepted live evidence. This matrix does not convert historical evidence into a fresh host assertion and does not authorize call origination, emergency routing, trunk, route, or dialplan mutation."
     },
     "communications_relay": {
       "repository_implementation": "repository_ready",
@@ -94,6 +94,22 @@
       "rollback_evidence": "repository_ready",
       "notes": "communications.read has historical accepted live evidence with provenance and untrusted-content handling. No upstream posting/federation mutation is authorized here."
     },
+    "communications_workspace": {
+      "repository_implementation": "repository_ready",
+      "ci_validation": "repository_ready",
+      "edge1_runtime": "unknown",
+      "private_ai_adapter": "not_applicable",
+      "identity_mapping": "repository_ready",
+      "security_quarantine": "security_ready",
+      "provider_configuration": "not_applicable",
+      "credentials_available": "not_applicable",
+      "dns_authentication": "not_applicable",
+      "live_routing": "not_applicable",
+      "production_authorization": "blocked",
+      "live_acceptance": "blocked",
+      "rollback_evidence": "repository_ready",
+      "notes": "PR #387 adds the loopback-only canonical metadata API, search, timeline, inspector, and readiness UI. It rejects mutation verbs. Edge1 service deployment, reverse-proxy attachment, canonical snapshot source, and browser acceptance have not been freshly verified."
+    },
     "private_ai": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
@@ -108,7 +124,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "unknown",
       "rollback_evidence": "repository_ready",
-      "notes": "Historical accepted gateway baseline is read-only. Fresh Edge1 inspection is required before claiming current runtime acceptance."
+      "notes": "Historical accepted gateway baseline remains read-only for communications.read and telephony.read. Mail and SMS/MMS additions are repository-ready only. Fresh authenticated Edge1 inspection is required before claiming current runtime acceptance."
     }
   },
   "rules": {
