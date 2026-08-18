@@ -64,6 +64,8 @@ class HttpAdapterConfig:
         expected_routes = {
             "health": "/healthz",
             "console": "/edge1-ops/security/",
+            "control_surfaces": "/edge1-ops/control-surfaces/",
+            "control_surfaces_registry": "/edge1-ops/control-surfaces/registry.json",
             "exchange": "/edge1-ops/session/exchange",
             "session": "/edge1-ops/session",
             "logout": "/edge1-ops/session/logout",
