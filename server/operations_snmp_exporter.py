@@ -106,7 +106,7 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(os.environ.get("EDGE1_SNMP_STATUS_OUTPUT", "/var/www/edge1-status/operations-snmp.json")),
+        default=Path(os.environ.get("EDGE1_SNMP_STATUS_OUTPUT", "/var/www/edge1-status/snmp/operations-snmp.json")),
     )
     args = parser.parse_args()
     conn = connect_db(args.db)

@@ -1,11 +1,23 @@
 #!/bin/sh
 set -eu
 ROOT=${EDGE1_ROOT:-/opt/edge1-management-interface}
+STATUS_ROOT=/var/www/edge1-status
+STATUS_DIR=$STATUS_ROOT/snmp
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 BACKUP=/var/lib/wwcx-deployment-evidence/snmp/backups/$STAMP
+
+if [ ! -d "$STATUS_ROOT" ]; then
+    printf '%s\n' "Missing Operations Center status root: $STATUS_ROOT" >&2
+    exit 1
+fi
+
 install -d -m 0700 "$BACKUP"
+if [ -f "$STATUS_DIR/operations-snmp.json" ]; then
+    cp -a "$STATUS_DIR/operations-snmp.json" "$BACKUP/operations-snmp.json"
+fi
 install -d -o root -g wwadmin -m 0750 /etc/edge1-snmp /etc/edge1-snmp/profiles
 install -d -o wwadmin -g wwadmin -m 0700 /var/lib/edge1-snmp
+install -d -o wwadmin -g wwadmin -m 0755 "$STATUS_DIR"
 if [ -f /etc/edge1-snmp/config.json ]; then
     cp -a /etc/edge1-snmp/config.json "$BACKUP/config.json"
 else

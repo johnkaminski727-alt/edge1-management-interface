@@ -25,4 +25,6 @@ class ServiceTests(unittest.TestCase):
  def test_discovery_probe(self):
   cfg={'polling':{'interval_seconds':300,'concurrency':4},'discovery':{'allowed_cidrs':['10.10.0.0/16'],'max_hosts':32,'allow_public':False}}; result=asyncio.run(DiscoveryService(FakeNet()).scan('10.10.2.0/30','profile',config=cfg,dry_run=False)); self.assertTrue(all(x['snmp_capable'] for x in result['devices']))
  def test_parse_integer(self): self.assertEqual(parse_integer('INTEGER: up(1)'),1)
+ def test_snmp_status_publication_is_scoped(self):
+  service=(ROOT/'deploy'/'edge1-snmp-poller.service').read_text(encoding='utf-8'); installer=(ROOT/'deploy'/'install-edge1-snmp.sh').read_text(encoding='utf-8'); page=(ROOT/'src'/'web'/'operations-center'/'snmp.html').read_text(encoding='utf-8'); exporter=(ROOT/'server'/'operations_snmp_exporter.py').read_text(encoding='utf-8'); target='/var/www/edge1-status/snmp/operations-snmp.json'; self.assertIn(f'EDGE1_SNMP_STATUS_OUTPUT={target}',service); self.assertIn('ReadWritePaths=/var/lib/edge1-snmp /var/www/edge1-status/snmp',service); self.assertNotIn('ReadWritePaths=/var/lib/edge1-snmp /var/www/edge1-status\n',service); self.assertIn('install -d -o wwadmin -g wwadmin -m 0755 "$STATUS_DIR"',installer); self.assertIn(target,exporter); self.assertIn('../snmp/operations-snmp.json',page)
 if __name__=='__main__': unittest.main(verbosity=2)
