@@ -11,6 +11,9 @@ import mail_identity_registry
 import outbound_mail_gateway
 
 
+CATCH_ALL_PROPOSAL_REASON = "original_recipient_catch_all_proposal"
+
+
 def status_payload(
     config: dict[str, Any],
     policy: dict[str, Any],
@@ -25,6 +28,81 @@ def status_payload(
     ]
     status["sender_selection"] = identity_status
     return status
+
+
+def _normalized_original_recipient(payload: dict[str, Any]) -> str | None:
+    value = payload.get("original_recipient")
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        return mail_identity_registry.normalize_address(value, "original_recipient")
+    except mail_identity_registry.IdentityConfigurationError as exc:
+        raise mail_identity_registry.IdentitySelectionError(str(exc)) from exc
+
+
+def _resolve_sender_with_catchall_proposal(
+    identities: dict[str, Any],
+    payload: dict[str, Any],
+) -> mail_identity_registry.SenderSelection:
+    """Resolve a registered sender or safely propose an unseen managed-domain recipient.
+
+    Catch-all inbound routing means the exact original envelope recipient may not yet be
+    present in the outbound identity registry. For preparation only, an unseen address
+    at a managed domain is temporarily added to a copy of the recipient map so the
+    canonical resolver can preserve the address. The proposal can never become live
+    through this path because it is absent from the committed live sender allow-list.
+    """
+
+    mail_identity_registry.validate_registry(identities)
+    if not isinstance(payload, dict):
+        raise mail_identity_registry.IdentitySelectionError(
+            "message payload must be an object"
+        )
+
+    system_generated = payload.get("system_generated", False)
+    if not isinstance(system_generated, bool):
+        raise mail_identity_registry.IdentitySelectionError(
+            "system_generated must be boolean"
+        )
+    if system_generated:
+        return mail_identity_registry.resolve_sender(identities, payload)
+
+    original_recipient = _normalized_original_recipient(payload)
+    if not original_recipient:
+        return mail_identity_registry.resolve_sender(identities, payload)
+
+    recipient_map = identities["sender_selection"]["recipient_to_sender"]
+    if original_recipient in recipient_map:
+        return mail_identity_registry.resolve_sender(identities, payload)
+
+    domain = original_recipient.rsplit("@", 1)[1]
+    if domain not in identities["domains"]:
+        return mail_identity_registry.resolve_sender(identities, payload)
+
+    internal_only = {
+        definition["address"].casefold()
+        for definition in identities["mailboxes"].values()
+    }
+    internal_only.add(identities["sender_selection"]["system_sender"].casefold())
+    if original_recipient in internal_only:
+        raise mail_identity_registry.IdentitySelectionError(
+            "original recipient is an internal-only or reserved mail identity"
+        )
+
+    proposed_identities = copy.deepcopy(identities)
+    proposed_identities["sender_selection"]["recipient_to_sender"][
+        original_recipient
+    ] = original_recipient
+    selection = mail_identity_registry.resolve_sender(proposed_identities, payload)
+    return mail_identity_registry.SenderSelection(
+        address=selection.address,
+        identity_key=None,
+        reason=CATCH_ALL_PROPOSAL_REASON,
+        submitted_from_present=selection.submitted_from_present,
+        from_address_replaced=selection.from_address_replaced,
+        live_enabled=False,
+        reply_to=selection.reply_to,
+    )
 
 
 def prepare_payload(
@@ -47,7 +125,7 @@ def prepare_payload(
             "noreply identity requires system_generated=true"
         )
 
-    selection = mail_identity_registry.resolve_sender(identities, payload)
+    selection = _resolve_sender_with_catchall_proposal(identities, payload)
     prepared = copy.deepcopy(payload)
     prepared["from_address"] = selection.address
     if selection.reply_to:
@@ -75,6 +153,10 @@ def compose_preview(
     )
     preview["request"]["identity_hint"] = str(payload.get("identity_hint", "")).strip() or None
     preview["request"]["system_generated"] = payload.get("system_generated", False) is True
+    if selection.reason == CATCH_ALL_PROPOSAL_REASON:
+        preview["request"]["live_delivery_block_reason"] = (
+            "catch-all reply identity is proposed only and is not provider-authorized for live delivery"
+        )
     return preview
 
 
@@ -89,6 +171,10 @@ def send_message(
 ) -> dict[str, Any]:
     prepared, selection = prepare_payload(identities, payload)
     if not selection.live_enabled:
+        if selection.reason == CATCH_ALL_PROPOSAL_REASON:
+            raise outbound_mail_gateway.DeliveryDisabledError(
+                "catch-all sender identity is proposed but not authorized for live delivery"
+            )
         raise outbound_mail_gateway.DeliveryDisabledError(
             "selected sender identity is not authorized for live delivery"
         )
