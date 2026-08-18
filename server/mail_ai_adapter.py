@@ -29,6 +29,7 @@ DEFAULT_CONFIG = REPO_ROOT / "config" / "messaging" / "outbound-mail-gateway.jso
 DEFAULT_IDENTITIES = REPO_ROOT / "config" / "messaging" / "mail-identities.json"
 DEFAULT_CORRESPONDENCE_DB = Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
 CORRESPONDENCE_ENABLE_ENV = "WWCX_MAIL_CORRESPONDENCE_READ_ENABLED"
+CORRESPONDENCE_DB_ENV = "WWCX_MAIL_CORRESPONDENCE_DB"
 
 
 class MailAIAdapterError(RuntimeError):
@@ -53,6 +54,13 @@ def _correspondence_enabled(enabled: bool | None = None) -> bool:
     if enabled is not None:
         return bool(enabled)
     return os.getenv(CORRESPONDENCE_ENABLE_ENV, "false").strip().casefold() == "true"
+
+
+def _correspondence_db(path: Path | None = None) -> Path:
+    if path is not None:
+        return Path(path).absolute()
+    configured = os.getenv(CORRESPONDENCE_DB_ENV, "").strip()
+    return Path(configured).absolute() if configured else DEFAULT_CORRESPONDENCE_DB
 
 
 def _read_store(path: Path) -> MailCorrespondenceStore:
@@ -83,14 +91,15 @@ def _state_is_ready(state: dict[str, Any]) -> bool:
 
 def correspondence_read_state(
     *,
-    db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    db_path: Path | None = None,
     enabled: bool | None = None,
 ) -> dict[str, Any]:
+    resolved_db = _correspondence_db(db_path)
     is_enabled = _correspondence_enabled(enabled)
     base = {
         "contract": "wwcx.mail-correspondence-read-state.v1",
         "capability": "mail.correspondence.read",
-        "database": str(db_path),
+        "database": str(resolved_db),
         "read_enabled": is_enabled,
         "repository_foundation": "server/mail_correspondence_store.py",
         "content_is_untrusted": True,
@@ -106,7 +115,7 @@ def correspondence_read_state(
             ),
             "production_provider_ready": False,
         }
-    if db_path.is_symlink() or not db_path.is_file():
+    if resolved_db.is_symlink() or not resolved_db.is_file():
         return {
             **base,
             "state": "blocked_store_unavailable",
@@ -114,7 +123,7 @@ def correspondence_read_state(
             "production_provider_ready": False,
         }
     try:
-        store_status = _read_store(db_path).status()
+        store_status = _read_store(resolved_db).status()
     except MailAIAdapterError as exc:
         return {
             **base,
@@ -146,9 +155,7 @@ def correspondence_read_state(
         "record_count": store_status["record_count"],
         "authoritative_scopes": scopes,
         "production_provider_ready": production_ready,
-        "source_truth": (
-            "provider_native" if production_ready else "local_native_only"
-        ),
+        "source_truth": "provider_native" if production_ready else "local_native_only",
     }
 
 
@@ -156,7 +163,7 @@ def status(
     config_path: Path = DEFAULT_CONFIG,
     identities_path: Path = DEFAULT_IDENTITIES,
     *,
-    correspondence_db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    correspondence_db_path: Path | None = None,
     correspondence_enabled: bool | None = None,
 ) -> dict[str, Any]:
     config, policy, identities = _load(config_path, identities_path)
@@ -215,20 +222,24 @@ def prepare_draft(
     return result
 
 
-def _require_correspondence_ready(db_path: Path, enabled: bool | None) -> MailCorrespondenceStore:
-    state = correspondence_read_state(db_path=db_path, enabled=enabled)
+def _require_correspondence_ready(
+    db_path: Path | None,
+    enabled: bool | None,
+) -> tuple[Path, MailCorrespondenceStore]:
+    resolved_db = _correspondence_db(db_path)
+    state = correspondence_read_state(db_path=resolved_db, enabled=enabled)
     if not _state_is_ready(state):
         raise MailAIAdapterError(str(state.get("reason", "correspondence read is unavailable")))
-    return _read_store(db_path)
+    return resolved_db, _read_store(resolved_db)
 
 
 def read_correspondence_message(
     message_id: str,
     *,
-    db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    db_path: Path | None = None,
     enabled: bool | None = None,
 ) -> dict[str, Any]:
-    store = _require_correspondence_ready(db_path, enabled)
+    _, store = _require_correspondence_ready(db_path, enabled)
     try:
         record = store.read_message(message_id)
     except CorrespondenceStoreError as exc:
@@ -251,10 +262,10 @@ def read_correspondence_thread(
     thread_id: str,
     *,
     limit: int = 50,
-    db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    db_path: Path | None = None,
     enabled: bool | None = None,
 ) -> dict[str, Any]:
-    store = _require_correspondence_ready(db_path, enabled)
+    _, store = _require_correspondence_ready(db_path, enabled)
     try:
         thread = store.read_thread(thread_id, limit=limit)
     except CorrespondenceStoreError as exc:
