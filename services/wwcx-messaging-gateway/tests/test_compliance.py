@@ -24,6 +24,30 @@ def test_help_does_not_change_suppression() -> None:
     assert registry.may_send("+16045550102") is True
 
 
+def test_help_does_not_advance_consent_ordering() -> None:
+    registry = SuppressionRegistry()
+    help_time = datetime(2026, 8, 18, 23, 2, tzinfo=timezone.utc)
+    stop_time = datetime(2026, 8, 18, 23, 1, tzinfo=timezone.utc)
+
+    assert registry.apply(
+        "+16045550105",
+        "HELP",
+        occurred_at=help_time,
+        message_id="bbbb",
+    ) == "help"
+    assert registry.apply(
+        "+16045550105",
+        "STOP",
+        occurred_at=stop_time,
+        message_id="aaaa",
+    ) == "stop"
+
+    assert registry.may_send("+16045550105") is False
+    status = registry.status()
+    assert status["consent_state_counts"]["suppressed"] == 1
+    assert status["stale_event_count"] == 0
+
+
 def test_normal_message_is_not_a_command() -> None:
     registry = SuppressionRegistry()
 
