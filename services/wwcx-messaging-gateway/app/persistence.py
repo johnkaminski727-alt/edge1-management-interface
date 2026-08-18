@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -25,17 +27,10 @@ class PostgresEventStore:
                     ON CONFLICT (provider, provider_event_id) DO NOTHING
                     RETURNING id
                     """,
-                    (
-                        message.event_id,
-                        message.provider,
-                        message.provider_event_id,
-                        "message.received",
-                        Jsonb(payload),
-                    ),
+                    (message.event_id, message.provider, message.provider_event_id, "message.received", Jsonb(payload)),
                 ).fetchone()
                 if inserted is None:
                     return False
-
                 connection.execute(
                     """
                     INSERT INTO messages
@@ -62,6 +57,37 @@ class PostgresEventStore:
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute("SELECT count(*) FROM messaging_events").fetchone()
             return int(row[0])
+
+    def list_recent(self, limit: int = 50) -> list[NormalizedMessage]:
+        limit = min(max(int(limit), 1), 100)
+        with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
+            rows = connection.execute(
+                """
+                SELECT payload
+                FROM messaging_events
+                WHERE event_type = 'message.received'
+                ORDER BY (payload->>'occurred_at')::timestamptz DESC, id DESC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [NormalizedMessage.model_validate(row["payload"]) for row in rows]
+
+    def get_event(self, event_id: str) -> NormalizedMessage | None:
+        try:
+            parsed_id = UUID(event_id)
+        except ValueError:
+            return None
+        with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
+            row = connection.execute(
+                """
+                SELECT payload
+                FROM messaging_events
+                WHERE id = %s AND event_type = 'message.received'
+                """,
+                (parsed_id,),
+            ).fetchone()
+        return NormalizedMessage.model_validate(row["payload"]) if row is not None else None
 
     def get_control_state(self) -> dict[str, object]:
         with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
