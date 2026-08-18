@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Literal
 
@@ -8,7 +7,7 @@ from pydantic import BaseModel, Field
 from .media_quarantine import quarantine_summary
 from .models import NormalizedMessage
 from .persistence import PostgresEventStore
-from .providers import build_provider_registry
+from .providers import ProviderWebhookRequest, build_provider_registry
 from .store import InMemoryEventStore
 from .telegraph_office import build_router
 
@@ -169,33 +168,30 @@ def simulator_event_count() -> dict[str, int]:
 
 
 @app.post("/v1/webhooks/{provider_name}", status_code=status.HTTP_202_ACCEPTED)
-async def receive_provider_webhook(
-    provider_name: str,
-    request: Request,
-    x_wwcx_signature: str | None = Header(default=None),
-    x_wwcx_timestamp: str | None = Header(default=None),
-) -> dict[str, object]:
+async def receive_provider_webhook(provider_name: str, request: Request) -> dict[str, object]:
     """Provider-neutral inbound webhook dispatch.
 
     This is the intended integration point for real carrier adapters: look
-    up the named MessagingProvider, verify the webhook, normalize it into a
-    NormalizedMessage, and store it -- exactly the path a Telnyx or
-    Bandwidth adapter would follow. Only "simulator" is registered today.
+    up the named MessagingProvider, hand it a generic request context (raw
+    body + headers, nothing WWCX-specific assumed), and let the provider
+    verify and normalize the callback in whatever way its own API requires
+    -- exactly the path a Telnyx or Bandwidth adapter would follow. Only
+    "simulator" is registered today.
     """
     provider = providers.get(provider_name)
     if provider is None:
         raise HTTPException(status_code=404, detail="unknown provider")
 
     body = await request.body()
-    if not provider.verify_webhook(body, x_wwcx_signature, x_wwcx_timestamp):
+    webhook_request = ProviderWebhookRequest(body=body, headers=request.headers)
+
+    if not provider.verify_webhook(webhook_request):
         raise HTTPException(status_code=401, detail="webhook verification failed")
 
     try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="invalid JSON body")
-
-    message = provider.normalize_webhook(payload)
+        message = provider.normalize_webhook(webhook_request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid provider payload") from exc
 
     if store.get_control_state()["paused"]:
         raise HTTPException(status_code=503, detail="messaging intake is paused")

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Mapping
 
 from .models import NormalizedMessage
 
@@ -13,24 +14,46 @@ class SendResult:
     accepted: bool
 
 
+@dataclass(frozen=True)
+class ProviderWebhookRequest:
+    """Generic inbound webhook request passed to a MessagingProvider.
+
+    Deliberately carries only the raw body and headers -- no assumption
+    about which header names carry authentication/signature information
+    (that varies per provider: Telnyx uses telnyx-signature-ed25519 +
+    telnyx-timestamp, Bandwidth may use HTTP Basic Auth, the simulator
+    reuses a shared token header) and no assumption about payload shape
+    (Bandwidth messaging callbacks are JSON arrays, not single objects).
+    `headers` is case-insensitive, matching Starlette's Headers behavior.
+    """
+
+    body: bytes
+    headers: Mapping[str, str]
+
+
 class MessagingProvider(ABC):
     """Boundary implemented by Telnyx, Bandwidth, and simulator adapters."""
 
     name: str
 
     @abstractmethod
-    def verify_webhook(
-        self,
-        body: bytes,
-        signature: str | None,
-        timestamp: str | None,
-    ) -> bool:
-        """Return True only for authentic, timely provider callbacks."""
+    def verify_webhook(self, request: ProviderWebhookRequest) -> bool:
+        """Return True only for authentic, timely provider callbacks.
+
+        Each provider extracts and validates its own authentication scheme
+        from request.headers / request.body -- the shared dispatch route
+        does not know or assume which headers matter.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def normalize_webhook(self, payload: dict[str, object]) -> NormalizedMessage:
-        """Convert provider-specific payloads into the WW.CX message model."""
+    def normalize_webhook(self, request: ProviderWebhookRequest) -> NormalizedMessage:
+        """Convert a provider-specific webhook body into the WW.CX message model.
+
+        Each provider parses request.body however its own callback format
+        requires (a single JSON object, a JSON array, form-encoded, etc.) --
+        the shared dispatch route does not assume a dict payload.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -48,10 +71,18 @@ class SimulatorProvider(MessagingProvider):
     directly, bypassing verify_webhook/normalize_webhook entirely.
 
     A real carrier adapter (Telnyx, Bandwidth, etc.) implements this same
-    interface with actual HMAC/webhook signature verification and
-    provider-specific payload parsing. Nothing about the webhook dispatch
-    endpoint or the event store needs to change to add one -- only a new
-    MessagingProvider subclass and a registry entry.
+    interface with its own header-based signature verification and its own
+    payload parsing. Nothing about the webhook dispatch endpoint or the
+    event store needs to change to add one -- only a new MessagingProvider
+    subclass and a registry entry.
+
+    Deliberate limitation of this reference implementation: it verifies a
+    single shared static token, not a real cryptographic signature, and it
+    only parses a single JSON object (matching NormalizedMessage), not an
+    array or other provider-specific shape. A real adapter's
+    verify_webhook/normalize_webhook will look substantially different;
+    only the generic request-context boundary (ProviderWebhookRequest) is
+    the actual shared contract.
     """
 
     name = "simulator"
@@ -59,19 +90,16 @@ class SimulatorProvider(MessagingProvider):
     def __init__(self, token_provider: Callable[[], str]) -> None:
         self._token_provider = token_provider
 
-    def verify_webhook(
-        self,
-        body: bytes,
-        signature: str | None,
-        timestamp: str | None,
-    ) -> bool:
+    def verify_webhook(self, request: ProviderWebhookRequest) -> bool:
         # The simulator has no cryptographic signature scheme; it reuses the
-        # existing shared simulator token as the "signature" for consistency
-        # with the rest of the simulator surface (WWCX_SIMULATOR_TOKEN).
-        del body, timestamp
-        return signature == self._token_provider()
+        # existing shared simulator token, read from its own header name
+        # (X-WWCX-Signature). A real provider would read its own header(s)
+        # here instead -- this is exactly the point of the refactor: the
+        # shared route no longer knows or assumes this header name.
+        return request.headers.get("x-wwcx-signature") == self._token_provider()
 
-    def normalize_webhook(self, payload: dict[str, object]) -> NormalizedMessage:
+    def normalize_webhook(self, request: ProviderWebhookRequest) -> NormalizedMessage:
+        payload = json.loads(request.body)
         return NormalizedMessage.model_validate(payload)
 
     def send(self, message: NormalizedMessage) -> SendResult:
