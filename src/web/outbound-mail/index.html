@@ -3,123 +3,209 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Outbound Mail Gateway | WW.CX Operations</title>
+  <meta name="theme-color" content="#16213d">
+  <title>Mail Room | WW.CX Operations</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <a class="skip-link" href="#compose">Skip to composer</a>
-  <main class="app-shell">
+  <a class="skip-link" href="#main-content">Skip to Mail Room</a>
+  <main class="app-shell" id="main-content">
     <header class="topbar">
-      <div>
+      <div class="brand-block">
         <p class="eyebrow">WW.CX Operations</p>
-        <h1>Outbound Mail Gateway</h1>
-        <p class="subtitle">Compose, select the correct identity automatically, preview, submit, and reconcile correspondence from one workspace.</p>
+        <h1>Mail Room</h1>
+        <p class="subtitle">A calm place to write, review, and keep track of important correspondence.</p>
       </div>
-      <div class="mode-pill"><span aria-hidden="true"></span>Preview only</div>
+      <div class="topbar-actions">
+        <button type="button" class="quiet-button shortcut-button" id="shortcut-help" aria-label="Show keyboard shortcuts">Shortcuts</button>
+        <div class="mode-pill" role="status" aria-live="polite"><span aria-hidden="true"></span>Preview only</div>
+      </div>
     </header>
 
     <nav class="module-nav" aria-label="Operations modules">
       <a href="../">Private Library</a>
       <a href="../time-authority/">Time Authority</a>
-      <a href="./" aria-current="page">Outbound Mail</a>
+      <a href="./" aria-current="page">Mail Room</a>
     </nav>
 
-    <section class="notice" aria-label="Deployment status">
-      <strong>Safe default:</strong> live delivery is disabled. Submitted From and Reply-To values are not trusted; the gateway replaces them with the registered identity selected from the original inbound recipient, an approved identity hint, or the default sender.
-    </section>
-
-    <section class="summary-grid" aria-label="Gateway summary">
-      <article><span>Provider</span><strong id="summary-provider">Not configured</strong></article>
-      <article><span>Selected sender</span><strong id="summary-sender">Automatic</strong></article>
-      <article><span>Private mailbox</span><strong id="summary-private-mailbox">john-inbox@ww.cx</strong></article>
-      <article><span>Shared mailbox</span><strong id="summary-shared-mailbox">maildesk@ww.cx</strong></article>
+    <section class="notice calm-notice" aria-label="Deployment status">
+      <strong>Nothing leaves the Mail Room unless it is safe and authorized.</strong>
+      <span>Right now, live delivery is disabled. You can compose and review without accidentally sending anything.</span>
     </section>
 
     <div class="workspace">
-      <aside class="step-nav" aria-label="Configuration steps">
-        <button type="button" data-step="setup" class="active">1. Setup</button>
-        <button type="button" data-step="compose">2. Compose</button>
-        <button type="button" data-step="controls">3. Controls</button>
-        <button type="button" data-step="preview">4. Preview</button>
-        <button type="button" data-step="activity">5. Activity</button>
+      <aside class="sidebar" aria-label="Mail Room navigation">
+        <nav class="step-nav">
+          <button type="button" data-step="setup" class="active"><span aria-hidden="true">⌂</span> Today</button>
+          <button type="button" data-step="compose"><span aria-hidden="true">✎</span> Compose</button>
+          <button type="button" data-step="controls"><span aria-hidden="true">✓</span> Safety & privacy</button>
+          <button type="button" data-step="preview"><span aria-hidden="true">◉</span> Review</button>
+          <button type="button" data-step="activity"><span aria-hidden="true">≡</span> Activity</button>
+        </nav>
+        <div class="sidebar-note">
+          <strong>Daily shortcuts</strong>
+          <span><kbd>C</kbd> compose</span>
+          <span><kbd>/</kbd> search activity</span>
+          <span><kbd>Esc</kbd> today</span>
+        </div>
       </aside>
 
       <section class="panel active" data-panel="setup">
-        <div class="panel-heading"><div><p class="eyebrow">Step 1</p><h2>Gateway setup</h2></div><span class="badge">Required before activation</span></div>
-        <div class="form-grid">
-          <label>Legal name<input id="legal-name" value="Christmas Island Worldwide"></label>
-          <label>Operating name<input id="operating-name" value="WW.CX"></label>
-          <label>Mailing address<input id="mailing-address" placeholder="Configure the verified business mailing address"></label>
-          <label>Public contact email<input id="contact-email" type="email" value="john@ww.cx"></label>
-          <label>Website<input id="website" type="url" value="https://ww.cx"></label>
-          <label>Privacy page<input id="privacy-url" type="url" value="https://ww.cx/privacy"></label>
-          <label>Delivery adapter<select id="provider"><option value="">Choose later</option></select></label>
-          <label>Sender fallback<select id="sender-profile"><option value="">Automatic — use original recipient, then john@ww.cx</option></select></label>
-          <label>Private John delivery mailbox<input id="private-mailbox" value="john-inbox@ww.cx" readonly></label>
-          <label>Shared role delivery mailbox<input id="shared-mailbox" value="maildesk@ww.cx" readonly></label>
-          <label>System no-reply identity<input id="system-sender" value="noreply@ww.cx" readonly></label>
+        <div class="welcome-row">
+          <div>
+            <p class="eyebrow">Your correspondence workspace</p>
+            <h2 id="today-greeting">Good day.</h2>
+            <p class="lede">The everyday path is intentionally simple: write the message, let Mail Room choose the identity, review the final version, then send only when production is authorized.</p>
+          </div>
+          <button type="button" class="primary-action large-action" id="quick-compose" data-next="compose">Write a message</button>
         </div>
-        <div class="checklist" id="setup-checklist" aria-live="polite"></div>
-        <div class="panel-actions"><button type="button" data-next="compose">Continue to compose</button></div>
+
+        <section class="summary-grid" aria-label="Mail Room summary">
+          <article><span>Mail mode</span><strong id="summary-mode">Preview only</strong><small>Safe for drafting and review</small></article>
+          <article><span>Selected sender</span><strong id="summary-sender">Automatic</strong><small>Chosen from message context</small></article>
+          <article><span>Provider</span><strong id="summary-provider">Not configured</strong><small>Server-controlled</small></article>
+          <article><span>Recent activity</span><strong id="activity-count">0 items</strong><small>Composed and gateway events</small></article>
+        </section>
+
+        <section class="daily-card">
+          <div>
+            <p class="eyebrow">How Mail Room helps</p>
+            <h3>You write the correspondence. The machinery stays out of your way.</h3>
+          </div>
+          <div class="benefit-grid">
+            <div><strong>Identity-aware</strong><span>Replies use the address that originally received the message whenever policy permits.</span></div>
+            <div><strong>Review-first</strong><span>You see the final message and headers before any live submission is possible.</span></div>
+            <div><strong>Recorded</strong><span>Control IDs and activity make important correspondence easier to find later.</span></div>
+          </div>
+        </section>
+
+        <details class="settings-card" id="setup-toggle">
+          <summary>
+            <span><strong>System readiness</strong><small>Technical setup and activation checks</small></span>
+            <span class="summary-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="settings-body">
+            <div class="form-grid compact-grid">
+              <label>Legal name<input id="legal-name" value="Christmas Island Worldwide"></label>
+              <label>Operating name<input id="operating-name" value="WW.CX"></label>
+              <label>Mailing address<input id="mailing-address" placeholder="Configure verified business mailing address"></label>
+              <label>Public contact email<input id="contact-email" type="email" value="john@ww.cx"></label>
+              <label>Website<input id="website" type="url" value="https://ww.cx"></label>
+              <label>Privacy page<input id="privacy-url" type="url" value="https://ww.cx/privacy"></label>
+              <label>Delivery adapter<select id="provider"><option value="">Choose later</option></select></label>
+              <label>Default sender behavior<select id="sender-profile"><option value="">Automatic — use message context</option></select></label>
+              <label>Private delivery mailbox<input id="private-mailbox" value="john-inbox@ww.cx" readonly></label>
+              <label>Shared delivery mailbox<input id="shared-mailbox" value="maildesk@ww.cx" readonly></label>
+              <label>System no-reply identity<input id="system-sender" value="noreply@ww.cx" readonly></label>
+              <label>Managed domains<input id="managed-domains" value="Loading…" readonly></label>
+            </div>
+            <p class="technical-note"><strong>Security rule:</strong> Submitted From and Reply-To values are not trusted. The server replaces them with an identity permitted by the registry and message context.</p>
+            <div class="checklist" id="setup-checklist" aria-live="polite"></div>
+          </div>
+        </details>
       </section>
 
       <section class="panel" data-panel="compose" id="compose">
-        <div class="panel-heading"><div><p class="eyebrow">Step 2</p><h2>Compose correspondence</h2></div><button type="button" class="secondary" id="load-example">Load records-request example</button></div>
-        <div class="form-grid">
-          <label>Message class<select id="message-class"><option value="business_correspondence">Business correspondence</option><option value="legal_notice">Legal notice</option><option value="commercial">Commercial message</option></select></label>
-          <label>Original inbound recipient<input id="original-recipient" type="email" placeholder="john@spiritcreekgardens.com"></label>
-          <label>Sender name<input id="signer-name" value="John Kaminski"></label>
-          <label>Sender title<input id="signer-title" value="Authorized Representative"></label>
-          <label>To<input id="to" placeholder="recipient@example.com"></label>
-          <label>CC<input id="cc" placeholder="optional@example.com"></label>
-          <label>BCC<input id="bcc" placeholder="Optional; visible in audit controls"></label>
-          <label>Case ID<input id="case-id" placeholder="ENT-184366738"></label>
-          <label>Action ID<input id="action-id" placeholder="ENT-ACT-014"></label>
-          <label class="wide"><input id="system-generated" type="checkbox"> System-generated message — use noreply@ww.cx and do not set Reply-To</label>
-          <label class="wide">Subject<input id="subject" placeholder="Clear, specific subject"></label>
-          <label class="wide">Message body<textarea id="body" rows="14" placeholder="Write the message body here. The gateway adds the approved signature and footer during preview."></textarea></label>
-          <label class="wide hidden" id="unsubscribe-wrap">Unsubscribe or preference URL<input id="unsubscribe-url" type="url" placeholder="https://ww.cx/preferences/..."></label>
+        <div class="panel-heading">
+          <div><p class="eyebrow">Compose</p><h2>Write your message</h2><p class="panel-subtitle">Start with what a person needs to read. Mail Room handles the envelope.</p></div>
+          <button type="button" class="secondary" id="load-example">Load example</button>
         </div>
-        <section class="explain"><h3>How the sender is selected</h3><p>Replies use the address that originally received the message. Manual messages can use an approved sender fallback. Any arbitrary From or Reply-To supplied by another client is replaced by the gateway.</p></section>
-        <div class="panel-actions"><button type="button" class="secondary" data-back="setup">Back</button><button type="button" data-next="controls">Continue to controls</button></div>
+
+        <div class="compose-card">
+          <div class="recipient-grid">
+            <label class="wide">To<input id="to" autocomplete="off" placeholder="recipient@example.com"></label>
+            <label>CC<input id="cc" autocomplete="off" placeholder="Optional"></label>
+            <label>BCC<input id="bcc" autocomplete="off" placeholder="Optional"></label>
+          </div>
+          <label class="wide subject-field">Subject<input id="subject" placeholder="What is this about?"></label>
+          <label class="wide body-field">Message<textarea id="body" rows="16" placeholder="Write naturally. The approved signature and footer are added during review."></textarea></label>
+          <p class="privacy-hint" id="draft-reassurance">Message text stays in this page until you ask Mail Room to generate a server-side preview. Draft bodies are not saved to browser storage.</p>
+        </div>
+
+        <details class="advanced-card">
+          <summary><span><strong>Message context</strong><small>Identity, case, and special-purpose settings</small></span><span class="summary-chevron" aria-hidden="true">⌄</span></summary>
+          <div class="settings-body">
+            <div class="form-grid">
+              <label>Message class<select id="message-class"><option value="business_correspondence">Business correspondence</option><option value="legal_notice">Legal notice</option><option value="commercial">Commercial message</option></select></label>
+              <label>Original inbound recipient<input id="original-recipient" type="email" placeholder="address that received the original message"></label>
+              <label>Sender name<input id="signer-name" value="John Kaminski"></label>
+              <label>Sender title<input id="signer-title" value="Authorized Representative"></label>
+              <label>Case ID<input id="case-id" placeholder="Optional case ID"></label>
+              <label>Action ID<input id="action-id" placeholder="Optional action ID"></label>
+              <label class="wide checkbox-row"><input id="system-generated" type="checkbox"> System-generated message — use noreply@ww.cx and omit Reply-To</label>
+              <label class="wide hidden" id="unsubscribe-wrap">Unsubscribe or preference URL<input id="unsubscribe-url" type="url" placeholder="https://ww.cx/preferences/..."></label>
+            </div>
+            <section class="explain"><h3>Sender selection</h3><p>For replies, Mail Room tries to preserve the exact address that received the original message. An unseen address on a managed catch-all domain can be prepared for review without silently granting it live sending authority.</p></section>
+          </div>
+        </details>
+
+        <div class="panel-actions split-actions">
+          <button type="button" class="secondary" data-back="setup">Today</button>
+          <div class="action-cluster"><button type="button" class="secondary" data-next="controls">Safety & privacy</button><button type="button" id="generate-preview">Review final message</button></div>
+        </div>
       </section>
 
       <section class="panel" data-panel="controls">
-        <div class="panel-heading"><div><p class="eyebrow">Step 3</p><h2>Correspondence controls</h2></div><span class="badge safe">Privacy-forward defaults</span></div>
-        <div class="control-grid">
-          <label><input id="include-action-link" type="checkbox" checked> Include visible correspondence/acknowledgment link</label>
-          <label><input id="include-disclosure" type="checkbox" checked disabled> Disclose access logging</label>
-          <label><input id="include-confidentiality" type="checkbox" checked> Include confidentiality and records notice</label>
-          <label><input id="include-caveat" type="checkbox" checked disabled> State that the footer does not create legal rights</label>
-          <label><input id="record-recipients" type="checkbox" checked> Record recipient addresses in the restricted audit ledger</label>
-          <label><input id="hidden-tracking" type="checkbox" disabled> Hidden open-tracking pixel</label>
-          <label><input id="device-fingerprint" type="checkbox" disabled> Device fingerprinting</label>
-          <label><input id="full-ip" type="checkbox" disabled> Store full IP addresses</label>
-          <label>Access-event retention<select id="retention"><option value="30">30 days</option><option value="90">90 days</option><option value="180" selected>180 days</option><option value="365">365 days</option></select></label>
-          <label>IP treatment<select id="ip-mode"><option value="none">Do not retain</option><option value="truncated">Truncated</option><option value="keyed_hash" selected>Keyed hash</option></select></label>
+        <div class="panel-heading">
+          <div><p class="eyebrow">Safety & privacy</p><h2>Safe defaults are enforced for you</h2><p class="panel-subtitle">These are server policy, not per-message switches. You do not need to manage them during ordinary correspondence.</p></div>
+          <span class="badge safe">Policy-controlled</span>
         </div>
-        <section class="explain"><h3>What recipients see</h3><p>The action link is an ordinary disclosed link, not an invisible image. The landing page explains what is logged and why. Access events are treated as evidence of a request, not proof that a named individual personally read the email.</p></section>
-        <div class="panel-actions"><button type="button" class="secondary" data-back="compose">Back</button><button type="button" id="generate-preview">Generate preview</button></div>
+
+        <section class="recommended-card">
+          <div><strong>No action required</strong><span>Mail Room applies the approved privacy and records controls automatically.</span></div>
+        </section>
+
+        <div class="control-grid">
+          <label><input id="include-action-link" type="checkbox" checked disabled> Include visible correspondence/acknowledgment link</label>
+          <label><input id="include-disclosure" type="checkbox" checked disabled> Disclose access logging</label>
+          <label><input id="include-confidentiality" type="checkbox" checked disabled> Include confidentiality and records notice</label>
+          <label><input id="include-caveat" type="checkbox" checked disabled> State that the footer does not create legal rights</label>
+          <label><input id="record-recipients" type="checkbox" checked disabled> Record recipient addresses in the restricted audit ledger</label>
+          <label class="prohibited"><input id="hidden-tracking" type="checkbox" disabled> Hidden open-tracking pixel <span>Never used</span></label>
+          <label class="prohibited"><input id="device-fingerprint" type="checkbox" disabled> Device fingerprinting <span>Never used</span></label>
+          <label class="prohibited"><input id="full-ip" type="checkbox" disabled> Store full IP addresses <span>Never used</span></label>
+          <label>Access-event retention<select id="retention" disabled><option value="30">30 days</option><option value="90">90 days</option><option value="180" selected>180 days</option><option value="365">365 days</option></select></label>
+          <label>IP treatment<select id="ip-mode" disabled><option value="none">Do not retain</option><option value="truncated">Truncated</option><option value="keyed_hash" selected>Keyed hash</option></select></label>
+        </div>
+        <section class="explain"><h3>What recipients see</h3><p>The action link is disclosed and ordinary, not an invisible image. Access evidence records a request event; it is not treated as proof that a named person personally read the email.</p></section>
+        <div class="panel-actions split-actions"><button type="button" class="secondary" data-back="compose">Back to message</button><button type="button" id="generate-preview-options">Review final message</button></div>
       </section>
 
       <section class="panel" data-panel="preview">
-        <div class="panel-heading"><div><p class="eyebrow">Step 4</p><h2>Review before submission</h2></div><span class="badge" id="preview-status">Not generated</span></div>
+        <div class="panel-heading">
+          <div><p class="eyebrow">Review</p><h2>Read it once as the recipient will</h2><p class="panel-subtitle">Mail Room builds the final server-authoritative version before submission.</p></div>
+          <span class="badge" id="preview-status">Not generated</span>
+        </div>
         <div id="validation-results" class="validation-results" aria-live="polite"></div>
         <div class="preview-grid">
-          <section><h3>Final message</h3><pre id="message-preview">Complete the previous steps and generate a preview.</pre></section>
-          <section><h3>Control metadata</h3><dl id="metadata-preview" class="metadata"></dl><h3>Headers</h3><pre id="headers-preview">No headers generated.</pre></section>
+          <section class="message-preview-card"><div class="section-title"><h3>Final message</h3><span>Recipient view</span></div><pre id="message-preview">Write a message and choose “Review final message.”</pre></section>
+          <aside class="review-sidebar">
+            <section><div class="section-title"><h3>At a glance</h3></div><dl id="metadata-preview" class="metadata"></dl></section>
+            <details class="headers-card"><summary>Technical headers</summary><pre id="headers-preview">No headers generated.</pre></details>
+          </aside>
         </div>
-        <div class="panel-actions"><button type="button" class="secondary" data-back="controls">Back</button><button type="button" class="secondary" id="copy-preview">Copy final message</button><button type="button" id="submit-message" disabled>Submit message</button></div>
-        <p class="fine-print">Submission remains disabled until a delivery adapter, credentials, sender verification, mailing address, DNS authentication, identity allowlist, and explicit production authorization are configured.</p>
+        <div class="panel-actions split-actions"><button type="button" class="secondary" data-back="compose">Edit message</button><div class="action-cluster"><button type="button" class="secondary" id="copy-preview">Copy final message</button><button type="button" id="submit-message" disabled>Send message</button></div></div>
+        <p class="fine-print">Submission remains disabled until a delivery adapter, credentials, sender verification, mailing address, DNS authentication, identity allowlist, final scanner, and explicit production authorization are configured.</p>
       </section>
 
       <section class="panel" data-panel="activity">
-        <div class="panel-heading"><div><p class="eyebrow">Step 5</p><h2>Correspondence matrix</h2></div><button type="button" class="secondary" id="export-activity">Export CSV</button></div>
-        <div class="filters"><input id="activity-search" type="search" placeholder="Filter by case, recipient, subject, or control ID"><select id="activity-status"><option value="">All statuses</option><option>Composed</option><option>Submitted</option><option>Delivered</option><option>Bounced</option><option>Acknowledged</option><option>Replied</option><option>Closed</option></select></div>
-        <div class="table-wrap"><table><thead><tr><th>Control ID</th><th>Case</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Last event</th><th>Confidence</th></tr></thead><tbody id="activity-body"><tr><td colspan="7" class="empty">No local preview events yet.</td></tr></tbody></table></div>
+        <div class="panel-heading">
+          <div><p class="eyebrow">Activity</p><h2>Find correspondence quickly</h2><p class="panel-subtitle">Search by case, recipient, subject, or control ID.</p></div>
+          <button type="button" class="secondary" id="export-activity">Export CSV</button>
+        </div>
+        <div class="filters"><label class="search-field"><span class="sr-only">Search activity</span><input id="activity-search" type="search" placeholder="Search mail activity"></label><select id="activity-status" aria-label="Filter activity by status"><option value="">All statuses</option><option>Composed</option><option>Submitted</option><option>Delivered</option><option>Bounced</option><option>Acknowledged</option><option>Replied</option><option>Closed</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Control ID</th><th>Case</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Last event</th><th>Confidence</th></tr></thead><tbody id="activity-body"><tr><td colspan="7" class="empty">No Mail Room activity yet.</td></tr></tbody></table></div>
       </section>
     </div>
   </main>
+
+  <dialog id="shortcut-dialog" class="shortcut-dialog">
+    <form method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">Keyboard</p><h2>Mail Room shortcuts</h2></div><button value="close" class="icon-button" aria-label="Close">×</button></div>
+      <dl class="shortcut-list"><div><dt><kbd>C</kbd></dt><dd>Compose a message</dd></div><div><dt><kbd>/</kbd></dt><dd>Search activity</dd></div><div><dt><kbd>Esc</kbd></dt><dd>Return to Today</dd></div><div><dt><kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd></dt><dd>Generate the review preview</dd></div></dl>
+    </form>
+  </dialog>
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <script src="./app.js"></script>
 </body>
 </html>

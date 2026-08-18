@@ -46,17 +46,43 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
                 self.assertTrue(path.is_file())
                 self.assertGreater(path.stat().st_size, 100)
 
-    def test_admin_flow_contains_all_major_steps(self) -> None:
+    def test_mail_room_keeps_all_major_views(self) -> None:
         for step in ("setup", "compose", "controls", "preview", "activity"):
             with self.subTest(step=step):
                 self.assertIn(f'data-panel="{step}"', self.html)
                 self.assertIn(f'data-step="{step}"', self.html)
+
+    def test_daily_path_is_prominent_and_short(self) -> None:
+        for token in (
+            "Mail Room",
+            "Today",
+            "Write a message",
+            "Review final message",
+            "Find correspondence quickly",
+            "The everyday path is intentionally simple",
+        ):
+            self.assertIn(token, self.html)
+        self.assertIn('id="quick-compose"', self.html)
+        self.assertIn('id="generate-preview"', self.html)
+        self.assertIn("generatePreview", self.js)
 
     def test_preview_only_and_production_gate_are_visible(self) -> None:
         self.assertIn("Preview only", self.html)
         self.assertIn("live delivery is disabled", self.html)
         self.assertIn("explicit production authorization", self.html)
         self.assertIn('id="submit-message" disabled', self.html)
+
+    def test_policy_controls_are_visible_but_not_fake_per_message_switches(self) -> None:
+        self.assertIn("Policy-controlled", self.html)
+        for token in (
+            'id="include-action-link" type="checkbox" checked disabled',
+            'id="include-disclosure" type="checkbox" checked disabled',
+            'id="include-confidentiality" type="checkbox" checked disabled',
+            'id="record-recipients" type="checkbox" checked disabled',
+            'id="retention" disabled',
+            'id="ip-mode" disabled',
+        ):
+            self.assertIn(token, self.html)
 
     def test_transparency_and_prohibited_controls_are_visible(self) -> None:
         self.assertIn("Disclose access logging", self.html)
@@ -81,15 +107,42 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
             "identity_hint",
             "system_generated",
             "sender_selection",
-            "from_address_replaced",
+            "managed_domains",
+            "original_recipient_catch_all_proposal",
         ):
-            self.assertIn(token, self.js)
+            self.assertIn(token, self.js + self.identity_facade)
         self.assertIn('"allow_submitted_from_override": false', self.identities)
         self.assertIn('"private_john_delivery_mailbox": "john-inbox@ww.cx"', self.identities)
         self.assertIn('"shared_role_delivery_mailbox": "maildesk@ww.cx"', self.identities)
         self.assertIn('"system_sender": "noreply@ww.cx"', self.identities)
         self.assertIn("submitted From override must remain disabled", self.identity_engine)
         self.assertIn('prepared["from_address"] = selection.address', self.identity_facade)
+
+    def test_catch_all_preview_is_not_blocked_by_old_frontend_rule(self) -> None:
+        self.assertIn("catch-all address can be preserved for review", self.js)
+        self.assertIn("outside the managed Mail Room domains", self.js)
+        self.assertNotIn("Original inbound recipient is not a registered sender identity.", self.js)
+
+    def test_stale_preview_is_invalidated_after_message_edits(self) -> None:
+        self.assertIn("function invalidatePreview()", self.js)
+        self.assertIn("The message changed. Generate a fresh review before sending.", self.js)
+        self.assertIn("$('#submit-message').disabled = true;", self.js)
+        self.assertIn("state.preview = null", self.js)
+
+    def test_draft_privacy_and_leave_protection_are_explicit(self) -> None:
+        self.assertIn("Draft bodies are not saved to browser storage", self.html)
+        self.assertIn("function hasDraftContent()", self.js)
+        self.assertIn("beforeunload", self.js)
+        self.assertIn("draftCommitted", self.js)
+
+    def test_keyboard_shortcuts_do_not_disrupt_typing(self) -> None:
+        self.assertIn("Mail Room shortcuts", self.html)
+        self.assertIn("handleKeyboard", self.js)
+        self.assertIn("const typing = isTypingTarget(event.target);", self.js)
+        self.assertIn("event.key === 'Escape' && !typing", self.js)
+        self.assertIn("event.metaKey || event.ctrlKey", self.js)
+        self.assertIn("navigator.clipboard.writeText", self.js)
+        self.assertIn("$('#quick-compose').addEventListener", self.js)
 
     def test_chatgpt_and_provider_abstraction_are_documented(self) -> None:
         self.assertIn("ChatGPT and automation path", self.doc)
@@ -105,8 +158,12 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
         self.assertIn('"device_fingerprinting": false', self.policy)
         self.assertIn('"collect_full_ip": false', self.policy)
 
-    def test_mobile_layout_exists(self) -> None:
-        self.assertIn("@media(max-width:900px)", self.css)
+    def test_accessibility_and_responsive_layout_exist(self) -> None:
+        self.assertIn("skip-link", self.html)
+        self.assertIn('aria-live="polite"', self.html)
+        self.assertIn("prefers-reduced-motion", self.css)
+        self.assertIn("@media(max-width:1050px)", self.css)
+        self.assertIn("@media(max-width:800px)", self.css)
         self.assertIn("@media(max-width:560px)", self.css)
 
 

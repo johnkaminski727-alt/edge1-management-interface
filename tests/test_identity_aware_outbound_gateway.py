@@ -50,6 +50,7 @@ class IdentityAwareOutboundGatewayTests(unittest.TestCase):
         self.assertEqual(selection["shared_delivery_mailbox"], "maildesk@ww.cx")
         self.assertEqual(selection["system_sender"], "noreply@ww.cx")
         self.assertEqual(selection["live_sender_count"], 0)
+        self.assertEqual(selection["managed_domains"], sorted(self.identities["domains"]))
         self.assertNotIn(
             "noreply@ww.cx",
             {item["address"] for item in selection["identities"]},

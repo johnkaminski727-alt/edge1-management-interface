@@ -57,6 +57,7 @@ assert selection_status["shared_delivery_mailbox"] == "maildesk@ww.cx"
 assert selection_status["system_sender"] == "noreply@ww.cx"
 assert selection_status["outbound_activation_authorized"] is False
 assert selection_status["live_sender_count"] == 0
+assert selection_status["managed_domains"] == sorted(identities["domains"])
 
 preview = identity_aware_outbound_gateway.compose_preview(
     config,
@@ -124,7 +125,10 @@ page = PAGE_PATH.read_text(encoding="utf-8")
 script = SCRIPT_PATH.read_text(encoding="utf-8")
 server = SERVER_PATH.read_text(encoding="utf-8")
 for required in (
-    "Outbound Mail Gateway",
+    "Mail Room",
+    "Write a message",
+    "Review final message",
+    "Find correspondence quickly",
     'data-panel="setup"',
     'data-panel="compose"',
     'data-panel="controls"',
@@ -132,7 +136,6 @@ for required in (
     'data-panel="activity"',
     "Hidden open-tracking pixel",
     "Device fingerprinting",
-    "Correspondence matrix",
     'id="submit-message" disabled',
     'id="original-recipient"',
     'id="system-generated"',
@@ -152,6 +155,8 @@ for required in (
     "identity_hint",
     "system_generated",
     "sender_selection",
+    "managed_domains",
+    "invalidatePreview",
     "noreply@ww.cx",
 ):
     assert required in script, required
@@ -208,7 +213,7 @@ if node:
     node_result = subprocess.run([node, "--check", str(SCRIPT_PATH)], check=False)
     assert node_result.returncode == 0
 
-print("Identity-aware outbound mail gateway validation passed")
+print("Identity-aware Mail Room gateway validation passed")
 print("Private delivery mailbox: john-inbox@ww.cx")
 print("Shared role delivery mailbox: maildesk@ww.cx")
 print("System sender: noreply@ww.cx")
