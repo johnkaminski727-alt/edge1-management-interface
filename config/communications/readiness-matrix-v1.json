@@ -81,7 +81,7 @@
     "communications_relay": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
-      "edge1_runtime": "unknown",
+      "edge1_runtime": "runtime_ready",
       "private_ai_adapter": "runtime_ready",
       "identity_mapping": "unknown",
       "security_quarantine": "security_ready",
@@ -90,9 +90,9 @@
       "dns_authentication": "not_applicable",
       "live_routing": "not_applicable",
       "production_authorization": "blocked",
-      "live_acceptance": "unknown",
-      "rollback_evidence": "repository_ready",
-      "notes": "communications.read has historical accepted live evidence with provenance and untrusted-content handling. A fresh service check confirmed edge1-comms-relay active, but no new functional Relay acceptance is inferred from active state alone. No upstream posting/federation mutation is authorized here."
+      "live_acceptance": "runtime_ready",
+      "rollback_evidence": "runtime_ready",
+      "notes": "Fresh Phase 14J Edge1 acceptance confirmed edge1-comms-relay as the authoritative native metadata source for the unified workspace. The read-only/query-only snapshot generator produced and validated 168 canonical Relay/NNTP events, the live workspace returned all 168 with authoritative native provenance and untrusted-content handling, POST remained HTTP 405, and the 15-minute refresh timer is enabled. The native database remains mode 0600 and no upstream posting/federation mutation is authorized."
     },
     "communications_workspace": {
       "repository_implementation": "repository_ready",
@@ -108,7 +108,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed the persistent wwcx-communications-workspace.service active and enabled from detached runtime source commit a46ec4433033648c3428ce061318cdaf347a3605, bound only to 127.0.0.1:8095. Health, readiness, static workspace, empty-event truthfulness, POST-405 mutation rejection, unchanged live repository state, adjacent UC service health, and rollback evidence all passed. No authoritative canonical event snapshot/feed is attached yet, so the workspace is operational but intentionally empty and global fresh runtime completion remains false. No reverse proxy/public exposure is authorized."
+      "notes": "Fresh Edge1 acceptance confirms the persistent wwcx-communications-workspace.service bound only to 127.0.0.1:8095 with an attached authoritative Relay canonical snapshot. Phase 14J returned 168 canonical events, preserved content_is_untrusted=true and mutation_authorized=false, rejected POST with HTTP 405, enabled a 15-minute snapshot refresh timer, kept the live repository worktree unchanged, and retained rollback evidence. No reverse proxy/public exposure is authorized."
     },
     "private_ai": {
       "repository_implementation": "repository_ready",
