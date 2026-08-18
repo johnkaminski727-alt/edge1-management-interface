@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Capture a read-only DNS inventory for the managed mail domains.
+"""Capture a read-only DNS inventory for configured managed mail domains.
 
-The tool queries two public DNS-over-HTTPS resolvers, records normalized
-answers, compares resolver consensus, and infers only the likely mail-provider
-family from published MX hostnames. It never changes DNS or provider state.
+The tool derives its domain set from the canonical Mail Room identity registry,
+queries two public DNS-over-HTTPS resolvers, records normalized answers, compares
+resolver consensus, and infers only the likely mail-provider family from published
+MX hostnames. It never changes DNS or provider state.
 """
 
 from __future__ import annotations
@@ -15,15 +16,10 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
-DOMAINS = (
-    "ww.cx",
-    "creekco.ca",
-    "spiritcreekgardens.com",
-    "scgardens.ca",
-    "omegafx.com",
-)
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_IDENTITIES = ROOT / "config" / "messaging" / "mail-identities.json"
 
 RESOLVERS = {
     "cloudflare": "https://cloudflare-dns.com/dns-query",
@@ -37,6 +33,25 @@ TYPE_CODES = {
     "MX": 15,
     "TXT": 16,
 }
+
+
+def load_managed_domains(path: str | Path = DEFAULT_IDENTITIES) -> tuple[str, ...]:
+    registry = json.loads(Path(path).read_text(encoding="utf-8"))
+    if registry.get("contract") != "wwcx.mail-identities.v2":
+        raise ValueError("unsupported Mail Room identity registry")
+    domains = registry.get("domains")
+    if not isinstance(domains, dict) or not domains:
+        raise ValueError("identity registry domains must be a non-empty object")
+    normalized: list[str] = []
+    for domain in domains:
+        if not isinstance(domain, str) or not domain or domain.casefold() != domain:
+            raise ValueError("identity registry domain keys must be normalized lowercase")
+        if "." not in domain or "@" in domain:
+            raise ValueError("identity registry domain key is invalid")
+        normalized.append(domain)
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("identity registry domains must be unique")
+    return tuple(sorted(normalized))
 
 
 def _normalize_record_data(record_type: str, data: str) -> str:
@@ -64,13 +79,13 @@ def query_resolver(
         f"{resolver_url}?{params}",
         headers={
             "Accept": "application/dns-json",
-            "User-Agent": "wwcx-mail-domain-inventory/1.0",
+            "User-Agent": "wwcx-mail-domain-inventory/1.1",
         },
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
-    except Exception as exc:  # network evidence must preserve partial failures
+    except Exception as exc:
         return {
             "resolver": resolver_name,
             "status": "error",
@@ -108,7 +123,10 @@ def consensus(responses: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def infer_mail_provider(mx_records: list[str]) -> dict[str, str]:
+def infer_mail_provider(
+    mx_records: list[str],
+    managed_domains: Iterable[str] = (),
+) -> dict[str, str]:
     hosts = [item.split(maxsplit=1)[-1].casefold() for item in mx_records]
     joined = " ".join(hosts)
     if any(token in joined for token in ("aspmx.l.google.com", "smtp.google.com", "googlemail.com")):
@@ -125,15 +143,22 @@ def infer_mail_provider(mx_records: list[str]) -> dict[str, str]:
         return {"provider_family": "zoho_mail", "confidence": "high"}
     if not hosts:
         return {"provider_family": "no_published_mx_observed", "confidence": "high"}
-    if len(hosts) == 1 and hosts[0] in DOMAINS:
+    domain_set = {item.casefold() for item in managed_domains}
+    if len(hosts) == 1 and hosts[0] in domain_set:
         return {"provider_family": "domain_local_or_cpanel", "confidence": "medium"}
     return {"provider_family": "unclassified", "confidence": "low"}
 
 
-def build_inventory(timeout: float) -> dict[str, Any]:
+def build_inventory(
+    timeout: float,
+    domains: Iterable[str] | None = None,
+) -> dict[str, Any]:
+    configured_domains = tuple(domains) if domains is not None else load_managed_domains()
+    if not configured_domains:
+        raise ValueError("at least one managed domain is required")
     observed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    domains: dict[str, Any] = {}
-    for domain in DOMAINS:
+    domain_results: dict[str, Any] = {}
+    for domain in configured_domains:
         records: dict[str, Any] = {}
         for record_name, query_name, record_type in (
             ("mx", domain, "MX"),
@@ -148,11 +173,13 @@ def build_inventory(timeout: float) -> dict[str, Any]:
             record_consensus = consensus(responses)
             if record_name == "spf_txt":
                 record_consensus["answers"] = [
-                    item for item in record_consensus["answers"] if item.casefold().startswith("v=spf1")
+                    item for item in record_consensus["answers"]
+                    if item.casefold().startswith("v=spf1")
                 ]
             if record_name == "dmarc_txt":
                 record_consensus["answers"] = [
-                    item for item in record_consensus["answers"] if item.casefold().startswith("v=dmarc1")
+                    item for item in record_consensus["answers"]
+                    if item.casefold().startswith("v=dmarc1")
                 ]
             records[record_name] = {
                 "query_name": query_name,
@@ -160,8 +187,11 @@ def build_inventory(timeout: float) -> dict[str, Any]:
                 "consensus": record_consensus,
                 "resolver_evidence": responses,
             }
-        provider = infer_mail_provider(records["mx"]["consensus"]["answers"])
-        domains[domain] = {
+        provider = infer_mail_provider(
+            records["mx"]["consensus"]["answers"],
+            configured_domains,
+        )
+        domain_results[domain] = {
             "records": records,
             "provider_inference": provider,
         }
@@ -169,8 +199,9 @@ def build_inventory(timeout: float) -> dict[str, Any]:
         "contract": "wwcx.mail-domain-dns-inventory.v1",
         "observed_at": observed_at,
         "read_only": True,
+        "canonical_domain_source": "config/messaging/mail-identities.json",
         "resolvers": list(RESOLVERS),
-        "domains": domains,
+        "domains": domain_results,
     }
 
 
@@ -178,6 +209,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--timeout", type=float, default=10.0)
+    parser.add_argument("--identities", type=Path, default=DEFAULT_IDENTITIES)
     return parser.parse_args()
 
 
@@ -185,7 +217,8 @@ def main() -> int:
     args = parse_args()
     if not 1.0 <= args.timeout <= 60.0:
         raise SystemExit("--timeout must be between 1 and 60 seconds")
-    inventory = build_inventory(args.timeout)
+    domains = load_managed_domains(args.identities)
+    inventory = build_inventory(args.timeout, domains)
     rendered = json.dumps(inventory, indent=2, sort_keys=True) + "\n"
     if args.output is None:
         sys.stdout.write(rendered)
@@ -198,7 +231,7 @@ def main() -> int:
         for domain in inventory["domains"].values()
         if domain["records"]["mx"]["consensus"]["successful_resolvers"] > 0
     )
-    return 0 if successful == len(DOMAINS) else 2
+    return 0 if successful == len(domains) else 2
 
 
 if __name__ == "__main__":

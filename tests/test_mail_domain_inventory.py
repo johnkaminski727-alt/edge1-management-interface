@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -15,9 +16,9 @@ import mail_domain_inventory as MODULE
 
 
 class MailDomainInventoryTests(unittest.TestCase):
-    def test_managed_domain_set_is_exact(self) -> None:
+    def test_managed_domain_set_comes_from_identity_registry(self) -> None:
         self.assertEqual(
-            set(MODULE.DOMAINS),
+            set(MODULE.load_managed_domains()),
             {
                 "ww.cx",
                 "creekco.ca",
@@ -26,6 +27,13 @@ class MailDomainInventoryTests(unittest.TestCase):
                 "omegafx.com",
             },
         )
+
+    def test_invalid_identity_registry_contract_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = pathlib.Path(temp_dir) / "identities.json"
+            path.write_text('{"contract":"wrong","domains":{"example.com":{}}}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unsupported"):
+                MODULE.load_managed_domains(path)
 
     def test_record_normalization(self) -> None:
         self.assertEqual(
@@ -49,10 +57,7 @@ class MailDomainInventoryTests(unittest.TestCase):
             ]
         )
         self.assertFalse(result["agreed"])
-        self.assertEqual(
-            result["answers"],
-            ["10 mx1.example", "20 mx2.example"],
-        )
+        self.assertEqual(result["answers"], ["10 mx1.example", "20 mx2.example"])
 
     def test_provider_inference(self) -> None:
         cases = {
@@ -70,8 +75,13 @@ class MailDomainInventoryTests(unittest.TestCase):
                     MODULE.infer_mail_provider(records)["provider_family"],
                     expected,
                 )
+        self.assertEqual(
+            MODULE.infer_mail_provider(["0 ww.cx"], ["ww.cx"])["provider_family"],
+            "domain_local_or_cpanel",
+        )
 
     def test_inventory_shape_without_network(self) -> None:
+        domains = ("example.com", "example.net")
         original = MODULE.query_resolver
         try:
             MODULE.query_resolver = lambda resolver_name, resolver_url, name, record_type, timeout: {
@@ -81,17 +91,18 @@ class MailDomainInventoryTests(unittest.TestCase):
                 "authenticated_data": False,
                 "answers": [],
             }
-            inventory = MODULE.build_inventory(1.0)
+            inventory = MODULE.build_inventory(1.0, domains)
         finally:
             MODULE.query_resolver = original
         self.assertTrue(inventory["read_only"])
         self.assertEqual(inventory["contract"], "wwcx.mail-domain-dns-inventory.v1")
-        self.assertEqual(set(inventory["domains"]), set(MODULE.DOMAINS))
+        self.assertEqual(set(inventory["domains"]), set(domains))
+        self.assertEqual(
+            inventory["canonical_domain_source"],
+            "config/messaging/mail-identities.json",
+        )
         for domain in inventory["domains"].values():
-            self.assertEqual(
-                set(domain["records"]),
-                {"mx", "spf_txt", "dmarc_txt", "ns"},
-            )
+            self.assertEqual(set(domain["records"]), {"mx", "spf_txt", "dmarc_txt", "ns"})
 
 
 if __name__ == "__main__":
