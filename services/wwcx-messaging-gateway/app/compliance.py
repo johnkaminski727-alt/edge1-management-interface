@@ -47,16 +47,18 @@ class SuppressionRegistry:
             return None
 
         event_time = occurred_at or datetime.now(timezone.utc)
-        event_key = (event_time, message_id)
-        current_key = self.effective.get(address)
-        applied = current_key is None or event_key > current_key
+        applied = True
 
-        if applied:
-            self.effective[address] = event_key
-            if action == "stop":
-                self.suppressed[address] = event_time
-            elif action == "start":
-                self.suppressed.pop(address, None)
+        if action in {"stop", "start"}:
+            event_key = (event_time, message_id)
+            current_key = self.effective.get(address)
+            applied = current_key is None or event_key > current_key
+            if applied:
+                self.effective[address] = event_key
+                if action == "stop":
+                    self.suppressed[address] = event_time
+                else:
+                    self.suppressed.pop(address, None)
 
         self.events.append(
             {
