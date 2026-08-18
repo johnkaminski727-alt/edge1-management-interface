@@ -7,7 +7,6 @@ After=network-online.target wwcx-network-sensor-suricata.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/wwcx-suricata-update
-ExecStartPost=/usr/local/sbin/wwcx-suricata-rule-backup-prune
 User=root
 Group=root
 UMask=0027
