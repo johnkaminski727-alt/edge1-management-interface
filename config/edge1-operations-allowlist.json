@@ -1,10 +1,11 @@
 {
-  "version": 3,
+  "version": 4,
   "actions": {
     "repository.status": {"argv": ["git", "status", "--short", "--branch"], "mutating": false, "timeout_seconds": 30},
     "repository.head": {"argv": ["git", "rev-parse", "HEAD"], "mutating": false, "timeout_seconds": 30},
     "repository.fetch": {"argv": ["git", "fetch", "--prune", "origin"], "mutating": true, "timeout_seconds": 120},
     "repository.fast_forward_main": {"argv": ["git", "pull", "--ff-only", "origin", "main"], "mutating": true, "timeout_seconds": 180},
+    "edge1.snapshot": {"argv": ["python3", "server/edge1_snapshot.py", "--format", "json"], "mutating": false, "timeout_seconds": 180},
     "validation.interconnect": {"argv": ["sh", "deploy/interconnect/validate-staging-assets.sh"], "mutating": false, "timeout_seconds": 300},
     "validation.numbering_node": {"argv": ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_wwcx_numbering_node.py", "-v"], "mutating": false, "timeout_seconds": 300},
     "numbering.health": {"argv": ["curl", "-fsS", "http://127.0.0.1:8093/healthz"], "mutating": false, "timeout_seconds": 30},
