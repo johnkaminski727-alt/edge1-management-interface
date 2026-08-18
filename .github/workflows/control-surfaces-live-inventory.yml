@@ -1,0 +1,36 @@
+name: Validate Control Surfaces live inventory
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/control-surfaces-live-inventory.sh'
+      - 'tests/test_control_surfaces_live_inventory.py'
+      - 'docs/control-surfaces/live-inventory.md'
+      - '.github/workflows/control-surfaces-live-inventory.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/control-surfaces-live-inventory.sh'
+      - 'tests/test_control_surfaces_live_inventory.py'
+      - 'docs/control-surfaces/live-inventory.md'
+      - '.github/workflows/control-surfaces-live-inventory.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: sh -n scripts/control-surfaces-live-inventory.sh
+      - name: Run live-inventory safety contract tests
+        run: python3 -m unittest tests.test_control_surfaces_live_inventory -v
+      - name: Assert no obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
+            scripts/control-surfaces-live-inventory.sh \
+            tests/test_control_surfaces_live_inventory.py \
+            docs/control-surfaces/live-inventory.md
