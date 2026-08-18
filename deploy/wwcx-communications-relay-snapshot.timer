@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh WW.CX Communications Relay metadata snapshot
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+AccuracySec=30s
+RandomizedDelaySec=15s
+Persistent=true
+Unit=wwcx-communications-relay-snapshot.service
+
+[Install]
+WantedBy=timers.target
