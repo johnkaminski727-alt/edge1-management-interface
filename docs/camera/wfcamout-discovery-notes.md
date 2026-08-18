@@ -21,7 +21,7 @@ BAZZ documentation currently supports the following facts:
 - the BAZZ application exposes device information including device ID, IP address, MAC address, and device time zone;
 - the general BAZZ application supports default pairing and an alternate AP/SmartConfig-style pairing mode depending on device support.
 
-These facts make the BAZZ application device-information screen the least-invasive first route to obtain a candidate LAN address for M2.
+The BAZZ application may expose useful device information, but Project Big Bird's current operating requirement is app-less. The BAZZ mobile application is therefore not part of the M2-M5 operational workflow.
 
 ## Platform lineage
 
@@ -52,15 +52,15 @@ No exact FCC ID, OEM manufacturer, chipset, or firmware family has yet been reco
 
 Use the narrowest owner-authorized evidence first:
 
-1. read the WFCAMOUT's IP address from BAZZ Smart Home Device Settings / Device Information if the camera is already paired;
-2. confirm that address on the owner network using passive neighbor/DHCP evidence where available;
-3. probe only that identified host for standard camera protocols, beginning with ONVIF/RTSP and then bounded HTTP/MJPEG/HLS candidates;
+1. inspect passive owner-LAN evidence first, beginning with DHCP leases, kernel ARP/neighbor state, and existing AP/switch client inventory where available;
+2. correlate only plausible local candidates and preserve private IP/MAC identifiers in private evidence rather than public Git history;
+3. if active probing is justified, probe only an already-observed candidate host for a small fixed set of camera-relevant ports/protocols;
 4. record discovered listeners and protocol responses without storing credentials;
 5. configure only verified candidate endpoint(s) in `/etc/bigbird-camera/cameras.json`;
 6. run the one-shot capture probe;
 7. visually verify the resulting artifact as actual WFCAMOUT pixels before recording M3.
 
-If the camera is not currently paired, use the documented BAZZ application pairing path before considering broader or more invasive techniques. Firmware modification is not part of the current first-frame path.
+If the camera is not currently paired, proceed only through an evidence-backed app-less stock-firmware provisioning provider. Generic Tuya QR/AP/EZ behavior must not be promoted into WFCAMOUT fact without model-specific or owner-controlled evidence. Firmware modification is not part of the current first-frame path.
 
 ## Evidence classification
 
