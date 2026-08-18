@@ -9,12 +9,13 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "config" / "communications" / "unified-communications.json"
+ROOT_INDEX_PATH = ROOT / "src" / "web" / "index.html"
 HUB_PATH = ROOT / "src" / "web" / "communications" / "index.html"
 STYLE_PATH = ROOT / "src" / "web" / "communications" / "styles.css"
 DOC_PATH = ROOT / "docs" / "communications" / "unified-communications-convergence-20260818.md"
 AGENT_PATH = ROOT / ".agent" / "unified-communications.md"
 
-for path in (REGISTRY_PATH, HUB_PATH, STYLE_PATH, DOC_PATH, AGENT_PATH):
+for path in (REGISTRY_PATH, ROOT_INDEX_PATH, HUB_PATH, STYLE_PATH, DOC_PATH, AGENT_PATH):
     assert path.is_file(), path
     assert path.stat().st_size > 100, path
 
@@ -69,8 +70,11 @@ assert assistant["browser_production_acceptance"] == "unverified"
 rules = registry["rules"]
 assert all(value is True for value in rules.values())
 
+root_page = ROOT_INDEX_PATH.read_text(encoding="utf-8")
 page = HUB_PATH.read_text(encoding="utf-8")
 style = STYLE_PATH.read_text(encoding="utf-8")
+assert '<a href="./communications/">Communications</a>' in root_page
+
 for token in (
     "WW.CX Operations",
     "Communications",
