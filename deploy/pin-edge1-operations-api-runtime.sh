@@ -86,9 +86,9 @@ $RESTORE
 systemctl daemon-reload
 systemctl restart $SERVICE
 i=0
-while [ \"\$i\" -lt 20 ]; do
+while [ "\$i" -lt 20 ]; do
     if curl -fsS --max-time 2 http://127.0.0.1:8097/healthz >/dev/null 2>&1; then
-        echo \"Operations API runtime rollback complete and healthy.\"
+        echo "Operations API runtime rollback complete and healthy."
         exit 0
     fi
     i=\$((i + 1))
