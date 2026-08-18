@@ -2,7 +2,7 @@
 
 Date: 2026-08-18
 Scope: repository-side completion, CI evidence, and fresh authenticated Edge1 operator acceptance
-Global fresh runtime completion: partial; Relay canonical feed, persistent workspace, and durable Messaging PostgreSQL state are accepted, while MMS scanner/storage, Mail correspondence, and any required fresh Voice/SIP acceptance remain incomplete
+Global fresh runtime completion: partial; Relay canonical feed, persistent workspace, durable Messaging PostgreSQL state, and bounded Voice/SIP read-only acceptance are complete, while MMS scanner/storage and Mail correspondence remain incomplete
 
 ## Accepted merged increments
 
@@ -20,12 +20,13 @@ Global fresh runtime completion: partial; Relay canonical feed, persistent works
 | #406 | Relay snapshot service identity correction | merge `c02cb3a1751d4b32768def32682bb150e90f308b` | PASS |
 | #407 | SQLite WAL/SHM sidecar sandbox correction | merge `f5cf3047965a28a23ddc249c2c2f57ea167f7da8` | PASS |
 | #408 | Live Relay canonical snapshot acceptance reconciliation | merge `7b959ebc0a3986673203a75d736b63596e3a4ddc` | PASS |
+| #409 | Durable Messaging PostgreSQL acceptance reconciliation | merge `7ca3b8360de740d844edcb8c598b1988407a16e5` | PASS |
 
 ## Evidence interpretation
 
 Repository CI and operator-run Edge1 evidence are distinct. Green GitHub Actions workflows establish repository validation only. Fresh live claims below come from authenticated operator-run SSH acceptance on `edge1.ww.cx`.
 
-The global `fresh_edge1_runtime_verified` flag remains false until the intended safe-scope runtime surfaces are complete. Fresh runtime acceptance does not imply production-traffic authorization.
+The global `fresh_edge1_runtime_verified` flag remains false until the intended safe-scope runtime surfaces are complete or explicitly resolved. Fresh runtime acceptance does not imply production-traffic authorization. A functional read-only acceptance may coexist with a degraded operational-health result; those states are recorded separately rather than collapsed into a single claim.
 
 ## Fresh Edge1 acceptance — Messaging Gateway
 
@@ -52,7 +53,6 @@ PASS:
 - PostgreSQL started with only Unix socket `/var/run/postgresql/.s.PGSQL.5432`; no TCP listener existed;
 - least-privilege non-superuser PostgreSQL role `wwadmin` created for peer-authenticated local use;
 - database `wwcx_messaging` created and exact repository migrations `0001_initial.sql` and `0002_control_state.sql` applied;
-- resulting schema contained Messaging event/message/media/suppression/outbound/control/audit tables;
 - local `PostgresEventStore` smoke test passed ping, zero count, and initialized control state;
 - a second zero-event state-loss gate passed immediately before restart;
 - `DATABASE_URL` configured as a Unix-socket DSN with no database password;
@@ -60,7 +60,7 @@ PASS:
 - post-restart `/readyz` returned `storage: postgres`;
 - live HTTP event count and PostgreSQL event count both returned zero;
 - PostgreSQL enabled for reboot persistence only after functional validation;
-- PostgreSQL, Messaging Gateway, Communications workspace, Relay, BigBird, outbound Mail, Asterisk, Kamailio, and Suricata remained active;
+- adjacent UC services remained active;
 - post-activation `MemAvailable` remained approximately 1.5 GiB and no new OOM evidence was observed;
 - no SMS/MMS, provider routing, public database listener, database password, or credentials were generated or changed.
 
@@ -68,7 +68,7 @@ Rollback:
 
 `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-messaging-postgres-20260818T111017Z.sh`
 
-Messaging durability is now freshly `runtime_ready` and no longer a blocker.
+Messaging durability is freshly `runtime_ready` and no longer a blocker.
 
 ## Fresh Edge1 acceptance — BigBird
 
@@ -116,6 +116,36 @@ Rollback:
 
 Communications Relay and workspace are `runtime_ready` for the bounded metadata/read-only scope.
 
+## Fresh Edge1 acceptance — Voice/SIP, Phase 19
+
+PASS for the bounded read-only functional surface:
+
+- repository-provided telephony analytics acceptance audit ran on `edge1.ww.cx` with evidence directory `/var/lib/wwcx-deployment-evidence/telephony-analytics-live-acceptance/uc-phase19-20260818T112551Z`;
+- Asterisk, Kamailio, telephony analytics, and telephony console services were active before and after the audit;
+- audited telephony assets matched current `origin/main` baseline `7ca3b8360de740d844edcb8c598b1988407a16e5`;
+- runtime analytics API and telephony-platform source hashes matched canonical repository sources;
+- analytics service remained hardened and loopback-only on `127.0.0.1:8099`;
+- health, calls-summary, and interconnect-summary aggregate endpoints returned valid payloads;
+- payload validation, privacy scanning, and anomaly-contract validation passed;
+- POST to the read-only platform-health endpoint returned HTTP `405`;
+- audit decision reported `warnings=0`, `failures=0`, `listener_scope=loopback-only`, and `api_mode=read-only`;
+- audit explicitly reported `database_query_performed=no`, `credentials_read=no`, `customer_identifiers_retained=no`, `call_origination_performed=no`, `dtmf_transmission_performed=no`, `carrier_route_changed=no`, `service_mutation=none`, and `runtime_mutation=none`;
+- Asterisk reported zero active calls and zero calls processed at acceptance time;
+- adjacent Messaging PostgreSQL, Communications workspace, Relay, and BigBird services remained active;
+- available memory remained approximately 1.5 GiB after the audit.
+
+The bounded read-only Voice/SIP `live_acceptance` is therefore `runtime_ready`.
+
+Operational health remains DEGRADED and is not overwritten by the passing acceptance:
+
+- aggregate `overall_status` was `critical` with score `28`;
+- component `sip` was `degraded`;
+- one of two interconnects was failed and `attention_required=1`;
+- interconnect attention ratio was in critical state;
+- no call sample existed, so answer/failure-rate anomaly indicators correctly reported insufficient data.
+
+The readiness matrix therefore records `voice_sip.edge1_runtime = degraded` while `voice_sip.live_acceptance = runtime_ready`. No call origination, route/trunk/dialplan/emergency changes, or provider traffic authority is inferred.
+
 ## MMS scanner/private quarantine runtime
 
 NOT COMPLETE:
@@ -126,21 +156,15 @@ NOT COMPLETE:
 
 Durable Messaging PostgreSQL storage does not satisfy the separate MMS quarantine storage/scanner requirement. The fail-closed metadata foundation remains live and deliberately degraded until those security components are attached.
 
-## Voice/SIP state
-
-Historical `telephony.read` acceptance remains valid. Fresh service checks confirmed Asterisk, Kamailio, telephony analytics, and telephony console active. Fresh native CDR/CEL inspection found zero rows, so no fabricated call records were introduced merely to manufacture acceptance evidence.
-
-Whether the final global safe-scope flag requires an additional fresh functional Voice/SIP read/status acceptance remains unresolved.
-
 ## Resource warning
 
-Post-Phase-18 memory remained approximately 1.5 GiB available while the configured 1 GiB swap allocation remained almost fully consumed. No recent OOM activity was observed and the bounded PostgreSQL activation did not materially reduce available memory. Broad unnecessary service restarts should still be avoided while swap pressure remains unresolved.
+Post-Phase-19 memory remained approximately 1.5 GiB available while the configured 1 GiB swap allocation remained almost fully consumed. The Phase 19 audit did not restart services or create new communications traffic. Broad unnecessary service restarts should still be avoided while swap pressure remains unresolved.
 
 ## Remaining fresh acceptance work
 
 1. Approved private MMS quarantine storage and trusted scanner integration with fail-closed degradation testing.
 2. `mail.correspondence.read` only after an authoritative native Mail Room correspondence source is explicitly selected and authorized.
-3. Fresh functional Voice/SIP acceptance if required for the final global runtime flag.
-4. Final readiness/handoff reconciliation after the remaining safe-scope items are complete or explicitly blocked.
+3. Investigate Voice/SIP operational degradation without confusing that follow-up with the already-passed bounded read-only acceptance.
+4. Final readiness/handoff reconciliation after the remaining safe-scope blockers are complete or explicitly resolved.
 
 Do not use production calls, messages, or email as acceptance tests. Production SMS/MMS, mail send, call origination, routing, quarantine release, credentials, DNS/firewall/certificate/authentication changes, porting, STIR/SHAKEN, financial or contractual actions remain separately controlled.

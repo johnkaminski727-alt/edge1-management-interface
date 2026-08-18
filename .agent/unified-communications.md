@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-08-18
 Repository: `johnkaminski727-alt/edge1-management-interface`
-Current merged implementation baseline: `7b959ebc0a3986673203a75d736b63596e3a4ddc`
+Current merged implementation baseline: `7ca3b8360de740d844edcb8c598b1988407a16e5`
 Fresh Edge1 operator acceptance: partial safe-scope runtime acceptance completed 2026-08-18
 
 ## Product state
@@ -28,6 +28,7 @@ Native channel stores, provider adapters, specialist tools, audit trails, and au
 - PR #406 — corrected Relay snapshot service identity to `wwcx-comms:wwadmin` without relaxing the `0600` native database.
 - PR #407 — bounded SQLite WAL/SHM sidecar allowance while keeping the authoritative database file explicitly read-only inside the snapshot service namespace.
 - PR #408 — durable live Relay canonical snapshot acceptance and readiness reconciliation.
+- PR #409 — durable Messaging PostgreSQL acceptance and readiness reconciliation.
 
 Historical accepted subsystem PRs and commits remain intact; no shared history was rewritten.
 
@@ -36,7 +37,7 @@ Historical accepted subsystem PRs and commits remain intact; no shared history w
 Fresh accepted live/read-only or local-prepare evidence includes:
 
 - `communications.read` — historical accepted live evidence;
-- `telephony.read` — historical accepted live evidence;
+- `telephony.read` — historical accepted live evidence plus fresh Phase 19 bounded read-only telephony analytics acceptance;
 - `messages.status.read` — fresh Messaging Gateway / BigBird acceptance;
 - `messages.conversation.read` — fresh Messaging Gateway / BigBird acceptance;
 - `messages.draft.prepare` — fresh BigBird local prepared-not-sent acceptance;
@@ -53,32 +54,42 @@ Not granted by this project: Messaging send, Mail send, call origination, route/
 
 `wwcx-messaging-gateway.service` is freshly accepted on Edge1 as version `0.4.2` with loopback health/readiness, authenticated status and recent-conversation reads, explicit `mutation_authorized: false`, and fail-closed MMS quarantine projection with `release_authorized: false`.
 
-Phase 18 on 2026-08-18 completed the previously missing durable Messaging state requirement:
-
-- the pre-restart in-memory event count was confirmed zero twice before the storage switch;
-- exact repository/runtime source parity was confirmed against merged baseline `7b959ebc0a3986673203a75d736b63596e3a4ddc`;
-- PostgreSQL 15.19 was installed with package autostart blocked until hardening completed;
-- the cluster is local Unix-socket only with `listen_addresses = ''` and no TCP database listener;
-- low-memory settings use 12 max connections, 32 MiB shared buffers, 1 MiB work memory, 16 MiB maintenance work memory, and JIT disabled;
-- peer-authenticated local database access uses the existing `wwadmin` OS identity and no database password;
-- database `wwcx_messaging` contains the exact repository migrations `0001_initial.sql` and `0002_control_state.sql`;
-- `PostgresEventStore` ping, zero-event count, and initialized control state passed before restart;
-- `/readyz` returned `storage: postgres` after restarting only the Messaging Gateway;
-- live HTTP and database event counts matched at zero;
-- PostgreSQL was enabled for reboot persistence only after functional acceptance;
-- no SMS/MMS or carrier/provider routing was generated or changed.
+Phase 18 completed durable Messaging state using PostgreSQL 15.19 over the local Unix socket only, with no TCP database listener and no database password. Repository migrations `0001_initial.sql` and `0002_control_state.sql` are applied to `wwcx_messaging`; the `PostgresEventStore` smoke test passed; `/readyz` now reports `storage: postgres`; HTTP/database event counts matched at zero at activation; PostgreSQL is enabled for reboot persistence; and no SMS/MMS or carrier/provider routing was generated or changed.
 
 Rollback:
 
 `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-messaging-postgres-20260818T111017Z.sh`
 
-Messaging durable state is therefore `runtime_ready` and is no longer a global blocker.
+Messaging durable state is `runtime_ready` and is no longer a global blocker.
 
 ## Fresh BigBird runtime
 
 BigBird is freshly accepted as `0.3.4-alpha.3`, mode `read-only`, loopback on `127.0.0.1:8787`, with eight registry tools including `messages.conversation.read` and `messages.draft.prepare`. Missing scopes failed closed, an unsigned `/v1/chat` request returned HTTP `401`, messaging control remained disabled, and prepared drafts retained `prepared_not_sent`, `send_authorized: false`, and `mutation_authorized: false`.
 
 No authorized model/chat request, SMS/MMS, email, call, or route change was generated for this acceptance.
+
+## Voice/SIP runtime
+
+Phase 19 on 2026-08-18 completed the previously unresolved fresh bounded Voice/SIP read-only acceptance:
+
+- Asterisk, Kamailio, telephony analytics, and telephony console remained active;
+- audited telephony assets matched current `origin/main` baseline `7ca3b8360de740d844edcb8c598b1988407a16e5`;
+- runtime analytics API and telephony-platform source hashes matched the canonical repository;
+- `wwcx-telephony-analytics.service` remained hardened and loopback-only on `127.0.0.1:8099`;
+- aggregate health, calls-summary, and interconnect-summary endpoints validated;
+- payload/privacy/anomaly-contract validation passed;
+- POST remained HTTP 405;
+- the audit returned zero warnings and zero failures;
+- Asterisk reported zero active calls and zero calls processed;
+- no database query, credential read, retained customer identifier, call origination, DTMF transmission, carrier-route change, service mutation, or runtime mutation occurred.
+
+Evidence:
+
+`/var/lib/wwcx-deployment-evidence/telephony-analytics-live-acceptance/uc-phase19-20260818T112551Z`
+
+Fresh Voice/SIP `live_acceptance` is therefore `runtime_ready` for the bounded read-only surface.
+
+Operational health is separately DEGRADED and must not be represented as healthy: the same aggregate health surface reported `overall_status: critical`, score `28`, `sip: degraded`, and one failed interconnect out of two. The readiness matrix therefore records `voice_sip.edge1_runtime = degraded` while preserving `voice_sip.live_acceptance = runtime_ready`. This degradation does not grant authority to originate calls or modify routes, trunks, dialplans, emergency calling, or carrier configuration.
 
 ## Security state
 
@@ -121,11 +132,12 @@ Fresh runtime evidence is recorded in:
 - `docs/communications/unified-communications-live-acceptance-20260818.md`;
 - `docs/communications/unified-communications-relay-snapshot-live-acceptance-20260818.md`;
 - `docs/communications/unified-communications-messaging-postgres-live-acceptance-20260818.md`;
+- `docs/communications/unified-communications-voice-sip-live-acceptance-20260818.md`;
 - `config/communications/readiness-matrix-v1.json`.
 
-The global `fresh_edge1_runtime_verified` flag remains `false`. Messaging durability and the canonical workspace feed are no longer blockers. Remaining safe-scope blockers are MMS trusted scanner/private storage, Mail correspondence lacking an authoritative native thread source, and fresh functional Voice/SIP acceptance if required for the final flag.
+The global `fresh_edge1_runtime_verified` flag remains `false`. Messaging durability, the canonical workspace feed, and fresh Voice/SIP read-only acceptance are no longer missing. Remaining safe-scope blockers are MMS trusted scanner/private quarantine storage and Mail correspondence lacking an authoritative native thread source. Voice/SIP operational health remains degraded as a separate follow-up.
 
-Operational warning: approximately 1.5 GiB memory remained available after Phase 18, while the configured 1 GiB swap allocation remained almost fully consumed. No recent OOM evidence was observed and PostgreSQL did not materially reduce available memory. Avoid unnecessary broad unrelated service restarts while host swap pressure remains unresolved.
+Operational warning: approximately 1.5 GiB memory remained available after Phase 19, while the configured 1 GiB swap allocation remained almost fully consumed. Avoid unnecessary broad unrelated service restarts while host swap pressure remains unresolved.
 
 ## Remaining work categories
 
@@ -133,8 +145,8 @@ Remaining safe-scope work is narrow:
 
 1. private MMS quarantine storage and trusted scanner integration with fail-closed verification;
 2. `mail.correspondence.read` only after an authoritative native Mail Room correspondence source is explicitly selected and authorized;
-3. fresh functional Voice/SIP read/status acceptance if required for the final global runtime flag;
-4. final readiness/handoff reconciliation once those items are complete or explicitly blocked.
+3. investigate the Voice/SIP operational degradation without using production traffic or unauthorized route/carrier changes as a diagnostic shortcut;
+4. final readiness/handoff reconciliation once the two remaining global blockers are complete or explicitly resolved.
 
 Separately controlled production/provider work remains blocked unless explicitly authorized.
 
