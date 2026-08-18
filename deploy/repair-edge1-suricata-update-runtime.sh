@@ -14,6 +14,8 @@ SERVICE_SOURCE="$ROOT/deploy/systemd/wwcx-suricata-update.service"
 SERVICE_LIVE="/etc/systemd/system/wwcx-suricata-update.service"
 TIMER_SOURCE="$ROOT/deploy/systemd/wwcx-suricata-update.timer"
 TIMER_LIVE="/etc/systemd/system/wwcx-suricata-update.timer"
+RETENTION_DROPIN="/etc/systemd/system/wwcx-suricata-update.service.d/retention.conf"
+RETENTION_HELPER="/usr/local/sbin/wwcx-suricata-rule-backup-prune"
 EVIDENCE_ROOT="${EDGE1_DEPLOYMENT_EVIDENCE_ROOT:-/var/lib/wwcx-deployment-evidence/suricata-update-runtime-repair}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE_DIR="${1:-$EVIDENCE_ROOT/$STAMP}"
@@ -55,18 +57,6 @@ restore_legacy_state() {
     fi
 }
 
-restore_timer_state() {
-    case "$TIMER_ENABLED" in
-        enabled|enabled-runtime) systemctl enable "$UPDATE_TIMER" >/dev/null 2>&1 || true ;;
-        *) systemctl disable "$UPDATE_TIMER" >/dev/null 2>&1 || true ;;
-    esac
-    if [ "$TIMER_ACTIVE" = active ]; then
-        systemctl start "$UPDATE_TIMER" >/dev/null 2>&1 || true
-    else
-        systemctl stop "$UPDATE_TIMER" >/dev/null 2>&1 || true
-    fi
-}
-
 restore_runtime_files() {
     if [ "$UPDATER_WAS_PRESENT" = true ]; then
         install -o root -g root -m 0750 "$BACKUP_DIR/wwcx-suricata-update" "$UPDATER_LIVE"
@@ -96,11 +86,10 @@ rollback() {
         ps -eo user,group,pid,ppid,etimes,rss,cmd | grep '[s]uricata' \
             > "$EVIDENCE_DIR/failure-suricata-processes.txt" 2>&1 || true
         restore_runtime_files
-        restore_timer_state
         restore_legacy_state
         printf 'completed_at=%s\naccepted=false\nrolled_back=true\nexit_code=%s\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$code" > "$EVIDENCE_DIR/result.txt"
-        printf 'Suricata updater runtime repair failed; prior files and service states were restored.\n' >&2
+        printf 'Suricata updater runtime repair failed; prior files and legacy service state were restored.\n' >&2
         printf 'Failure evidence: %s\n' "$EVIDENCE_DIR" >&2
     fi
     exit "$code"
@@ -115,14 +104,22 @@ esac
 [ -d "$ROOT/.git" ] || fail "repository not found: $ROOT"
 [ -n "$EXPECTED_COMMIT" ] || fail "EXPECTED_COMMIT is required"
 printf '%s\n' "$EXPECTED_COMMIT" | grep -Eq '^[0-9a-f]{40}$' || fail "EXPECTED_COMMIT must be a full lowercase commit SHA"
-[ "$(git -C "$ROOT" branch --show-current)" = main ] || fail "repository must be on main"
 [ -z "$(git -C "$ROOT" status --porcelain --untracked-files=all)" ] || fail "repository is not clean"
-git -C "$ROOT" merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD || fail "required repair commit is missing"
+
+SOURCE_HEAD="$(git -C "$ROOT" rev-parse HEAD)"
+SOURCE_BRANCH="$(git -C "$ROOT" branch --show-current)"
+if [ "$SOURCE_BRANCH" = main ]; then
+    git -C "$ROOT" merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD || fail "required repair commit is missing from main"
+elif [ -z "$SOURCE_BRANCH" ] && [ "$SOURCE_HEAD" = "$EXPECTED_COMMIT" ]; then
+    : # exact detached worktree is accepted for bounded deployment
+else
+    fail "source must be clean main containing EXPECTED_COMMIT or an exact detached EXPECTED_COMMIT worktree"
+fi
 
 for path in "$UPDATER_SOURCE" "$SERVICE_SOURCE" "$TIMER_SOURCE"; do
     [ -f "$path" ] || fail "required source is missing: $path"
 done
-for command in bash cmp cp date git grep hostname install pgrep ps sha256sum systemctl; do
+for command in bash cmp cp date free git grep hostname install pgrep ps sha256sum systemctl tr; do
     command -v "$command" >/dev/null 2>&1 || fail "required command unavailable: $command"
 done
 
@@ -140,11 +137,19 @@ grep -Fq 'Unit=wwcx-suricata-update.service' "$TIMER_SOURCE" || fail "timer targ
 
 systemctl is-active --quiet "$SENSOR_SERVICE" || fail "$SENSOR_SERVICE is not active"
 systemctl is-enabled --quiet "$SENSOR_SERVICE" || fail "$SENSOR_SERVICE is not enabled"
+[ "$TIMER_ACTIVE" = active ] || fail "$UPDATE_TIMER must already be active; repair will not trigger a dormant persistent timer"
+case "$TIMER_ENABLED" in
+    enabled|enabled-runtime) ;;
+    *) fail "$UPDATE_TIMER must already be enabled" ;;
+esac
+[ -f "$RETENTION_DROPIN" ] || fail "retention drop-in is missing: $RETENTION_DROPIN"
+grep -Fq "ExecStartPost=$RETENTION_HELPER" "$RETENTION_DROPIN" || fail "retention drop-in has an unexpected ExecStartPost"
+[ -x "$RETENTION_HELPER" ] || fail "retention helper is missing or not executable: $RETENTION_HELPER"
 
 install -d -o root -g root -m 0700 "$EVIDENCE_DIR" "$BACKUP_DIR"
 printf '%s\n' "$HOST" > "$EVIDENCE_DIR/host.txt"
 printf '%s\n' "$EXPECTED_COMMIT" > "$EVIDENCE_DIR/expected-commit.txt"
-git -C "$ROOT" rev-parse HEAD > "$EVIDENCE_DIR/revision.txt"
+printf '%s\n' "$SOURCE_HEAD" > "$EVIDENCE_DIR/revision.txt"
 git -C "$ROOT" status --short --branch > "$EVIDENCE_DIR/git-status.txt"
 printf 'legacy_enabled=%s\nlegacy_active=%s\ntimer_enabled=%s\ntimer_active=%s\n' \
     "$LEGACY_ENABLED" "$LEGACY_ACTIVE" "$TIMER_ENABLED" "$TIMER_ACTIVE" \
@@ -153,6 +158,7 @@ systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" "$UPDATE_SERVICE" "$UPDATE_
     > "$EVIDENCE_DIR/systemd-status-before.txt" 2>&1 || true
 ps -eo user,group,pid,ppid,etimes,rss,cmd | grep '[s]uricata' \
     > "$EVIDENCE_DIR/suricata-processes-before.txt" 2>&1 || true
+free -h > "$EVIDENCE_DIR/memory-before.txt"
 
 if capture_file "$UPDATER_LIVE" "$BACKUP_DIR/wwcx-suricata-update"; then UPDATER_WAS_PRESENT=true; fi
 if capture_file "$SERVICE_LIVE" "$BACKUP_DIR/wwcx-suricata-update.service"; then SERVICE_WAS_PRESENT=true; fi
@@ -168,9 +174,8 @@ cmp -s "$SERVICE_SOURCE" "$SERVICE_LIVE"
 cmp -s "$TIMER_SOURCE" "$TIMER_LIVE"
 
 systemctl daemon-reload
-systemctl enable "$UPDATE_TIMER" >/dev/null
-systemctl start "$UPDATE_TIMER"
-systemctl reset-failed "$UPDATE_SERVICE" || true
+systemctl is-active --quiet "$UPDATE_TIMER"
+systemctl is-enabled --quiet "$UPDATE_TIMER"
 
 # Retire the duplicate legacy runtime only after the replacement updater contract is loaded.
 systemctl disable --now "$LEGACY_SERVICE"
@@ -190,22 +195,27 @@ if printf '%s\n' "$REQUIRES" | grep -Fq "$LEGACY_SERVICE"; then
     fail "loaded update unit still requires legacy Suricata"
 fi
 
-SENSOR_PIDS="$(pgrep -x Suricata-Main || true)"
+systemctl cat "$UPDATE_SERVICE" > "$EVIDENCE_DIR/update-service-after.txt"
+[ "$(grep -Fc "ExecStartPost=$RETENTION_HELPER" "$EVIDENCE_DIR/update-service-after.txt")" -eq 1 ] || fail "retention ExecStartPost is missing or duplicated"
+
+SENSOR_PIDS="$(pgrep -u suricata -f '^/usr/bin/suricata ' || true)"
 SENSOR_PID_COUNT="$(printf '%s\n' "$SENSOR_PIDS" | awk 'NF {count += 1} END {print count + 0}')"
-[ "$SENSOR_PID_COUNT" -eq 1 ] || fail "expected exactly one Suricata main process; observed $SENSOR_PID_COUNT"
+[ "$SENSOR_PID_COUNT" -eq 1 ] || fail "expected exactly one Suricata runtime process; observed $SENSOR_PID_COUNT"
 set -- $SENSOR_PIDS
 tr '\0' ' ' < "/proc/$1/cmdline" > "$EVIDENCE_DIR/suricata-command-after.txt"
 grep -Fq -- '--pcap=' "$EVIDENCE_DIR/suricata-command-after.txt" || fail "remaining Suricata process is not the managed libpcap sensor"
 
-systemctl cat "$UPDATE_SERVICE" > "$EVIDENCE_DIR/update-service-after.txt"
 systemctl cat "$UPDATE_TIMER" > "$EVIDENCE_DIR/update-timer-after.txt"
 systemctl status "$LEGACY_SERVICE" "$SENSOR_SERVICE" "$UPDATE_SERVICE" "$UPDATE_TIMER" --no-pager \
     > "$EVIDENCE_DIR/systemd-status-after.txt" 2>&1 || true
 ps -eo user,group,pid,ppid,etimes,rss,cmd | grep '[s]uricata' \
     > "$EVIDENCE_DIR/suricata-processes-after.txt" 2>&1 || true
+free -h > "$EVIDENCE_DIR/memory-after.txt"
 sha256sum "$UPDATER_LIVE" "$SERVICE_LIVE" "$TIMER_LIVE" > "$EVIDENCE_DIR/live.sha256"
 
-printf 'completed_at=%s\naccepted=true\nrolled_back=false\nlegacy_service_disabled=true\nmanaged_sensor_active=true\nupdate_timer_active=true\nupdater_targets_managed_sensor=true\n' \
+systemctl reset-failed "$UPDATE_SERVICE" || true
+
+printf 'completed_at=%s\naccepted=true\nrolled_back=false\nlegacy_service_disabled=true\nmanaged_sensor_active=true\nupdate_timer_state_preserved=true\nretention_dropin_preserved=true\nupdater_targets_managed_sensor=true\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$EVIDENCE_DIR/result.txt"
 
 trap - ERR INT TERM
