@@ -1,0 +1,55 @@
+name: Validate Edge1 Control Surfaces
+
+on:
+  pull_request:
+    paths:
+      - 'server/control_surface_diagnostics.py'
+      - 'config/edge1-operations-allowlist.json'
+      - 'tests/test_control_surface_diagnostics.py'
+      - 'tests/test_control_surfaces_allowlist.py'
+      - 'docs/control-surfaces/**'
+      - '.github/workflows/control-surfaces.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/control_surface_diagnostics.py'
+      - 'config/edge1-operations-allowlist.json'
+      - 'tests/test_control_surface_diagnostics.py'
+      - 'tests/test_control_surfaces_allowlist.py'
+      - 'docs/control-surfaces/**'
+      - '.github/workflows/control-surfaces.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile diagnostics
+        run: python3 -m py_compile server/control_surface_diagnostics.py
+      - name: Run Control Surfaces safety tests
+        run: python3 -m unittest tests.test_control_surface_diagnostics tests.test_control_surfaces_allowlist -v
+      - name: Validate operations allowlist JSON
+        run: python3 -m json.tool config/edge1-operations-allowlist.json >/dev/null
+      - name: Assert read-only defaults
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('config/edge1-operations-allowlist.json').read_text())
+          names = [
+              'control_surfaces.summary',
+              'control_surfaces.listeners',
+              'asterisk.diagnostics',
+              'kamailio.diagnostics',
+              'freepbx.diagnostics',
+          ]
+          for name in names:
+              action = data['actions'][name]
+              assert action['mutating'] is False, name
+              assert action['argv'][:2] == ['python3', 'server/control_surface_diagnostics.py'], name
+          PY
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server/control_surface_diagnostics.py config/edge1-operations-allowlist.json docs/control-surfaces tests/test_control_surface_diagnostics.py tests/test_control_surfaces_allowlist.py
