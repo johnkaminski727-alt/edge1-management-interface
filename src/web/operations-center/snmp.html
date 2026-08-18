@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WW.CX Edge1 SNMP Operations</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#32905b;--warn:#c28a22}*{box-sizing:border-box}body{max-width:1200px;margin:auto;padding:30px;background:var(--bg);color:#eee}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}.good{border-color:var(--good)}.warning{border-color:var(--warn)}.label,small{color:var(--muted)}.value{font-size:1.35rem;font-weight:700;overflow-wrap:anywhere}a{color:#fff}.table{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}@media(max-width:700px){body{padding:16px}}
+</style>
+</head>
+<body>
+<section class="panel"><p><a href="./">← Operations Center</a></p><h1>SNMP Operations</h1><p>Private-first managed-device, event, telemetry and AI evidence visibility.</p></section>
+<section class="panel"><h2>Overview</h2><div id="overview" class="grid"><div class="card">Loading…</div></div></section>
+<section class="panel"><h2>Managed Devices</h2><div class="table"><table><thead><tr><th>Device</th><th>Address</th><th>SNMP</th><th>Status</th><th>Last success</th></tr></thead><tbody id="devices"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></section>
+<section class="panel"><h2>Recent Events</h2><div id="events" class="grid"><div class="card">Loading…</div></div></section>
+<section class="panel"><h2>Security Model</h2><div class="grid"><div class="card good"><div class="label">New devices</div><div class="value">SNMPv3 authPriv</div><small>No silent downgrade.</small></div><div class="card good"><div class="label">SNMP SET</div><div class="value">Disabled by default</div><small>Global and per-device policy gates apply.</small></div><div class="card good"><div class="label">AI actions</div><div class="value">Policy bounded</div><small>AI proposes; deterministic policy controls execution.</small></div></div></section>
+<script>
+"use strict";
+const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const card=(a,b,s="good",d="")=>`<div class="card ${s}"><div class="label">${esc(a)}</div><div class="value">${esc(b)}</div>${d?`<small>${esc(d)}</small>`:""}</div>`;
+async function load(){
+ try{
+  const r=await fetch("../operations-snmp.json",{cache:"no-store"}); if(!r.ok)throw Error(r.status); const h=await r.json();
+  document.getElementById("overview").innerHTML=[card("Managed devices",h.managed_devices??0),card("Online",h.online_devices??0,(h.offline_devices||0)?"warning":"good"),card("Offline",h.offline_devices??0,(h.offline_devices||0)?"warning":"good"),card("Active alerts",h.active_alerts??0,(h.active_alerts||0)?"warning":"good"),card("Poll success",h.poll_success_rate_percent==null?"No samples":`${h.poll_success_rate_percent}%`),card("SNMP versions",Object.entries(h.snmp_version_distribution||{}).map(([k,v])=>`v${k}: ${v}`).join(", ")||"None")].join("");
+  const devices=Array.isArray(h.devices)?h.devices:[]; document.getElementById("devices").innerHTML=devices.length?devices.map(d=>`<tr><td>${esc(d.display_name||d.hostname||d.device_id)}</td><td>${esc(d.management_address||"")}</td><td>${esc(d.snmp_version||"")}</td><td>${esc(d.status||"unknown")}</td><td>${esc(d.last_success||"never")}</td></tr>`).join(""):`<tr><td colspan="5">No managed devices.</td></tr>`;
+  const events=Array.isArray(h.recent_traps)?h.recent_traps:[]; document.getElementById("events").innerHTML=events.length?events.slice(0,8).map(e=>card(e.event_type||"SNMP event",e.trap_oid||"unknown",e.severity==="critical"||e.severity==="warning"?"warning":"good",`${e.source_address||"unknown source"} · ${e.ts||"unknown time"}`)).join(""):card("Events","No recent traps");
+ }catch(error){document.getElementById("overview").innerHTML=card("SNMP status","Unavailable","warning");document.getElementById("devices").innerHTML=`<tr><td colspan="5">SNMP status export unavailable.</td></tr>`;document.getElementById("events").innerHTML=card("Events","Unavailable","warning")}
+}
+load(); setInterval(load,60000);
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import asyncio,sys,tempfile,unittest
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT/'server'))
+from edge1_snmp_platform import add_device,connect_db
+from edge1_snmp_services import AlertEngine,DiscoveryService,MIBService,add_topology_link,ensure_extended_schema,get_topology,parse_integer,search_all,sync_interfaces
+class FakeNet:
+ def query(self,tool,address,port,profile_ref,oids,**kwargs):
+  if tool=='snmpget': return {oids[0]:'router desc',oids[1]:'router-01',oids[2]:'1.3.6.1.4.1.9',oids[3]:'lab',oids[4]:'noc'}
+  return {}
+class ServiceTests(unittest.TestCase):
+ def setUp(self): self.tmp=tempfile.TemporaryDirectory(); self.conn=connect_db(Path(self.tmp.name)/'x.db'); ensure_extended_schema(self.conn); self.device=add_device(self.conn,{'display_name':'router-01','management_address':'10.10.1.1','credential_reference':'r-v3'})
+ def tearDown(self): self.conn.close(); self.tmp.cleanup()
+ def test_interface_sync_and_search(self):
+  sync_interfaces(self.conn,self.device['device_id'],[{'if_index':1,'if_name':'eth0','if_descr':'uplink','if_alias':'core','if_type':6,'admin_status':1,'oper_status':2,'speed_bps':1000000000,'counters':{'ifHCInOctets':100}}]); self.assertEqual(search_all(self.conn,'uplink')['interfaces'][0]['if_index'],1)
+ def test_alert_engine_dedupes_open_alerts(self):
+  self.conn.execute("UPDATE devices SET status='offline',last_error='authentication failure' WHERE device_id=?",(self.device['device_id'],)); self.conn.commit(); first=AlertEngine(self.conn).evaluate(); second=AlertEngine(self.conn).evaluate(); self.assertGreaterEqual(first['count'],2); self.assertEqual(self.conn.execute("SELECT count(*) FROM alerts WHERE state='open'").fetchone()[0],2); self.assertGreaterEqual(second['count'],2)
+ def test_mib_lookup(self):
+  svc=MIBService(self.conn); svc.upsert_object(oid='1.3.6.1.2.1.1.3.0',name='sysUpTime',module='SNMPv2-MIB',description='uptime'); self.assertEqual(svc.lookup('sysUpTime')['oid'],'1.3.6.1.2.1.1.3.0'); self.assertEqual(len(svc.search('uptime')),1)
+ def test_topology_evidence(self):
+  link=add_topology_link(self.conn,local_device_id=self.device['device_id'],local_if_index=1,remote_device_id=None,remote_identifier='switch-01',remote_port='Gi1/0/1',evidence_type='LLDP',confidence='confirmed',evidence={'oid':'lldpRemSysName'}); topo=get_topology(self.conn); self.assertEqual(topo['links'][0]['link_id'],link); self.assertEqual(topo['links'][0]['confidence'],'confirmed')
+ def test_discovery_preview_is_bounded(self):
+  cfg={'polling':{'interval_seconds':300,'concurrency':4},'discovery':{'allowed_cidrs':['10.10.0.0/16'],'max_hosts':32,'allow_public':False}}; result=asyncio.run(DiscoveryService(FakeNet()).scan('10.10.2.0/30','profile',config=cfg,dry_run=True)); self.assertEqual(result['count'],2)
+ def test_discovery_probe(self):
+  cfg={'polling':{'interval_seconds':300,'concurrency':4},'discovery':{'allowed_cidrs':['10.10.0.0/16'],'max_hosts':32,'allow_public':False}}; result=asyncio.run(DiscoveryService(FakeNet()).scan('10.10.2.0/30','profile',config=cfg,dry_run=False)); self.assertTrue(all(x['snmp_capable'] for x in result['devices']))
+ def test_parse_integer(self): self.assertEqual(parse_integer('INTEGER: up(1)'),1)
+if __name__=='__main__': unittest.main(verbosity=2)
