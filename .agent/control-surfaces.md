@@ -67,8 +67,13 @@ A connected browser produced direct outside-in observations during the authorize
 
 - `https://edge1.ww.cx/` loaded the Debian Apache2 default page (`Apache2 Debian Default Page: It works`). The intended ordinary public redirect to `https://creekco.ca/time/` is therefore not active yet.
 - Navigating to `http://edge1.ww.cx/` ended at the same HTTPS Apache default page. The browser connector does not expose enough transport detail to distinguish browser HTTPS upgrade from a server-side HTTP redirect, so no claim is made about the exact HTTP status/redirect chain.
+- `https://edge1.ww.cx/admin/` resolved to the FreePBX Administration surface (`/admin/config.php`). This confirms the native FreePBX administration surface is presently WAN-reachable over ordinary public HTTPS and must be classified `private-control` pending live dependency inspection and exposure reduction.
+- `https://edge1.ww.cx/ucp/` loaded the FreePBX User Control Panel login. This confirms the native UCP surface is presently WAN-reachable over ordinary public HTTPS and must be classified `private-control` pending live dependency inspection and exposure reduction.
+- The FreePBX pages exposed runtime-generated/session-adjacent and internal-network data in their rendered page. Those values are intentionally not copied into this repository evidence record.
+- A narrow browser request to the known loopback-intended Operations API port `8097` did not finish loading. That result is inconclusive and is not treated as proof that the port is closed or open from WAN.
 - `https://creekco.ca/time/` loaded successfully with title `CreekCo | WW.CX Time Service`, confirming the approved redirect destination is presently browser-reachable.
 - `https://ww.cx/admin/bigbird-control-surfaces.php` returned `404 Not Found`. The merged Control Surfaces page is therefore not present at that production URL yet.
+- `https://ww.cx/admin/bigbird-operations-console.php` redirected an unauthenticated browser to the existing WW.CX Store sign-in page, confirming the established Operations Console route is deployed and protected by the existing authentication boundary.
 - `https://ww.cx/admin/` redirected to the existing `WW.CX Store sign in` page, confirming the existing production admin surface is reachable but the connected browser does not hold an authenticated WW.CX admin session.
 - The available browser control does not support entering credentials or completing the WW.CX sign-in form, so authenticated Control Surfaces acceptance remains unexecuted.
 
@@ -78,7 +83,7 @@ These browser observations are baseline evidence only. They do not replace the r
 
 No fresh authenticated Edge1 shell/operator execution path is available in the current session. Therefore no present-day listener, Apache configuration, nftables, WireGuard, FreePBX, Asterisk, Kamailio, database, Node, DNS, TLS, service dependency or privileged runtime state is claimed from shell evidence, and no production Edge1 mutation has been executed.
 
-The live browser baseline above proves that the ordinary public Edge1 redirect and WW.CX Control Surfaces production deployment are still pending. It does not establish why they are pending or whether any service-specific routes have dependencies that constrain the change.
+The live browser baseline proves that the ordinary public Edge1 redirect and WW.CX Control Surfaces production deployment are still pending, and that the FreePBX Administration and UCP native web surfaces are presently WAN-reachable. It does not establish the backend binding, current firewall path, service-specific dependencies or safest rollback procedure.
 
 The next live step is the fresh authenticated inventory required by `docs/control-surfaces/README.md`, followed by evidence-backed exposure reduction with a predeclared rollback for each change. The Business159 deployment and authenticated browser acceptance also remain pending an approved execution path.
 
