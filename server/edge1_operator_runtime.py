@@ -10,6 +10,7 @@ from .edge1_operator_operations_client import Edge1OperationsClient
 
 
 READ_ONLY_ACTIONS = {
+    "snapshot": ("edge1.snapshot",),
     "inventory": (
         "control_surfaces.summary",
         "system.services",
@@ -77,6 +78,9 @@ class Edge1OperatorRuntime:
             "read_only": True,
             "results": [self.client.run_action(action) for action in actions],
         }
+
+    def snapshot(self) -> dict:
+        return self._run_group("snapshot")
 
     def inventory(self) -> dict:
         return self._run_group("inventory")
