@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from server.edge1_operator_turn_state import (
+    IdempotencyConflictError,
     StaleEpochError,
     TurnStateStore,
     UnauthorizedOwnerError,
@@ -109,6 +110,33 @@ class TestTurnStateStore(unittest.TestCase):
             idempotency_key="same-key",
         )
         self.assertEqual(first, second)
+        self.assertEqual(len(self.audit_events), 1)
+
+    def test_idempotency_key_reuse_with_different_params_is_a_conflict(self):
+        self.store.seed("task-3b", "conv-1", owner_agent="fen")
+        self.store.handoff(
+            task_id="task-3b",
+            conversation_id="conv-1",
+            requesting_agent="fen",
+            to_agent="gus",
+            expected_epoch=0,
+            idempotency_key="reused-key",
+        )
+        # Same key, different to_agent -- must not be treated as a replay of
+        # the first request, and must not mutate state or apply either.
+        with self.assertRaises(IdempotencyConflictError):
+            self.store.handoff(
+                task_id="task-3b",
+                conversation_id="conv-1",
+                requesting_agent="gus",
+                to_agent="edge1-ai",
+                expected_epoch=1,
+                idempotency_key="reused-key",
+            )
+        status = self.store.status("task-3b", "conv-1")
+        self.assertEqual(status["owner_agent"], "gus")
+        self.assertEqual(status["turn_epoch"], 1)
+        # only the first handoff's audit event exists
         self.assertEqual(len(self.audit_events), 1)
 
     def test_unauthorized_owner_rejected(self):
