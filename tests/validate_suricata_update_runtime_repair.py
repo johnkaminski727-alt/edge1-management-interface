@@ -82,6 +82,7 @@ required_repair = (
     'RETENTION_DROPIN="/etc/systemd/system/wwcx-suricata-update.service.d/retention.conf"',
     "restore_runtime_files",
     "restore_legacy_state",
+    'git -C "$ROOT" rev-parse --is-inside-work-tree',
     'SOURCE_BRANCH="$(git -C "$ROOT" branch --show-current)"',
     'exact detached EXPECTED_COMMIT worktree',
     '$UPDATE_TIMER must already be active; repair will not trigger a dormant persistent timer',
@@ -104,6 +105,7 @@ if missing:
     raise SystemExit(f"repair transaction markers missing: {missing}")
 
 forbidden_repair = (
+    '[ -d "$ROOT/.git" ]',
     "iptables",
     "nft flush",
     "ip route add",
