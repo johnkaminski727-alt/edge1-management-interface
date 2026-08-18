@@ -101,6 +101,22 @@
     return selection.default_sender;
   }
 
+  function invalidatePreview() {
+    if (!state.preview) {
+      updateSetup();
+      return;
+    }
+    state.preview = null;
+    $('#preview-status').textContent = 'Review needed';
+    $('#preview-status').className = 'badge';
+    $('#message-preview').textContent = 'The message changed. Generate a fresh review before sending.';
+    $('#headers-preview').textContent = 'Preview invalidated because the message changed.';
+    $('#metadata-preview').innerHTML = '';
+    $('#validation-results').innerHTML = '';
+    $('#submit-message').disabled = true;
+    updateSetup();
+  }
+
   function updateGreeting() {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
@@ -158,7 +174,7 @@
     const pill = $('.mode-pill');
     pill.innerHTML = `<span aria-hidden="true"></span>${status.external_delivery_enabled ? 'Live delivery enabled' : 'Preview only'}`;
     pill.classList.toggle('ready', status.external_delivery_enabled);
-    $('#submit-message').disabled = !status.external_delivery_enabled;
+    $('#submit-message').disabled = true;
     updateSetup();
   }
 
@@ -325,6 +341,8 @@
       return;
     }
     toast(`Message submitted. Control ID: ${result.control_id}`, 'success');
+    state.preview = null;
+    $('#submit-message').disabled = true;
     await loadActivity();
   }
 
@@ -406,8 +424,13 @@
   $$('.step-nav button').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.step)));
   $$('[data-next]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.next)));
   $$('[data-back]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.back)));
-  ['mailing-address', 'privacy-url', 'contact-email', 'original-recipient', 'sender-profile'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
-  $('#system-generated').addEventListener('change', updateSetup);
+  ['mailing-address', 'original-recipient', 'sender-profile', 'to', 'cc', 'bcc', 'subject', 'body', 'signer-name', 'signer-title', 'case-id', 'action-id', 'unsubscribe-url'].forEach((id) => {
+    $(`#${id}`).addEventListener('input', invalidatePreview);
+  });
+  ['sender-profile', 'message-class', 'system-generated'].forEach((id) => {
+    $(`#${id}`).addEventListener('change', invalidatePreview);
+  });
+  ['privacy-url', 'contact-email'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
   $('#message-class').addEventListener('change', () => $('#unsubscribe-wrap').classList.toggle('hidden', $('#message-class').value !== 'commercial'));
   ['generate-preview', 'generate-preview-options'].forEach((id) => $(`#${id}`).addEventListener('click', generatePreview));
   $('#submit-message').addEventListener('click', submitMessage);
@@ -435,7 +458,7 @@
     $('#action-id').value = 'ENT-ACT-014';
     $('#subject').value = 'Request for transfer, custody, and billing records';
     $('#body').value = 'Hello,\n\nPlease provide the complete chronology and supporting records identified in our correspondence.\n\nThank you.';
-    updateSetup();
+    invalidatePreview();
     toast('Example loaded. Nothing has been sent.');
   });
 
