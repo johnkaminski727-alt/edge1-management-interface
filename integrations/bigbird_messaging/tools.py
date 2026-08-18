@@ -43,6 +43,40 @@ class BigBirdMessagingTools:
     def status(self) -> dict[str, Any]:
         return self.client.status()
 
+    def recent_conversations(self, *, limit: int = 25) -> dict[str, Any]:
+        """Return bounded sanitized SMS/MMS context with no mutation authority."""
+        result = self.client.recent_messages(limit=limit)
+        if result.get("mutation_authorized") is not False:
+            raise MessagingGatewayError("messaging read response did not preserve read-only boundary")
+        return result
+
+    def conversation_event(self, event_id: str) -> dict[str, Any]:
+        result = self.client.message(event_id)
+        if result.get("mutation_authorized") is not False:
+            raise MessagingGatewayError("messaging read response did not preserve read-only boundary")
+        return result
+
+    def prepare_reply(self, *, event_id: str, text: str) -> dict[str, Any]:
+        """Prepare, but never send, a proposed SMS/MMS reply artifact."""
+        event_id = event_id.strip()
+        text = text.strip()
+        if not event_id:
+            raise ValueError("event_id is required")
+        if not text:
+            raise ValueError("reply text is required")
+        if len(text) > 4000:
+            raise ValueError("reply text exceeds the preparation limit")
+        return {
+            "contract": "wwcx.messages-draft.v1",
+            "source_event_id": event_id,
+            "text": text,
+            "state": "drafted",
+            "ai_generated": True,
+            "delivery_status": "prepared_not_sent",
+            "send_authorized": False,
+            "mutation_authorized": False,
+        }
+
     def pause(self, *, actor: str, reason: str) -> dict[str, Any]:
         self._require_control_enabled()
         return self.client.pause(actor=actor, reason=reason)
