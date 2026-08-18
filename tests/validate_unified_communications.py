@@ -37,10 +37,12 @@ for channel in channels:
 
 by_id = {item["id"]: item for item in channels}
 mail = by_id["mail"]["ai_integration"]
-assert mail["state"] == "runtime_ready_local_prepare"
+assert mail["state"] == "runtime_ready_local_prepare_repository_ready_local_correspondence"
 assert mail["capabilities"] == ["mail.status.read", "mail.draft.prepare"]
-assert mail["pending_capabilities"] == ["mail.correspondence.read"]
-assert mail["live_acceptance"] == "local_adapter_accepted"
+assert mail["repository_ready_capabilities"] == ["mail.correspondence.read"]
+assert mail["pending_live_capabilities"] == ["mail.correspondence.read"]
+assert mail["provider_pending_capabilities"] == ["mail.correspondence.read.production_native"]
+assert mail["live_acceptance"] == "status_draft_local_adapter_accepted"
 sms = by_id["sms_mms"]["ai_integration"]
 assert sms["state"] == "accepted_read_only_prepare"
 assert sms["capabilities"] == ["messages.status.read", "messages.conversation.read", "messages.draft.prepare"]
@@ -60,8 +62,14 @@ assert set(assistant["accepted_live_capabilities"]) == {
     "messages.conversation.read",
     "messages.draft.prepare",
 }
-assert set(assistant["repository_ready_capabilities"]) == {"mail.status.read", "mail.draft.prepare"}
+assert set(assistant["repository_ready_capabilities"]) == {
+    "mail.status.read",
+    "mail.draft.prepare",
+    "mail.correspondence.read",
+}
 assert assistant["pending_capabilities"] == ["mail.correspondence.read"]
+assert assistant["pending_live_capabilities"] == ["mail.correspondence.read"]
+assert assistant["provider_pending_capabilities"] == ["mail.correspondence.read.production_native"]
 assert assistant["browser_route"] == "/admin/ai/"
 assert assistant["browser_production_acceptance"] == "unverified"
 assert all(value is True for value in registry["rules"].values())
@@ -100,9 +108,9 @@ for forbidden in ("/send-sms", "/send-mms", "/originate-call", "/reload-dialplan
 
 print("Unified Communications convergence validation passed")
 print("Fresh accepted messaging AI: messages.status.read, messages.conversation.read, messages.draft.prepare")
-print("Fresh local Mail AI: mail.status.read, mail.draft.prepare")
+print("Fresh live Mail AI retained: mail.status.read, mail.draft.prepare")
+print("Repository-ready local Mail path: mail.correspondence.read (live/provider acceptance still pending)")
 print("Historical accepted live AI reads retained: communications.read, telephony.read")
 print("Persistent loopback-only Communications workspace: runtime_ready")
-print("Blocked pending authoritative source: mail.correspondence.read")
-print("Global fresh runtime remains partial; canonical workspace feed and MMS scanner/storage are incomplete")
+print("Global fresh runtime remains partial; MMS scanner/storage and live Mail correspondence remain incomplete")
 print("No production call, message, email, carrier, route, or generic execution authority added")

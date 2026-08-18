@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Private persisted Mail Room correspondence store.
 
-This module is intentionally transport-neutral and performs no network activity. It can
-persist normalized messages from a separately authenticated native mailbox/MTA intake,
-or synthetic local fixtures for validation. Merely writing records here does not make a
-source authoritative: the caller must explicitly identify whether its upstream source
-has been reviewed and authorized, and that provenance is persisted with each record.
+The store is transport-neutral and performs no network activity. Writers must identify
+an upstream source, authority decision, and scope. Those provenance fields are persisted
+per record and can never be upgraded by a later reader configuration.
 """
 
 from __future__ import annotations
@@ -17,6 +15,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 
 MESSAGE_ID_RE = re.compile(r"^<[^<>\r\n\s]+@[^<>\r\n\s]+>$")
@@ -26,6 +25,8 @@ MAX_SUBJECT_CHARS = 998
 MAX_ADDRESS_CHARS = 320
 MAX_PROVIDER_ID_CHARS = 512
 MAX_THREAD_RESULTS = 100
+SOURCE_SCOPES = {"synthetic", "local_native", "production_native", "legacy_unscoped"}
+READABLE_AUTHORITATIVE_SCOPES = {"local_native", "production_native"}
 
 
 class CorrespondenceStoreError(RuntimeError):
@@ -41,24 +42,81 @@ class MailCorrespondenceStore:
         *,
         source: str,
         source_authoritative: bool = False,
+        source_scope: str = "synthetic",
+        read_only: bool = False,
     ) -> None:
         self.path = Path(path).absolute()
         self.source = str(source).strip()
+        self.source_scope = str(source_scope).strip()
         self.source_authoritative = bool(source_authoritative)
+        self.read_only = bool(read_only)
         if not self.source or len(self.source) > 128:
             raise CorrespondenceStoreError("source is required and must be bounded")
+        if self.source_scope not in SOURCE_SCOPES:
+            raise CorrespondenceStoreError("source_scope is invalid")
+        if self.source_authoritative and self.source_scope not in READABLE_AUTHORITATIVE_SCOPES:
+            raise CorrespondenceStoreError(
+                "authoritative correspondence must use local_native or production_native scope"
+            )
         if self.path.exists() and self.path.is_symlink():
             raise CorrespondenceStoreError("correspondence database may not be a symlink")
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        if self.path.parent.is_symlink():
-            raise CorrespondenceStoreError("correspondence directory may not be a symlink")
-        os.chmod(self.path.parent, 0o700)
-        self._initialize()
+
+        if self.read_only:
+            if not self.path.is_file():
+                raise CorrespondenceStoreError("correspondence database is unavailable")
+            if self.path.parent.is_symlink():
+                raise CorrespondenceStoreError("correspondence directory may not be a symlink")
+            if os.stat(self.path).st_mode & 0o077:
+                raise CorrespondenceStoreError("correspondence database permissions are too broad")
+            self._verify_schema()
+        else:
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            if self.path.parent.is_symlink():
+                raise CorrespondenceStoreError("correspondence directory may not be a symlink")
+            os.chmod(self.path.parent, 0o700)
+            self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path)
+        if self.read_only:
+            encoded = quote(str(self.path), safe="/")
+            connection = sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)
+        else:
+            connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    @staticmethod
+    def _required_columns() -> set[str]:
+        return {
+            "message_id",
+            "provider_message_id",
+            "provider_thread_id",
+            "thread_id",
+            "direction",
+            "sender",
+            "recipients_json",
+            "subject",
+            "body_text",
+            "in_reply_to",
+            "references_json",
+            "occurred_at",
+            "source",
+            "source_authoritative",
+            "source_scope",
+        }
+
+    def _columns(self, db: sqlite3.Connection) -> set[str]:
+        return {str(row["name"]) for row in db.execute("PRAGMA table_info(correspondence)")}
+
+    def _verify_schema(self) -> None:
+        with self._connect() as db:
+            columns = self._columns(db)
+        missing = self._required_columns() - columns
+        if missing:
+            raise CorrespondenceStoreError(
+                "correspondence database requires a writable schema migration: "
+                + ",".join(sorted(missing))
+            )
 
     def _initialize(self) -> None:
         with self._connect() as db:
@@ -78,13 +136,29 @@ class MailCorrespondenceStore:
                     references_json TEXT NOT NULL,
                     occurred_at TEXT NOT NULL,
                     source TEXT NOT NULL,
-                    source_authoritative INTEGER NOT NULL CHECK(source_authoritative IN (0,1))
+                    source_authoritative INTEGER NOT NULL CHECK(source_authoritative IN (0,1)),
+                    source_scope TEXT NOT NULL DEFAULT 'legacy_unscoped'
                 );
-                CREATE INDEX IF NOT EXISTS correspondence_thread_idx
-                    ON correspondence(thread_id, occurred_at, message_id);
                 """
             )
+            columns = self._columns(db)
+            if "source_authoritative" not in columns:
+                db.execute(
+                    "ALTER TABLE correspondence ADD COLUMN source_authoritative "
+                    "INTEGER NOT NULL DEFAULT 0"
+                )
+            columns = self._columns(db)
+            if "source_scope" not in columns:
+                db.execute(
+                    "ALTER TABLE correspondence ADD COLUMN source_scope "
+                    "TEXT NOT NULL DEFAULT 'legacy_unscoped'"
+                )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS correspondence_thread_idx "
+                "ON correspondence(thread_id, occurred_at, message_id)"
+            )
         os.chmod(self.path, 0o600)
+        self._verify_schema()
 
     @staticmethod
     def _message_id(value: Any, label: str = "message_id") -> str:
@@ -137,6 +211,8 @@ class MailCorrespondenceStore:
         return text
 
     def ingest(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.read_only:
+            raise CorrespondenceStoreError("read-only correspondence store cannot ingest")
         if not isinstance(payload, dict):
             raise CorrespondenceStoreError("message payload must be an object")
         message_id = self._message_id(payload.get("message_id"))
@@ -177,7 +253,8 @@ class MailCorrespondenceStore:
                     """INSERT INTO correspondence(
                     message_id, provider_message_id, provider_thread_id, thread_id, direction,
                     sender, recipients_json, subject, body_text, in_reply_to, references_json,
-                    occurred_at, source, source_authoritative) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    occurred_at, source, source_authoritative, source_scope)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
                         message_id,
                         provider_message_id,
@@ -193,6 +270,7 @@ class MailCorrespondenceStore:
                         occurred_at,
                         self.source,
                         1 if self.source_authoritative else 0,
+                        self.source_scope,
                     ),
                 )
         except sqlite3.IntegrityError as exc:
@@ -232,6 +310,31 @@ class MailCorrespondenceStore:
             "send_authorized": False,
         }
 
+    def status(self) -> dict[str, Any]:
+        with self._connect() as db:
+            count = int(db.execute("SELECT COUNT(*) FROM correspondence").fetchone()[0])
+            rows = db.execute(
+                "SELECT source, source_scope, source_authoritative, COUNT(*) AS record_count "
+                "FROM correspondence GROUP BY source, source_scope, source_authoritative "
+                "ORDER BY source, source_scope, source_authoritative"
+            ).fetchall()
+        return {
+            "contract": "wwcx.mail-correspondence-store-status.v1",
+            "record_count": count,
+            "sources": [
+                {
+                    "source": row["source"],
+                    "scope": row["source_scope"],
+                    "authoritative": bool(row["source_authoritative"]),
+                    "record_count": int(row["record_count"]),
+                }
+                for row in rows
+            ],
+            "read_only": self.read_only,
+            "mutation_authorized": False,
+            "send_authorized": False,
+        }
+
     @staticmethod
     def _projection(row: sqlite3.Row) -> dict[str, Any]:
         return {
@@ -250,6 +353,7 @@ class MailCorrespondenceStore:
             "occurred_at": row["occurred_at"],
             "provenance": {
                 "source": row["source"],
+                "scope": row["source_scope"],
                 "authoritative": bool(row["source_authoritative"]),
             },
             "content_is_untrusted": True,

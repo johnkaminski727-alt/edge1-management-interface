@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "integration": "wwcx-mail-room",
+  "default_enabled": false,
+  "configuration": {
+    "base_url_env": "WWCX_MAIL_BASE_URL",
+    "secret_env": "WWCX_MAIL_GATEWAY_TOKEN",
+    "client_id_env": "WWCX_MAIL_PRIVATE_AI_CLIENT_ID"
+  },
+  "tools": [
+    {
+      "name": "mail.status.read",
+      "description": "Read bounded authenticated WW.CX Mail Room gateway and correspondence readiness status.",
+      "required_scope": "mail.status.read",
+      "method": "GET",
+      "path": "/outbound-mail/api/v1/status",
+      "mutating": false
+    },
+    {
+      "name": "mail.correspondence.read",
+      "description": "Read one authoritative bounded Mail Room message or thread with immutable provenance and untrusted-content marking.",
+      "required_scope": "mail.correspondence.read",
+      "method": "GET",
+      "path_prefixes": [
+        "/outbound-mail/api/v1/correspondence/message/",
+        "/outbound-mail/api/v1/correspondence/thread/"
+      ],
+      "mutating": false
+    },
+    {
+      "name": "mail.draft.prepare",
+      "description": "Prepare a policy-aware Mail Room draft without delivery or send authority.",
+      "required_scope": "mail.draft.prepare",
+      "method": "POST",
+      "path": "/outbound-mail/api/v1/prepare",
+      "mutating": false,
+      "delivery_status": "prepared_not_sent"
+    }
+  ],
+  "forbidden_capabilities": [
+    "mail.send",
+    "mail.route.modify",
+    "generic.execute",
+    "quarantine.release"
+  ]
+}

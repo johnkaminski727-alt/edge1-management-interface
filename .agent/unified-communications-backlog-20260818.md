@@ -1,102 +1,114 @@
 # Unified Communications — Remaining Backlog
 
-Date: 2026-08-18, Phase 27 reconciliation
+Date: 2026-08-18, Phase 28 implementation
 
-This backlog contains only work still requiring evidence after the safe repository implementation pass. It distinguishes repository completion, Edge1 deployment, live functional acceptance, provider readiness, and production authorization.
+This backlog records only work still requiring live/external evidence after the functional local Mail implementation. Repository functionality, live Edge1 acceptance, provider readiness, and production authorization remain distinct.
 
-## Completed safe-scope foundations
+## Completed repository/software work
 
-- [x] Unified Communications convergence contracts, identity/readiness model, search/correlation core.
-- [x] Durable Messaging Gateway PostgreSQL state and fresh read-only acceptance.
-- [x] Messaging status/conversation reads and local prepared-not-sent drafts.
-- [x] Mail status and local prepared-not-sent draft behavior.
-- [x] Persistent loopback-only Communications workspace.
-- [x] Authoritative Communications Relay/NNTP canonical metadata snapshot and refresh.
-- [x] Fresh bounded Voice/SIP read-only functional acceptance.
-- [x] Repository-side private MMS content-addressed quarantine storage foundation.
-- [x] Repository-side narrow `TrustedMediaScanner` contract.
-- [x] Phase 27 concrete fixed-path local `/usr/bin/clamscan` adapter with bounded failure handling.
-- [x] Phase 27 local-only synthetic clean/EICAR/restart MMS acceptance probe.
-- [x] Phase 27 private bounded SQLite Mail correspondence-store foundation.
-- [x] Phase 27 synthetic Mail message/thread persistence and read validation.
+- [x] Unified Communications convergence and readiness contracts.
+- [x] Durable Messaging PostgreSQL implementation and prior live acceptance.
+- [x] Messaging status/conversation reads and prepared-not-sent drafts.
+- [x] Persistent loopback Communications workspace and authoritative Relay metadata feed.
+- [x] Bounded Voice/SIP read-only functional acceptance.
+- [x] Private MMS content-addressed quarantine foundation.
+- [x] Fixed local `/usr/bin/clamscan` adapter and local clean/EICAR/failure/restart acceptance tooling.
+- [x] Private Mail SQLite body/thread store with immutable per-record source authority.
+- [x] Persist immutable Mail source scope (`synthetic`, `local_native`, `production_native`, legacy fail-safe scope).
+- [x] Prevent synthetic correspondence from claiming or being upgraded to readable authority.
+- [x] Implement local RFC822 native intake with canonical Message-ID, Date, In-Reply-To, References, bounded text/plain body and optional native/provider IDs.
+- [x] Constrain runtime correspondence database selection to `/var/lib/wwcx-mail-room`.
+- [x] Add bounded Mail AI individual-message/thread reads with local-vs-production source truth.
+- [x] Add HMAC-authenticated loopback correspondence endpoints to the existing Mail gateway.
+- [x] Add BigBird Mail repository facade and manifest with no send capability.
+- [x] Add end-to-end local functional validation: RFC822 -> store -> API -> BigBird read + prepared-not-sent draft.
 
-## MMS trusted scanner and private quarantine runtime
+## MMS live security runtime
 
-Repository implementation is complete enough for live acceptance, but live Edge1 evidence is still missing because this session had no authenticated Edge1 execution connector.
+Blocked only by absence of an authenticated Edge1 execution path in this session.
 
-- [ ] Establish authenticated Edge1 execution and verify host/principal.
-- [ ] Re-check current `main`/runtime revision and Messaging service identity before mutation.
-- [ ] Inspect current memory/swap, installed scanners/signatures, private data roots, ownership/modes, filesystems/free space, packages, and security/quarantine infrastructure.
-- [ ] Confirm whether `/usr/bin/clamscan` with a usable local signature database already exists.
-- [ ] If no trusted scanner exists, install/approve one only if authenticated operator policy and host resources permit it. Avoid adding a resident public/listening service merely for convenience; the repository adapter supports one-shot local `clamscan`.
-- [ ] Establish `/var/lib/wwcx-messaging-gateway/private-mms-quarantine` under the actual Messaging service identity, outside any web document root, with root/subdirectories no broader than `0700` and blobs/metadata `0600`.
-- [ ] Run local synthetic clean -> `scanned_clean_held` acceptance.
-- [ ] Run local generated EICAR -> `quarantined_malicious` acceptance if the chosen scanner supports EICAR.
-- [ ] Validate scanner unavailable -> held.
-- [ ] Validate scanner timeout/error/non-verdict -> held.
-- [ ] Validate digest mismatch -> rejected/held.
-- [ ] Validate corrupted blob/integrity failure -> held.
-- [ ] Validate storage/disk-full failure -> no success claim.
-- [ ] Validate restart/re-open preserves held records/blobs.
-- [ ] Verify no public scanner/quarantine listener appears and adjacent UC services remain healthy.
-- [ ] Capture rollback/evidence outside the repository.
-- [ ] Keep quarantine release unavailable to Private AI and unavailable from the tested path.
+- [ ] Authenticate to Edge1 and verify host/principal/current `main`.
+- [ ] Reinspect Messaging service identity, memory/swap, disk, scanner/signature packages, listeners and private-root candidates.
+- [ ] Confirm/install a resource-safe local trusted scanner under established operator policy.
+- [ ] Create/verify `/var/lib/wwcx-messaging-gateway/private-mms-quarantine` outside web roots with directories <=0700 and files <=0600 under the actual service identity.
+- [ ] Run clean -> `scanned_clean_held`.
+- [ ] Run EICAR -> `quarantined_malicious`.
+- [ ] Run unavailable/timeout/error/non-verdict failure cases -> held.
+- [ ] Run digest mismatch/integrity corruption/storage failure cases -> fail closed.
+- [ ] Verify restart/re-open persistence.
+- [ ] Verify no new public listener, adjacent UC service health and rollback viability.
+- [ ] Capture protected evidence.
 
-Runtime procedure: `docs/communications/unified-communications-phase27-runtime-acceptance-20260818.md`.
+Quarantine release remains unauthorized throughout.
 
-## Mail correspondence
+## Mail live local-native acceptance
 
-The repository now has a bounded persisted store/read foundation, so the missing work is specifically the **authoritative native source and live read-only acceptance**.
+The software path is functional in repository/local integration tests. Live Edge1 deployment remains unperformed because no authenticated execution connector is available.
 
-- [x] Confirm outbound audit metadata is not an authoritative correspondence source.
-- [x] Confirm `mail_threading.py` correlation metadata is not a body/thread-history store.
-- [x] Confirm the disabled inbound hub does not persist raw messages/body previews/attachments.
-- [x] Implement private persisted message/thread storage preserving canonical Message-ID, provider IDs, explicit thread relationships, provenance, untrusted-content markers, and bounded sizes.
-- [x] Validate the store using local synthetic correspondence with no send/routing authority.
-- [ ] Explicitly select and authorize one real native source: reviewed local MTA/Mail Room intake or an authorized native mailbox/provider connector.
-- [ ] Prove the selected source supplies actual message bodies plus stable native message/thread IDs.
-- [ ] Connect that source to the store/read adapter without enabling production send/routing authority.
-- [ ] Perform bounded live read-only acceptance with missing/ambiguous IDs failing closed and prompt-like message content unable to grant scopes/tools.
-- [ ] Only then enable/advertise `mail.correspondence.read` for that authorized source.
+- [ ] Verify live outbound Mail gateway service identity and current preparation-only runtime configuration.
+- [ ] Create `/var/lib/wwcx-mail-room` under the reviewed service/intake ownership model with no broader than 0700 directory permissions.
+- [ ] Ingest local RFC822 fixtures using the reviewed local intake identity; verify DB <=0600.
+- [ ] Enable correspondence reads only after the private store contains `local_native` authoritative records.
+- [ ] Verify authenticated loopback status/message/thread reads.
+- [ ] Verify malformed/missing/synthetic IDs fail closed.
+- [ ] Verify prompt-like content remains untrusted and cannot grant scopes/tools.
+- [ ] Verify Mail gateway remains loopback-only and delivery/send remains disabled.
+- [ ] Verify restart/re-open state and protected rollback evidence.
 
-Current provider inventory still does not prove the canonical provider-side mailboxes are provisioned. Production inbound routing remains blocked.
+## BigBird live Mail registration
 
-## Voice/SIP operational-health freshness
+Phase 28 deliberately leaves the deployed HMAC client policy unchanged. Adding `wwcx-private-ai` to the live allowed-client set is an **authentication-policy change** and requires explicit approval.
 
-Fresh bounded functional read-only acceptance is complete. Current live interconnect health is **unknown**, not freshly proven degraded: the Phase 19 API surfaced a repository status snapshot last checked 2026-07-20.
+- [ ] Obtain explicit approval for the dedicated `wwcx-private-ai` HMAC client registration.
+- [ ] Reuse the existing secret location; never display or copy secret values into repository/evidence.
+- [ ] Register only the least-privileged Mail status/correspondence/draft capabilities.
+- [ ] Validate missing-scope rejection, unsigned rejection, replay rejection and no-send/no-generic-execution boundaries.
+- [ ] Record live acceptance and rollback.
 
-- [ ] If operational-health freshness is needed, use a separately approved read-only live source/probe.
-- [ ] Do not originate calls or modify routes/trunks/dialplans/emergency/carrier settings merely to clear the unknown state.
+Do not silently reuse the website-admin identity for BigBird merely to avoid the approval boundary.
 
-## Final readiness reconciliation
+## Production-native Mail source
 
-- [ ] Set SMS/MMS `security_quarantine=security_ready` only after live scanner/root acceptance passes.
-- [ ] Resolve the Mail correspondence source gap with real source evidence or an explicit documented external blocker.
-- [ ] Set `fresh_edge1_runtime_verified=true` only after every intended safe-scope UC runtime requirement is genuinely complete or explicitly resolved with evidence.
+This is separate from local software functionality.
 
-That flag must never imply carrier readiness, provider credentials, DNS readiness, live mail delivery, emergency calling readiness, production authorization, or quarantine release authority.
+- [ ] Identify/authorize an existing native mailbox/MTA/provider source with stable message IDs, thread IDs and real bodies if one exists.
+- [ ] Preserve immutable `production_native` provenance.
+- [ ] Perform bounded read-only acceptance before claiming provider-production correspondence readiness.
 
-## Provider / production activation remains separately controlled
+Current provider inventory does not prove the canonical provider-side mailboxes/source are provisioned. No provider credentials, routing, DNS or live mail changes are authorized by this backlog.
 
-- [ ] provider credentials/configuration;
-- [ ] live SMS/MMS routing/transmission;
-- [ ] live mail routing/transmission;
-- [ ] SIP/carrier route or dialplan mutation;
-- [ ] production call origination;
-- [ ] emergency-calling changes;
-- [ ] number porting;
-- [ ] STIR/SHAKEN actions;
-- [ ] DNS/firewall/certificate/authentication-policy changes;
-- [ ] quarantine release;
-- [ ] provider contractual/financial/legal/regulatory actions.
+## Voice/SIP health freshness
 
-## Durable recovery records
+- [ ] Optional: obtain a genuinely fresh read-only live interconnect health source if operational freshness is needed.
+- [ ] Do not originate calls or modify routes/trunks/dialplans/carrier/emergency settings merely to change the displayed health state.
+
+## Final readiness
+
+- [ ] Set SMS/MMS `security_quarantine=security_ready` only after live scanner/private-root acceptance.
+- [ ] Promote local Mail correspondence to live accepted only after Edge1 deployment tests.
+- [ ] Promote provider-production Mail correspondence only after a production-native source is proven.
+- [ ] Set `fresh_edge1_runtime_verified=true` only after intended safe-scope runtime requirements are genuinely complete or explicitly resolved with evidence.
+
+## Separately controlled production work
+
+- provider credentials/configuration;
+- live SMS/MMS routing/transmission;
+- live mail routing/transmission;
+- SIP/carrier/emergency routing or dialplan mutation;
+- production call origination;
+- DNS/firewall/certificate/authentication-policy changes;
+- number porting or STIR/SHAKEN;
+- quarantine release;
+- destructive/irreversible operations;
+- provider financial/contractual/legal/regulatory actions.
+
+## Recovery records
 
 - `.agent/unified-communications.md`
 - `.agent/unified-communications-validation-20260818.md`
 - `.agent/unified-communications-validation-phase27-20260818.md`
 - `config/communications/readiness-matrix-v1.json`
 - `docs/communications/unified-communications-phase27-runtime-acceptance-20260818.md`
-- `docs/handoff/unified-communications-phase27-20260818.md`
+- Phase 28 validation/handoff records when merged.
 
-No unchecked item above should be represented as complete until evidence exists for that specific layer.
+No unchecked item above is complete without evidence for that specific layer.

@@ -44,7 +44,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "repository_ready",
-      "notes": "Fresh Edge1 local acceptance confirmed mail.status.read and mail.draft.prepare with prepared-not-sent/no-send semantics. Phase 26 re-audited mail_threading and inbound_mail_hub and confirmed they are not an authoritative persisted correspondence-body/thread store. Phase 27 adds a private bounded SQLite correspondence-store foundation with native Message-ID/provider-ID preservation, explicit thread relationships, provenance, untrusted-content handling and no send/routing authority, validated only with synthetic local records. No authoritative native mailbox/MTA source is yet proven or connected, so mail.correspondence.read remains intentionally disabled and production mail routing remains blocked."
+      "notes": "Fresh Edge1 evidence continues to cover mail.status.read and mail.draft.prepare with prepared-not-sent/no-send semantics only. Phase 28 adds a repository-functional local-native correspondence path: bounded local RFC822 intake, private SQLite bodies/threads with immutable source+scope provenance, authenticated loopback Mail API reads, and a least-privileged BigBird Mail facade. Synthetic records cannot be upgraded to readable authority; local-native records remain explicitly production_provider_ready=false. Phase 28 does not claim Edge1 deployment of correspondence reads, production-native provider readiness, or BigBird live registration. Registering wwcx-private-ai with the deployed HMAC API is an authentication-policy change and remains separately controlled. Production mail routing/send remains blocked."
     },
     "sms_mms": {
       "repository_implementation": "repository_ready",
@@ -60,7 +60,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed Messaging Gateway 0.4.2, authenticated messages.status.read/messages.conversation.read, BigBird prepared-not-sent draft behavior, explicit non-mutation boundaries, and durable PostgreSQL state. Phase 26 added private content-addressed MMS quarantine storage and a narrow trusted-scanner interface. Phase 27 adds a concrete fixed-path local /usr/bin/clamscan adapter and a local synthetic clean/EICAR/restart acceptance probe, but this session had no authenticated Edge1 execution path and therefore did not prove a live scanner installation, deploy the private root, or run live acceptance. MMS security remains degraded until that runtime evidence exists. Quarantine release remains unauthorized and live carrier traffic remains blocked."
+      "notes": "Fresh Edge1 acceptance confirmed Messaging Gateway 0.4.2, authenticated messages.status.read/messages.conversation.read, BigBird prepared-not-sent draft behavior, explicit non-mutation boundaries, and durable PostgreSQL state. Phase 26 added private content-addressed MMS quarantine storage and a narrow trusted-scanner interface. Phase 27 added a concrete fixed-path local /usr/bin/clamscan adapter and a local synthetic clean/EICAR/restart acceptance probe. No authenticated Edge1 execution path was available in the Phase 28 session, so live scanner installation/private-root deployment and live synthetic acceptance remain unverified. MMS security remains degraded until that runtime evidence exists. Quarantine release and live carrier traffic remain blocked."
     },
     "voice_sip": {
       "repository_implementation": "repository_ready",
@@ -124,7 +124,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed BigBird 0.3.4-alpha.3 in read-only mode with eight registry tools, including messages.conversation.read and messages.draft.prepare. Missing-scope authorization failed closed, unsigned /v1/chat returned HTTP 401, messaging control remained disabled, and protected rollback was retained. Historical communications.read and telephony.read remain separate accepted capabilities. No privileged execution or production traffic authority is granted."
+      "notes": "Fresh Edge1 acceptance confirmed BigBird 0.3.4-alpha.3 in read-only mode with eight registry tools, including messages.conversation.read and messages.draft.prepare. Missing-scope authorization failed closed, unsigned /v1/chat returned HTTP 401, messaging control remained disabled, and protected rollback was retained. Phase 28 adds repository-ready BigBird Mail status/correspondence/draft tools with loopback-only HMAC transport, persisted-provenance revalidation, untrusted-content enforcement and no send method. Those Mail tools are not yet registered or live-accepted on Edge1. Historical communications.read and telephony.read remain separate accepted capabilities. No privileged execution or production traffic authority is granted."
     }
   },
   "rules": {
