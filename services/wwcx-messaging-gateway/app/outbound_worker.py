@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping
 
 from .models import Channel
+from .outbound_policy import OutboundPolicy, PostgresSendRateLimiter, SendRateLimiter
 from .persistence import PostgresEventStore
 from .providers import MessagingProvider, build_provider_registry
 
@@ -19,6 +20,8 @@ def run_once(
     store: PostgresEventStore,
     providers: Mapping[str, MessagingProvider],
     allowed_providers: set[str],
+    policy: OutboundPolicy,
+    rate_limiter: SendRateLimiter,
     *,
     retry_delay_seconds: int = 60,
     max_attempts: int = 5,
@@ -40,6 +43,11 @@ def run_once(
         store.block_outbound_job(job.job_id, "provider adapter is not registered")
         return {"status": "blocked", "reason": "provider_not_registered", "job_id": str(job.job_id)}
 
+    policy_reason = policy.evaluate(job.message)
+    if policy_reason is not None:
+        store.block_outbound_job(job.job_id, f"outbound authorization policy: {policy_reason}")
+        return {"status": "blocked", "reason": policy_reason, "job_id": str(job.job_id)}
+
     suppressed = store.suppressed_recipients(job.message.recipients)
     if suppressed:
         store.block_outbound_job(job.job_id, "one or more recipients are suppressed", status="suppressed")
@@ -56,6 +64,16 @@ def run_once(
             status="quarantined",
         )
         return {"status": "quarantined", "reason": "mms_media_release_not_authorized", "job_id": str(job.job_id)}
+
+    rate_reason = rate_limiter.reserve(
+        job.job_id,
+        job.message,
+        hourly_limit=policy.hourly_message_limit,
+        daily_limit=policy.daily_message_limit,
+    )
+    if rate_reason is not None:
+        store.block_outbound_job(job.job_id, f"outbound rate policy: {rate_reason}", status="rate_limited")
+        return {"status": "rate_limited", "reason": rate_reason, "job_id": str(job.job_id)}
 
     try:
         result = provider.send(job.message)
@@ -108,6 +126,15 @@ def main() -> int:
         print(json.dumps({"status": "error", "reason": "outbound provider allowlist is empty"}))
         return 2
 
+    policy = OutboundPolicy.from_values(
+        enabled=os.getenv("WWCX_OUTBOUND_POLICY_ENABLED", "false").lower() == "true",
+        authorized_senders=os.getenv("WWCX_OUTBOUND_AUTHORIZED_SENDERS"),
+        destination_prefixes=os.getenv("WWCX_OUTBOUND_DESTINATION_PREFIX_ALLOWLIST"),
+        max_recipients=int(os.getenv("WWCX_OUTBOUND_MAX_RECIPIENTS", "1")),
+        max_text_chars=int(os.getenv("WWCX_OUTBOUND_MAX_TEXT_CHARS", "1600")),
+        hourly_message_limit=int(os.getenv("WWCX_OUTBOUND_HOURLY_MESSAGE_LIMIT", "10")),
+        daily_message_limit=int(os.getenv("WWCX_OUTBOUND_DAILY_MESSAGE_LIMIT", "25")),
+    )
     retry_delay_seconds = int(os.getenv("WWCX_OUTBOUND_RETRY_DELAY_SECONDS", "60"))
     max_attempts = int(os.getenv("WWCX_OUTBOUND_MAX_ATTEMPTS", "5"))
     simulator_token = lambda: os.getenv("WWCX_SIMULATOR_TOKEN", "development-only")
@@ -115,6 +142,8 @@ def main() -> int:
         PostgresEventStore(database_url),
         build_provider_registry(simulator_token),
         allowed_providers,
+        policy,
+        PostgresSendRateLimiter(database_url),
         retry_delay_seconds=retry_delay_seconds,
         max_attempts=max_attempts,
     )
