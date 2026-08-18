@@ -16,6 +16,11 @@
       "mutating": true,
       "timeout_seconds": 180
     },
+    "edge1.snapshot": {
+      "argv": ["python3", "server/edge1_snapshot.py", "--format", "json"],
+      "mutating": false,
+      "timeout_seconds": 180
+    },
     "validation.interconnect": {
       "argv": ["sh", "deploy/interconnect/validate-staging-assets.sh"],
       "mutating": false,
