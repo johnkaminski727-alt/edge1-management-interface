@@ -14,6 +14,9 @@ admin_ui:
 process:
   pid_file: /run/edge1-secure-mcp-tunnel/tunnel-client.pid
 
+cloudflared:
+  managed: true
+
 mcp:
   server_urls:
     - channel: main
