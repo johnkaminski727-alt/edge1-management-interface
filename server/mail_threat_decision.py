@@ -105,6 +105,13 @@ def evaluate(policy: dict[str, Any], facts: dict[str, Any]) -> dict[str, Any]:
     required_scan = bool(policy.get("malware", {}).get("required"))
     fail_closed = bool(policy.get("malware", {}).get("fail_closed"))
 
+    if policy.get("enabled") is not True:
+        hard_security_block = True
+        reasons.append("threat_policy_disabled")
+    if policy.get("deployment_authorized") is not True:
+        hard_security_block = True
+        reasons.append("threat_policy_deployment_not_authorized")
+
     if required_scan and not scan_results:
         hard_security_block = True
         reasons.append("required_scan_missing")
