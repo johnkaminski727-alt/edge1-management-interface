@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from tests.test_edge1_snmp_ui_client import SnmpUiClientTests
 from tests.test_snmp_http_payload import SnmpBrowserPayloadTests
@@ -13,10 +18,11 @@ from tests.test_snmp_operations_console import SnmpOperationsConsoleStaticTests
 
 
 def validate_embedded_javascript() -> None:
-    source = Path("src/web/operations-center/snmp.html").read_text(encoding="utf-8")
-    if source.count("<script>") != 1 or source.count("</script>") != 1:
+    source = ROOT / "src/web/operations-center/snmp.html"
+    text = source.read_text(encoding="utf-8")
+    if text.count("<script>") != 1 or text.count("</script>") != 1:
         raise RuntimeError("SNMP console script template shape is invalid")
-    script = source.split("<script>", 1)[1].split("</script>", 1)[0]
+    script = text.split("<script>", 1)[1].split("</script>", 1)[0]
     with tempfile.NamedTemporaryFile(mode="w", suffix=".js", encoding="utf-8") as handle:
         handle.write(script)
         handle.flush()
