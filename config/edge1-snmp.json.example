@@ -1,0 +1,7 @@
+{
+  "timezone": "UTC",
+  "polling": {"interval_seconds": 300, "timeout_seconds": 3, "retries": 1, "concurrency": 16, "jitter_seconds": 15},
+  "discovery": {"allowed_cidrs": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"], "max_hosts": 256, "allow_public": false},
+  "retention": {"telemetry_days": 30, "events_days": 90, "audit_days": 365},
+  "snmp_set_enabled": false
+}
