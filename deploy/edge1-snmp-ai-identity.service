@@ -1,0 +1,23 @@
+[Unit]
+Description=WW.CX Edge1 SNMP AI runtime credential projection
+Requires=bigbird-ai-gateway.service
+After=bigbird-ai-gateway.service
+Before=edge1-snmp-api.service
+PartOf=edge1-snmp-api.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+RuntimeDirectory=edge1-snmp-ai-identity
+RuntimeDirectoryMode=0700
+ExecStart=/opt/edge1-management-interface/deploy/prepare-edge1-snmp-ai-credentials.sh
+ExecStop=/usr/bin/rm -f /run/edge1-snmp-ai-identity/bb_relay_key_id /run/edge1-snmp-ai-identity/bb_relay_secret
+RemainAfterExit=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/edge1-management-interface /etc/bigbird-ai-gateway.env
+ReadWritePaths=/run/edge1-snmp-ai-identity
+UMask=0077
