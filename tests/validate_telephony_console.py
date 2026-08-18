@@ -58,9 +58,15 @@ for marker in (
     '"interconnects": interconnects',
     '"registrations": []',
     "wwcx-numbering-node.service",
+    'WWCX_MESSAGING_PORT',
+    '"58080"',
+    'WWCX_MESSAGING_HEALTH_URL',
 ):
     if marker not in server:
         raise SystemExit("server missing safety or integration marker: " + marker)
+
+if '"http://127.0.0.1:8095/healthz"' in server:
+    raise SystemExit("telephony server must not default messaging health to the Unified Communications port")
 
 unit = (ROOT / "deploy" / "telephony" / "wwcx-telephony-console.service").read_text(encoding="utf-8")
 for marker in ("--host 127.0.0.1", "NoNewPrivileges=true", "ProtectSystem=strict", "WantedBy=multi-user.target"):
