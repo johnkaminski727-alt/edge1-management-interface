@@ -2,7 +2,7 @@
 
 Date: 2026-08-18
 
-This backlog contains only work not completed by the safe repository/runtime convergence pass. Fresh Edge1 operator acceptance is complete for Messaging Gateway including durable PostgreSQL state, BigBird messaging capabilities, the bounded Mail AI adapter, the persistent loopback-only Communications workspace, and the authoritative Relay/NNTP canonical snapshot feed. Remaining items are kept explicit rather than inferred complete.
+This backlog contains only work not completed by the safe repository/runtime convergence pass. Fresh Edge1 operator acceptance is complete for Messaging Gateway including durable PostgreSQL state, BigBird messaging capabilities, the bounded Mail AI adapter, the persistent loopback-only Communications workspace, the authoritative Relay/NNTP canonical snapshot feed, and the bounded read-only Voice/SIP analytics surface. Remaining items are kept explicit rather than inferred complete.
 
 ## Runtime verification
 
@@ -10,17 +10,19 @@ This backlog contains only work not completed by the safe repository/runtime con
 - [x] Confirm live Messaging Gateway `0.4.2`, BigBird `0.3.4-alpha.3`, Mail AI adapter bounded capabilities, and adjacent UC service active state.
 - [x] Confirm Messaging Gateway and BigBird loopback listeners and verify the Communications workspace temporary listener rolls back cleanly.
 - [x] Complete fresh functional Communications Relay acceptance by attaching and validating an authoritative metadata-only canonical snapshot.
-- [ ] Complete fresh functional Voice/SIP acceptance beyond service-active evidence if required for final global runtime verification.
+- [x] Complete fresh functional Voice/SIP read-only acceptance without calls, DTMF, route changes, carrier changes, database mutation, or service restart.
 - [x] Install and accept the persistent loopback-only `wwcx-communications-workspace.service`.
 - [x] Confirm and attach the authoritative canonical communications-event snapshot/feed source used by the persistent workspace.
 - [x] Record live rollback/checkpoint evidence for Messaging Gateway, BigBird, Communications workspace, Relay snapshot activation, and Messaging PostgreSQL activation.
-- [ ] Reconcile final safe-scope state and set `fresh_edge1_runtime_verified` true only after MMS security runtime, Mail correspondence, and any required fresh Voice/SIP acceptance are complete.
+- [ ] Reconcile final safe-scope state and set `fresh_edge1_runtime_verified` true only after MMS security runtime and Mail correspondence are complete or explicitly resolved. Voice/SIP read-only acceptance is no longer missing, but its operational health remains degraded and must not be represented as healthy.
 
 Phase 14J acceptance on 2026-08-18 confirmed a live 168-event Relay/NNTP canonical snapshot attached to the persistent workspace. The generator runs as `wwcx-comms:wwadmin`, the authoritative Relay database remains `0600 wwcx-comms:wwcx-comms`, the generated snapshot is `0640 wwcx-comms:wwadmin`, the workspace remains loopback-only and read-only, POST remains HTTP 405, and a 15-minute refresh timer is enabled. Rollback: `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-relay-activation-20260818T103350Z.sh`.
 
 Phase 18 acceptance on 2026-08-18 replaced volatile Messaging storage with the already-implemented PostgreSQL backend. PostgreSQL 15 is local Unix-socket only with no TCP listener and no database password, repository migrations were applied, the pre-restart in-memory event count was zero, `/readyz` now reports `storage: postgres`, PostgreSQL is enabled for reboot persistence, and the bounded rollback retains the installed data while restoring Messaging memory mode and stopping the cluster if needed. Rollback: `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-messaging-postgres-20260818T111017Z.sh`.
 
-Operational warning retained: approximately 1.5 GiB memory remained available after Phase 18, while the configured 1 GiB swap allocation remained almost fully consumed. No recent OOM activity was observed and PostgreSQL activation did not materially reduce available memory, but unnecessary broad service restarts should still be avoided.
+Phase 19 acceptance on 2026-08-18 passed the repository-provided read-only telephony analytics audit with zero warnings and zero failures. Runtime analytics source hashes matched the canonical repository, listener `127.0.0.1:8099` remained loopback-only, privacy/payload/anomaly validation passed, POST remained HTTP 405, Asterisk/Kamailio/analytics/console services remained active, and no call origination, DTMF, route/carrier change, database mutation, credential read, service restart, or runtime mutation occurred. Evidence: `/var/lib/wwcx-deployment-evidence/telephony-analytics-live-acceptance/uc-phase19-20260818T112551Z`. The same aggregate health surface reported `overall_status: critical`, `sip: degraded`, score 28, and one failed interconnect out of two; this is an operational degradation, not an acceptance failure, and must remain visible.
+
+Operational warning retained: approximately 1.5 GiB memory remained available after Phase 19, while the configured 1 GiB swap allocation remained almost fully consumed. No new OOM activity was reported by the acceptance pass, but unnecessary broad service restarts should still be avoided.
 
 ## Messaging durability
 
@@ -52,10 +54,11 @@ Fresh inspection found no installed trusted scanner and no attached private quar
 
 ## Voice/SIP fresh acceptance
 
-- [ ] Decide whether final global safe-scope completion requires a fresh functional Voice/SIP read acceptance beyond historical `telephony.read` evidence.
-- [ ] If required, validate only existing read-only/local status and historical-record surfaces without originating calls or changing routes, trunks, dialplans, emergency calling, or carrier configuration.
+- [x] Complete a fresh functional Voice/SIP read/status acceptance beyond historical `telephony.read` evidence.
+- [x] Validate only existing read-only/local aggregate surfaces without originating calls or changing routes, trunks, dialplans, emergency calling, or carrier configuration.
+- [ ] Investigate the current operational degradation separately: aggregate telephony health is critical, SIP is degraded, platform score is 28, and one of two interconnects is failed. Do not perform route/carrier/emergency changes merely to clear this warning.
 
-Current native CDR/CEL tables were observed empty during the fresh 2026-08-18 pass, so no fabricated call records should be introduced merely to satisfy acceptance.
+Current Asterisk runtime reported zero active/processed calls during Phase 19, and earlier CDR/CEL inspection found zero rows. No fabricated call records were introduced merely to satisfy acceptance.
 
 ## Provider / production activation
 
@@ -87,6 +90,7 @@ See:
 - `docs/communications/unified-communications-live-acceptance-20260818.md`;
 - `docs/communications/unified-communications-relay-snapshot-live-acceptance-20260818.md`;
 - `docs/communications/unified-communications-messaging-postgres-live-acceptance-20260818.md`;
+- `docs/communications/unified-communications-voice-sip-live-acceptance-20260818.md`;
 - `.agent/unified-communications-validation-20260818.md`.
 
 No item above should be represented as complete until evidence exists for that specific layer.
