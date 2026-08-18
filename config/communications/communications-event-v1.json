@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wwcx.communications-event.v1",
+  "title": "WW.CX Communications Event v1",
+  "description": "Channel-neutral metadata contract that references, but never replaces, authoritative native channel records.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "communications_event_id",
+    "channel",
+    "direction",
+    "timestamp_utc",
+    "sender_identity_ref",
+    "recipient_identity_refs",
+    "native_record",
+    "status",
+    "security",
+    "provenance",
+    "audit_refs"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.communications-event.v1"},
+    "communications_event_id": {"type": "string", "pattern": "^comm_[A-Za-z0-9._:-]{8,128}$"},
+    "conversation_id": {"type": ["string", "null"], "maxLength": 160},
+    "thread_id": {"type": ["string", "null"], "maxLength": 160},
+    "case_id": {"type": ["string", "null"], "maxLength": 160},
+    "control_id": {"type": ["string", "null"], "maxLength": 160},
+    "channel": {
+      "enum": ["email", "sms", "mms", "voice", "sip", "nntp", "relay", "system"]
+    },
+    "direction": {"enum": ["inbound", "outbound", "internal"]},
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "sender_identity_ref": {"type": ["string", "null"], "maxLength": 200},
+    "recipient_identity_refs": {
+      "type": "array",
+      "items": {"type": "string", "maxLength": 200},
+      "maxItems": 64
+    },
+    "native_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_id", "source"],
+      "properties": {
+        "record_id": {"type": "string", "minLength": 1, "maxLength": 512},
+        "source": {"type": "string", "minLength": 1, "maxLength": 128},
+        "provider": {"type": ["string", "null"], "maxLength": 128},
+        "record_type": {"type": ["string", "null"], "maxLength": 128}
+      }
+    },
+    "subject_or_summary": {"type": ["string", "null"], "maxLength": 1000},
+    "status": {
+      "enum": [
+        "observed",
+        "summarized",
+        "drafted",
+        "reviewed",
+        "approved",
+        "queued",
+        "submitted",
+        "delivered",
+        "failed",
+        "suppressed",
+        "quarantined",
+        "closed"
+      ]
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "quarantine_release_authorized"],
+      "properties": {
+        "state": {"enum": ["normal", "warning", "suppressed", "quarantined", "blocked", "unknown"]},
+        "reason_code": {"type": ["string", "null"], "maxLength": 160},
+        "quarantine_release_authorized": {"const": false}
+      }
+    },
+    "attachment_media_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sha256"],
+        "properties": {
+          "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "content_type": {"type": ["string", "null"], "maxLength": 160},
+          "size_bytes": {"type": ["integer", "null"], "minimum": 0}
+        }
+      },
+      "maxItems": 64
+    },
+    "correspondence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parent_event_id": {"type": ["string", "null"], "maxLength": 160},
+        "relation": {"enum": ["none", "reply", "forward", "follow_up", "delivery_receipt", "call_follow_up", "derived"]}
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ai_generated": {"type": "boolean"},
+        "derivation_type": {"type": ["string", "null"], "maxLength": 128},
+        "source_event_ids": {
+          "type": "array",
+          "items": {"type": "string", "maxLength": 160},
+          "maxItems": 128
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_channel", "authoritative_native_record"],
+      "properties": {
+        "source_channel": {"enum": ["email", "sms", "mms", "voice", "sip", "nntp", "relay", "system"]},
+        "authoritative_native_record": {"const": true},
+        "transformations": {
+          "type": "array",
+          "items": {"type": "string", "maxLength": 160},
+          "maxItems": 32
+        }
+      }
+    },
+    "audit_refs": {
+      "type": "array",
+      "items": {"type": "string", "maxLength": 512},
+      "maxItems": 64
+    }
+  }
+}
