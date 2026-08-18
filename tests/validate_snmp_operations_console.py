@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from tests.test_edge1_snmp_ui_client import SnmpUiClientTests
+from tests.test_snmp_http_payload import SnmpBrowserPayloadTests
 from tests.test_snmp_operations_console import SnmpOperationsConsoleStaticTests
 
 
@@ -33,6 +34,7 @@ def main() -> int:
     validate_embedded_javascript()
     suite = unittest.TestSuite()
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(SnmpUiClientTests))
+    suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(SnmpBrowserPayloadTests))
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(SnmpOperationsConsoleStaticTests))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     return 0 if result.wasSuccessful() else 1
