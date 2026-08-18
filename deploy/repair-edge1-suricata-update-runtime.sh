@@ -24,6 +24,9 @@ MUTATION_STARTED=false
 
 fail() {
     printf 'ERROR: %s\n' "$*" >&2
+    if [ "$MUTATION_STARTED" = true ] && declare -F rollback >/dev/null 2>&1; then
+        rollback 1
+    fi
     exit 1
 }
 
@@ -34,6 +37,18 @@ capture_file() {
         cp -a "$src" "$dst"
         return 0
     fi
+    return 1
+}
+
+unit_list_has() {
+    needle=$1
+    list=$2
+    unit=
+    for unit in $list; do
+        if [ "$unit" = "$needle" ]; then
+            return 0
+        fi
+    done
     return 1
 }
 
@@ -78,6 +93,9 @@ restore_runtime_files() {
 
 rollback() {
     code=$?
+    if [ "$#" -gt 0 ]; then
+        code=$1
+    fi
     trap - ERR INT TERM
     set +e
     if [ "$MUTATION_STARTED" = true ]; then
@@ -190,8 +208,8 @@ systemctl is-active --quiet "$UPDATE_TIMER"
 systemctl is-enabled --quiet "$UPDATE_TIMER"
 
 REQUIRES="$(systemctl show "$UPDATE_SERVICE" --property=Requires --value)"
-printf '%s\n' "$REQUIRES" | grep -Fq "$SENSOR_SERVICE" || fail "loaded update unit does not require managed sensor"
-if printf '%s\n' "$REQUIRES" | grep -Fq "$LEGACY_SERVICE"; then
+unit_list_has "$SENSOR_SERVICE" "$REQUIRES" || fail "loaded update unit does not require managed sensor"
+if unit_list_has "$LEGACY_SERVICE" "$REQUIRES"; then
     fail "loaded update unit still requires legacy Suricata"
 fi
 
