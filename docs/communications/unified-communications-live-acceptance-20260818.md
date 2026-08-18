@@ -2,14 +2,14 @@
 
 Date: 2026-08-18
 Host: `edge1.ww.cx`
-Repository baseline: `d7ccf2189a028df474ce5b7931870e10d6ec4292`
+Repository baseline: `a46ec4433033648c3428ce061318cdaf347a3605`
 Evidence path used during operator acceptance: `/tmp/edge1-uc-evidence-20260818T073658Z`
 
 ## Scope and evidence model
 
 This record captures fresh operator-run SSH acceptance evidence for the safe, non-traffic Unified Communications scope. It does not convert runtime readiness into permission for production SMS/MMS, email transmission, call origination, routing changes, quarantine release, credential changes, or other separately controlled actions.
 
-The live runtime and repository remain separate evidence sources. `/opt/bigbird-ai-gateway` is a deployed runtime rather than a Git worktree, so the runtime state below is recorded explicitly instead of being inferred from repository state.
+The live runtime and repository remain separate evidence sources. `/opt/bigbird-ai-gateway` is a deployed runtime rather than a Git worktree, and the Communications workspace is deployed from a detached runtime copy, so runtime state below is recorded explicitly instead of being inferred from repository state.
 
 ## Messaging Gateway
 
@@ -113,21 +113,33 @@ No email was sent for acceptance.
 
 ## Communications workspace
 
-The loopback-only Unified Communications workspace was accepted ephemerally on port `8095`:
+The workspace first passed ephemeral acceptance and then persistent Phase 10 activation from exact repository commit `a46ec4433033648c3428ce061318cdaf347a3605`.
 
-- health returned read-only status;
-- readiness returned repository-ready state without fabricating live acceptance;
-- empty/no-snapshot state returned zero events honestly;
-- POST returned HTTP `405` with the read-only boundary preserved;
-- the temporary listener was removed successfully after the test.
+Persistent accepted state:
 
-A later fresh inspection confirmed:
+- `wwcx-communications-workspace.service` is installed, enabled, active, and running;
+- detached runtime is `/opt/wwcx-communications-workspace`;
+- service identity is `wwadmin:wwadmin`;
+- listener is `127.0.0.1:8095` only;
+- wildcard listener rejection passed;
+- `/communications/healthz` returned HTTP 200 with read-only status;
+- `/communications/api/v1/readiness` returned HTTP 200;
+- `/communications/api/v1/events?limit=1` returned HTTP 200 with zero events because no canonical snapshot/feed is attached;
+- the empty event response remains explicitly untrusted and `mutation_authorized: false`;
+- POST to the events API returned HTTP 405 with `read_only_workspace`;
+- `/communications/` returned HTTP 200;
+- the live `/opt/edge1-management-interface` worktree was byte-for-byte unchanged according to before/after Git status evidence;
+- all adjacent UC services remained active after activation;
+- no reverse proxy or public listener was added;
+- no production communications traffic or credential change occurred.
 
-- `wwcx-communications-workspace.service` is not installed;
-- port `8095` is free;
-- no authoritative canonical runtime snapshot source has yet been attached.
+Rollback:
 
-Therefore the workspace is repository-ready and ephemerally accepted, but not yet persistently deployed.
+`/tmp/edge1-uc-evidence-20260818T073658Z/rollback-communications-workspace-20260818T082857Z.sh`
+
+The workspace is now persistently runtime-ready, but it is intentionally empty. No authoritative canonical runtime event snapshot/feed has yet been selected or attached, so global `fresh_edge1_runtime_verified` remains false.
+
+Resource note from Phase 10: about 1.5 GiB memory remained available and no recent kernel OOM evidence was found, but the configured 1 GiB swap allocation was fully consumed. The workspace itself used about 11.4 MiB. This warning is retained separately from the successful workspace functional acceptance.
 
 ## MMS scanner and quarantine runtime
 
@@ -145,7 +157,7 @@ No package installation was performed during this pass.
 
 ## Adjacent UC services
 
-Fresh service checks after the accepted Messaging Gateway and BigBird changes showed these services active:
+Fresh service checks after the accepted Messaging Gateway, BigBird, and Communications workspace changes showed these services active:
 
 - `wwcx-messaging-gateway.service`
 - `wwcx-outbound-mail-gateway.service`
@@ -155,6 +167,7 @@ Fresh service checks after the accepted Messaging Gateway and BigBird changes sh
 - `kamailio.service`
 - `wwcx-telephony-analytics.service`
 - `wwcx-telephony-console.service`
+- `wwcx-communications-workspace.service`
 
 Service-active evidence alone is not used to claim new functional acceptance for unrelated capabilities.
 
@@ -162,9 +175,10 @@ Service-active evidence alone is not used to claim new functional acceptance for
 
 The remaining safe work is now narrow:
 
-1. install and accept a persistent loopback-only Communications workspace service and attach an authoritative canonical metadata snapshot source;
+1. identify and attach an authoritative canonical metadata feed/snapshot source for the persistent workspace without substituting unrelated audit logs or fabricated data;
 2. attach approved private MMS quarantine storage and a trusted scanner, preserving fail-closed behavior and keeping release separately authorized;
 3. resolve `mail.correspondence.read` only after an authoritative native Mail Room correspondence source is explicitly selected and authorized;
-4. reconcile this fresh runtime evidence into project readiness records and final handoff.
+4. complete fresh functional Voice/SIP and Communications Relay acceptance if required for the final global runtime flag;
+5. reconcile the final readiness/handoff state once the remaining safe items are complete or explicitly blocked.
 
 Production/provider activation remains outside this acceptance. Do not infer authorization for carrier traffic, live mail send, call origination, SIP/carrier/emergency-route changes, number porting, STIR/SHAKEN, quarantine release, DNS/firewall/certificate/authentication changes, credentials, financial actions, or other separately controlled operations.
