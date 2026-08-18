@@ -1,0 +1,47 @@
+name: Validate Mail Room configuration consistency
+
+on:
+  pull_request:
+    paths:
+      - 'config/messaging/mail-identities.json'
+      - 'config/messaging/inbound-mail-hub.json'
+      - 'config/messaging/outbound-mail-policy.json'
+      - 'config/messaging/mail-provider-inventory.json'
+      - 'server/mail_config_consistency.py'
+      - 'tools/messaging/mail_domain_inventory.py'
+      - 'tests/test_mail_config_consistency.py'
+      - 'tests/test_mail_domain_inventory.py'
+      - '.github/workflows/mail-room-config-consistency.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/messaging/mail-identities.json'
+      - 'config/messaging/inbound-mail-hub.json'
+      - 'config/messaging/outbound-mail-policy.json'
+      - 'config/messaging/mail-provider-inventory.json'
+      - 'server/mail_config_consistency.py'
+      - 'tools/messaging/mail_domain_inventory.py'
+      - 'tests/test_mail_config_consistency.py'
+      - 'tests/test_mail_domain_inventory.py'
+      - '.github/workflows/mail-room-config-consistency.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile server/mail_config_consistency.py tools/messaging/mail_domain_inventory.py tests/test_mail_config_consistency.py tests/test_mail_domain_inventory.py
+      - name: Run consistency tests
+        run: python3 -m unittest tests.test_mail_config_consistency tests.test_mail_domain_inventory -v
+      - name: Validate canonical configuration JSON
+        run: |
+          python3 -m json.tool config/messaging/mail-identities.json >/dev/null
+          python3 -m json.tool config/messaging/inbound-mail-hub.json >/dev/null
+          python3 -m json.tool config/messaging/outbound-mail-policy.json >/dev/null
+          python3 -m json.tool config/messaging/mail-provider-inventory.json >/dev/null
