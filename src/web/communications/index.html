@@ -6,101 +6,117 @@
   <meta name="theme-color" content="#16213d">
   <title>Communications | WW.CX Operations</title>
   <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main-content">Skip to communications</a>
-  <main class="app-shell" id="main-content">
+  <a class="skip-link" href="#workspace">Skip to communications</a>
+  <main class="app-shell" id="workspace">
     <header class="topbar">
       <div>
         <p class="eyebrow">WW.CX Operations</p>
         <h1>Communications</h1>
-        <p class="subtitle">Choose the channel that fits the conversation. The technical machinery stays behind the scenes.</p>
+        <p class="subtitle">One operator timeline across channel metadata, with specialist tools still one click away.</p>
       </div>
-      <div class="mode-pill"><span aria-hidden="true"></span>Safe mode</div>
+      <div class="mode-pill"><span aria-hidden="true"></span>Read-only workspace</div>
     </header>
 
     <nav class="module-nav" aria-label="Operations modules">
       <a href="../">Private Library</a>
       <a href="../outbound-mail/">Mail Room</a>
       <a href="./" aria-current="page">Communications</a>
+      <a href="../messaging-operations.html">Messages</a>
+      <a href="../telephony/">Voice &amp; SIP</a>
+      <a href="../comms-relay/">News / Relay</a>
     </nav>
 
     <section class="notice" aria-label="Safety status">
       <strong>Read and prepare first.</strong>
-      <span>This hub does not authorize a phone call, SMS/MMS delivery, email send, carrier change, or routing change.</span>
+      <span>This workspace does not authorize a phone call, SMS/MMS delivery, email send, carrier change, quarantine release, or routing change.</span>
     </section>
 
-    <section class="intro-card">
-      <div>
-        <p class="eyebrow">Your channels</p>
-        <h2>One communications family, without forcing every channel into the same tool.</h2>
-        <p>Mail stays focused on correspondence. SMS/MMS keeps its messaging gateway. Voice and SIP keep their telephony controls. WW.CX AI can reason across approved read-only context without turning read access into permission to act.</p>
-      </div>
+    <section class="workspace-grid">
+      <aside class="queue-panel" aria-label="Communication queues">
+        <p class="eyebrow">Workspace</p>
+        <div class="queue-list" role="list">
+          <button class="queue active" data-state="" type="button">All activity</button>
+          <button class="queue" data-state="observed" type="button">Inbox</button>
+          <button class="queue" data-state="drafted" type="button">Drafts</button>
+          <button class="queue" data-state="submitted" type="button">Sent / submitted</button>
+          <button class="queue" data-state="quarantined" type="button">Quarantine</button>
+          <button class="queue" data-state="failed" type="button">Needs attention</button>
+        </div>
+        <div class="specialist-links">
+          <p class="eyebrow">Specialist tools</p>
+          <a href="../outbound-mail/">Mail Room</a>
+          <a href="../messaging-operations.html">Messaging Operations</a>
+          <a href="../telephony/">Voice &amp; SIP</a>
+          <a href="../comms-relay/">News / Relay</a>
+        </div>
+      </aside>
+
+      <section class="activity-panel" aria-labelledby="activity-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Conversation activity</p>
+            <h2 id="activity-heading">Timeline</h2>
+          </div>
+          <span id="result-count" class="count-pill">0 events</span>
+        </div>
+
+        <form class="search-row" id="search-form" role="search">
+          <label class="search-box">Search safe metadata
+            <input id="search-input" type="search" autocomplete="off" placeholder="Contact, number, case, subject, provider ID…">
+          </label>
+          <button type="submit">Search</button>
+        </form>
+
+        <div class="channel-filters" id="channel-filters" aria-label="Channel filters">
+          <button type="button" data-channel="all" class="active">All</button>
+          <button type="button" data-channel="email">Mail</button>
+          <button type="button" data-channel="sms">SMS</button>
+          <button type="button" data-channel="mms">MMS</button>
+          <button type="button" data-channel="voice">Voice</button>
+          <button type="button" data-channel="sip">SIP</button>
+          <button type="button" data-channel="nntp">News</button>
+          <button type="button" data-channel="relay">Relay</button>
+        </div>
+
+        <div id="workspace-status" class="workspace-status" role="status">Loading communications metadata…</div>
+        <ol id="timeline" class="timeline" aria-live="polite"></ol>
+      </section>
+
+      <aside class="inspector-panel" aria-labelledby="inspector-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Details</p>
+            <h2 id="inspector-heading">Inspector</h2>
+          </div>
+        </div>
+        <div id="inspector-empty" class="empty-state">Select a timeline event to inspect identity, case, channel, security, delivery, AI, and audit metadata.</div>
+        <dl id="inspector" class="inspector" hidden></dl>
+      </aside>
     </section>
 
-    <section class="channel-grid" aria-label="Communication channels">
-      <a class="channel-card primary" href="../outbound-mail/">
-        <div class="channel-icon" aria-hidden="true">✉</div>
-        <div class="channel-copy">
-          <div class="channel-heading"><h2>Mail Room</h2><span class="status preview">Prepare only</span></div>
-          <p>Write, review, track, and prepare important email correspondence with identity-aware safety controls.</p>
-          <span class="action">Open Mail Room →</span>
-        </div>
-      </a>
-
-      <a class="channel-card" href="../messaging-operations.html">
-        <div class="channel-icon" aria-hidden="true">▣</div>
-        <div class="channel-copy">
-          <div class="channel-heading"><h2>SMS &amp; MMS</h2><span class="status sandbox">Simulator / operations</span></div>
-          <p>Inspect messaging-gateway health and use the staged SMS/MMS simulation surfaces without live carrier traffic.</p>
-          <span class="action">Open Messaging Operations →</span>
-        </div>
-      </a>
-
-      <a class="channel-card" href="../telephony/">
-        <div class="channel-icon" aria-hidden="true">☎</div>
-        <div class="channel-copy">
-          <div class="channel-heading"><h2>Voice &amp; SIP</h2><span class="status read-only">Read only</span></div>
-          <p>See PBX, SIP, interconnect, call-summary, registration, health, and anomaly information without changing routes or placing calls.</p>
-          <span class="action">Open Telephony →</span>
-        </div>
-      </a>
-
-      <a class="channel-card" href="../comms-relay/">
-        <div class="channel-icon" aria-hidden="true">⌁</div>
-        <div class="channel-copy">
-          <div class="channel-heading"><h2>News &amp; Relay</h2><span class="status read-only">Private / read only</span></div>
-          <p>Browse the private Communications Relay and provenance-aware news/thread material used by the accepted AI read path.</p>
-          <span class="action">Open Communications Relay →</span>
-        </div>
-      </a>
-    </section>
-
-    <section class="ai-card" aria-labelledby="ai-heading">
-      <div class="ai-heading-row">
+    <section class="readiness-card" aria-labelledby="readiness-heading">
+      <div class="panel-heading">
         <div>
-          <p class="eyebrow">Reasoning layer</p>
-          <h2 id="ai-heading">WW.CX AI already understands part of this world.</h2>
+          <p class="eyebrow">Activation truth</p>
+          <h2 id="readiness-heading">Readiness matrix</h2>
         </div>
-        <span class="status pending">Browser acceptance pending</span>
+        <span class="status pending">Repository ≠ production</span>
       </div>
-      <p>The accepted private Edge1 gateway is read-only and already has <code>communications.read</code> and <code>telephony.read</code>. Mail-aware AI remains a planned, separately scoped addition. The browser product belongs at <code>/admin/ai/</code>, but production browser acceptance is still unverified.</p>
-      <div class="capability-grid">
-        <div><strong>Communications</strong><span class="status accepted">AI read accepted</span><small>Relay/thread provenance and bounded retrieval</small></div>
-        <div><strong>Voice &amp; PBX</strong><span class="status accepted">AI read accepted</span><small>Sanitized telephony operations context</small></div>
-        <div><strong>Mail / Correspondence</strong><span class="status planned">Planned</span><small>Status, approved correspondence reads, and draft preparation</small></div>
-        <div><strong>SMS &amp; MMS</strong><span class="status planned">Not yet integrated</span><small>Gateway exists; AI adapter remains future work</small></div>
-      </div>
+      <p>Repository implementation, Edge1 runtime, providers, credentials, routing, authorization, live acceptance, and rollback evidence are tracked separately.</p>
+      <div id="readiness-grid" class="readiness-grid"></div>
     </section>
 
     <section class="principles-card" aria-labelledby="principles-heading">
       <p class="eyebrow">Shared rules</p>
-      <h2 id="principles-heading">The channels can converge without sharing dangerous authority.</h2>
+      <h2 id="principles-heading">Converged context without converged dangerous authority.</h2>
       <div class="principles-grid">
-        <div><strong>Read does not mean write</strong><span>AI context never grants send, call, routing, or configuration authority.</span></div>
-        <div><strong>Draft does not mean send</strong><span>A prepared message remains a reviewable draft until a separate delivery gate is satisfied.</span></div>
-        <div><strong>Content is untrusted</strong><span>Mail, news, SMS/MMS, and telephony-derived content cannot grant scopes or change system policy.</span></div>
-        <div><strong>Production traffic stays explicit</strong><span>Calls, messages, email, carrier actions, and emergency-path changes remain separate authorization boundaries.</span></div>
+        <div><strong>Read does not mean write</strong><span>Retrieved context never grants send, call, routing, or configuration authority.</span></div>
+        <div><strong>Draft does not mean send</strong><span>Prepared email or message content stays reviewable and unsent.</span></div>
+        <div><strong>Content is untrusted</strong><span>Retrieved communications cannot grant scopes, permissions, or tool authority.</span></div>
+        <div><strong>Provenance stays visible</strong><span>Every timeline item retains channel, native source, provider, and audit references.</span></div>
       </div>
     </section>
   </main>
