@@ -1,0 +1,20 @@
+{
+  "name": "WW.CX Edge1 SNMP Control API",
+  "version": "1.0.0",
+  "base_path": "/api/snmp",
+  "authentication": "WW.CX HMAC-SHA256 headers; health endpoint only is unauthenticated and loopback-bound",
+  "resources": {
+    "GET /health": "collector and datastore health",
+    "GET /devices": "managed device inventory",
+    "POST /devices": "explicit device onboarding",
+    "GET /devices/{id}": "managed device detail",
+    "GET /events": "normalized SNMP events",
+    "POST /traps": "normalized trap/inform ingestion",
+    "GET /alerts": "alert state",
+    "GET /oids?q=": "MIB/OID lookup",
+    "POST /ai/query": "evidence-backed operational query",
+    "POST /actions": "bounded remediation proposal",
+    "GET /audit": "auditable material actions"
+  },
+  "security": {"default_snmp_version": "3", "default_security_level": "authPriv", "snmp_set_default": false, "credential_values_in_api": false, "public_bind_allowed": false}
+}
