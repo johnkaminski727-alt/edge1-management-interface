@@ -1,12 +1,13 @@
 import os
 from typing import Literal
 
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from .media_quarantine import quarantine_summary
 from .models import NormalizedMessage
 from .persistence import PostgresEventStore
+from .providers import ProviderWebhookRequest, build_provider_registry
 from .store import InMemoryEventStore
 from .telegraph_office import build_router
 
@@ -19,6 +20,8 @@ store = PostgresEventStore(database_url) if database_url else InMemoryEventStore
 def simulator_token() -> str:
     return os.getenv("WWCX_SIMULATOR_TOKEN", "development-only")
 
+
+providers = build_provider_registry(simulator_token)
 
 app.include_router(build_router(store, simulator_token))
 
@@ -89,6 +92,7 @@ def management_status(
         "storage": "postgres" if database_url else "memory",
         "event_count": store.count(),
         "capabilities": ["messages.status.read", "messages.conversation.read"],
+        "providers": sorted(providers),
         "mms_media_quarantine": {
             "state": "foundation_ready_fail_closed",
             "default": "quarantined_pending_scan",
@@ -161,3 +165,41 @@ def receive_simulated_message(
 @app.get("/v1/simulator/events/count")
 def simulator_event_count() -> dict[str, int]:
     return {"count": store.count()}
+
+
+@app.post("/v1/webhooks/{provider_name}", status_code=status.HTTP_202_ACCEPTED)
+async def receive_provider_webhook(provider_name: str, request: Request) -> dict[str, object]:
+    """Provider-neutral inbound webhook dispatch.
+
+    This is the intended integration point for real carrier adapters: look
+    up the named MessagingProvider, hand it a generic request context (raw
+    body + headers, nothing WWCX-specific assumed), and let the provider
+    verify and normalize the callback in whatever way its own API requires
+    -- exactly the path a Telnyx or Bandwidth adapter would follow. Only
+    "simulator" is registered today.
+    """
+    provider = providers.get(provider_name)
+    if provider is None:
+        raise HTTPException(status_code=404, detail="unknown provider")
+
+    body = await request.body()
+    webhook_request = ProviderWebhookRequest(body=body, headers=request.headers)
+
+    if not provider.verify_webhook(webhook_request):
+        raise HTTPException(status_code=401, detail="webhook verification failed")
+
+    try:
+        message = provider.normalize_webhook(webhook_request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid provider payload") from exc
+
+    if store.get_control_state()["paused"]:
+        raise HTTPException(status_code=503, detail="messaging intake is paused")
+
+    accepted = store.put_if_absent(message)
+    return {
+        "accepted": accepted,
+        "duplicate": not accepted,
+        "event_id": str(message.event_id),
+        "provider": provider_name,
+    }
