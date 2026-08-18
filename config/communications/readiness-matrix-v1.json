@@ -65,7 +65,7 @@
     "voice_sip": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
-      "edge1_runtime": "degraded",
+      "edge1_runtime": "unknown",
       "private_ai_adapter": "runtime_ready",
       "identity_mapping": "unknown",
       "security_quarantine": "not_applicable",
@@ -76,7 +76,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "repository_ready",
-      "notes": "Fresh Phase 19 Edge1 read-only functional acceptance passed for the telephony analytics surface: Asterisk, Kamailio, analytics and console services remained active; runtime analytics sources matched the canonical repository; the API remained loopback-only on 127.0.0.1:8099; aggregate health/call/interconnect endpoints validated; privacy validation passed; POST returned HTTP 405; and no calls, DTMF, routes, carrier configuration, database mutation, credentials, service restart or runtime mutation occurred. Operational health is deliberately marked degraded because the same fresh aggregate health surface reported overall_status=critical, sip=degraded, platform score 28, and one of two interconnects failed. This acceptance does not authorize call origination, emergency routing, trunk, route, or dialplan mutation."
+      "notes": "Fresh Phase 19 Edge1 read-only functional acceptance passed for the telephony analytics surface: Asterisk, Kamailio, analytics and console services remained active; runtime analytics sources matched the canonical repository; the API remained loopback-only on 127.0.0.1:8099; aggregate endpoints and privacy validation passed; POST returned HTTP 405; and no calls, DTMF, routes, carrier configuration, database mutation, credentials, service restart or runtime mutation occurred. The analytics API reported overall_status=critical and sip=degraded, but source inspection shows those values are derived from repository file data/registry/interconnect/status/peer-status.json rather than a live peer probe. The current repository snapshot was last checked 2026-07-20 and marks lab-carrier-001-peer failed with a name-resolution error. Therefore current live Voice/SIP operational health is not established by Phase 19 and edge1_runtime remains unknown rather than degraded. This acceptance does not authorize call origination, emergency routing, trunk, route, or dialplan mutation."
     },
     "communications_relay": {
       "repository_implementation": "repository_ready",
