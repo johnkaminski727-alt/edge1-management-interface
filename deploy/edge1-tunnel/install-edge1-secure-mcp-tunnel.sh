@@ -11,11 +11,24 @@ BINARY=/usr/local/bin/tunnel-client
 
 [ "$(id -u)" -eq 0 ] || { echo "run with sudo/root" >&2; exit 1; }
 id edge1-operator >/dev/null 2>&1 || { echo "edge1-operator account missing" >&2; exit 2; }
-[ -x "$BINARY" ] || { echo "install the official tunnel-client release at $BINARY first" >&2; exit 3; }
-"$BINARY" cloudflared version >/dev/null 2>&1 || {
-    echo "tunnel-client companion runtime unavailable; install the complete official release bundle" >&2
-    exit 4
-}
+[ -x "$BINARY" ] || { echo "official tunnel-client binary unavailable at $BINARY" >&2; exit 3; }
+
+VERSION_LINE=$($BINARY --version 2>/dev/null || true)
+[ -n "$VERSION_LINE" ] || { echo "unable to identify tunnel-client version" >&2; exit 4; }
+python3 - "$VERSION_LINE" <<'PY'
+import re
+import sys
+raw = sys.argv[1].strip().split()[0]
+base = raw.split('+', 1)[0].lstrip('v')
+if not re.fullmatch(r'\d+\.\d+\.\d+', base):
+    raise SystemExit(f'unrecognized tunnel-client version: {raw}')
+version = tuple(int(part) for part in base.split('.'))
+if version < (0, 0, 10):
+    raise SystemExit(f'tunnel-client {raw} is older than required 0.0.10')
+print(f'tunnel_client_version={raw}')
+PY
+$BINARY run --help >/dev/null 2>&1 || { echo "tunnel-client run command unavailable" >&2; exit 5; }
+$BINARY doctor --help >/dev/null 2>&1 || { echo "tunnel-client doctor command unavailable" >&2; exit 6; }
 
 python3 - "$ROOT/deploy/edge1-tunnel/tunnel-client.yaml" <<'PY'
 from pathlib import Path
@@ -26,21 +39,23 @@ required = (
     'Authorization: env:EDGE1_MCP_AUTHORIZATION',
     'api_key: file:/etc/edge1-tunnel/runtime-api-key',
     'listen_addr: 127.0.0.1:0',
-    'managed: true',
+    'pid_file: /run/edge1-secure-mcp-tunnel/tunnel-client.pid',
 )
 for token in required:
     if token not in text:
         raise SystemExit(f'missing required tunnel config token: {token}')
+if 'cloudflared:' in text:
+    raise SystemExit('shared 0.0.10-compatible profile must not require cloudflared configuration')
 PY
 
 case "$MODE" in
     "")
         echo "Dry run passed. No files changed."
-        echo "Use --apply to stage the disabled tunnel service after the complete tunnel-client release is installed."
+        echo "Use --apply to stage the disabled tunnel service with the existing compatible tunnel-client binary."
         exit 0
         ;;
     --apply) ;;
-    *) echo "unknown argument: $MODE" >&2; exit 5 ;;
+    *) echo "unknown argument: $MODE" >&2; exit 7 ;;
 esac
 
 install -d -o root -g edge1-operator -m 0750 "$ETC_DIR"
@@ -65,7 +80,7 @@ systemd-analyze verify "$UNIT"
     mode=$(stat -c '%a' "$ETC_DIR/runtime-api-key")
     [ "$owner" = root:edge1-operator ] && [ "$mode" = 640 ] || {
         echo "existing runtime-api-key has unexpected owner/mode: $owner $mode" >&2
-        exit 6
+        exit 8
     }
 }
 
@@ -74,18 +89,18 @@ systemd-analyze verify "$UNIT"
     mode=$(stat -c '%a' "$ETC_DIR/tunnel-id")
     [ "$owner" = root:edge1-operator ] && [ "$mode" = 640 ] || {
         echo "existing tunnel-id has unexpected owner/mode: $owner $mode" >&2
-        exit 7
+        exit 9
     }
 }
 
 if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
     echo "refusing: tunnel service unexpectedly enabled" >&2
-    exit 8
+    exit 10
 fi
 if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
     echo "refusing: tunnel service unexpectedly active" >&2
-    exit 9
+    exit 11
 fi
 
-echo "Secure MCP Tunnel assets staged; service remains disabled/inactive."
+echo "Secure MCP Tunnel assets staged with existing tunnel-client; service remains disabled/inactive."
 echo "Credential/account enrollment is still required before doctor/start."
