@@ -1,0 +1,55 @@
+name: Validate Mail Room threat policy
+
+on:
+  pull_request:
+    paths:
+      - 'config/messaging/inbound-mail-hub.json'
+      - 'config/messaging/mail-threat-policy.json'
+      - 'server/inbound_mail_hub.py'
+      - 'tests/test_inbound_mail_hub.py'
+      - 'tests/test_mail_threat_policy.py'
+      - 'docs/messaging/inbound-mail-hub.md'
+      - 'docs/messaging/mail-room-threat-intelligence-and-ai-policy-20260818.md'
+      - '.github/workflows/mail-room-threat-policy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/messaging/inbound-mail-hub.json'
+      - 'config/messaging/mail-threat-policy.json'
+      - 'server/inbound_mail_hub.py'
+      - 'tests/test_inbound_mail_hub.py'
+      - 'tests/test_mail_threat_policy.py'
+      - 'docs/messaging/inbound-mail-hub.md'
+      - 'docs/messaging/mail-room-threat-intelligence-and-ai-policy-20260818.md'
+      - '.github/workflows/mail-room-threat-policy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON
+        run: |
+          python3 -m json.tool config/messaging/inbound-mail-hub.json >/dev/null
+          python3 -m json.tool config/messaging/mail-threat-policy.json >/dev/null
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile server/inbound_mail_hub.py
+          python3 -m py_compile tests/test_inbound_mail_hub.py
+          python3 -m py_compile tests/test_mail_threat_policy.py
+      - name: Run inbound hub tests
+        run: python3 -m unittest tests.test_inbound_mail_hub -v
+      - name: Run threat-policy tests
+        run: python3 -m unittest tests.test_mail_threat_policy -v
+      - name: Assert no obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
+            config/messaging/inbound-mail-hub.json \
+            config/messaging/mail-threat-policy.json \
+            server/inbound_mail_hub.py \
+            tests/test_inbound_mail_hub.py \
+            tests/test_mail_threat_policy.py
