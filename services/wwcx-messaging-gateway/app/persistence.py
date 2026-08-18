@@ -7,7 +7,8 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from .models import Direction, NormalizedMessage
+from .compliance import classify_compliance_keyword, normalize_compliance_keyword
+from .models import Channel, Direction, NormalizedMessage
 
 
 @dataclass(frozen=True)
@@ -18,10 +19,83 @@ class ClaimedOutboundJob:
 
 
 class PostgresEventStore:
-    """PostgreSQL-backed idempotent event, message, control, and outbound queue store."""
+    """PostgreSQL-backed idempotent event, message, compliance, control, and outbound queue store."""
 
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
+
+    def _record_inbound_compliance(self, connection: psycopg.Connection, message: NormalizedMessage) -> None:
+        if message.direction != Direction.INBOUND or message.channel != Channel.SMS:
+            return
+
+        action = classify_compliance_keyword(message.text)
+        if action is None:
+            return
+
+        keyword = normalize_compliance_keyword(message.text)
+        applied = True
+
+        if action in {"stop", "start"}:
+            desired_state = "suppressed" if action == "stop" else "active"
+            row = connection.execute(
+                """
+                INSERT INTO messaging_consent_state
+                    (address, state, effective_at, source_message_id)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (address) DO UPDATE
+                SET state = EXCLUDED.state,
+                    effective_at = EXCLUDED.effective_at,
+                    source_message_id = EXCLUDED.source_message_id,
+                    updated_at = now()
+                WHERE EXCLUDED.effective_at > messaging_consent_state.effective_at
+                   OR (
+                        EXCLUDED.effective_at = messaging_consent_state.effective_at
+                        AND EXCLUDED.source_message_id::text > messaging_consent_state.source_message_id::text
+                   )
+                RETURNING state
+                """,
+                (message.sender, desired_state, message.occurred_at, message.event_id),
+            ).fetchone()
+            applied = row is not None
+
+            if applied and action == "stop":
+                connection.execute(
+                    """
+                    INSERT INTO suppressions (address, reason, suppressed_at, source_message_id)
+                    VALUES (%s, 'keyword:stop', %s, %s)
+                    ON CONFLICT (address) DO UPDATE
+                    SET reason = EXCLUDED.reason,
+                        suppressed_at = EXCLUDED.suppressed_at,
+                        source_message_id = EXCLUDED.source_message_id
+                    WHERE suppressions.reason LIKE 'keyword:%%'
+                    """,
+                    (message.sender, message.occurred_at, message.event_id),
+                )
+            elif applied and action == "start":
+                connection.execute(
+                    """
+                    DELETE FROM suppressions
+                    WHERE address = %s
+                      AND reason LIKE 'keyword:%%'
+                    """,
+                    (message.sender,),
+                )
+
+        connection.execute(
+            """
+            INSERT INTO messaging_compliance_events
+                (message_id, address, action, keyword, applied, occurred_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                message.event_id,
+                message.sender,
+                action,
+                keyword,
+                applied,
+                message.occurred_at,
+            ),
+        )
 
     def put_if_absent(self, message: NormalizedMessage) -> bool:
         payload = message.model_dump(mode="json", by_alias=True)
@@ -59,6 +133,7 @@ class PostgresEventStore:
                         message.occurred_at,
                     ),
                 )
+                self._record_inbound_compliance(connection, message)
         return True
 
     def enqueue_outbound(self, message: NormalizedMessage) -> bool:
@@ -262,6 +337,72 @@ class PostgresEventStore:
         return {
             "durable": True,
             "counts": {str(state): int(count) for state, count in rows},
+        }
+
+    def compliance_status(self, limit: int = 25) -> dict[str, object]:
+        bounded_limit = min(max(int(limit), 1), 100)
+        with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
+            suppression_count = int(connection.execute("SELECT count(*) FROM suppressions").fetchone()["count"])
+            keyword_suppression_count = int(
+                connection.execute(
+                    "SELECT count(*) FROM suppressions WHERE reason LIKE 'keyword:%%'"
+                ).fetchone()["count"]
+            )
+            consent_rows = connection.execute(
+                """
+                SELECT state, count(*) AS count
+                FROM messaging_consent_state
+                GROUP BY state
+                ORDER BY state
+                """
+            ).fetchall()
+            action_rows = connection.execute(
+                """
+                SELECT action, count(*) AS count
+                FROM messaging_compliance_events
+                GROUP BY action
+                ORDER BY action
+                """
+            ).fetchall()
+            stale_event_count = int(
+                connection.execute(
+                    "SELECT count(*) FROM messaging_compliance_events WHERE applied = false"
+                ).fetchone()["count"]
+            )
+            recent_rows = connection.execute(
+                """
+                SELECT message_id, address, action, keyword, applied, occurred_at, recorded_at
+                FROM messaging_compliance_events
+                ORDER BY recorded_at DESC, id DESC
+                LIMIT %s
+                """,
+                (bounded_limit,),
+            ).fetchall()
+
+        action_counts = {"stop": 0, "start": 0, "help": 0}
+        action_counts.update({str(row["action"]): int(row["count"]) for row in action_rows})
+        consent_state_counts = {"active": 0, "suppressed": 0}
+        consent_state_counts.update({str(row["state"]): int(row["count"]) for row in consent_rows})
+        recent_events = [
+            {
+                "message_id": str(row["message_id"]),
+                "address": str(row["address"]),
+                "action": str(row["action"]),
+                "keyword": str(row["keyword"]),
+                "applied": bool(row["applied"]),
+                "occurred_at": row["occurred_at"].isoformat(),
+                "recorded_at": row["recorded_at"].isoformat(),
+            }
+            for row in recent_rows
+        ]
+        return {
+            "durable": True,
+            "suppression_count": suppression_count,
+            "keyword_suppression_count": keyword_suppression_count,
+            "consent_state_counts": consent_state_counts,
+            "action_counts": action_counts,
+            "stale_event_count": stale_event_count,
+            "recent_events": recent_events,
         }
 
     def count(self) -> int:

@@ -11,7 +11,7 @@ from .providers import ProviderWebhookRequest, build_provider_registry
 from .store import InMemoryEventStore
 from .telegraph_office import build_router
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.3")
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.4")
 
 database_url = os.getenv("DATABASE_URL")
 store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
@@ -89,6 +89,8 @@ def management_status(
     capabilities = ["messages.status.read", "messages.conversation.read"]
     if callable(getattr(store, "outbound_queue_status", None)):
         capabilities.append("messages.outbound.queue.read")
+    if callable(getattr(store, "compliance_status", None)):
+        capabilities.append("messages.compliance.read")
     return {
         "service": "wwcx-messaging-gateway",
         "version": app.version,
@@ -100,6 +102,12 @@ def management_status(
             "enabled": os.getenv("WWCX_OUTBOUND_WORKER_ENABLED", "false").lower() == "true",
             "continuous_mode": False,
             "default_provider_allowlist": "simulator",
+        },
+        "keyword_compliance": {
+            "inbound_sms_keywords_enabled": True,
+            "actions": ["stop", "start", "help"],
+            "auto_reply_enabled": False,
+            "regulatory_compliance_claimed": False,
         },
         "mms_media_quarantine": {
             "state": "foundation_ready_fail_closed",
@@ -122,6 +130,24 @@ def management_outbound_queue(
     return {
         "contract": "wwcx.messages-outbound-queue-read.v1",
         **queue_status(),
+        "mutation_authorized": False,
+    }
+
+
+@app.get("/v1/management/compliance")
+def management_compliance(
+    limit: int = 25,
+    x_wwcx_management_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    require_token(x_wwcx_management_token, "WWCX_MANAGEMENT_READ_TOKEN", "development-read-only")
+    compliance_status = getattr(store, "compliance_status", None)
+    if not callable(compliance_status):
+        raise HTTPException(status_code=503, detail="messaging compliance state unavailable")
+    return {
+        "contract": "wwcx.messages-compliance-read.v1",
+        **compliance_status(limit),
+        "auto_reply_enabled": False,
+        "regulatory_compliance_claimed": False,
         "mutation_authorized": False,
     }
 
