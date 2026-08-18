@@ -3,15 +3,17 @@
 Date: 2026-08-18
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Primary private host: `edge1.ww.cx`
-Repository/runtime baseline: `a46ec4433033648c3428ce061318cdaf347a3605` plus fresh operator-run Edge1 acceptance
+Current implementation baseline: `f5cf3047965a28a23ddc249c2c2f57ea167f7da8` plus fresh operator-run Edge1 acceptance
 
 ## Executive status
 
 WW.CX Communications is substantially complete for the authorized safe scope. Mail Room, SMS/MMS, Voice/SIP, Communications Relay, Private AI, and the Communications operator workspace remain specialized systems, but share canonical metadata contracts, evidence-based identity rules, search/correlation semantics, readiness truth, AI capability boundaries, common draft/action states, provenance, and operator navigation.
 
-Fresh Edge1 acceptance has now been completed for Messaging Gateway `0.4.2`, BigBird `0.3.4-alpha.3`, bounded Mail AI status/draft behavior, and the persistent loopback-only Communications workspace. No production communication authority was added.
+Fresh Edge1 acceptance is complete for Messaging Gateway `0.4.2`, BigBird `0.3.4-alpha.3`, bounded Mail AI status/draft behavior, the persistent loopback-only Communications workspace, and the authoritative Communications Relay/NNTP canonical snapshot feed.
 
-Global `fresh_edge1_runtime_verified` remains false because the persistent workspace still has no authoritative canonical event feed/snapshot attached and MMS trusted scanning/private quarantine storage remain incomplete. Historical Voice/SIP and Relay reads remain accepted, but fresh service-active evidence alone is not promoted to new functional acceptance.
+Global `fresh_edge1_runtime_verified` remains false. The canonical workspace feed is no longer a blocker; remaining safe-scope blockers are Messaging durability, MMS trusted scanning/private quarantine storage, authoritative Mail correspondence source selection, and any required fresh functional Voice/SIP acceptance.
+
+No production communication authority was added.
 
 ## Current live safe-scope state
 
@@ -21,19 +23,18 @@ Global `fresh_edge1_runtime_verified` remains false because the persistent works
 - loopback health/readiness accepted;
 - authenticated `messages.status.read` and `messages.conversation.read` accepted;
 - conversation content marked untrusted and non-mutating;
-- MMS quarantine metadata is fail-closed with release unauthorized;
+- MMS quarantine metadata fail-closed with release unauthorized;
 - storage remains `memory`;
-- rollback retained at `/opt/wwcx-messaging-gateway-staging/app.pre-uc-20260818T075057Z` plus evidence rollback script.
+- no carrier traffic generated.
 
 ### Private AI / BigBird
 
 - live BigBird version `0.3.4-alpha.3`, mode `read-only`, listener `127.0.0.1:8787`;
-- eight read-only registry tools, preserving the original six and adding `messages.conversation.read` and `messages.draft.prepare`;
+- eight read-only registry tools, including `messages.conversation.read` and `messages.draft.prepare`;
 - missing-scope checks fail closed;
 - prepared messaging drafts remain `prepared_not_sent`, `send_authorized: false`, `mutation_authorized: false`;
 - messaging control remains disabled;
-- unsigned `/v1/chat` returns HTTP 401;
-- rollback retained at `/var/backups/bigbird-ai-gateway-uc-chat-20260818T081344Z` and `/var/backups/bigbird-ai-gateway-uc-messaging-20260818T080100Z`.
+- unsigned `/v1/chat` returns HTTP 401.
 
 ### Mail AI
 
@@ -41,34 +42,47 @@ Global `fresh_edge1_runtime_verified` remains false because the persistent works
 - `mail.draft.prepare` accepted with prepared-not-sent/no-send semantics;
 - `mail.correspondence.read` remains blocked until an explicitly authorized authoritative native Mail Room correspondence source is selected.
 
-### Communications workspace
+### Communications Relay and workspace
 
-- persistent `wwcx-communications-workspace.service` installed, enabled, active, and running;
-- detached runtime `/opt/wwcx-communications-workspace` from exact source commit `a46ec4433033648c3428ce061318cdaf347a3605`;
-- service identity `wwadmin:wwadmin`;
-- listener `127.0.0.1:8095` only;
-- health/readiness/static workspace HTTP 200;
-- event API returns an honest zero-event state because no canonical feed/snapshot is attached;
-- event responses remain untrusted and `mutation_authorized: false`;
-- POST/PUT/PATCH/DELETE remain rejected; tested POST returned HTTP 405;
-- no reverse proxy or public listener added;
-- live `/opt/edge1-management-interface` worktree remained unchanged by deployment;
-- rollback retained at `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-communications-workspace-20260818T082857Z.sh`.
+Phase 14J is the current authoritative acceptance point for the shared read-only metadata plane:
 
-Operational warning: Phase 10 showed about 1.5 GiB available memory and no recent kernel OOM evidence, but the configured 1 GiB swap allocation was fully consumed. The workspace used about 11.4 MiB. Avoid unnecessary broad restarts until memory/swap pressure is separately understood.
+- `edge1-comms-relay.service` active and retained as the authoritative native Relay/NNTP source;
+- `wwcx-communications-relay-snapshot.service` accepted with identity `wwcx-comms:wwadmin`;
+- native database `/var/lib/wwcx-comms/comms.sqlite3` retained as `0600 wwcx-comms:wwcx-comms`;
+- database access remains read-only/query-only and article bodies are excluded from the canonical snapshot;
+- SQLite WAL/SHM sidecars are allowed in the containing Relay directory while the database file itself is explicitly read-only inside the generator namespace;
+- generated snapshot `/var/lib/wwcx-communications-workspace/events.jsonl` is `0640 wwcx-comms:wwadmin`;
+- 168 canonical events generated, validated as the workspace user, and attached live;
+- live response returned 168 events with authoritative native provenance;
+- `content_is_untrusted: true` and `mutation_authorized: false` preserved;
+- POST to the events API returned HTTP 405;
+- workspace listener remained `127.0.0.1:8095` only;
+- `wwcx-communications-relay-snapshot.timer` enabled with 15-minute refresh cadence;
+- live repository worktree remained unchanged;
+- adjacent UC services and Suricata remained active;
+- no SMS/MMS, mail, calls, routes, credentials, quarantine release, or public listener changes occurred.
 
-### Voice/SIP and Communications Relay
+Rollback:
 
-- Asterisk, Kamailio, telephony analytics, telephony console, and `edge1-comms-relay.service` were active in fresh service checks;
-- `telephony.read` and `communications.read` retain historical accepted read-only evidence;
-- no call origination, routing, dialplan, upstream-posting, or other mutation authority is inferred.
+`/tmp/edge1-uc-evidence-20260818T073658Z/rollback-relay-activation-20260818T103350Z.sh`
+
+Communications Relay and the Communications workspace are both `runtime_ready` for the bounded metadata/read-only scope.
+
+Operational warning: approximately 1.5 GiB memory remained available after activation, but the configured 1 GiB swap allocation remained fully consumed. Avoid unnecessary broad restarts until memory/swap pressure is separately understood.
+
+### Voice/SIP
+
+- Asterisk, Kamailio, telephony analytics, and telephony console active in fresh checks;
+- `telephony.read` retains historical accepted read-only evidence;
+- fresh CDR/CEL inspection found zero rows;
+- no call origination, routing, dialplan, trunk, or emergency-calling mutation authority is inferred;
+- final decision on whether another fresh functional Voice/SIP read/status acceptance is required remains open.
 
 ### MMS security runtime
 
-- fail-closed metadata/quarantine foundation is live;
-- no installed `clamscan`, `clamdscan`, or `freshclam` was found;
-- no active ClamAV service/socket was found;
-- no candidate private quarantine-storage directory was found in the inspected `/var/lib`, `/srv`, or `/opt` paths;
+- fail-closed metadata/quarantine foundation live;
+- no trusted scanner attached;
+- no private quarantine-storage runtime attached;
 - trusted scanner/private storage therefore remain incomplete and security stays degraded;
 - quarantine release remains unauthorized.
 
@@ -82,16 +96,19 @@ Operational warning: Phase 10 showed about 1.5 GiB available memory and no recen
 - PR #396 — final repository reconciliation — `d7ccf2189a028df474ce5b7931870e10d6ec4292`
 - PR #397 — fresh Edge1 runtime acceptance reconciliation — `6d2c24dfb756bbb735dabc4ffca51d9a6a8b73fc`
 - PR #400 — hardened persistent Communications workspace deployment — `a46ec4433033648c3428ce061318cdaf347a3605`
+- PR #404 — durable Relay canonical snapshot adapter — `78a4bc5563262f6da52e626a396248472b7852c7`
+- PR #406 — Relay snapshot service identity correction — `c02cb3a1751d4b32768def32682bb150e90f308b`
+- PR #407 — SQLite WAL/SHM sidecar sandbox correction — `f5cf3047965a28a23ddc249c2c2f57ea167f7da8`
 
 Repository CI and live-host acceptance are separate evidence. Green `Edge1 Operator Validation` workflow results are CI only; live claims above come from operator-run SSH acceptance.
 
 ## Remaining safe-scope work
 
-1. Identify the authoritative native source(s) that can produce canonical `wwcx.communications-event.v1` metadata and attach a bounded feed/snapshot to the persistent workspace. Do not substitute unrelated audit logs or fabricate events.
+1. Replace or augment Messaging Gateway `storage: memory` with approved durable private state plus restart/rollback acceptance.
 2. Attach private MMS quarantine storage with strict permissions/retention and a trusted scanner behind the existing fail-closed boundary. Clean results must remain held until a separately authorized release workflow exists.
 3. Select and explicitly authorize an authoritative native Mail Room correspondence source before implementing `mail.correspondence.read`.
-4. Perform fresh functional Voice/SIP and Relay read-only acceptance if required before setting the global runtime flag true.
-5. Reconcile final readiness only when each remaining safe-scope layer has evidence.
+4. Perform fresh functional Voice/SIP read/status acceptance if required before setting the global runtime flag true.
+5. Reconcile final readiness only when each remaining safe-scope layer has evidence or an explicit blocker.
 
 ## Production boundaries
 
@@ -115,6 +132,7 @@ The following remain separately controlled and are not authorized by Unified Com
 - `.agent/unified-communications-backlog-20260818.md`
 - `config/communications/readiness-matrix-v1.json`
 - `docs/communications/unified-communications-live-acceptance-20260818.md`
+- `docs/communications/unified-communications-relay-snapshot-live-acceptance-20260818.md`
 - this handoff document
 
-These records are intended to let the next operator continue from verified evidence rather than reconstructing project state from memory.
+These records let the next operator continue from verified evidence rather than reconstructing project state from memory.
