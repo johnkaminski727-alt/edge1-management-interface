@@ -5,7 +5,9 @@ import json
 from pathlib import Path
 from unittest import mock
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "server" / "edge1_snapshot.py"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MODULE_PATH = REPO_ROOT / "server" / "edge1_snapshot.py"
+ALLOWLIST_PATH = REPO_ROOT / "config" / "edge1-operations-allowlist.json"
 SPEC = importlib.util.spec_from_file_location("edge1_snapshot", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -85,6 +87,16 @@ def test_markdown_contains_machine_capture_identity_and_safety_flags():
     assert "edge1-operator.service" in rendered
     assert "Mutation performed: `false`" in rendered
     assert "Secret values returned: `false`" in rendered
+
+
+def test_snapshot_operations_action_is_fixed_parameterless_and_read_only():
+    payload = json.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
+    action = payload["actions"]["edge1.snapshot"]
+    assert action == {
+        "argv": ["python3", "server/edge1_snapshot.py", "--format", "json"],
+        "mutating": False,
+        "timeout_seconds": 180,
+    }
 
 
 def test_source_contains_no_mutating_interfaces():
