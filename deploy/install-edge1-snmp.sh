@@ -3,6 +3,7 @@ set -eu
 ROOT=${EDGE1_ROOT:-/opt/edge1-management-interface}
 STATUS_ROOT=/var/www/edge1-status
 STATUS_DIR=$STATUS_ROOT/snmp
+LIBEXEC_DIR=/usr/local/libexec/edge1-snmp
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 BACKUP=/var/lib/wwcx-deployment-evidence/snmp/backups/$STAMP
 
@@ -15,9 +16,14 @@ install -d -m 0700 "$BACKUP"
 if [ -f "$STATUS_DIR/operations-snmp.json" ]; then
     cp -a "$STATUS_DIR/operations-snmp.json" "$BACKUP/operations-snmp.json"
 fi
+if [ -f "$LIBEXEC_DIR/prepare-edge1-snmp-ai-credentials.sh" ]; then
+    cp -a "$LIBEXEC_DIR/prepare-edge1-snmp-ai-credentials.sh" "$BACKUP/prepare-edge1-snmp-ai-credentials.sh"
+fi
 install -d -o root -g wwadmin -m 0750 /etc/edge1-snmp /etc/edge1-snmp/profiles
 install -d -o wwadmin -g wwadmin -m 0700 /var/lib/edge1-snmp
 install -d -o wwadmin -g wwadmin -m 0755 "$STATUS_DIR"
+install -d -o root -g root -m 0755 "$LIBEXEC_DIR"
+install -o root -g root -m 0755 "$ROOT/deploy/prepare-edge1-snmp-ai-credentials.sh" "$LIBEXEC_DIR/prepare-edge1-snmp-ai-credentials.sh"
 if [ -f /etc/edge1-snmp/config.json ]; then
     cp -a /etc/edge1-snmp/config.json "$BACKUP/config.json"
 else
