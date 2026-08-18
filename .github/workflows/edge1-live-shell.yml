@@ -1,0 +1,36 @@
+name: Edge1 Live Shell Connector
+
+on:
+  pull_request:
+    paths:
+      - 'tools/mcp/edge1-live-shell/**'
+      - 'prompts/edge1-authenticated-operator.md'
+      - '.github/workflows/edge1-live-shell.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/mcp/edge1-live-shell/**'
+      - 'prompts/edge1-authenticated-operator.md'
+      - '.github/workflows/edge1-live-shell.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install connector dependencies
+        working-directory: tools/mcp/edge1-live-shell
+        run: npm install --ignore-scripts
+      - name: Syntax check
+        working-directory: tools/mcp/edge1-live-shell
+        run: npm run check
+      - name: Verify MCP SDK imports
+        working-directory: tools/mcp/edge1-live-shell
+        run: node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')]).then(() => console.error('imports ok'))"
