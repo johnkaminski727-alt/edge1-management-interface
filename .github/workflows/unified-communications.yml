@@ -53,6 +53,9 @@ jobs:
       - name: Validate deployment definitions
         run: |
           sh -n deploy/run-wwcx-communications-workspace.sh
+          grep -qx 'User=wwcx-comms' deploy/wwcx-communications-relay-snapshot.service
+          grep -qx 'Group=wwadmin' deploy/wwcx-communications-relay-snapshot.service
+          ! grep -q '^SupplementaryGroups=' deploy/wwcx-communications-relay-snapshot.service
           sudo install -d /opt/edge1-management-interface/deploy /opt/wwcx-communications-workspace/server
           sudo install -m 0755 deploy/run-wwcx-communications-workspace.sh /opt/edge1-management-interface/deploy/run-wwcx-communications-workspace.sh
           sudo install -m 0644 server/communications_relay_snapshot.py /opt/wwcx-communications-workspace/server/communications_relay_snapshot.py
