@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Loopback-only server entrypoint for the Edge1 Security authentication adapter."""
+"""Loopback-only server entrypoint for the Edge1 authenticated operator adapter."""
 from __future__ import annotations
 
 import os
@@ -11,6 +11,7 @@ from .edge1_security_auth_core import GatewayConfig
 from .edge1_security_auth_gateway import Edge1SecurityAuthGateway
 from .edge1_security_auth_http import Edge1SecurityAuthHttpAdapter, HttpRequest
 from .edge1_security_auth_http_config import HttpAdapterConfig
+from .edge1_snmp_ui_client import Edge1SnmpUiClient
 
 LOOPBACKS = {"127.0.0.1", "::1"}
 
@@ -70,13 +71,21 @@ def build_adapter() -> Edge1SecurityAuthHttpAdapter:
         "EDGE1_SECURITY_CONSOLE_FILE",
         str(root / "src/web/edge1-ops/security/index.html"),
     ))
+    snmp_console_path = Path(os.environ.get(
+        "EDGE1_SNMP_CONSOLE_FILE",
+        str(root / "src/web/operations-center/snmp.html"),
+    ))
+    snmp_secret_path = Path(os.environ.get("EDGE1_SNMP_API_SECRET_FILE", "/etc/edge1-snmp/api.secret"))
     gateway_config = GatewayConfig.from_path(gateway_config_path)
     http_config = HttpAdapterConfig.from_path(http_config_path)
     gateway = Edge1SecurityAuthGateway(gateway_config)
+    snmp = Edge1SnmpUiClient(secret_path=snmp_secret_path)
     return Edge1SecurityAuthHttpAdapter(
         http_config,
         gateway,
+        snmp=snmp,
         console_path=console_path,
+        snmp_console_path=snmp_console_path,
     )
 
 
