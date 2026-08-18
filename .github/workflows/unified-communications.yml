@@ -56,6 +56,8 @@ jobs:
           grep -qx 'User=wwcx-comms' deploy/wwcx-communications-relay-snapshot.service
           grep -qx 'Group=wwadmin' deploy/wwcx-communications-relay-snapshot.service
           ! grep -q '^SupplementaryGroups=' deploy/wwcx-communications-relay-snapshot.service
+          grep -qx 'ReadOnlyPaths=/opt/wwcx-communications-workspace /var/lib/wwcx-comms/comms.sqlite3' deploy/wwcx-communications-relay-snapshot.service
+          grep -qx 'ReadWritePaths=/var/lib/wwcx-comms /var/lib/wwcx-communications-workspace' deploy/wwcx-communications-relay-snapshot.service
           sudo install -d /opt/edge1-management-interface/deploy /opt/wwcx-communications-workspace/server
           sudo install -m 0755 deploy/run-wwcx-communications-workspace.sh /opt/edge1-management-interface/deploy/run-wwcx-communications-workspace.sh
           sudo install -m 0644 server/communications_relay_snapshot.py /opt/wwcx-communications-workspace/server/communications_relay_snapshot.py
