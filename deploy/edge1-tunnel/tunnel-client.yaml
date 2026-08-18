@@ -14,9 +14,6 @@ admin_ui:
 process:
   pid_file: /run/edge1-secure-mcp-tunnel/tunnel-client.pid
 
-cloudflared:
-  managed: true
-
 mcp:
   server_urls:
     - channel: main
@@ -25,6 +22,5 @@ mcp:
     Authorization: env:EDGE1_MCP_AUTHORIZATION
   discovery_extra_headers:
     Authorization: env:EDGE1_MCP_AUTHORIZATION
-  startup_wait_timeout: 60s
   connection_max_ttl: 10m
   max_concurrent_requests: 4
