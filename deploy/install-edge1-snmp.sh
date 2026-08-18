@@ -34,6 +34,7 @@ chmod 0600 /etc/edge1-snmp/api.secret
 /usr/bin/python3 "$ROOT/server/edge1_snmp_platform.py" init-db
 chown wwadmin:wwadmin /var/lib/edge1-snmp/snmp.sqlite3
 chmod 0600 /var/lib/edge1-snmp/snmp.sqlite3
+install -m 0644 "$ROOT/deploy/edge1-snmp-ai-identity.service" /etc/systemd/system/edge1-snmp-ai-identity.service
 install -m 0644 "$ROOT/deploy/edge1-snmp-api.service" /etc/systemd/system/edge1-snmp-api.service
 install -m 0644 "$ROOT/deploy/edge1-snmp-poller.service" /etc/systemd/system/edge1-snmp-poller.service
 install -m 0644 "$ROOT/deploy/edge1-snmp-poller.timer" /etc/systemd/system/edge1-snmp-poller.timer
