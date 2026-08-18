@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WW.CX Edge1 Control Surfaces</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#32905b;--warn:#c28a22;--bad:#a74a4a;--info:#39759d}*{box-sizing:border-box}body{max-width:1280px;margin:auto;padding:28px;background:var(--bg);color:#eee}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}.good{border-color:var(--good)}.warning{border-color:var(--warn)}.danger{border-color:var(--bad)}.info{border-color:var(--info)}.muted,small{color:var(--muted)}.eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.value{font-size:1.1rem;font-weight:700;overflow-wrap:anywhere}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.pill{border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:.78rem}.pill.good{border-color:var(--good)}.pill.warning{border-color:var(--warn)}.pill.danger{border-color:var(--bad)}a{color:#fff}.nav{display:flex;gap:14px;flex-wrap:wrap}.notice{border-left:4px solid var(--warn);padding-left:14px}.surface-notes{margin:.65rem 0 0}.summary{font-size:1.1rem}.legend{display:flex;gap:12px;flex-wrap:wrap}.actions{margin-top:12px}.disabled{opacity:.55;cursor:not-allowed}button{background:#2b3540;color:#eee;border:1px solid #536270;border-radius:8px;padding:8px 10px}@media(max-width:700px){body{padding:14px}}
+</style>
+</head>
+<body>
+<section class="panel">
+<div class="eyebrow">Private Operations</div>
+<h1>Edge1 Control Surfaces</h1>
+<nav class="nav" aria-label="Control surface sections"><a href="#public">Public infrastructure</a><a href="#peering">Peering</a><a href="#private">Private controls</a><a href="#internal">Internal services</a></nav>
+<p class="summary">Inventory first, access second. A listener is not considered public merely because it is bound, and a private control surface is never preserved as a peering dependency.</p>
+<div class="notice"><strong>Read-only staging console.</strong> Native proxy sessions, listener changes, firewall changes, routing changes and peering activation are intentionally unavailable from this page.</div>
+</section>
+<section class="panel"><h2>Boundary summary</h2><div id="summary" class="grid">Loading...</div></section>
+<section id="public" class="panel"><h2>Public Infrastructure</h2><div id="public-grid" class="grid">Loading...</div></section>
+<section id="peering" class="panel"><h2>Peering Surfaces</h2><p class="muted">These are service-plane dependencies. They are managed separately from operator access.</p><div id="peering-grid" class="grid">Loading...</div></section>
+<section id="private" class="panel"><h2>Private Control Surfaces</h2><p class="muted">These must remain private and be reached only through WireGuard, loopback, or a reviewed authenticated broker.</p><div id="private-grid" class="grid">Loading...</div></section>
+<section id="internal" class="panel"><h2>Internal Services</h2><div id="internal-grid" class="grid">Loading...</div></section>
+<script>
+"use strict";
+const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const stateClass=s=>{const v=String(s||"");if(v.startsWith("allowed")||v==="private"||v==="not-public-bound")return "good";if(v.includes("pending")||v.includes("conditional")||v.includes("must-be-private"))return "warning";if(v==="blocked")return "danger";return "info"};
+const listenerText=s=>{const xs=Array.isArray(s.listeners)?s.listeners:[];if(!xs.length)return "ephemeral / attributed";return xs.map(x=>x.port?`${x.transport.toUpperCase()}/${x.port}`:`${x.transport.toUpperCase()}/${x.port_start}-${x.port_end}`).join(", ")};
+function surfaceCard(s){const launch=s.launch_path?`<div class="actions"><a href="${esc(s.launch_path)}">Open existing read-only view</a></div>`:`<div class="actions"><button class="disabled" disabled>Native broker not enabled</button></div>`;return `<article class="card ${stateClass(s.wan_policy)}"><div class="eyebrow">${esc(s.class)}</div><div class="value">${esc(s.name)}</div><div class="row"><span class="pill">${esc(listenerText(s))}</span><span class="pill ${stateClass(s.wan_policy)}">WAN: ${esc(s.wan_policy)}</span><span class="pill">WG: ${esc(s.wireguard_policy)}</span></div><p class="surface-notes">${esc(s.notes)}</p><small>Service: ${esc(s.service)} · Peering: ${esc(s.peering_role)} · Broker: ${esc(s.broker_mode)}</small>${launch}</article>`}
+function render(id,items){document.getElementById(id).innerHTML=items.length?items.map(surfaceCard).join(""):'<div class="card warning">No entries.</div>'}
+async function load(){const response=await fetch('/edge1-ops/control-surfaces/registry.json',{cache:'no-store'});if(!response.ok)throw new Error(`registry ${response.status}`);const data=await response.json();const surfaces=Array.isArray(data.surfaces)?data.surfaces:[];render('public-grid',surfaces.filter(x=>x.class==='public-infrastructure'));render('peering-grid',surfaces.filter(x=>x.class==='peering'));render('private-grid',surfaces.filter(x=>x.class==='private-control'));render('internal-grid',surfaces.filter(x=>x.class==='internal-service'));const counts=surfaces.reduce((m,x)=>(m[x.class]=(m[x.class]||0)+1,m),{});document.getElementById('summary').innerHTML=[['Public infrastructure',counts['public-infrastructure']||0],['Peering',counts.peering||0],['Private controls',counts['private-control']||0],['Internal services',counts['internal-service']||0]].map(([k,v])=>`<div class="card"><div class="eyebrow">Class</div><div class="value">${esc(k)}</div><p>${esc(v)} surface${v===1?'':'s'}</p></div>`).join('')}
+load().catch(error=>{console.error(error);document.getElementById('summary').innerHTML='<div class="card danger"><div class="value">Registry unavailable</div><p>Fail closed: no native controls are exposed.</p></div>'});
+</script>
+</body>
+</html>
