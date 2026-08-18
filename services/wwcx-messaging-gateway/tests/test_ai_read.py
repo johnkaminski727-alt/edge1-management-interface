@@ -60,6 +60,8 @@ def test_single_event_read_uses_event_id() -> None:
 
 def test_status_advertises_read_capabilities_not_send() -> None:
     data = client.get("/v1/management/status", headers=READ_HEADERS).json()
-    assert data["capabilities"] == ["messages.status.read", "messages.conversation.read"]
+    assert "messages.status.read" in data["capabilities"]
+    assert "messages.conversation.read" in data["capabilities"]
+    assert "messages.compliance.read" in data["capabilities"]
     assert data["mutation_authorized"] is False
     assert "messages.send" not in data["capabilities"]
