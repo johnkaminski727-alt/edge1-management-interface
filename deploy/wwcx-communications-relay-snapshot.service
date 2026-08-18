@@ -1,0 +1,34 @@
+[Unit]
+Description=WW.CX Communications Relay metadata snapshot generator
+After=edge1-comms-relay.service
+ConditionPathExists=/var/lib/wwcx-comms/comms.sqlite3
+
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+SupplementaryGroups=wwcx-comms
+WorkingDirectory=/opt/wwcx-communications-workspace
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/wwcx-communications-workspace/server/communications_relay_snapshot.py --database /var/lib/wwcx-comms/comms.sqlite3 --output /var/lib/wwcx-communications-workspace/events.jsonl
+StateDirectory=wwcx-communications-workspace
+StateDirectoryMode=0750
+UMask=0027
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadOnlyPaths=/opt/wwcx-communications-workspace /var/lib/wwcx-comms
+ReadWritePaths=/var/lib/wwcx-communications-workspace

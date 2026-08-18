@@ -1,0 +1,61 @@
+name: Unified Communications Validation
+
+on:
+  pull_request:
+    paths:
+      - 'server/unified_communications.py'
+      - 'server/unified_communications_server.py'
+      - 'server/communications_relay_snapshot.py'
+      - 'tests/test_communications_relay_snapshot.py'
+      - 'tests/validate_unified_communications_workspace.py'
+      - 'deploy/run-wwcx-communications-workspace.sh'
+      - 'deploy/wwcx-communications-workspace.service'
+      - 'deploy/wwcx-communications-relay-snapshot.service'
+      - 'deploy/wwcx-communications-relay-snapshot.timer'
+      - '.github/workflows/unified-communications.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/unified_communications.py'
+      - 'server/unified_communications_server.py'
+      - 'server/communications_relay_snapshot.py'
+      - 'tests/test_communications_relay_snapshot.py'
+      - 'tests/validate_unified_communications_workspace.py'
+      - 'deploy/run-wwcx-communications-workspace.sh'
+      - 'deploy/wwcx-communications-workspace.service'
+      - 'deploy/wwcx-communications-relay-snapshot.service'
+      - 'deploy/wwcx-communications-relay-snapshot.timer'
+      - '.github/workflows/unified-communications.yml'
+
+jobs:
+  validate-unified-communications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Compile Communications modules and tests
+        run: python3 -m compileall -q server tests
+
+      - name: Test Relay canonical snapshot adapter
+        run: python3 -m unittest -v tests.test_communications_relay_snapshot
+
+      - name: Validate read-only Communications workspace
+        run: python3 tests/validate_unified_communications_workspace.py
+
+      - name: Validate deployment definitions
+        run: |
+          sh -n deploy/run-wwcx-communications-workspace.sh
+          sudo install -d /opt/edge1-management-interface/deploy /opt/wwcx-communications-workspace/server
+          sudo install -m 0755 deploy/run-wwcx-communications-workspace.sh /opt/edge1-management-interface/deploy/run-wwcx-communications-workspace.sh
+          sudo install -m 0644 server/communications_relay_snapshot.py /opt/wwcx-communications-workspace/server/communications_relay_snapshot.py
+          systemd-analyze verify deploy/wwcx-communications-workspace.service
+          systemd-analyze verify deploy/wwcx-communications-relay-snapshot.service
+          systemd-analyze verify deploy/wwcx-communications-relay-snapshot.timer
