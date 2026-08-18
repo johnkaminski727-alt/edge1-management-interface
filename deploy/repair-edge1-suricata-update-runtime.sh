@@ -42,9 +42,9 @@ capture_file() {
 
 unit_list_has() {
     needle=$1
-    shift
+    list=$2
     unit=
-    for unit in "$@"; do
+    for unit in $list; do
         if [ "$unit" = "$needle" ]; then
             return 0
         fi
@@ -208,9 +208,8 @@ systemctl is-active --quiet "$UPDATE_TIMER"
 systemctl is-enabled --quiet "$UPDATE_TIMER"
 
 REQUIRES="$(systemctl show "$UPDATE_SERVICE" --property=Requires --value)"
-read -r -a REQUIRES_UNITS <<< "$REQUIRES"
-unit_list_has "$SENSOR_SERVICE" "${REQUIRES_UNITS[@]}" || fail "loaded update unit does not require managed sensor"
-if unit_list_has "$LEGACY_SERVICE" "${REQUIRES_UNITS[@]}"; then
+unit_list_has "$SENSOR_SERVICE" "$REQUIRES" || fail "loaded update unit does not require managed sensor"
+if unit_list_has "$LEGACY_SERVICE" "$REQUIRES"; then
     fail "loaded update unit still requires legacy Suricata"
 fi
 
