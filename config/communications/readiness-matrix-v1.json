@@ -97,7 +97,7 @@
     "communications_workspace": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
-      "edge1_runtime": "degraded",
+      "edge1_runtime": "runtime_ready",
       "private_ai_adapter": "not_applicable",
       "identity_mapping": "repository_ready",
       "security_quarantine": "security_ready",
@@ -106,9 +106,9 @@
       "dns_authentication": "not_applicable",
       "live_routing": "not_applicable",
       "production_authorization": "blocked",
-      "live_acceptance": "degraded",
+      "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "The loopback-only workspace passed fresh ephemeral health/readiness/read-only acceptance on port 8095 and rollback removed the temporary listener. Persistent wwcx-communications-workspace.service is not installed, port 8095 is currently free, and no authoritative canonical runtime snapshot source is attached. Reverse-proxy/public exposure is not authorized by this acceptance."
+      "notes": "Fresh Edge1 acceptance confirmed the persistent wwcx-communications-workspace.service active and enabled from detached runtime source commit a46ec4433033648c3428ce061318cdaf347a3605, bound only to 127.0.0.1:8095. Health, readiness, static workspace, empty-event truthfulness, POST-405 mutation rejection, unchanged live repository state, adjacent UC service health, and rollback evidence all passed. No authoritative canonical event snapshot/feed is attached yet, so the workspace is operational but intentionally empty and global fresh runtime completion remains false. No reverse proxy/public exposure is authorized."
     },
     "private_ai": {
       "repository_implementation": "repository_ready",
