@@ -54,8 +54,7 @@
     "authentication": "hmac_sha256",
     "secret_env": "WWCX_MAIL_GATEWAY_TOKEN",
     "allowed_clients": [
-      "wwcx-website-admin",
-      "wwcx-private-ai"
+      "wwcx-website-admin"
     ],
     "clock_skew_seconds": 300,
     "nonce_ttl_seconds": 900,
