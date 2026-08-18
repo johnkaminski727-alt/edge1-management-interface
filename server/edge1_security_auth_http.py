@@ -7,7 +7,7 @@ import secrets
 import time
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 from .edge1_operations_client import Edge1OperationsClient
 from .edge1_security_auth_core import AuthenticationError, AuthorizationError, GatewayError, hash_secret, valid_event_id
@@ -15,19 +15,23 @@ from .edge1_security_auth_gateway import Edge1SecurityAuthGateway
 from .edge1_security_auth_http_actions import SecurityHttpActionMixin
 from .edge1_security_auth_http_config import HttpAdapterConfig
 from .edge1_security_auth_http_helpers import SecurityHttpHelpersMixin
+from .edge1_security_auth_http_snmp import SNMP_API_PREFIX, SNMP_CONSOLE_PATH, SecuritySnmpHttpMixin
 from .edge1_security_auth_http_types import LOOPBACKS, HttpRequest, HttpResponse
+from .edge1_snmp_ui_client import Edge1SnmpUiClient
 
 CONSOLE_READ_SCOPE = "edge1.security.read"
 
 
-class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersMixin):
+class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixin, SecurityHttpHelpersMixin):
     def __init__(
         self,
         config: HttpAdapterConfig,
         gateway: Edge1SecurityAuthGateway,
         operations: Optional[Edge1OperationsClient] = None,
+        snmp: Optional[Edge1SnmpUiClient] = None,
         *,
         console_path: Optional[Path] = None,
+        snmp_console_path: Optional[Path] = None,
         now: Any = time.time,
     ):
         self.config = config
@@ -38,19 +42,26 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             timeout_seconds=config.operations_timeout_seconds,
             now=now,
         )
+        self.snmp = snmp or Edge1SnmpUiClient(now=now)
         self.console_path = console_path
+        self.snmp_console_path = snmp_console_path
         self.now = now
 
     def handle(self, request: HttpRequest) -> HttpResponse:
         try:
             self._validate_boundary(request)
             route = self.config.routes
+            parsed = urlsplit(request.path)
             if request.path == route["health"]:
                 return self._method(request, {"GET"}, self._health)
             if not self.config.live_route_authorized:
                 raise GatewayError("live_route_not_authorized")
             if request.path == route["console"]:
                 return self._method(request, {"GET"}, self._console)
+            if request.path == SNMP_CONSOLE_PATH:
+                return self._method(request, {"GET"}, self._snmp_console)
+            if parsed.path == SNMP_API_PREFIX or parsed.path.startswith(SNMP_API_PREFIX + "/"):
+                return self._method(request, {"GET", "POST"}, self._snmp_api)
             if request.path == route["exchange"]:
                 return self._method(request, {"POST"}, self._exchange)
             if request.path == route["session"]:
@@ -80,7 +91,12 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             raise AuthorizationError("untrusted_proxy_boundary")
         if len(request.body) > self.config.maximum_body_bytes:
             raise ValueError("body_too_large")
-        if "?" in request.path or "#" in request.path or not request.path.startswith("/"):
+        parsed = urlsplit(request.path)
+        if parsed.scheme or parsed.netloc or parsed.fragment or not parsed.path.startswith("/"):
+            raise ValueError("path_invalid")
+        if parsed.query and not (
+            parsed.path == SNMP_API_PREFIX or parsed.path.startswith(SNMP_API_PREFIX + "/")
+        ):
             raise ValueError("path_invalid")
 
     def _method(self, request: HttpRequest, allowed: set[str], handler: Any) -> HttpResponse:
@@ -97,6 +113,7 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             "status": "ok",
             "live_route_authorized": self.config.live_route_authorized,
             "mutations_enabled": False,
+            "snmp_console_enabled": self.snmp_console_path is not None,
         })
 
     def _console(self, request: HttpRequest) -> HttpResponse:
