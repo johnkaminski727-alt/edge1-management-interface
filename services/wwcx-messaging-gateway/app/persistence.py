@@ -66,14 +66,12 @@ class PostgresEventStore:
                 SELECT payload
                 FROM messaging_events
                 WHERE event_type = 'message.received'
-                ORDER BY id DESC
+                ORDER BY (payload->>'occurred_at')::timestamptz DESC, id DESC
                 LIMIT %s
                 """,
                 (limit,),
             ).fetchall()
-        messages = [NormalizedMessage.model_validate(row["payload"]) for row in rows]
-        messages.sort(key=lambda item: (item.occurred_at, str(item.event_id)), reverse=True)
-        return messages
+        return [NormalizedMessage.model_validate(row["payload"]) for row in rows]
 
     def get_event(self, event_id: str) -> NormalizedMessage | None:
         try:
