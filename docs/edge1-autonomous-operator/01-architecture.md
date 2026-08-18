@@ -36,7 +36,7 @@ ChatGPT workspace
     |
 Secure MCP Tunnel
     |
-127.0.0.1:8098/mcp
+127.0.0.1:8102/mcp
     |
 edge1-operator-mcp.service
     |
@@ -48,6 +48,8 @@ fixed allowlisted actions + audit trail
 ```
 
 No new unauthenticated public listener is permitted. The MCP endpoint must remain on loopback. Tunnel provisioning must not change that bind address.
+
+Port `8098` is reserved by the existing WW.CX Portal API Bridge. The Edge1 MCP transport uses dedicated loopback port `8102`; deployment validation must keep those listener assignments distinct.
 
 ## MCP transport contract
 
@@ -63,7 +65,7 @@ The repository-side transport uses MCP Streamable HTTP semantics on a single `/m
 - one MiB request-body ceiling;
 - bearer authentication for every request;
 - exact Origin allowlisting when an Origin header is present;
-- fixed loopback bind on `127.0.0.1:8098`.
+- fixed loopback bind on `127.0.0.1:8102`.
 
 The transport does not provision, configure, authenticate, or publish the Secure MCP Tunnel itself. That is a separate private attachment step and must be completed using the then-current supported OpenAI mechanism without exposing the Edge1 listener publicly.
 
