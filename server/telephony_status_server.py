@@ -166,8 +166,9 @@ def status_payload() -> dict[str, Any]:
         service_record("wwcx-numbering-node.service", "Numbering intelligence", 8093, "http://127.0.0.1:8093/healthz"),
         service_record("bigbird-ai-gateway.service", "Big Bird API gateway"),
     ]
-    messaging_url = os.environ.get("WWCX_MESSAGING_HEALTH_URL", "http://127.0.0.1:8095/healthz")
-    services.append(service_record("wwcx-messaging-gateway.service", "SMS and MMS gateway", 8095, messaging_url))
+    messaging_port = int(os.environ.get("WWCX_MESSAGING_PORT", "58080"))
+    messaging_url = os.environ.get("WWCX_MESSAGING_HEALTH_URL", f"http://127.0.0.1:{messaging_port}/healthz")
+    services.append(service_record("wwcx-messaging-gateway.service", "SMS and MMS gateway", messaging_port, messaging_url))
     active_calls, registrations = asterisk_snapshot()
     healthy_count = sum(1 for item in services if item["status"] == "healthy")
     critical_count = sum(1 for item in services if item["status"] == "critical")
