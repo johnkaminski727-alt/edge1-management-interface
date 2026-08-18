@@ -12,7 +12,14 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server"))
 
-from edge1_snmp_ai import BigBirdPrivateAIProvider, SignedGatewayConfig, build_prompt, _sanitize_evidence
+from edge1_snmp_ai import (
+    BigBirdPrivateAIProvider,
+    GATEWAY_USER_ID,
+    MAX_PROMPT_BYTES,
+    SignedGatewayConfig,
+    build_prompt,
+    _sanitize_evidence,
+)
 
 
 class FakeResponse:
@@ -40,7 +47,8 @@ class ProviderTests(unittest.TestCase):
         prompt = build_prompt("Why is router-01 unreachable?", {"observed_facts": ["offline"]})
         self.assertIn("Never claim an inference is verified", prompt)
         self.assertIn("observed_facts", prompt)
-        self.assertLessEqual(len(prompt.encode("utf-8")), 16384)
+        self.assertLessEqual(len(prompt.encode("utf-8")), MAX_PROMPT_BYTES)
+        self.assertEqual(MAX_PROMPT_BYTES, 8000)
 
     def test_provider_uses_loopback_signed_gateway_contract(self):
         captured = {}
@@ -57,7 +65,11 @@ class ProviderTests(unittest.TestCase):
         result = provider.analyze(question="Summarize network health", evidence={"status": "ok"})
         self.assertEqual(result["provider"], "bigbird-private-ai")
         self.assertEqual(captured["url"], "http://127.0.0.1:8787/v1/chat")
+        self.assertEqual(captured["payload"]["user"]["id"], GATEWAY_USER_ID)
+        self.assertGreaterEqual(len(captured["payload"]["user"]["id"]), 16)
+        self.assertLessEqual(len(captured["payload"]["user"]["id"]), 128)
         self.assertEqual(captured["payload"]["user"]["scopes"], ["chat:general"])
+        self.assertLessEqual(len(captured["payload"]["message"]), 8000)
         self.assertFalse(captured["payload"]["include_communications"])
         self.assertTrue(any(k.lower() == "x-bb-signature" for k in captured["headers"]))
 

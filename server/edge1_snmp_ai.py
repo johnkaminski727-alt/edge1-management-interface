@@ -26,7 +26,8 @@ from edge1_snmp_platform import evidence_query
 from edge1_snmp_incidents import incident_summary
 
 DEFAULT_GATEWAY_URL = "http://127.0.0.1:8787/v1/chat"
-MAX_PROMPT_BYTES = 16_384
+GATEWAY_USER_ID = "edge1-snmp-ai-service"
+MAX_PROMPT_BYTES = 8_000
 MAX_RESPONSE_BYTES = 1_048_576
 
 
@@ -144,7 +145,7 @@ class BigBirdPrivateAIProvider:
         request_id = str(uuid.uuid4())
         payload = {
             "request_id": request_id,
-            "user": {"id": "edge1-snmp-ai", "role": "internal_viewer", "scopes": ["chat:general"]},
+            "user": {"id": GATEWAY_USER_ID, "role": "internal_viewer", "scopes": ["chat:general"]},
             "message": build_prompt(question, evidence),
             "include_edge1_status": False,
             "include_messaging_status": False,
