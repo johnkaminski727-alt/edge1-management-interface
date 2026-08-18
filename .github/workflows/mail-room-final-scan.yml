@@ -1,0 +1,62 @@
+name: Validate Mail Room final outbound scan
+
+on:
+  pull_request:
+    paths:
+      - 'server/mail_final_scan.py'
+      - 'server/mail_secure_submission.py'
+      - 'server/identity_aware_outbound_gateway.py'
+      - 'server/mail_threading.py'
+      - 'tests/test_mail_final_scan.py'
+      - 'tests/test_mail_secure_submission.py'
+      - 'tests/test_identity_aware_outbound_gateway.py'
+      - 'tests/test_mail_threading.py'
+      - 'docs/messaging-operations/mail-final-outbound-scan-20260818.md'
+      - '.github/workflows/mail-room-final-scan.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/mail_final_scan.py'
+      - 'server/mail_secure_submission.py'
+      - 'server/identity_aware_outbound_gateway.py'
+      - 'server/mail_threading.py'
+      - 'tests/test_mail_final_scan.py'
+      - 'tests/test_mail_secure_submission.py'
+      - 'tests/test_identity_aware_outbound_gateway.py'
+      - 'tests/test_mail_threading.py'
+      - 'docs/messaging-operations/mail-final-outbound-scan-20260818.md'
+      - '.github/workflows/mail-room-final-scan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile \
+            server/mail_final_scan.py \
+            server/mail_secure_submission.py \
+            server/identity_aware_outbound_gateway.py \
+            server/mail_threading.py \
+            tests/test_mail_final_scan.py \
+            tests/test_mail_secure_submission.py \
+            tests/test_identity_aware_outbound_gateway.py \
+            tests/test_mail_threading.py
+      - name: Run final scan tests
+        run: python3 -m unittest tests.test_mail_final_scan tests.test_mail_secure_submission -v
+      - name: Run identity and threading regression tests
+        run: python3 -m unittest tests.test_identity_aware_outbound_gateway tests.test_mail_threading -v
+      - name: Assert no obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
+            server/mail_final_scan.py \
+            server/mail_secure_submission.py \
+            server/identity_aware_outbound_gateway.py \
+            tests/test_mail_final_scan.py \
+            tests/test_mail_secure_submission.py \
+            tests/test_identity_aware_outbound_gateway.py
