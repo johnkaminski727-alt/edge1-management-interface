@@ -11,8 +11,10 @@ This milestone does not change live trunks, transports, firewall rules, DNS, pro
 - Health and readiness endpoints
 - Normalized inbound and outbound SMS/MMS event model
 - Idempotent simulator intake
-- In-memory development event store
+- In-memory development event store and PostgreSQL persistence
 - Management status and pause/resume controls
+- Authenticated bounded conversation reads for operator/Private-AI context
+- Local `prepared_not_sent` reply artifacts through the BigBird messaging facade
 - Spirit Creek Telegraph Office operator window
 - Arbitrary operator-controlled sender identity
 - SMS/MMS simulator dispatch receipts and ledger
@@ -20,7 +22,24 @@ This milestone does not change live trunks, transports, firewall rules, DNS, pro
 - Server UTC and client-observed time metadata
 - Content and media SHA-256 digests
 - PGP-ready armored ciphertext and fingerprint metadata
+- Fail-closed MMS media quarantine metadata foundation
 - Automated API tests
+
+## MMS media quarantine foundation
+
+MMS media is treated as held by default. The gateway does not fetch provider media URLs through the AI/read surface and does not expose those URLs in quarantine records.
+
+`app/media_quarantine.py` models these states:
+
+- `quarantined_missing_digest`
+- `quarantined_pending_scan`
+- `scanned_clean_held`
+- `quarantined_malicious`
+- `quarantined_scan_error`
+
+A trusted scanner may be supplied later by the deployment integration. Until then, media remains `quarantined_pending_scan`. Even an explicit clean scanner result remains `scanned_clean_held`; this module never authorizes release. Actual quarantine storage, malware-engine integration, release workflow, and retention policy remain separate runtime/privileged work.
+
+SMS without media reports quarantine as not applicable rather than inventing malware semantics.
 
 ## Spirit Creek Telegraph Office
 
@@ -62,19 +81,18 @@ pytest
 
 ## Current limitations
 
-- The development ledger is in memory and resets on restart.
 - PGP cryptographic operations are not performed by the gateway; only pre-encrypted armored payloads and fingerprints are accepted.
 - Clock synchronization fields are modeled, but host NTP state must be populated by the deployment integration.
 - Coordinates are an attestation with a source and accuracy radius, not proof of identity.
+- MMS quarantine is metadata/fail-closed policy only until private storage and a trusted scanner are attached.
 - No live carrier traffic is enabled.
 
 ## Next controlled milestones
 
-1. Replace the in-memory store with PostgreSQL and an immutable raw-event table.
-2. Add a durable queue and worker process.
-3. Add a trusted local PGP client or hardware-backed key-agent integration.
-4. Populate NTP synchronization and offset from the Edge1 host health service.
-5. Implement Telnyx and Bandwidth signature adapters behind the provider interface.
-6. Add private MMS quarantine storage and malware scanning.
-7. Build the FreePBX user/DID adapter without changing voice routing.
-8. Expose a public webhook only after reverse-proxy, WAF, TLS, firewall, and rollback review.
+1. Add a durable queue and worker process.
+2. Add a trusted local PGP client or hardware-backed key-agent integration.
+3. Populate NTP synchronization and offset from the Edge1 host health service.
+4. Implement Telnyx and Bandwidth signature adapters behind the provider interface.
+5. Attach private MMS quarantine storage and malware scanning behind the fail-closed foundation.
+6. Build the FreePBX user/DID adapter without changing voice routing.
+7. Expose a public webhook only after reverse-proxy, WAF, TLS, firewall, and rollback review.

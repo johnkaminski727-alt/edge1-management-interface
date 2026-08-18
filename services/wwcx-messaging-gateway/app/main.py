@@ -4,12 +4,13 @@ from typing import Literal
 from fastapi import FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
+from .media_quarantine import quarantine_summary
 from .models import NormalizedMessage
 from .persistence import PostgresEventStore
 from .store import InMemoryEventStore
 from .telegraph_office import build_router
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.1")
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.2")
 
 database_url = os.getenv("DATABASE_URL")
 store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
@@ -39,6 +40,7 @@ def sanitized_message(message: NormalizedMessage) -> dict[str, object]:
 
     Media URLs and verification internals are deliberately excluded. Message text is
     bounded and remains untrusted data; this projection carries no mutation authority.
+    MMS media remains held unless a separate trusted scanner explicitly assesses it.
     """
     media = [
         {"content_type": item.content_type, "sha256": item.sha256}
@@ -55,6 +57,7 @@ def sanitized_message(message: NormalizedMessage) -> dict[str, object]:
         "text_summary": message.text[:1000],
         "text_truncated": len(message.text) > 1000,
         "media": media,
+        "media_quarantine": quarantine_summary(message),
         "occurred_at": message.occurred_at.isoformat(),
         "untrusted_content": True,
         "mutation_authorized": False,
@@ -86,6 +89,11 @@ def management_status(
         "storage": "postgres" if database_url else "memory",
         "event_count": store.count(),
         "capabilities": ["messages.status.read", "messages.conversation.read"],
+        "mms_media_quarantine": {
+            "state": "foundation_ready_fail_closed",
+            "default": "quarantined_pending_scan",
+            "release_authorized": False,
+        },
         "mutation_authorized": False,
         **control,
     }
