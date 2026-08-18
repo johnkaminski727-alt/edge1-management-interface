@@ -97,10 +97,9 @@ class PostgresSendRateLimiter:
     ) -> str | None:
         with psycopg.connect(self.database_url) as connection:
             with connection.transaction():
-                lock_key = f"{message.provider}\0{message.sender}"
                 connection.execute(
-                    "SELECT pg_advisory_xact_lock(hashtext(%s)::bigint)",
-                    (lock_key,),
+                    "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+                    (message.provider, message.sender),
                 )
                 existing = connection.execute(
                     """
