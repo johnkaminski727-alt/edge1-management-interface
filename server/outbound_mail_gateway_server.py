@@ -11,7 +11,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +24,7 @@ if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
 import identity_aware_outbound_gateway as identity_gateway
+import mail_ai_adapter
 import mail_identity_registry
 import outbound_mail_gateway as gateway
 import outbound_mail_policy
@@ -54,7 +55,7 @@ class GatewayApplication:
 
 
 class GatewayHandler(BaseHTTPRequestHandler):
-    server_version = "WWCXOutboundMailGateway/1.1"
+    server_version = "WWCXOutboundMailGateway/1.2"
 
     @property
     def application(self) -> GatewayApplication:
@@ -161,6 +162,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 gateway.ConfigurationError,
                 preparation_auth.PreparationAuthConfigurationError,
                 mail_identity_registry.IdentityRegistryError,
+                mail_ai_adapter.MailAIAdapterError,
                 ValueError,
             ),
         ):
@@ -170,6 +172,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
             status = HTTPStatus.INTERNAL_SERVER_ERROR
             code = "internal_error"
         self._send_json(status, {"error": code, "message": str(exc)})
+
+    def _authenticated_get(
+        self,
+        config: dict[str, Any],
+        nonce_path: Path,
+        path: str,
+    ) -> preparation_auth.VerifiedPreparationClient:
+        return self._authenticate_preparation_api(config, nonce_path, "GET", path, b"")
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -197,13 +207,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 )
                 return
             if parsed.path == "/outbound-mail/api/v1/status":
-                client = self._authenticate_preparation_api(
-                    config,
-                    nonce_path,
-                    "GET",
-                    parsed.path,
-                    b"",
-                )
+                client = self._authenticated_get(config, nonce_path, parsed.path)
                 status_payload = identity_gateway.status_payload(config, policy, identities)
                 status_payload["preparation_api"]["contract"] = (
                     "wwcx.outbound-mail-preparation-api.v1"
@@ -211,8 +215,43 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 status_payload["preparation_api"]["authenticated_client_id"] = (
                     client.client_id
                 )
+                status_payload["correspondence_read"] = (
+                    mail_ai_adapter.correspondence_read_state()
+                )
                 self._send_json(HTTPStatus.OK, status_payload)
                 return
+            if parsed.path == "/outbound-mail/api/v1/correspondence/status":
+                client = self._authenticated_get(config, nonce_path, parsed.path)
+                payload = mail_ai_adapter.correspondence_read_state()
+                payload["authenticated_client_id"] = client.client_id
+                self._send_json(HTTPStatus.OK, payload)
+                return
+
+            message_prefix = "/outbound-mail/api/v1/correspondence/message/"
+            if parsed.path.startswith(message_prefix):
+                client = self._authenticated_get(config, nonce_path, parsed.path)
+                encoded = parsed.path[len(message_prefix) :]
+                if not encoded or "/" in encoded:
+                    raise ValueError("correspondence message identifier is invalid")
+                payload = mail_ai_adapter.read_correspondence_message(unquote(encoded))
+                payload["authenticated_client_id"] = client.client_id
+                self._send_json(HTTPStatus.OK, payload)
+                return
+
+            thread_prefix = "/outbound-mail/api/v1/correspondence/thread/"
+            if parsed.path.startswith(thread_prefix):
+                client = self._authenticated_get(config, nonce_path, parsed.path)
+                encoded = parsed.path[len(thread_prefix) :]
+                if not encoded or "/" in encoded:
+                    raise ValueError("correspondence thread identifier is invalid")
+                payload = mail_ai_adapter.read_correspondence_thread(
+                    unquote(encoded),
+                    limit=50,
+                )
+                payload["authenticated_client_id"] = client.client_id
+                self._send_json(HTTPStatus.OK, payload)
+                return
+
             if parsed.path == "/outbound-mail/audit":
                 query = parse_qs(parsed.query)
                 raw_limit = query.get("limit", ["50"])[0]
@@ -333,6 +372,9 @@ def main() -> int:
                 "automatic_sender_selection": status["sender_selection"][
                     "automatic_selection_enabled"
                 ],
+                "correspondence_read_enabled": (
+                    mail_ai_adapter.correspondence_read_state()["read_enabled"]
+                ),
             },
             sort_keys=True,
         )
