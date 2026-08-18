@@ -9,6 +9,7 @@ from pathlib import Path
 
 from edge1_snmp_actions import execute_proposal
 from edge1_snmp_platform import connect_db, utcnow
+from edge1_snmp_secure_exec import SecureNetSNMP
 from edge1_snmp_services import ensure_extended_schema
 
 
@@ -19,10 +20,11 @@ def run_batch(conn, *, limit: int = 10) -> dict:
         (limit,),
     ).fetchall()
     results = []
+    net = SecureNetSNMP()
     for row in rows:
         proposal_id = row["proposal_id"]
         try:
-            result = execute_proposal(conn, proposal_id)
+            result = execute_proposal(conn, proposal_id, net=net)
             results.append({"proposal_id": proposal_id, "state": result["state"]})
         except Exception as exc:
             results.append({"proposal_id": proposal_id, "state": "failed", "error_type": type(exc).__name__})
