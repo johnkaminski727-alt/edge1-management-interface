@@ -51,7 +51,8 @@ class InboundMailHubTests(unittest.TestCase):
         self.assertFalse(status["production_routing_enabled"])
         self.assertFalse(status["persist_raw_message"])
         self.assertFalse(status["persist_attachment_bytes"])
-        self.assertEqual(self.config["routing"]["unknown_recipient_action"], "quarantine")
+        self.assertTrue(status["managed_domain_catchall_enabled"])
+        self.assertEqual(status["managed_domain_catchall_destination"], ROLE_DESTINATION)
         self.assertFalse(self.identities["outbound_activation_authorized"])
         self.assertEqual(self.identities["system_senders"]["noreply"]["address"], SYSTEM_SENDER)
 
@@ -89,7 +90,7 @@ class InboundMailHubTests(unittest.TestCase):
         )
         self.assertTrue(all(route["destination"] == PRIVATE_DESTINATION for route in john_routes.values()))
 
-    def test_all_non_john_routes_use_shared_role_destination(self) -> None:
+    def test_all_non_john_explicit_routes_use_shared_role_destination(self) -> None:
         routes = self.config["routing"]["routes"]
         role_routes = {address: route for address, route in routes.items() if not address.startswith("john@")}
         self.assertEqual(len(role_routes), 32)
@@ -111,15 +112,19 @@ class InboundMailHubTests(unittest.TestCase):
                 self.assertEqual(profiles[profile_key]["status"], "verified_operational")
                 self.assertFalse(profiles[profile_key]["outbound_enabled"])
 
-    def test_enabled_config_requires_all_gates(self) -> None:
+    def test_enabled_config_requires_all_gates_and_catchall(self) -> None:
         for key in ("deployment_authorized", "production_routing_authorized"):
             candidate = self.active_config()
             candidate[key] = False
             with self.subTest(key=key):
                 with self.assertRaises(MODULE.ConfigurationError):
                     MODULE.validate_config(candidate)
+        candidate = self.active_config()
+        candidate["routing"]["managed_domain_catchall"]["enabled"] = False
+        with self.assertRaises(MODULE.ConfigurationError):
+            MODULE.validate_config(candidate)
 
-    def test_known_recipients_route_to_separate_destinations(self) -> None:
+    def test_known_and_unknown_managed_recipients_route_correctly(self) -> None:
         envelope = MODULE.normalize_envelope(
             self.config,
             {
@@ -131,7 +136,8 @@ class InboundMailHubTests(unittest.TestCase):
                     "accessibility@creekco.ca",
                     "noc@creekco.ca",
                     "records@spiritcreekgardens.com",
-                    "unknown@creekco.ca",
+                    "anything-at-all@creekco.ca",
+                    "new-role@omegafx.com",
                 ],
                 "message_size": 4096,
                 "provider_message_id": "provider-id-1",
@@ -145,7 +151,10 @@ class InboundMailHubTests(unittest.TestCase):
         self.assertEqual(decisions["accessibility@creekco.ca"].destination, ROLE_DESTINATION)
         self.assertEqual(decisions["noc@creekco.ca"].destination, ROLE_DESTINATION)
         self.assertEqual(decisions["records@spiritcreekgardens.com"].destination, ROLE_DESTINATION)
-        self.assertEqual(decisions["unknown@creekco.ca"].action, "quarantine")
+        for address in ("anything-at-all@creekco.ca", "new-role@omegafx.com"):
+            self.assertEqual(decisions[address].action, "route")
+            self.assertEqual(decisions[address].destination, ROLE_DESTINATION)
+            self.assertEqual(decisions[address].reason, "managed_domain_catchall")
 
     def test_unmanaged_domain_is_rejected(self) -> None:
         envelope = MODULE.normalize_envelope(
@@ -179,7 +188,7 @@ class InboundMailHubTests(unittest.TestCase):
         secret_env = config["ingress"]["profiles"]["provider_webhook"]["secret_env"]
         payload = {
             "envelope_from": "sender@example.com",
-            "recipients": ["john@spiritcreekgardens.com"],
+            "recipients": ["unexpected-local-part@spiritcreekgardens.com"],
             "message_size": 100,
             "provider_message_id": "provider-id-4",
             "subject": "Sensitive subject",
@@ -194,6 +203,7 @@ class InboundMailHubTests(unittest.TestCase):
         self.assertNotIn("provider-id-4", serialized)
         self.assertNotIn("Sensitive subject", serialized)
         self.assertNotIn("Sensitive body", serialized)
+        self.assertEqual(result["event"]["decisions"][0]["reason"], "managed_domain_catchall")
         self.assertEqual(len(result["event"]["provider_message_id_sha256"]), 64)
 
     def test_limits_and_jsonl_reader(self) -> None:
