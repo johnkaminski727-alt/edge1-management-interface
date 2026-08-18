@@ -22,6 +22,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(JPEG)))
         self.end_headers()
         self.wfile.write(JPEG)
+
     def log_message(self, fmt, *args):
         return
 
@@ -46,7 +47,7 @@ class Tests(unittest.TestCase):
     def test_redacts_uri_credentials(self):
         self.assertEqual(probe.redact_uri("rtsp://user:pass@example.test:554/live"), "rtsp://example.test:554/live")
 
-    def test_http_first_frame_and_evidence(self):
+    def test_http_candidate_frame_requires_visual_verification(self):
         with socketserver.TCPServer(("127.0.0.1", 0), Handler) as server:
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -58,13 +59,16 @@ class Tests(unittest.TestCase):
                     "candidates": [{"transport": "http_snapshot", "uri": f"http://127.0.0.1:{server.server_address[1]}/snapshot.jpg"}]
                 }]}))
                 result = probe.run(config, "bazz-test", root / "frames", root / "evidence")
-                self.assertEqual(result["status"], "first_frame_captured")
+                self.assertEqual(result["status"], "frame_captured_pending_visual_verification")
+                self.assertEqual(result["acceptance_state"], "pending_visual_verification")
                 frame = pathlib.Path(result["frame"])
                 evidence = json.loads(pathlib.Path(result["evidence"]).read_text())
                 self.assertEqual(frame.read_bytes(), JPEG)
                 self.assertEqual(evidence["sha256"], hashlib.sha256(JPEG).hexdigest())
                 self.assertTrue(evidence["verified_image_payload"])
-                self.assertTrue(evidence["live_camera_pixels_verified"])
+                self.assertFalse(evidence["live_camera_pixels_verified"])
+                self.assertTrue(evidence["visual_verification_required"])
+                self.assertEqual(evidence["acceptance_state"], "pending_visual_verification")
             server.shutdown()
 
     def test_disabled_camera_rejected(self):
