@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import time
 
+from .edge1_operator_audit import write_event
 from .edge1_operator_dispatch import OperatorDispatcher
 from .edge1_operator_mcp_adapter import MCPAdapter
 from .edge1_operator_mcp_protocol import TOOLS
 from .edge1_operator_runtime import Edge1OperatorRuntime
 from .edge1_operator_transport import Edge1OperatorTransport
+from .edge1_operator_turn_state import TurnStateStore
 
 
 def _tool_result(result):
@@ -23,9 +25,15 @@ def _tool_result(result):
     }
 
 
-def build_operator(runtime: Edge1OperatorRuntime | None = None):
+def build_operator(
+    runtime: Edge1OperatorRuntime | None = None,
+    turn_store: TurnStateStore | None = None,
+):
     runtime = runtime or Edge1OperatorRuntime()
-    adapter = MCPAdapter(runtime)
+    # TurnStateStore resolves its own durable default root (see
+    # edge1_operator_turn_state._default_root) when none is given here.
+    turn_store = turn_store or TurnStateStore(audit_writer=write_event)
+    adapter = MCPAdapter(runtime, turn_store=turn_store)
     dispatcher = OperatorDispatcher()
     dispatcher.register("tools/list", lambda: {"tools": TOOLS})
     dispatcher.register(

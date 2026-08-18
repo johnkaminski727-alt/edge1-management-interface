@@ -1,7 +1,8 @@
 """Edge1 Operator MCP-visible tool registry.
 
-Only named read-only capabilities are exposed here. Mutating operations remain
-separate Operations API actions and are not surfaced as a generic MCP exec tool.
+Derived from the static protocol contract so registry and protocol cannot
+drift apart. Access level comes from each tool's own declared "access"
+field (defaulting to "read") rather than being hardcoded here.
 """
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ from .edge1_operator_mcp_protocol import TOOLS as PROTOCOL_TOOLS
 
 TOOLS = {
     item["name"]: {
-        "access": "read",
+        "access": item.get("access", "read"),
         "description": item["description"],
         "inputSchema": item["inputSchema"],
     }

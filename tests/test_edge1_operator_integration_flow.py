@@ -24,6 +24,8 @@ EXPECTED_TOOLS = {
     "edge1.snapshot",
     "edge1.telephony_status",
     "edge1.time_authority_status",
+    "agent.turn.status",
+    "agent.turn.handoff",
 }
 
 
