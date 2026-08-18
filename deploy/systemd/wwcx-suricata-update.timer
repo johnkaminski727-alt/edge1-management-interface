@@ -1,0 +1,11 @@
+[Unit]
+Description=Project Big Bird Suricata Rules Update Schedule
+
+[Timer]
+OnCalendar=*-*-* 04:20:00 UTC
+RandomizedDelaySec=30m
+Persistent=true
+Unit=wwcx-suricata-update.service
+
+[Install]
+WantedBy=timers.target
