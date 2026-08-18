@@ -2,7 +2,7 @@
 
 Date: 2026-08-18
 
-This backlog contains only work not completed by the safe repository/runtime convergence pass. Fresh Edge1 operator acceptance is complete for Messaging Gateway, BigBird messaging capabilities, the bounded Mail AI adapter, the persistent loopback-only Communications workspace, and the authoritative Relay/NNTP canonical snapshot feed. Remaining items are kept explicit rather than inferred complete.
+This backlog contains only work not completed by the safe repository/runtime convergence pass. Fresh Edge1 operator acceptance is complete for Messaging Gateway including durable PostgreSQL state, BigBird messaging capabilities, the bounded Mail AI adapter, the persistent loopback-only Communications workspace, and the authoritative Relay/NNTP canonical snapshot feed. Remaining items are kept explicit rather than inferred complete.
 
 ## Runtime verification
 
@@ -13,20 +13,22 @@ This backlog contains only work not completed by the safe repository/runtime con
 - [ ] Complete fresh functional Voice/SIP acceptance beyond service-active evidence if required for final global runtime verification.
 - [x] Install and accept the persistent loopback-only `wwcx-communications-workspace.service`.
 - [x] Confirm and attach the authoritative canonical communications-event snapshot/feed source used by the persistent workspace.
-- [x] Record live rollback/checkpoint evidence for Messaging Gateway, BigBird, Communications workspace, and Relay snapshot activation.
-- [ ] Reconcile final safe-scope state and set `fresh_edge1_runtime_verified` true only after the remaining Messaging durability, MMS security runtime, Mail correspondence, and any required fresh Voice/SIP acceptance are complete.
+- [x] Record live rollback/checkpoint evidence for Messaging Gateway, BigBird, Communications workspace, Relay snapshot activation, and Messaging PostgreSQL activation.
+- [ ] Reconcile final safe-scope state and set `fresh_edge1_runtime_verified` true only after MMS security runtime, Mail correspondence, and any required fresh Voice/SIP acceptance are complete.
 
 Phase 14J acceptance on 2026-08-18 confirmed a live 168-event Relay/NNTP canonical snapshot attached to the persistent workspace. The generator runs as `wwcx-comms:wwadmin`, the authoritative Relay database remains `0600 wwcx-comms:wwcx-comms`, the generated snapshot is `0640 wwcx-comms:wwadmin`, the workspace remains loopback-only and read-only, POST remains HTTP 405, and a 15-minute refresh timer is enabled. Rollback: `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-relay-activation-20260818T103350Z.sh`.
 
-Operational warning retained: approximately 1.5 GiB memory remained available after activation, but the configured 1 GiB swap allocation remained fully consumed. This does not invalidate the Relay/workspace acceptance, but memory/swap pressure should be investigated before unnecessary broad service restarts.
+Phase 18 acceptance on 2026-08-18 replaced volatile Messaging storage with the already-implemented PostgreSQL backend. PostgreSQL 15 is local Unix-socket only with no TCP listener and no database password, repository migrations were applied, the pre-restart in-memory event count was zero, `/readyz` now reports `storage: postgres`, PostgreSQL is enabled for reboot persistence, and the bounded rollback retains the installed data while restoring Messaging memory mode and stopping the cluster if needed. Rollback: `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-messaging-postgres-20260818T111017Z.sh`.
+
+Operational warning retained: approximately 1.5 GiB memory remained available after Phase 18, while the configured 1 GiB swap allocation remained almost fully consumed. No recent OOM activity was observed and PostgreSQL activation did not materially reduce available memory, but unnecessary broad service restarts should still be avoided.
 
 ## Messaging durability
 
-- [ ] Replace or augment Messaging Gateway `storage: memory` with an approved durable private state store.
-- [ ] Preserve current read-only/private-AI authorization boundaries and restart-state semantics.
-- [ ] Add backup, rollback, corruption/failure handling, and restart persistence acceptance.
+- [x] Replace Messaging Gateway `storage: memory` with approved durable private PostgreSQL state.
+- [x] Preserve current read-only/private-AI authorization boundaries and restart-state semantics.
+- [x] Add rollback, failure handling, reboot persistence, and live post-restart acceptance.
 
-The current Messaging Gateway runtime remains accepted for bounded status/conversation reads and prepared-not-sent drafting, but volatile storage prevents durable message-history claims.
+Messaging durability is no longer a blocker. The accepted runtime uses the existing repository `PostgresEventStore`, peer-authenticated Unix-socket access as the `wwadmin` OS identity, repository migrations `0001_initial.sql` and `0002_control_state.sql`, no PostgreSQL TCP listener, and no database password.
 
 ## Mail correspondence
 
@@ -84,6 +86,7 @@ See:
 
 - `docs/communications/unified-communications-live-acceptance-20260818.md`;
 - `docs/communications/unified-communications-relay-snapshot-live-acceptance-20260818.md`;
+- `docs/communications/unified-communications-messaging-postgres-live-acceptance-20260818.md`;
 - `.agent/unified-communications-validation-20260818.md`.
 
 No item above should be represented as complete until evidence exists for that specific layer.

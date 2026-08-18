@@ -60,7 +60,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed Messaging Gateway 0.4.2, authenticated messages.status.read/messages.conversation.read, BigBird prepared-not-sent draft behavior, explicit non-mutation boundaries, and retained rollback. Messaging Gateway storage remains memory. The fail-closed MMS quarantine foundation is live, but no trusted scanner or private quarantine storage is attached, so security remains degraded. Live carrier traffic and quarantine release are not authorized."
+      "notes": "Fresh Edge1 acceptance confirmed Messaging Gateway 0.4.2, authenticated messages.status.read/messages.conversation.read, BigBird prepared-not-sent draft behavior, explicit non-mutation boundaries, and durable PostgreSQL state. Phase 18 activated PostgreSQL 15 over a Unix socket only, with no TCP database listener or database password, applied the repository migrations, kept the pre-restart in-memory event count at zero, and switched /readyz to storage=postgres. The fail-closed MMS quarantine foundation remains live, but no trusted scanner or private quarantine storage is attached, so security remains degraded. Live carrier traffic and quarantine release are not authorized."
     },
     "voice_sip": {
       "repository_implementation": "repository_ready",
