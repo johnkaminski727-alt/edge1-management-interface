@@ -1,8 +1,9 @@
 # Unified Communications — Current State
 
-Last reconciled: 2026-08-18, Phase 27
+Last reconciled: 2026-08-18, Phase 27 closeout
 Repository: `johnkaminski727-alt/edge1-management-interface`
-Phase 27 branch base: `967096132bc5f998d68893ff43c81ffc3f37e2b5`
+Phase 27 merged PR: #424
+Current Phase 27 repository baseline: `d01a2620c8d252260391cc9a2f86ec32938c146c`
 Global `fresh_edge1_runtime_verified`: **false**
 
 ## Product state
@@ -15,7 +16,7 @@ No project state grants live Messaging send, Mail send, call origination, route/
 
 ## Current repository baseline and parallel work
 
-Phase 27 began from current `main` `967096132bc5f998d68893ff43c81ffc3f37e2b5`, which already included Secure MCP Tunnel work newer than the Phase 26 recovery point. Active SNMP and other parallel branches remain unrelated and must not be reset, overwritten, or folded into Unified Communications work.
+Phase 27 began from `main` `967096132bc5f998d68893ff43c81ffc3f37e2b5`, which already included Secure MCP Tunnel work newer than the Phase 26 recovery point. PR #424 merged the Phase 27 repository implementation as `d01a2620c8d252260391cc9a2f86ec32938c146c` after exact-head WW.CX Messaging Gateway, Validate repository, and Edge1 Operator Validation workflows all passed. Active SNMP and other parallel branches remain unrelated and must not be reset, overwritten, or folded into Unified Communications work.
 
 ## Messaging and MMS
 
@@ -32,14 +33,14 @@ Fresh accepted live Messaging state from earlier 2026-08-18 phases remains:
 
 Phase 26 established repository-side content-addressed private MMS quarantine storage with bounded ingest, SHA-256 verification, `0700` directories, `0600` files, integrity checks, restart recovery, retention-held semantics, audit state, and a narrow `TrustedMediaScanner` contract.
 
-Phase 27 adds:
+Phase 27 merged:
 
 - `services/wwcx-messaging-gateway/app/trusted_scanner.py` — a concrete local ClamAV adapter fixed to `/usr/bin/clamscan` and fixed non-destructive options;
 - bounded timeout/unavailable/non-verdict behavior through the existing fail-closed scan boundary;
 - no caller-controlled arbitrary executable/options and no cloud scanner path;
 - `services/wwcx-messaging-gateway/scripts/private-quarantine-acceptance.py` — local synthetic clean/EICAR/restart acceptance only.
 
-**Runtime status is still incomplete.** This session had no authenticated Edge1 execution connector, so it did not prove ClamAV/signatures are installed, create the live private quarantine root, execute synthetic live acceptance, restart Messaging, or verify live ownership/listeners/rollback. SMS/MMS `security_quarantine` therefore remains `degraded` despite the now-complete repository adapter.
+**Runtime status is still incomplete.** This session had no authenticated Edge1 execution connector, so it did not prove ClamAV/signatures are installed, create the live private quarantine root, execute synthetic live acceptance, restart Messaging, or verify live ownership/listeners/rollback. SMS/MMS `security_quarantine` therefore remains `degraded` despite the now-merged repository adapter.
 
 Runtime procedure: `docs/communications/unified-communications-phase27-runtime-acceptance-20260818.md`.
 
@@ -59,7 +60,9 @@ The source audit remains decisive:
 - `config/messaging/inbound-mail-hub.json` keeps raw-message, attachment-byte, and body-preview persistence disabled;
 - provider inventory does not prove the canonical provider-side mailboxes are provisioned.
 
-Phase 27 adds `server/mail_correspondence_store.py`, a private bounded SQLite message/thread persistence foundation. It preserves canonical Message-ID, provider message/thread IDs, explicit thread/reply relationships, source provenance, bounded bodies/results, and marks all returned bodies untrusted with `mutation_authorized=false` and `send_authorized=false`. Synthetic validation is in `tests/validate_mail_correspondence_store.py`.
+Phase 27 merged `server/mail_correspondence_store.py`, a private bounded SQLite message/thread persistence foundation. It preserves canonical Message-ID, provider message/thread IDs, explicit thread/reply relationships, immutable per-record source/authority provenance, bounded bodies/results, and marks all returned bodies untrusted with `mutation_authorized=false` and `send_authorized=false`. Synthetic validation is in `tests/validate_mail_correspondence_store.py`.
+
+PR review found and fixed a provenance bug before merge: a synthetic record can no longer be relabeled authoritative merely by reopening the database with a differently configured reader. The authority flag is persisted per record and covered by regression validation.
 
 This local store does **not** itself make correspondence authoritative. `mail.correspondence.read` remains intentionally disabled until a reviewed native source is explicitly selected and connected: either a trusted local MTA/Mail Room intake or an explicitly authorized native mailbox/provider connector with stable native IDs and real message bodies. Outbound audit metadata must never be substituted for correspondence.
 
@@ -92,11 +95,17 @@ Fresh accepted BigBird state remains `0.3.4-alpha.3`, read-only, loopback-only a
 
 ## Validation and evidence
 
+Exact-head Phase 27 CI on `ec8f069c39947cfdb944e7782fef72b71a274638` passed before merge:
+
+- WW.CX Messaging Gateway — run `32194754869`;
+- Validate repository — run `32194754894`;
+- Edge1 Operator Validation — run `32194754898`.
+
 Current durable records:
 
 - `config/communications/readiness-matrix-v1.json`;
 - `.agent/unified-communications-validation-20260818.md` — prior live acceptance record;
-- `.agent/unified-communications-validation-phase27-20260818.md` — Phase 27 repository/runtime-separation record;
+- `.agent/unified-communications-validation-phase27-20260818.md` — Phase 27 repository/CI/runtime-separation record;
 - `.agent/unified-communications-backlog-20260818.md`;
 - `docs/communications/unified-communications-phase27-runtime-acceptance-20260818.md`;
 - `docs/handoff/unified-communications-phase27-20260818.md`;
