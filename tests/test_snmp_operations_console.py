@@ -44,6 +44,33 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
         self.assertIn("Open authenticated SNMP Operations", self.publisher)
         self.assertIn("/edge1-ops/snmp/", self.publisher)
 
+    def test_topology_uses_backend_schema_and_evidence(self):
+        self.assertIn("local_device_id", self.source)
+        self.assertIn("remote_device_id", self.source)
+        self.assertIn("evidence_json", self.source)
+        self.assertIn("data-link", self.source)
+        self.assertIn("No topology evidence yet", self.source)
+
+    def test_discovery_completes_explicit_v3_onboarding(self):
+        self.assertIn("snmp_version", self.source)
+        self.assertIn("data-onboard", self.source)
+        self.assertIn("api('/devices'", self.source)
+        self.assertIn("Legacy SNMP onboarding requires a separate explicit approval path", self.source)
+        self.assertNotIn("legacy_protocol_approved:true", self.source)
+
+    def test_degraded_auth_and_ai_fallback_states_are_explicit(self):
+        self.assertIn("AUTH REQUIRED", self.source)
+        self.assertIn("ACCESS DENIED", self.source)
+        self.assertIn("DEGRADED", self.source)
+        self.assertIn("deterministic_evidence", self.source)
+        self.assertIn("unavailable - deterministic fallback", self.source)
+
+    def test_numeric_if_mib_states_and_telemetry_charts_are_supported(self):
+        self.assertIn("const ifStatus", self.source)
+        self.assertIn("2:'down'", self.source)
+        self.assertIn("function metricCharts", self.source)
+        self.assertIn("Telemetry trends", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()
