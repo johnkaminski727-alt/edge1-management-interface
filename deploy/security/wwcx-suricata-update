@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 027
+
+SURICATA_SERVICE="${WWCX_SURICATA_SERVICE:-wwcx-network-sensor-suricata.service}"
+SENSOR_ENV="${WWCX_SURICATA_SENSOR_ENV:-/etc/default/wwcx-network-sensor}"
+LOCK_FILE="/run/lock/wwcx-suricata-update.lock"
+RULES="/var/lib/suricata/rules/suricata.rules"
+TEST_LOG_DIR="/var/log/suricata-update-test"
+BACKUP_ROOT="/root/backups/suricata-rule-history"
+VALIDATE_ONLY="${WWCX_SURICATA_UPDATE_VALIDATE_ONLY:-0}"
+
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "Another Suricata rules update is already running."
+    exit 0
+fi
+
+if [ "$SURICATA_SERVICE" = "suricata.service" ]; then
+    echo "ERROR: legacy suricata.service is not an accepted update target."
+    exit 1
+fi
+
+if ! systemctl is-active --quiet "$SURICATA_SERVICE"; then
+    echo "ERROR: managed Suricata service is not active: $SURICATA_SERVICE"
+    exit 1
+fi
+
+if [ ! -r "$SENSOR_ENV" ]; then
+    echo "ERROR: managed sensor environment is unavailable: $SENSOR_ENV"
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$SENSOR_ENV"
+: "${SURICATA_CONFIG:?SURICATA_CONFIG is required in $SENSOR_ENV}"
+: "${SURICATA_CAPTURE_ARGUMENT:?SURICATA_CAPTURE_ARGUMENT is required in $SENSOR_ENV}"
+read -r -a CAPTURE_ARGS <<< "$SURICATA_CAPTURE_ARGUMENT"
+
+if [ ! -s "$RULES" ]; then
+    echo "ERROR: active rules file is missing or empty: $RULES"
+    exit 1
+fi
+
+install -d -m 0700 "$BACKUP_ROOT"
+install -d -o suricata -g suricata -m 0750 "$TEST_LOG_DIR"
+find "$TEST_LOG_DIR" -mindepth 1 -maxdepth 1 -type f -delete
+
+STAGE_DIR="$(mktemp -d /var/lib/suricata/.wwcx-rules-stage.XXXXXX)"
+cleanup() {
+    rm -rf -- "$STAGE_DIR"
+}
+trap cleanup EXIT
+
+PID_BEFORE="$(systemctl show "$SURICATA_SERVICE" --property=MainPID --value)"
+RESTARTS_BEFORE="$(systemctl show "$SURICATA_SERVICE" --property=NRestarts --value)"
+HASH_BEFORE="$(sha256sum "$RULES" | awk '{print $1}')"
+COUNT_BEFORE="$(awk '/^[[:space:]]*#/ { next } /sid:[[:space:]]*[0-9]+/ { count++ } END { print count + 0 }' "$RULES")"
+
+echo "=== SURICATA RULE UPDATE STARTED ==="
+echo "UTC time:       $(date -u --iso-8601=seconds)"
+echo "Service:        $SURICATA_SERVICE"
+echo "MainPID:        $PID_BEFORE"
+echo "NRestarts:      $RESTARTS_BEFORE"
+echo "Current hash:   $HASH_BEFORE"
+echo "Current rules:  $COUNT_BEFORE"
+
+echo
+echo "=== DOWNLOADING CANDIDATE RULES ==="
+suricata-update --force --no-test --no-reload --fail --output "$STAGE_DIR"
+
+CANDIDATE="$STAGE_DIR/suricata.rules"
+if [ ! -s "$CANDIDATE" ]; then
+    echo "ERROR: candidate rules file was not created."
+    exit 1
+fi
+
+chown root:suricata "$STAGE_DIR" "$CANDIDATE"
+chmod 0750 "$STAGE_DIR"
+chmod 0640 "$CANDIDATE"
+
+echo
+echo "=== VALIDATING CANDIDATE RULES ==="
+suricata -T -c "$SURICATA_CONFIG" -S "$CANDIDATE" "${CAPTURE_ARGS[@]}" -l "$TEST_LOG_DIR"
+
+HASH_CANDIDATE="$(sha256sum "$CANDIDATE" | awk '{print $1}')"
+COUNT_CANDIDATE="$(awk '/^[[:space:]]*#/ { next } /sid:[[:space:]]*[0-9]+/ { count++ } END { print count + 0 }' "$CANDIDATE")"
+
+echo
+echo "=== CANDIDATE RESULTS ==="
+echo "Candidate hash:  $HASH_CANDIDATE"
+echo "Candidate rules: $COUNT_CANDIDATE"
+
+if [ "$VALIDATE_ONLY" = "1" ]; then
+    echo "Validate-only mode requested; production rules and service state are unchanged."
+    exit 0
+fi
+
+RELOAD_RESULT="not required"
+if [ "$HASH_BEFORE" = "$HASH_CANDIDATE" ]; then
+    echo
+    echo "Candidate rules match the active rules."
+    echo "The production file will not be replaced."
+else
+    STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+    BACKUP_DIR="$BACKUP_ROOT/$STAMP"
+    install -d -m 0700 "$BACKUP_DIR"
+    cp -a "$RULES" "$BACKUP_DIR/suricata.rules.before"
+
+    echo
+    echo "=== INSTALLING CHANGED RULES ==="
+    install -o root -g suricata -m 0640 "$CANDIDATE" "$RULES.new"
+    mv -f "$RULES.new" "$RULES"
+
+    echo "Requesting managed systemd rule reload..."
+    if ! systemctl reload "$SURICATA_SERVICE"; then
+        echo "ERROR: candidate-rule reload failed."
+        echo "Restoring the previous rules file..."
+        install -o root -g suricata -m 0640 "$BACKUP_DIR/suricata.rules.before" "$RULES.restore"
+        mv -f "$RULES.restore" "$RULES"
+        echo "Reloading the restored rules..."
+        systemctl reload "$SURICATA_SERVICE" || true
+        exit 1
+    fi
+
+    RELOAD_RESULT="requested"
+
+    mapfile -t OLD_BACKUPS < <(
+        find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' |
+        sort -nr |
+        awk 'NR > 4 { $1=""; sub(/^ /, ""); print }'
+    )
+    for OLD_BACKUP in "${OLD_BACKUPS[@]}"; do
+        rm -rf -- "$OLD_BACKUP"
+    done
+fi
+
+sleep 2
+systemctl is-active --quiet "$SURICATA_SERVICE"
+PID_AFTER="$(systemctl show "$SURICATA_SERVICE" --property=MainPID --value)"
+RESTARTS_AFTER="$(systemctl show "$SURICATA_SERVICE" --property=NRestarts --value)"
+
+if [ "$PID_BEFORE" != "$PID_AFTER" ]; then
+    echo "ERROR: managed Suricata PID changed unexpectedly."
+    exit 1
+fi
+if [ "$RESTARTS_BEFORE" != "$RESTARTS_AFTER" ]; then
+    echo "ERROR: managed Suricata restart count changed unexpectedly."
+    exit 1
+fi
+
+echo
+echo "=== UPDATE COMPLETE ==="
+echo "Service:      $SURICATA_SERVICE"
+echo "Live reload:  $RELOAD_RESULT"
+echo "MainPID:      $PID_BEFORE -> $PID_AFTER"
+echo "NRestarts:    $RESTARTS_BEFORE -> $RESTARTS_AFTER"
+echo "UTC time:     $(date -u --iso-8601=seconds)"
