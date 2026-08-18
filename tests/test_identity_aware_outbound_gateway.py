@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import pathlib
 import sys
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SERVER_ROOT = ROOT / "server"
@@ -129,6 +131,53 @@ class IdentityAwareOutboundGatewayTests(unittest.TestCase):
                 payload,
                 confirmation=True,
             )
+
+    def test_authorized_identity_send_preserves_threading_into_secure_boundary(self) -> None:
+        identities = copy.deepcopy(self.identities)
+        identities["outbound_activation_authorized"] = True
+        identities["sender_selection"]["live_sender_allowlist"] = ["john@ww.cx"]
+        payload = self.base_payload()
+        payload.update(
+            {
+                "original_recipient": "john@ww.cx",
+                "correspondence_id": "CORR-0001",
+                "thread_id": "THREAD-0001",
+                "source_message_id": "<incoming-1@example.net>",
+                "references": ["<older-1@example.net>"],
+            }
+        )
+        scanner = mock.Mock()
+        expected = {
+            "delivery": {"provider": "synthetic"},
+            "control_id": "CTRL-TEST",
+            "action_url": None,
+            "audit_event": {},
+            "final_scan": {"state": "clean"},
+        }
+        with mock.patch.object(
+            MODULE.mail_secure_submission,
+            "send_preview",
+            return_value=copy.deepcopy(expected),
+        ) as secure_send:
+            result = MODULE.send_message(
+                self.config,
+                self.policy,
+                identities,
+                payload,
+                confirmation=True,
+                final_scanner=scanner,
+            )
+
+        preview = secure_send.call_args.args[2]
+        self.assertEqual(preview["headers"]["X-WWCX-Correspondence-ID"], "CORR-0001")
+        self.assertEqual(preview["headers"]["X-WWCX-Thread-ID"], "THREAD-0001")
+        self.assertEqual(preview["headers"]["In-Reply-To"], "<incoming-1@example.net>")
+        self.assertEqual(
+            preview["headers"]["References"],
+            "<older-1@example.net> <incoming-1@example.net>",
+        )
+        self.assertIs(secure_send.call_args.kwargs["final_scanner"], scanner)
+        self.assertEqual(result["sender_selection"]["address"], "john@ww.cx")
 
 
 if __name__ == "__main__":
