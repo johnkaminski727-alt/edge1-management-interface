@@ -44,19 +44,26 @@ def sync_interfaces(conn,device_id,rows):
     base=INTERFACE_OIDS[name]; conn.execute("INSERT INTO metrics(ts,device_id,oid,name,value_num,value_text,unit,source) VALUES(?,?,?,?,?,?,?,?)",(now,device_id,f"{base}.{row['if_index']}",name,float(value),None,"octets" if "Octets" in name else "count","interface-poll"))
  conn.commit(); return len(rows)
 
+def _profile_version(net,profile_reference):
+ resolver=getattr(net,"resolver",None)
+ if resolver is None: return "3"
+ profile=resolver.load(profile_reference); version=str(getattr(profile,"version","3"))
+ if version not in {"1","2c","3"}: raise ValueError("unsupported SNMP profile version")
+ return version
+
 class DiscoveryService:
  def __init__(self,net=None): self.net=net or NetSNMP()
  async def scan(self,cidr,profile_reference,*,config=None,dry_run=False,concurrency=16):
-  config=config or load_config(); hosts=allowed_discovery_hosts(cidr,config)
-  if dry_run: return {"dry_run":True,"cidr":cidr,"hosts":hosts,"count":len(hosts)}
+  config=config or load_config(); hosts=allowed_discovery_hosts(cidr,config); version=_profile_version(self.net,profile_reference)
+  if dry_run: return {"dry_run":True,"cidr":cidr,"hosts":hosts,"count":len(hosts),"snmp_version":version}
   sem=asyncio.Semaphore(max(1,min(concurrency,64)))
   async def probe(host):
    async with sem:
     try:
      result=await asyncio.to_thread(self.net.query,"snmpget",host,161,profile_reference,[STANDARD_OIDS[k] for k in ("sysDescr","sysName","sysObjectID","sysLocation","sysContact")])
-     return {"management_address":host,"snmp_capable":True,"snmp_version":"3","credential_reference":profile_reference,"sysDescr":result.get(STANDARD_OIDS["sysDescr"]),"sysName":result.get(STANDARD_OIDS["sysName"]),"sysObjectID":result.get(STANDARD_OIDS["sysObjectID"]),"sysLocation":result.get(STANDARD_OIDS["sysLocation"]),"sysContact":result.get(STANDARD_OIDS["sysContact"])}
-    except Exception as exc: return {"management_address":host,"snmp_capable":False,"error":str(exc)[:500]}
-  results=await asyncio.gather(*(probe(h) for h in hosts)); return {"dry_run":False,"cidr":cidr,"count":len(results),"devices":results}
+     return {"management_address":host,"snmp_capable":True,"snmp_version":version,"credential_reference":profile_reference,"sysDescr":result.get(STANDARD_OIDS["sysDescr"]),"sysName":result.get(STANDARD_OIDS["sysName"]),"sysObjectID":result.get(STANDARD_OIDS["sysObjectID"]),"sysLocation":result.get(STANDARD_OIDS["sysLocation"]),"sysContact":result.get(STANDARD_OIDS["sysContact"])}
+    except Exception as exc: return {"management_address":host,"snmp_capable":False,"snmp_version":version,"error":str(exc)[:500]}
+  results=await asyncio.gather(*(probe(h) for h in hosts)); return {"dry_run":False,"cidr":cidr,"count":len(results),"snmp_version":version,"devices":results}
 
 class MIBService:
  def __init__(self,conn): self.conn=conn; ensure_extended_schema(conn)
