@@ -1,269 +1,275 @@
-# WW.CX Mail Room Agent — Multi-Domain, Reply, Compliance, and Malware Requirements
+# WW.CX Mail Room Agent — Multi-Domain, Reply, Compliance, AI, and Security Requirements
 
 Date: 2026-08-18  
 Status: active product requirement; no production mail activation authorized by this document
 
 ## Objective
 
-The Mail Room agent must operate as one controlled correspondence system across the managed WW.CX business domains while preserving the identity, legal entity, mailbox privacy, thread history, security state, and sending authority appropriate to each message.
+The Mail Room agent must operate as one controlled correspondence system across all configured WW.CX business domains while preserving legal entity, identity, mailbox privacy, thread history, threat state, provenance, and sending authority.
 
 It must support:
 
-- inbound processing for all configured domains and named recipient identities;
-- private versus shared mailbox separation;
-- replies to both inbound messages and replies to messages originally sent by John or an authorized role identity;
-- automatic selection of the correct outbound identity;
-- per-domain/per-identity footer, disclaimer, warning, privacy, and commercial-message policy;
-- inbound and outbound malware/virus scanning before content or attachments are trusted;
-- quarantine and fail-closed behavior when scanning or identity resolution is uncertain;
-- bounded audit and provenance without placing secrets or raw message bodies in general audit logs.
+- catch-all inbound acceptance for every active managed domain;
+- explicit private/role route overrides;
+- preservation of the exact original recipient, including previously unseen local-parts;
+- replies to inbound messages and replies to messages previously sent by John or a role identity;
+- correct outbound identity resolution at reply/send time;
+- policy-authoritative headers, footers, disclaimers, warnings, privacy and commercial-message controls;
+- inbound and outbound malware/virus scanning;
+- spam, phishing, impersonation, BEC, malicious-link and social-engineering detection;
+- quarantine and fail-closed behavior;
+- policy-scoped automatic replies for explicitly permitted low-risk classes;
+- easy staged add/suspend/retire management for domains;
+- bounded audit and provenance without placing secrets or malicious payloads in general logs.
 
-This requirement does not authorize live provider delivery, DNS/MX changes, provider credentials, or outbound sending.
+This requirement does not itself authorize live provider delivery, DNS/MX changes, provider credentials, reputation-service subscriptions, or automatic outbound transmission.
 
-## Managed domains
+## Managed-domain catch-all model
 
-The existing identity registry is authoritative for these managed domains:
+Every active managed domain accepts all local-parts.
 
-- `ww.cx`
-- `creekco.ca`
-- `spiritcreekgardens.com`
-- `scgardens.ca`
-- `omegafx.com`
+Routing order is:
 
-The registry remains the source of truth for approved public identities, legal/operating names, private John identities, role identities, and sender eligibility.
+```text
+explicit private identity -> private mailbox
+explicit role identity    -> configured shared/role destination
+other local-part          -> managed-domain catch-all shared destination
+unmanaged domain          -> reject
+```
 
-## Mailbox privacy model
+The current shared catch-all destination is `maildesk@ww.cx`. Explicit `john@...` identities continue to route to `john-inbox@ww.cx`.
 
-The existing separation remains mandatory:
+The exact original recipient remains immutable correspondence metadata. A catch-all address is not required to have been pre-created to be accepted inbound.
 
-- `john-inbox@ww.cx` is the private internal delivery target for `john@...` identities;
-- `maildesk@ww.cx` is the shared internal delivery target for company/role identities;
-- `noreply@ww.cx` is outbound-only and may be used only for explicitly system-generated messages that should not invite replies.
+The internal delivery addresses are plumbing and must not become public sender identities merely because they receive catch-all mail.
 
-The internal delivery mailboxes must not become public sender identities or catch-all addresses.
+## Reply identity
 
-## Identity-aware inbound and reply handling
-
-For every accepted inbound message, the processing record must preserve at least:
-
-- authenticated provider/source identifier;
-- original envelope recipient;
-- normalized `To`, `Cc`, and sender metadata;
-- provider message identifier and RFC `Message-ID` when available;
-- `In-Reply-To` and `References` when available;
-- WW.CX control/case/action identifiers when present;
-- received timestamp and immutable content/attachment hashes;
-- malware-scan status;
-- route decision and destination mailbox;
-- thread/conversation correlation identifier.
-
-The original recipient must remain authoritative when selecting the reply identity.
+The original recipient is the preferred reply identity candidate.
 
 Examples:
 
 ```text
-Inbound to john@spiritcreekgardens.com
-  -> private mailbox
-  -> reply from john@spiritcreekgardens.com
-
 Inbound to support@creekco.ca
-  -> shared role mailbox
-  -> reply from support@creekco.ca
+  -> maildesk@ww.cx
+  -> reply candidate support@creekco.ca
 
-Inbound to records@omegafx.com
-  -> shared role mailbox
-  -> reply from records@omegafx.com
+Inbound to new-project@creekco.ca
+  -> catch-all maildesk@ww.cx
+  -> reply candidate new-project@creekco.ca
+
+Inbound to john@spiritcreekgardens.com
+  -> john-inbox@ww.cx
+  -> reply candidate john@spiritcreekgardens.com
 ```
 
-Unknown managed-domain recipients remain quarantined rather than silently routed through a catch-all.
+A previously unseen catch-all address must not be used live merely because mail arrived for it. Outbound use still requires the applicable provider verification, domain alignment, sender allowlist/policy and activation gates. Until then the system may prepare the reply using the requested identity and mark it blocked/prepared-not-sent.
 
-## Replies to messages originally sent by John or a role identity
+Submitted `From:` and `Reply-To:` values are never authoritative. Server policy selects or validates the final identity.
 
-The Mail Room agent must also accept and correlate inbound replies to outbound correspondence.
+## Replies to previously sent messages
 
-Thread correlation should use, in descending order of confidence:
+Inbound replies to outbound correspondence must correlate back to the original case/thread using, in descending confidence:
 
-1. WW.CX control/case/action identifiers carried in protected message metadata;
-2. provider/RFC `In-Reply-To` and `References` relationships;
-3. provider conversation/thread identifiers;
-4. exact known outbound `Message-ID` correlation;
+1. WW.CX control/case/action identifiers;
+2. RFC `In-Reply-To` and `References`;
+3. provider thread/conversation identifiers;
+4. exact outbound `Message-ID` correlation;
 5. bounded fallback matching only when ambiguity is low.
 
-A reply to an outbound message must inherit the original sender identity unless an explicit authorized workflow changes it.
+A correlated reply should inherit the original sender identity. Ambiguous identity/thread correlation blocks automatic transmission and requires operator review.
 
-For example, a reply to mail sent from `regulatory@creekco.ca` should return to the CreekCo regulatory correspondence stream and any later response should default to `regulatory@creekco.ca`, not `john@ww.cx` or a generic shared mailbox address.
+## Policy-authoritative headers and footers
 
-Ambiguous thread/identity correlation must fail closed for automatic sending and be surfaced for operator review.
+AI may select among approved policy profiles, but the server is authoritative for final composition.
 
-## Authoritative outbound sender selection
+The server must control or validate:
 
-Submitted `From:` and `Reply-To:` headers remain untrusted input.
+- envelope sender and `From`;
+- `Reply-To`;
+- `Message-ID`;
+- `In-Reply-To` and `References`;
+- WW.CX control/case/action headers;
+- applicable commercial/list preference headers;
+- legal-entity and operating-name footer;
+- privacy/contact/mailing-address data;
+- confidentiality, records, regulatory, accessibility or other approved warnings;
+- unsubscribe/preference language when applicable.
 
-The server-side identity policy must select the sender using the existing model:
+Legally material wording is versioned approved configuration. The AI must not invent legal disclaimer text at send time.
 
-1. explicit system-generated mode -> `noreply@ww.cx`;
-2. preserved original recipient -> matching sender identity;
-3. approved identity hint -> registered non-system sender;
-4. controlled default only where policy permits.
+Footer and policy injection occurs before final DKIM/provider signing so the transmitted content is what is signed.
 
-Unknown original recipients or identities must be rejected rather than guessed.
+## Threat pipeline
 
-Live sending remains blocked unless the exact sender is provider-verified, domain-aligned, present in the live sender allowlist, and the applicable SPF/DKIM/DMARC and provider activation gates have passed.
+Catch-all mail materially increases unsolicited and hostile traffic, so production catch-all requires a layered security pipeline.
 
-## Per-domain and per-identity disclaimer policy
+Planned order:
 
-The existing single WW.CX organization footer is not sufficient as the final multi-domain model.
+1. authenticated provider/MTA ingress;
+2. IP/network reputation and rate signals;
+3. HELO/rDNS, SPF, DKIM, DMARC and ARC analysis;
+4. domain/URL/hash reputation;
+5. Rspamd spam/phishing/Bayes/neural/fuzzy/custom-map analysis;
+6. restricted MIME parsing and file-type verification;
+7. antivirus, YARA, archive recursion and optional isolated secondary/sandbox analysis;
+8. safe HTML normalization and remote-content suppression;
+9. AI semantic phishing/BEC/social-engineering analysis on bounded content;
+10. composite disposition.
 
-Before live multi-domain sending, the footer/compliance engine must resolve an approved profile from:
+## Spam and reputation
+
+Rspamd is the preferred initial provider-neutral scoring/policy engine.
+
+The design reserves pluggable reputation sources for:
+
+- sender IP/network reputation;
+- low-reputation or compromised domains;
+- very-new/zero-reputation domains;
+- malicious resource/file/URL hashes;
+- fuzzy campaign/template reputation;
+- later approved threat-intelligence services.
+
+A feed requiring credentials, paid access or terms acceptance remains disabled until separately reviewed and activated.
+
+Ordinary spam normally goes to a spam folder. Strong malicious/security evidence uses quarantine or a protocol-level reject when appropriate. Unique accepted correspondence is not silently deleted as the normal policy.
+
+## Phishing, BEC and malicious-scheme detection
+
+The Mail Room must detect and score at least:
+
+- visible-link/domain mismatch;
+- lookalike, typo and Unicode/IDN domains;
+- suspicious redirects/shorteners and encoded destinations;
+- credential-harvesting or fake-login requests;
+- QR-code phishing where safely extractable;
+- fake document-share/e-sign/voicemail/fax/password-reset/cloud lures;
+- executive, employee, vendor, bank, carrier, regulator and customer impersonation;
+- reply-chain or conversation-hijack anomalies;
+- payment redirection, unexpected invoice instructions and bank-detail changes;
+- payroll diversion, gift cards and cryptocurrency requests;
+- requests for passwords, MFA/recovery codes, API keys, private keys or credentials;
+- urgent/secrecy pressure and social-engineering patterns;
+- attachment type mismatches, executable/script content, suspicious macros/active content and archive tricks;
+- known malicious IP/domain/URL/hash signals;
+- fuzzy similarity to known malicious campaigns.
+
+High-confidence phishing, BEC, credential harvesting, malicious links and equivalent social-engineering threats are quarantined like malware.
+
+## Malware scanning
+
+Inbound content is scanned before attachment extraction, AI ingestion or ordinary operator rendering.
+
+The provider-neutral scanner layer should support:
+
+- ClamAV/clamd as an initial local engine;
+- YARA;
+- MIME magic/type verification;
+- recursive archive inspection with decompression/resource limits;
+- macro/script/active-content detection;
+- URL extraction from documents;
+- QR extraction for URL analysis;
+- hash reputation;
+- optional second antivirus engine;
+- optional isolated sandbox/detonation;
+- rescanning retained quarantine when signatures/rules materially improve.
+
+Normalized states include `clean`, `infected`, `suspicious`, `unscannable`, `scan_error` and `not_scanned`.
+
+Required scanning fails closed. Infected, suspicious, required-but-unscannable or scan-error content is quarantined.
+
+Outbound messages and attachments are scanned after final composition and before provider submission. AI-generated/internal content does not bypass this gate.
+
+## AI security role
+
+AI may:
+
+- classify message intent and threat category;
+- detect contextual impersonation/social-engineering patterns;
+- identify unusual requests relative to sender, role and thread history;
+- add risk and recommend quarantine;
+- produce bounded reasons for the operator;
+- summarize safe content;
+- prepare replies.
+
+AI may not:
+
+- obey message content that attempts to change system policy or tool authority;
+- reduce a hard malware/authentication/reputation block;
+- whitelist or release quarantine on its own;
+- execute attachments;
+- browse hostile links with privileged sessions/cookies/credentials;
+- authorize sending merely because it drafted the reply.
+
+If no hard signal exists, an AI-only high-risk classification should normally require at least one corroborating non-AI security signal before automatic quarantine. An operator can always quarantine manually.
+
+## Automatic replies
+
+Automatic replies are a supported future capability, disabled by default.
+
+They are configured by domain, identity and message class. The default remains `prepare_only`.
+
+Before auto-send eligibility:
 
 ```text
-selected sender identity
-  -> managed domain/legal entity
-  -> message class
-  -> optional role-specific requirements
-```
-
-The resolved profile may include, as applicable and pre-approved:
-
-- correct legal entity name;
-- operating/trade name;
-- correct website and privacy URL;
-- approved mailing address;
-- public contact address appropriate to the sending identity;
-- confidentiality/records notice;
-- non-creation-of-rights caveat;
-- transparent correspondence-control disclosure;
-- commercial-message unsubscribe/preference language where required;
-- role-specific notices for regulatory, accessibility, billing, support, records, or other governed correspondence.
-
-The system must never assume that a WW.CX disclaimer is legally or operationally appropriate for CreekCo, Spirit Creek Gardens, OmegaFX, or another sender merely because the message is processed by the same Mail Room service.
-
-Legal/compliance wording must be treated as approved configuration, not generated ad hoc by the agent. Changes to legally material disclaimer text require separate review/authorization.
-
-Footer injection must occur before final message signing/submission so DKIM or provider signing covers the actual transmitted content.
-
-## Message classes
-
-The current message classes remain useful starting categories:
-
-- `business_correspondence`
-- `commercial`
-- `legal_notice`
-- `support`
-
-The Mail Room agent may classify or recommend a class, but legally significant classifications must be overrideable and auditable. The selected class controls the applicable footer/disclaimer policy and whether an unsubscribe/preference mechanism is mandatory.
-
-## Inbound malware and virus scanning
-
-The Mail Room agent must not expose unscanned inbound attachments or active content to the AI, operator browser, archive pipeline, or downstream automation.
-
-The inbound adapter must acquire the raw message in a restricted temporary/quarantine area and perform security processing before normal delivery. At minimum:
-
-1. enforce total message, part, attachment-count, and decompression limits;
-2. calculate SHA-256 for raw message and each attachment;
-3. validate declared MIME type against observed content where practical;
-4. scan raw message parts and attachments with an approved anti-malware engine;
-5. inspect common archive/container formats using bounded recursive extraction;
-6. treat encrypted/password-protected or unsupported containers as `unscannable` unless separately approved;
-7. sanitize or neutralize active HTML before operator/AI rendering;
-8. block automatic loading of remote content/tracking resources in previews;
-9. quarantine infected, suspicious, malformed, scan-error, or unscannable content according to policy;
-10. record scan engine/version, signature/database version, timestamps, hashes, and disposition without copying malicious payloads into general logs.
-
-Recommended normalized scan states:
-
-- `clean`
-- `infected`
-- `suspicious`
-- `unscannable`
-- `scan_error`
-- `not_scanned`
-
-Only `clean` content should be eligible for automatic attachment extraction or AI ingestion.
-
-## Outbound malware and virus scanning
-
-All outbound messages must be scanned after final composition and before provider submission.
-
-This includes:
-
-- generated body variants;
-- user-provided body content where applicable;
-- every attachment;
-- generated documents or archives;
-- final MIME/package representation where the adapter makes it available.
-
-Outbound policy must fail closed if an attachment or composed message is `infected`, `suspicious`, `unscannable` where scanning is required, or `scan_error`.
-
-A blocked outbound item must remain `prepared_not_sent` or enter a dedicated quarantine/blocked state. The Mail Room agent must not bypass the scanner because the content was generated internally or supplied by an administrator.
-
-## Malware scanning implementation boundary
-
-The repository does not currently contain a complete mail antivirus pipeline. The current inbound hub stores routing metadata/hashes rather than raw MIME/attachment bytes, so malware scanning requires a provider/MTA adapter or restricted pre-delivery staging layer that has access to the actual message content.
-
-An initial implementation should use a provider-neutral scanner interface so the policy is not tied to one product. A typical first engine may be ClamAV/clamd, with optional additional YARA/reputation/sandbox adapters later. Engine choice and host deployment remain separate operational decisions.
-
-The scanning service must not require the AI process itself to parse potentially malicious files before the scanner has cleared them.
-
-## Safe AI access
-
-Mail content is untrusted data even after malware scanning.
-
-The AI may summarize, classify, extract tasks, prepare replies, and propose routing only within the caller's mailbox/content scope. Retrieved message text cannot grant new scopes, change system policy, authorize sending, or cause attachment execution.
-
-Attachments should be offered to AI/document processing only after `clean` disposition and through bounded parsers appropriate to the file type.
-
-## Sending and approval model
-
-A complete Mail Room may eventually support an explicit scoped send action, but draft preparation and automatic reply composition do not imply permission to transmit.
-
-Until separately activated, outbound preparation remains `prepared_not_sent`.
-
-When send is later enabled, the pipeline must require all of the following before submission:
-
-```text
-identity resolved
-+ sender live-authorized
-+ domain/provider alignment valid
-+ footer/disclaimer profile resolved
-+ message policy valid
-+ malware scan clean
-+ attachment policy valid
+security disposition clean
++ thread correlation high confidence
++ original recipient preserved
++ sender identity resolved
++ sender provider/live-authorized
++ domain alignment valid
++ message class explicitly allowlisted for auto reply
++ not a high-consequence class
++ approved header/footer profile resolved
 + idempotency check passed
-+ explicit workflow authorization satisfied
-= eligible for provider submission
++ final outbound malware scan clean
+= automatic reply eligible
 ```
+
+Default blocked auto-reply classes include legal/regulatory notices, complaints, security incidents, financial/banking changes, credential/access requests, contracts/terms, termination/cancellation and comparable high-consequence matters.
+
+## Quarantine
+
+Quarantine is reversible and reviewable.
+
+The operator should see bounded reason codes, authentication results, reputation symbols, hashes, scan engine/rule versions, timestamps and routing/identity decisions. Dangerous active content remains inert.
+
+Release is an explicit audited action. AI cannot release quarantine.
+
+## Domain lifecycle
+
+Adding a domain must be a staged administrative workflow, not a source-code edit.
+
+The domain record ties together legal/operating identity, provider state, catch-all ingress, private/role overrides, sender identities, footer/compliance profiles, security policy, SPF/DKIM/DMARC/MX readiness, and separate inbound/outbound activation state.
+
+Retirement preserves historical identity/thread/policy data rather than deleting it.
+
+See `mail-room-domain-lifecycle-20260818.md`.
 
 ## Acceptance requirements
 
-Do not call the Mail Room agent complete until tests prove:
+Do not call Mail Room complete until tests prove at least:
 
-1. all configured managed domains route correctly;
-2. private John identities never leak into the shared mailbox;
-3. role identities route to the shared mailbox without losing original-recipient metadata;
-4. replies to inbound messages use the same public identity that received them;
-5. inbound replies to previously sent messages correlate back to the correct thread/case and identity;
-6. an arbitrary submitted `From:`/`Reply-To:` cannot override server policy;
-7. every active sender resolves the correct approved legal/footer profile;
-8. commercial-message policy fails closed when required preference/unsubscribe data is missing;
-9. inbound infected/suspicious/unscannable content is quarantined before AI/operator attachment access;
-10. outbound infected/suspicious/unscannable content is blocked before provider submission;
-11. scanner failures fail closed rather than silently bypassing security;
-12. audit records contain hashes, routing/identity decisions, scan results, control IDs, and provider state without storing secrets or malicious payloads in general logs;
-13. DKIM/provider signing, when activated, covers the final post-footer message;
-14. bounces, provider delivery events, and replies can be reconciled to the original correspondence control record;
-15. live sending remains impossible unless all explicit production gates are satisfied.
+1. every active managed domain accepts arbitrary local-parts through catch-all;
+2. explicit private routes override catch-all and never leak to shared mail;
+3. exact original recipients are preserved;
+4. unmanaged domains are rejected;
+5. replies select the correct original/correlated identity candidate;
+6. unauthorized catch-all identities cannot silently become live senders;
+7. server-side headers and footers cannot be overridden by arbitrary AI/browser input;
+8. all active sender identities resolve the correct legal/compliance profile;
+9. inbound malware/phishing/BEC/security threats are quarantined before unsafe access;
+10. outbound content is scanned after final composition and before submission;
+11. scanner/security failures fail closed;
+12. AI cannot weaken hard security controls or release quarantine;
+13. automatic replies occur only for explicitly allowlisted low-risk classes and only after all security/identity gates pass;
+14. audits preserve reason codes/hashes/provenance without secrets or malicious payloads;
+15. provider signing covers the final post-policy message;
+16. bounces, delivery events and replies reconcile to the original correspondence record;
+17. live sending remains impossible until explicit production gates are satisfied.
 
-## Current gaps to close
+## Current gaps
 
-The current project already has strong multi-domain routing and sender-selection foundations, but the following remain required before this design is production-complete:
+Repository policy and catch-all routing can be implemented/tested while production remains disabled. Production completion still requires the authenticated raw-message provider/MTA adapter, malware/phishing pipeline deployment, mailboxes/provider identities, per-domain footer profiles, live SPF/DKIM/DMARC evidence, sender activation, and separately authorized live inbound/outbound cutover.
 
-- provider mailbox provisioning and authenticated inbound content adapter;
-- full message/thread/reply reconciliation for outbound-originated conversations;
-- per-domain/per-identity legal/footer policy profiles rather than one global WW.CX organization footer;
-- inbound raw-content/attachment staging suitable for scanning;
-- provider-neutral malware scanner interface and quarantine implementation;
-- outbound final-message/attachment scanning gate;
-- safe HTML rendering and remote-content suppression for message previews;
-- live provider sender verification and SPF/DKIM/DMARC activation evidence;
-- explicit authorization for any production send or provider/DNS cutover.
+See also `mail-room-threat-intelligence-and-ai-policy-20260818.md` for the detailed threat model.
