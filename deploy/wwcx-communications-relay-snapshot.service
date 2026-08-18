@@ -29,5 +29,5 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 CapabilityBoundingSet=
 AmbientCapabilities=
-ReadOnlyPaths=/opt/wwcx-communications-workspace /var/lib/wwcx-comms
-ReadWritePaths=/var/lib/wwcx-communications-workspace
+ReadOnlyPaths=/opt/wwcx-communications-workspace /var/lib/wwcx-comms/comms.sqlite3
+ReadWritePaths=/var/lib/wwcx-comms /var/lib/wwcx-communications-workspace
