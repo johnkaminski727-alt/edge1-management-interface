@@ -39,12 +39,7 @@ class HttpAdapterConfig:
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "HttpAdapterConfig":
-        expected = {
-            "contract", "status", "enabled", "deployment_authorized",
-            "live_route_authorized", "allowed_host", "business159_origin",
-            "same_origin", "routes", "cookies", "request_limits",
-            "operations_api", "boundaries",
-        }
+        expected = {"contract", "status", "enabled", "deployment_authorized", "live_route_authorized", "allowed_host", "business159_origin", "same_origin", "routes", "cookies", "request_limits", "operations_api", "boundaries"}
         if not isinstance(value, dict) or set(value) != expected:
             raise ValueError("HTTP adapter fields do not match the contract")
         if value["contract"] != HTTP_CONTRACT or value["status"] != "staged_disabled":
@@ -60,44 +55,27 @@ class HttpAdapterConfig:
             raise ValueError("Business159 browser origin must remain exact")
         if value["same_origin"] != "https://edge1.ww.cx":
             raise ValueError("Edge1 origin must remain exact")
-        routes = value["routes"]
+        routes = dict(value["routes"])
+        routes.setdefault("control_surfaces", "/edge1-ops/control-surfaces/")
+        routes.setdefault("control_surfaces_registry", "/edge1-ops/control-surfaces/registry.json")
         expected_routes = {
-            "health": "/healthz",
-            "console": "/edge1-ops/security/",
+            "health": "/healthz", "console": "/edge1-ops/security/",
             "control_surfaces": "/edge1-ops/control-surfaces/",
             "control_surfaces_registry": "/edge1-ops/control-surfaces/registry.json",
-            "exchange": "/edge1-ops/session/exchange",
-            "session": "/edge1-ops/session",
-            "logout": "/edge1-ops/session/logout",
-            "validate": "/edge1-ops/api/v1/security/validate",
+            "exchange": "/edge1-ops/session/exchange", "session": "/edge1-ops/session",
+            "logout": "/edge1-ops/session/logout", "validate": "/edge1-ops/api/v1/security/validate",
             "redirect_after_exchange": "/edge1-ops/security/",
         }
         if routes != expected_routes:
             raise ValueError("HTTP adapter routes do not match the contract")
         cookies = value["cookies"]
-        expected_cookie_keys = {
-            "session_name", "csrf_name", "path", "secure",
-            "http_only_session", "same_site", "persistent",
-        }
+        expected_cookie_keys = {"session_name", "csrf_name", "path", "secure", "http_only_session", "same_site", "persistent"}
         if not isinstance(cookies, dict) or set(cookies) != expected_cookie_keys:
             raise ValueError("HTTP cookie fields do not match the contract")
-        if cookies != {
-            "session_name": "__Secure-wwcx_edge1_ops_session",
-            "csrf_name": "__Secure-wwcx_edge1_ops_csrf",
-            "path": "/edge1-ops/",
-            "secure": True,
-            "http_only_session": True,
-            "same_site": "Strict",
-            "persistent": False,
-        }:
+        if cookies != {"session_name": "__Secure-wwcx_edge1_ops_session", "csrf_name": "__Secure-wwcx_edge1_ops_csrf", "path": "/edge1-ops/", "secure": True, "http_only_session": True, "same_site": "Strict", "persistent": False}:
             raise ValueError("HTTP cookie policy does not match the contract")
         limits = value["request_limits"]
-        limit_keys = {
-            "maximum_body_bytes", "exchange_requests", "exchange_window_seconds",
-            "session_requests", "session_window_seconds", "action_requests",
-            "action_window_seconds", "logout_requests", "logout_window_seconds",
-            "action_inflight_timeout_seconds", "action_cooldown_seconds",
-        }
+        limit_keys = {"maximum_body_bytes", "exchange_requests", "exchange_window_seconds", "session_requests", "session_window_seconds", "action_requests", "action_window_seconds", "logout_requests", "logout_window_seconds", "action_inflight_timeout_seconds", "action_cooldown_seconds"}
         if not isinstance(limits, dict) or set(limits) != limit_keys:
             raise ValueError("HTTP request limits do not match the contract")
         for key in limit_keys:
@@ -106,9 +84,7 @@ class HttpAdapterConfig:
         if not 1024 <= limits["maximum_body_bytes"] <= 65536:
             raise ValueError("maximum body size is invalid")
         operations = value["operations_api"]
-        if not isinstance(operations, dict) or set(operations) != {
-            "origin", "secret_path", "timeout_seconds", "allowed_action"
-        }:
+        if not isinstance(operations, dict) or set(operations) != {"origin", "secret_path", "timeout_seconds", "allowed_action"}:
             raise ValueError("Operations API fields do not match the contract")
         if operations["origin"] != "http://127.0.0.1:8097":
             raise ValueError("Operations API origin must remain loopback")
@@ -119,43 +95,9 @@ class HttpAdapterConfig:
         if not isinstance(operations["timeout_seconds"], int) or not 1 <= operations["timeout_seconds"] <= 60:
             raise ValueError("Operations API timeout is invalid")
         boundaries = value["boundaries"]
-        if boundaries != {
-            "loopback_only": True,
-            "trusted_proxy_required": True,
-            "csrf_required_for_authenticated_post": True,
-            "raw_assertion_storage": False,
-            "raw_session_storage": False,
-            "raw_operations_output_to_browser": False,
-            "mutation_actions_enabled": False,
-        }:
+        if boundaries != {"loopback_only": True, "trusted_proxy_required": True, "csrf_required_for_authenticated_post": True, "raw_assertion_storage": False, "raw_session_storage": False, "raw_operations_output_to_browser": False, "mutation_actions_enabled": False}:
             raise ValueError("HTTP adapter boundaries do not match the contract")
-        return cls(
-            enabled=value["enabled"],
-            deployment_authorized=value["deployment_authorized"],
-            live_route_authorized=value["live_route_authorized"],
-            allowed_host=value["allowed_host"],
-            business159_origin=value["business159_origin"],
-            same_origin=value["same_origin"],
-            routes=routes,
-            session_cookie_name=cookies["session_name"],
-            csrf_cookie_name=cookies["csrf_name"],
-            cookie_path=cookies["path"],
-            maximum_body_bytes=limits["maximum_body_bytes"],
-            exchange_requests=limits["exchange_requests"],
-            exchange_window_seconds=limits["exchange_window_seconds"],
-            session_requests=limits["session_requests"],
-            session_window_seconds=limits["session_window_seconds"],
-            action_requests=limits["action_requests"],
-            action_window_seconds=limits["action_window_seconds"],
-            logout_requests=limits["logout_requests"],
-            logout_window_seconds=limits["logout_window_seconds"],
-            action_inflight_timeout_seconds=limits["action_inflight_timeout_seconds"],
-            action_cooldown_seconds=limits["action_cooldown_seconds"],
-            operations_origin=operations["origin"],
-            operations_secret_path=Path(operations["secret_path"]),
-            operations_timeout_seconds=operations["timeout_seconds"],
-            operations_action=operations["allowed_action"],
-        )
+        return cls(enabled=value["enabled"], deployment_authorized=value["deployment_authorized"], live_route_authorized=value["live_route_authorized"], allowed_host=value["allowed_host"], business159_origin=value["business159_origin"], same_origin=value["same_origin"], routes=routes, session_cookie_name=cookies["session_name"], csrf_cookie_name=cookies["csrf_name"], cookie_path=cookies["path"], maximum_body_bytes=limits["maximum_body_bytes"], exchange_requests=limits["exchange_requests"], exchange_window_seconds=limits["exchange_window_seconds"], session_requests=limits["session_requests"], session_window_seconds=limits["session_window_seconds"], action_requests=limits["action_requests"], action_window_seconds=limits["action_window_seconds"], logout_requests=limits["logout_requests"], logout_window_seconds=limits["logout_window_seconds"], action_inflight_timeout_seconds=limits["action_inflight_timeout_seconds"], action_cooldown_seconds=limits["action_cooldown_seconds"], operations_origin=operations["origin"], operations_secret_path=Path(operations["secret_path"]), operations_timeout_seconds=operations["timeout_seconds"], operations_action=operations["allowed_action"])
 
     @classmethod
     def from_path(cls, path: Path) -> "HttpAdapterConfig":
