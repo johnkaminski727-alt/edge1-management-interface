@@ -60,6 +60,19 @@ The repair transaction:
 
 No firewall, DNS, WireGuard, routing, certificate, authentication, production traffic or packet-filter policy change is part of this repair.
 
+## First live repair attempt — guard correction
+
+The first bounded live attempt correctly installed the managed updater artifacts and stopped/disabled the duplicate legacy runtime, but then reported `loaded update unit still requires legacy Suricata` even though `systemctl show` contained only `wwcx-network-sensor-suricata.service` plus ordinary system dependencies.
+
+Two repair-script defects were identified from that live evidence:
+
+1. the dependency guard used substring matching, so `suricata.service` falsely matched the suffix of `wwcx-network-sensor-suricata.service`;
+2. `fail()` used `exit 1`, which bypassed the intended rollback path after mutation and therefore left no `result.txt` or failure evidence record.
+
+The corrected contract treats systemd dependency lists as exact whitespace-delimited unit tokens and explicitly invokes rollback when `fail()` is called after `MUTATION_STARTED=true`. Regression validation forbids the old substring check and requires exact-token matching plus the explicit rollback path.
+
+The resulting live state after the guarded abort was nevertheless the intended runtime shape: legacy `suricata.service` inactive/disabled, managed `wwcx-network-sensor-suricata.service` active/enabled as the sole Suricata runtime, update timer active/enabled, and available memory increased from roughly 366 MiB before the attempt to roughly 1.5 GiB afterward. This state still requires a corrected formal acceptance run before the repair is labelled complete.
+
 ## Deployment sequencing
 
 Because the live repository checkout is materially behind current `main`, do not combine this repair with an unrelated bulk fast-forward. After merge, fetch the exact repair commit, create a detached temporary worktree for that commit, run the guarded repair from that worktree with `EXPECTED_COMMIT` pinned, capture acceptance evidence, and remove only the temporary worktree after success. Then separately plan repository reconciliation and MCP deployment.
