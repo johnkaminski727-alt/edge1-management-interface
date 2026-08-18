@@ -1,8 +1,10 @@
 # Edge1 Operator Deployment Completion Record
 
-## Status
+> **Historical-record notice — reconciled 2026-08-18:** This document preserves an earlier deployment/validation claim and should not be deleted or rewritten as though it never occurred. The current permanent-operator workstream still requires fresh authenticated host validation of the present service implementation, listener/transport state and ChatGPT workspace attachment. See `docs/edge1-operator/08-mcp-integration-status.md`, `docs/edge1-operator/13-completion-status.md`, and `docs/archive/edge1-control-surfaces-operator-archive-readiness-20260818.md` before treating the service state below as current production evidence.
 
-Completed and validated.
+## Historical Status
+
+Completed and validated at the time of this record.
 
 ## Production Deployment
 
@@ -26,7 +28,7 @@ edge1-operator-mcp.service
 
 ## Validation Completed
 
-The following checks passed:
+The following checks were recorded as passed:
 
 ```sh
 sh -n deploy/edge1-operator/install-systemd-service.sh
@@ -76,7 +78,7 @@ root
 
 ## Installer Behavior
 
-The installer now provisions:
+The installer was recorded as provisioning:
 
 - service account creation when missing;
 - runtime directory creation;
@@ -94,12 +96,16 @@ The deployment hardening work addressed:
 - service validation drift;
 - Python startup/import validation gaps.
 
-## Final Validation Result
+## Historical Validation Result
 
-Expected healthy state:
+The healthy state recorded by this document was:
 
 ```
 service=edge1-operator-mcp.service
 enabled=enabled
 active=active
 ```
+
+## Current-use rule
+
+Do not use the historical state above as a substitute for a fresh authenticated host check. Before a new production mutation or permanent ChatGPT MCP attachment, verify the current host/principal, repository revision and dirty state, systemd unit content/status, listener binding, runtime logs, Operations API state, transport implementation and rollback path.
