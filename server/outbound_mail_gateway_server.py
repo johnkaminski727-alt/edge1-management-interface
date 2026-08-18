@@ -32,9 +32,21 @@ import outbound_mail_preparation_auth as preparation_auth
 
 
 class GatewayApplication:
-    def __init__(self, config_path: Path, identities_path: Path = DEFAULT_IDENTITIES) -> None:
+    def __init__(
+        self,
+        config_path: Path,
+        identities_path: Path = DEFAULT_IDENTITIES,
+        *,
+        correspondence_db_path: Path | None = None,
+        correspondence_enabled: bool | None = None,
+    ) -> None:
         self.config_path = config_path.resolve()
         self.identities_path = identities_path.resolve()
+        # These optional overrides are dependency injection for bounded local tests. The
+        # production main() never supplies them, so runtime path policy remains enforced
+        # by mail_ai_adapter's /var/lib/wwcx-mail-room constraint.
+        self.correspondence_db_path = correspondence_db_path
+        self.correspondence_enabled = correspondence_enabled
 
     def load(
         self,
@@ -52,6 +64,27 @@ class GatewayApplication:
         identities = gateway.load_json(self.identities_path)
         mail_identity_registry.validate_registry(identities)
         return config, policy, identities, audit_path, nonce_path
+
+    def correspondence_state(self) -> dict[str, Any]:
+        return mail_ai_adapter.correspondence_read_state(
+            db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
+
+    def correspondence_message(self, message_id: str) -> dict[str, Any]:
+        return mail_ai_adapter.read_correspondence_message(
+            message_id,
+            db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
+
+    def correspondence_thread(self, thread_id: str) -> dict[str, Any]:
+        return mail_ai_adapter.read_correspondence_thread(
+            thread_id,
+            limit=50,
+            db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
 
 
 class GatewayHandler(BaseHTTPRequestHandler):
@@ -215,14 +248,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 status_payload["preparation_api"]["authenticated_client_id"] = (
                     client.client_id
                 )
-                status_payload["correspondence_read"] = (
-                    mail_ai_adapter.correspondence_read_state()
-                )
+                status_payload["correspondence_read"] = self.application.correspondence_state()
                 self._send_json(HTTPStatus.OK, status_payload)
                 return
             if parsed.path == "/outbound-mail/api/v1/correspondence/status":
                 client = self._authenticated_get(config, nonce_path, parsed.path)
-                payload = mail_ai_adapter.correspondence_read_state()
+                payload = self.application.correspondence_state()
                 payload["authenticated_client_id"] = client.client_id
                 self._send_json(HTTPStatus.OK, payload)
                 return
@@ -233,7 +264,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 encoded = parsed.path[len(message_prefix) :]
                 if not encoded or "/" in encoded:
                     raise ValueError("correspondence message identifier is invalid")
-                payload = mail_ai_adapter.read_correspondence_message(unquote(encoded))
+                payload = self.application.correspondence_message(unquote(encoded))
                 payload["authenticated_client_id"] = client.client_id
                 self._send_json(HTTPStatus.OK, payload)
                 return
@@ -244,10 +275,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 encoded = parsed.path[len(thread_prefix) :]
                 if not encoded or "/" in encoded:
                     raise ValueError("correspondence thread identifier is invalid")
-                payload = mail_ai_adapter.read_correspondence_thread(
-                    unquote(encoded),
-                    limit=50,
-                )
+                payload = self.application.correspondence_thread(unquote(encoded))
                 payload["authenticated_client_id"] = client.client_id
                 self._send_json(HTTPStatus.OK, payload)
                 return
@@ -372,9 +400,7 @@ def main() -> int:
                 "automatic_sender_selection": status["sender_selection"][
                     "automatic_selection_enabled"
                 ],
-                "correspondence_read_enabled": (
-                    mail_ai_adapter.correspondence_read_state()["read_enabled"]
-                ),
+                "correspondence_read_enabled": application.correspondence_state()["read_enabled"],
             },
             sort_keys=True,
         )
