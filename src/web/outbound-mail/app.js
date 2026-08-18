@@ -3,7 +3,14 @@
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-  const state = { status: null, preview: null, activity: [], remoteActivity: [], currentStep: 'setup' };
+  const state = {
+    status: null,
+    preview: null,
+    activity: [],
+    remoteActivity: [],
+    currentStep: 'setup',
+    draftCommitted: false,
+  };
 
   const escapeHtml = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -77,6 +84,19 @@
     };
   }
 
+  function hasDraftContent() {
+    return [
+      'original-recipient',
+      'to',
+      'cc',
+      'bcc',
+      'subject',
+      'body',
+      'case-id',
+      'action-id',
+    ].some((id) => $(`#${id}`).value.trim());
+  }
+
   function originalRecipientPreview() {
     const original = $('#original-recipient').value.trim().toLowerCase();
     if (!original || !original.includes('@')) return null;
@@ -115,6 +135,11 @@
     $('#validation-results').innerHTML = '';
     $('#submit-message').disabled = true;
     updateSetup();
+  }
+
+  function markDraftChanged() {
+    state.draftCommitted = false;
+    invalidatePreview();
   }
 
   function updateGreeting() {
@@ -342,6 +367,7 @@
     }
     toast(`Message submitted. Control ID: ${result.control_id}`, 'success');
     state.preview = null;
+    state.draftCommitted = true;
     $('#submit-message').disabled = true;
     await loadActivity();
   }
@@ -398,7 +424,8 @@
   }
 
   function handleKeyboard(event) {
-    if (event.key === 'Escape' && !$('#shortcut-dialog').open) {
+    const typing = isTypingTarget(event.target);
+    if (event.key === 'Escape' && !typing && !$('#shortcut-dialog').open) {
       showStep('setup');
       return;
     }
@@ -409,7 +436,7 @@
       }
       return;
     }
-    if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || typing) return;
     if (event.key.toLowerCase() === 'c') {
       event.preventDefault();
       showStep('compose');
@@ -424,11 +451,12 @@
   $$('.step-nav button').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.step)));
   $$('[data-next]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.next)));
   $$('[data-back]').forEach((button) => button.addEventListener('click', () => showStep(button.dataset.back)));
+  $('#quick-compose').addEventListener('click', () => window.setTimeout(() => $('#to').focus(), 80));
   ['mailing-address', 'original-recipient', 'sender-profile', 'to', 'cc', 'bcc', 'subject', 'body', 'signer-name', 'signer-title', 'case-id', 'action-id', 'unsubscribe-url'].forEach((id) => {
-    $(`#${id}`).addEventListener('input', invalidatePreview);
+    $(`#${id}`).addEventListener('input', markDraftChanged);
   });
   ['sender-profile', 'message-class', 'system-generated'].forEach((id) => {
-    $(`#${id}`).addEventListener('change', invalidatePreview);
+    $(`#${id}`).addEventListener('change', markDraftChanged);
   });
   ['privacy-url', 'contact-email'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
   $('#message-class').addEventListener('change', () => $('#unsubscribe-wrap').classList.toggle('hidden', $('#message-class').value !== 'commercial'));
@@ -451,6 +479,11 @@
   $('#export-activity').addEventListener('click', exportCsv);
   $('#shortcut-help').addEventListener('click', () => $('#shortcut-dialog').showModal());
   document.addEventListener('keydown', handleKeyboard);
+  window.addEventListener('beforeunload', (event) => {
+    if (state.draftCommitted || !hasDraftContent()) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
   $('#load-example').addEventListener('click', () => {
     $('#original-recipient').value = 'john@spiritcreekgardens.com';
     $('#to').value = 'records@example.com';
@@ -458,7 +491,7 @@
     $('#action-id').value = 'ENT-ACT-014';
     $('#subject').value = 'Request for transfer, custody, and billing records';
     $('#body').value = 'Hello,\n\nPlease provide the complete chronology and supporting records identified in our correspondence.\n\nThank you.';
-    invalidatePreview();
+    markDraftChanged();
     toast('Example loaded. Nothing has been sent.');
   });
 
