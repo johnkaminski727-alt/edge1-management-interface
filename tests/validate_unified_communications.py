@@ -37,26 +37,30 @@ for channel in channels:
 
 by_id = {item["id"]: item for item in channels}
 mail = by_id["mail"]["ai_integration"]
-assert mail["state"] == "repository_ready_partial"
+assert mail["state"] == "runtime_ready_local_prepare"
 assert mail["capabilities"] == ["mail.status.read", "mail.draft.prepare"]
 assert mail["pending_capabilities"] == ["mail.correspondence.read"]
-assert mail["live_acceptance"] == "unverified"
+assert mail["live_acceptance"] == "local_adapter_accepted"
 sms = by_id["sms_mms"]["ai_integration"]
-assert sms["state"] == "repository_ready_read_only"
+assert sms["state"] == "accepted_read_only_prepare"
 assert sms["capabilities"] == ["messages.status.read", "messages.conversation.read", "messages.draft.prepare"]
-assert sms["live_acceptance"] == "unverified"
+assert sms["live_acceptance"] == "accepted"
 assert by_id["voice_sip"]["ai_integration"] == {"state": "accepted_read_only", "capabilities": ["telephony.read"]}
 assert by_id["communications_relay"]["ai_integration"] == {"state": "accepted_read_only", "capabilities": ["communications.read"]}
 
 assistant = registry["assistant"]
 assert assistant["product"] == "WW.CX AI"
-assert assistant["edge1_gateway_version"] == "0.3.4-alpha.2"
+assert assistant["edge1_gateway_version"] == "0.3.4-alpha.3"
 assert assistant["edge1_mode"] == "read_only"
 assert assistant["edge1_listener"] == "127.0.0.1:8787"
-assert set(assistant["accepted_live_capabilities"]) == {"communications.read", "telephony.read"}
-assert set(assistant["repository_ready_capabilities"]) == {
-    "messages.status.read", "messages.conversation.read", "messages.draft.prepare", "mail.status.read", "mail.draft.prepare"
+assert set(assistant["accepted_live_capabilities"]) == {
+    "communications.read",
+    "telephony.read",
+    "messages.status.read",
+    "messages.conversation.read",
+    "messages.draft.prepare",
 }
+assert set(assistant["repository_ready_capabilities"]) == {"mail.status.read", "mail.draft.prepare"}
 assert assistant["pending_capabilities"] == ["mail.correspondence.read"]
 assert assistant["browser_route"] == "/admin/ai/"
 assert assistant["browser_production_acceptance"] == "unverified"
@@ -70,6 +74,9 @@ assert identity["correlation_policy"]["explicit_evidence_required"] is True
 assert identity["correlation_policy"]["name_similarity_is_evidence"] is False
 readiness = json.loads(READINESS_PATH.read_text(encoding="utf-8"))
 assert readiness["fresh_edge1_runtime_verified"] is False
+assert readiness["channels"]["sms_mms"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["private_ai"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "degraded"
 assert readiness["rules"]["repository_ready_does_not_imply_runtime_ready"] is True
 assert readiness["rules"]["runtime_ready_does_not_imply_live_authorized"] is True
 
@@ -90,8 +97,9 @@ for forbidden in ("/send-sms", "/send-mms", "/originate-call", "/reload-dialplan
     assert forbidden not in page, forbidden
 
 print("Unified Communications convergence validation passed")
-print("Accepted live AI reads: communications.read, telephony.read")
-print("Repository-ready SMS AI: messages.status.read, messages.conversation.read, messages.draft.prepare")
-print("Repository-ready Mail AI: mail.status.read, mail.draft.prepare")
+print("Fresh accepted messaging AI: messages.status.read, messages.conversation.read, messages.draft.prepare")
+print("Fresh local Mail AI: mail.status.read, mail.draft.prepare")
+print("Historical accepted live AI reads retained: communications.read, telephony.read")
 print("Blocked pending authoritative source: mail.correspondence.read")
+print("Global fresh runtime remains partial; persistent workspace and MMS scanner/storage are incomplete")
 print("No production call, message, email, carrier, route, or generic execution authority added")

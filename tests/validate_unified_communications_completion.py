@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the reconciled repository-side Unified Communications completion state."""
+"""Validate the reconciled Unified Communications completion and fresh runtime state."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ paths = {
     "validation_record": ROOT / ".agent" / "unified-communications-validation-20260818.md",
     "backlog": ROOT / ".agent" / "unified-communications-backlog-20260818.md",
     "handoff": ROOT / "docs" / "handoff" / "unified-communications-completion-20260818.md",
+    "live_acceptance": ROOT / "docs" / "communications" / "unified-communications-live-acceptance-20260818.md",
 }
 
 for label, path in paths.items():
@@ -35,14 +36,15 @@ registry = json.loads(paths["registry"].read_text(encoding="utf-8"))
 assert registry["production_traffic_authorized"] is False
 assert registry["generic_execution_authorized"] is False
 assistant = registry["assistant"]
-assert set(assistant["accepted_live_capabilities"]) == {"communications.read", "telephony.read"}
-assert set(assistant["repository_ready_capabilities"]) == {
+assert assistant["edge1_gateway_version"] == "0.3.4-alpha.3"
+assert set(assistant["accepted_live_capabilities"]) == {
+    "communications.read",
+    "telephony.read",
     "messages.status.read",
     "messages.conversation.read",
     "messages.draft.prepare",
-    "mail.status.read",
-    "mail.draft.prepare",
 }
+assert set(assistant["repository_ready_capabilities"]) == {"mail.status.read", "mail.draft.prepare"}
 assert assistant["pending_capabilities"] == ["mail.correspondence.read"]
 for forbidden in {
     "messages.send",
@@ -63,12 +65,19 @@ assert identity["correlation_policy"]["name_similarity_is_evidence"] is False
 assert identity["correlation_policy"]["cross_channel_inference_enabled"] is False
 
 readiness = json.loads(paths["readiness"].read_text(encoding="utf-8"))
+assert readiness["generated_from"] == "repository_and_fresh_edge1_operator_evidence"
 assert readiness["fresh_edge1_runtime_verified"] is False
-assert readiness["channels"]["mail"]["private_ai_adapter"] == "repository_ready"
-assert readiness["channels"]["sms_mms"]["private_ai_adapter"] == "repository_ready"
+assert readiness["channels"]["mail"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["mail"]["private_ai_adapter"] == "runtime_ready"
+assert readiness["channels"]["sms_mms"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["sms_mms"]["private_ai_adapter"] == "runtime_ready"
 assert readiness["channels"]["sms_mms"]["security_quarantine"] == "degraded"
+assert readiness["channels"]["sms_mms"]["production_authorization"] == "blocked"
+assert readiness["channels"]["private_ai"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["private_ai"]["live_acceptance"] == "runtime_ready"
 assert readiness["channels"]["communications_workspace"]["repository_implementation"] == "repository_ready"
-assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "unknown"
+assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "degraded"
+assert readiness["channels"]["communications_workspace"]["live_acceptance"] == "degraded"
 assert readiness["channels"]["communications_workspace"]["production_authorization"] == "blocked"
 assert readiness["rules"]["repository_ready_does_not_imply_runtime_ready"] is True
 assert readiness["rules"]["runtime_ready_does_not_imply_live_authorized"] is True
@@ -108,7 +117,23 @@ handoff = paths["handoff"].read_text(encoding="utf-8")
 for token in ("PR #384", "PR #385", "PR #386", "PR #387", "PR #389", "fresh_edge1_runtime_verified", "mail.correspondence.read"):
     assert token in handoff, token
 
+live_acceptance = paths["live_acceptance"].read_text(encoding="utf-8")
+for token in (
+    "Messaging Gateway",
+    "0.4.2",
+    "0.3.4-alpha.3",
+    "messages.conversation.read",
+    "messages.draft.prepare",
+    "prepared_not_sent",
+    "release_authorized: false",
+    "wwcx-communications-workspace.service` is not installed",
+    "clamscan",
+):
+    assert token in live_acceptance, token
+
 print("Unified Communications completion validation passed")
-print("Repository-side event, identity, AI read/draft, workspace, quarantine, readiness and handoff state are reconciled")
-print("Fresh Edge1 runtime acceptance remains explicitly unverified")
+print("Fresh Messaging Gateway and BigBird read/draft runtime acceptance is reconciled")
+print("Fresh Mail status/draft local adapter acceptance is reconciled")
+print("Persistent Communications workspace and MMS scanner/private storage remain incomplete")
+print("Global fresh_edge1_runtime_verified remains false until those safe-scope gaps close")
 print("No live communications or generic execution authority is accepted by this completion state")
