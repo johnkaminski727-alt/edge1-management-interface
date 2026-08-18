@@ -2,12 +2,12 @@
 
 Last reconciled: 2026-08-18
 Repository: `johnkaminski727-alt/edge1-management-interface`
-Repository completion baseline: `d7ccf2189a028df474ce5b7931870e10d6ec4292`
+Repository completion baseline: `a46ec4433033648c3428ce061318cdaf347a3605`
 Fresh Edge1 operator acceptance: partial safe-scope runtime acceptance completed 2026-08-18
 
 ## Product state
 
-WW.CX Communications has a coherent convergence layer across Mail Room, SMS/MMS, Voice/SIP, Communications Relay, Private AI, and a read-only Communications workspace while preserving native subsystem authority and production boundaries.
+WW.CX Communications has a coherent convergence layer across Mail Room, SMS/MMS, Voice/SIP, Communications Relay, Private AI, and a persistent read-only Communications workspace while preserving native subsystem authority and production boundaries.
 
 The shared layer provides:
 
@@ -37,6 +37,10 @@ Native channel stores, provider adapters, specialist tools, audit trails, and au
   - squash commit `721d5e538835a4b53a05c2208e7940f1d83ec043`
 - PR #396 — final repository reconciliation preserving runtime/traffic boundaries.
   - squash commit `d7ccf2189a028df474ce5b7931870e10d6ec4292`
+- PR #397 — fresh Edge1 Unified Communications runtime acceptance reconciliation.
+  - merge commit `6d2c24dfb756bbb735dabc4ffca51d9a6a8b73fc`
+- PR #400 — hardened persistent Communications workspace service deployment.
+  - merge commit `a46ec4433033648c3428ce061318cdaf347a3605`
 
 Historical accepted subsystem PRs and commits remain intact; no shared history was rewritten.
 
@@ -106,35 +110,45 @@ Communications Relay retains untrusted-content/prompt-injection treatment. The u
 
 ## Workspace state
 
-`/communications/` remains repository-ready as the daily read-only operator workspace. Fresh ephemeral Edge1 acceptance on port `8095` verified health/readiness, honest empty/no-snapshot behavior, mutation rejection via HTTP `405`, and successful rollback of the temporary listener.
+`/communications/` is now persistently deployed on Edge1 as `wwcx-communications-workspace.service` from detached runtime source commit `a46ec4433033648c3428ce061318cdaf347a3605`.
 
-Persistent deployment remains incomplete:
+Fresh Phase 10 acceptance verified:
 
-- `wwcx-communications-workspace.service` is not installed;
-- port `8095` is free after ephemeral acceptance;
-- an authoritative canonical runtime snapshot source is not attached;
-- no public/reverse-proxy exposure is authorized by this acceptance.
+- service enabled and active;
+- service identity `wwadmin:wwadmin`;
+- detached runtime `/opt/wwcx-communications-workspace`;
+- listener `127.0.0.1:8095` only;
+- health/readiness and static workspace HTTP 200;
+- honest zero-event state because no canonical snapshot/feed is attached;
+- returned event payloads marked untrusted and non-mutating;
+- POST rejected with HTTP 405;
+- live `/opt/edge1-management-interface` worktree unchanged;
+- adjacent UC services remained active;
+- rollback retained at `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-communications-workspace-20260818T082857Z.sh`.
+
+The persistent service is therefore runtime-ready, but the workspace remains intentionally empty until an authoritative canonical event feed/snapshot is selected and attached. No public/reverse-proxy exposure is authorized.
 
 ## Validation evidence
 
-Repository/CI gates remain accepted for PRs #384, #385, #386, #387, #389 and the final reconciliation PR #396.
-
-Fresh runtime evidence is now separately recorded in:
+Repository/CI gates are accepted through PR #400. Fresh runtime evidence is separately recorded in:
 
 - `.agent/unified-communications-validation-20260818.md`;
 - `docs/communications/unified-communications-live-acceptance-20260818.md`;
 - `config/communications/readiness-matrix-v1.json`.
 
-The global `fresh_edge1_runtime_verified` flag remains `false` because the persistent Communications workspace and MMS scanner/private-storage runtime are still incomplete. This prevents partial subsystem acceptance from being overstated as full safe-scope runtime completion.
+The global `fresh_edge1_runtime_verified` flag remains `false` because the authoritative workspace event feed and MMS scanner/private-storage runtime are still incomplete. This prevents partial subsystem acceptance from being overstated as full safe-scope runtime completion.
+
+Operational warning: Phase 10 retained about 1.5 GiB available memory with no recent kernel OOM evidence, but the configured 1 GiB swap allocation was fully consumed. The workspace itself used about 11.4 MiB. Avoid unnecessary broad service restarts until memory/swap pressure is separately investigated.
 
 ## Remaining work categories
 
 Remaining safe-scope work is narrow:
 
-1. persistent loopback-only Communications workspace service deployment and authoritative canonical snapshot attachment;
+1. identify and attach an authoritative canonical communications-event feed/snapshot to the persistent workspace without substituting unrelated audit logs;
 2. private MMS quarantine storage and trusted scanner integration with fail-closed verification;
 3. `mail.correspondence.read` only after an authoritative native Mail Room correspondence source is explicitly selected and authorized;
-4. final readiness/handoff reconciliation once the above items are complete or explicitly blocked.
+4. fresh functional Voice/SIP and Communications Relay acceptance if required for the final global runtime flag;
+5. final readiness/handoff reconciliation once the above items are complete or explicitly blocked.
 
 Separately controlled production/provider work remains blocked unless explicitly authorized.
 

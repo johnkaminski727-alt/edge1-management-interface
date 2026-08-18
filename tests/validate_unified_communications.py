@@ -76,7 +76,9 @@ readiness = json.loads(READINESS_PATH.read_text(encoding="utf-8"))
 assert readiness["fresh_edge1_runtime_verified"] is False
 assert readiness["channels"]["sms_mms"]["edge1_runtime"] == "runtime_ready"
 assert readiness["channels"]["private_ai"]["edge1_runtime"] == "runtime_ready"
-assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "degraded"
+assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["communications_workspace"]["live_acceptance"] == "runtime_ready"
+assert readiness["channels"]["communications_workspace"]["production_authorization"] == "blocked"
 assert readiness["rules"]["repository_ready_does_not_imply_runtime_ready"] is True
 assert readiness["rules"]["runtime_ready_does_not_imply_live_authorized"] is True
 
@@ -100,6 +102,7 @@ print("Unified Communications convergence validation passed")
 print("Fresh accepted messaging AI: messages.status.read, messages.conversation.read, messages.draft.prepare")
 print("Fresh local Mail AI: mail.status.read, mail.draft.prepare")
 print("Historical accepted live AI reads retained: communications.read, telephony.read")
+print("Persistent loopback-only Communications workspace: runtime_ready")
 print("Blocked pending authoritative source: mail.correspondence.read")
-print("Global fresh runtime remains partial; persistent workspace and MMS scanner/storage are incomplete")
+print("Global fresh runtime remains partial; canonical workspace feed and MMS scanner/storage are incomplete")
 print("No production call, message, email, carrier, route, or generic execution authority added")

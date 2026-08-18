@@ -2,7 +2,7 @@
 
 Date: 2026-08-18
 
-This backlog contains only work not completed by the safe repository/runtime convergence pass. Fresh Edge1 operator acceptance completed for Messaging Gateway, BigBird messaging capabilities, and the bounded Mail AI adapter; remaining items are kept explicit rather than inferred complete.
+This backlog contains only work not completed by the safe repository/runtime convergence pass. Fresh Edge1 operator acceptance is complete for Messaging Gateway, BigBird messaging capabilities, the bounded Mail AI adapter, and the persistent loopback-only Communications workspace. Remaining items are kept explicit rather than inferred complete.
 
 ## Runtime verification
 
@@ -10,10 +10,14 @@ This backlog contains only work not completed by the safe repository/runtime con
 - [x] Confirm live Messaging Gateway `0.4.2`, BigBird `0.3.4-alpha.3`, Mail AI adapter bounded capabilities, and adjacent UC service active state.
 - [x] Confirm Messaging Gateway and BigBird loopback listeners and verify the Communications workspace temporary listener rolls back cleanly.
 - [ ] Complete fresh functional version/capability acceptance for Voice/SIP and Communications Relay beyond service-active evidence if required for final global runtime verification.
-- [ ] Install and accept the persistent loopback-only `wwcx-communications-workspace.service`.
+- [x] Install and accept the persistent loopback-only `wwcx-communications-workspace.service`.
 - [ ] Confirm/attach the authoritative canonical communications-event snapshot/feed source used by the persistent workspace.
-- [x] Record live rollback/checkpoint evidence for Messaging Gateway and BigBird runtime changes.
-- [ ] Reconcile final safe-scope state and set `fresh_edge1_runtime_verified` true only after the intended persistent workspace and security runtime are actually complete.
+- [x] Record live rollback/checkpoint evidence for Messaging Gateway, BigBird, and Communications workspace runtime changes.
+- [ ] Reconcile final safe-scope state and set `fresh_edge1_runtime_verified` true only after the intended canonical workspace feed and MMS security runtime are actually complete.
+
+Persistent workspace acceptance on 2026-08-18 confirmed an enabled/running service from detached runtime source commit `a46ec4433033648c3428ce061318cdaf347a3605`, listener `127.0.0.1:8095` only, HTTP 200 health/readiness/index, honest zero-event state without a snapshot, HTTP 405 mutation rejection, unchanged `/opt/edge1-management-interface` worktree state, and adjacent UC services active. Rollback: `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-communications-workspace-20260818T082857Z.sh`.
+
+Operational warning retained: `free -h` showed approximately 1.5 GiB memory available and no recent kernel OOM evidence, but the 1 GiB swap allocation was fully consumed after activation. The workspace itself used about 11.4 MiB. This does not invalidate the workspace acceptance, but memory/swap pressure should be investigated before unnecessary broad service restarts.
 
 ## Mail correspondence
 
@@ -54,8 +58,8 @@ These remain outside standing safe repository authority and require separate exp
 ## Product follow-through
 
 - [ ] Populate evidence-backed cross-channel identity links only when authoritative evidence exists.
-- [ ] Replace snapshot-style workspace event input with an approved bounded runtime aggregation feed if/when the native channel adapters are deployed.
-- [ ] Run accessibility/browser acceptance on the persistently deployed Communications workspace.
+- [ ] Replace the intentionally empty workspace input with an approved bounded runtime aggregation feed from authoritative native channel sources.
+- [ ] Run accessibility/browser acceptance on the persistently deployed Communications workspace if/when an authenticated browser route is approved.
 
 ## Durable fresh acceptance record
 

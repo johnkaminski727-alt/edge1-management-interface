@@ -3,176 +3,110 @@
 Date: 2026-08-18
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Primary private host: `edge1.ww.cx`
-Scope: repository-side Unified Communications completion plus all safe CI validation available in this execution environment
+Repository/runtime baseline: `a46ec4433033648c3428ce061318cdaf347a3605` plus fresh operator-run Edge1 acceptance
 
 ## Executive status
 
-The repository-side WW.CX Communications architecture is now coherent and substantially complete for the authorized safe scope. Mail Room, SMS/MMS, Voice/SIP, Communications Relay, Private AI, and the Communications operator workspace remain specialized systems but now share canonical metadata contracts, evidence-based identity rules, search/correlation semantics, readiness truth, AI capability boundaries, common draft/action states, provenance, and operator navigation.
+WW.CX Communications is substantially complete for the authorized safe scope. Mail Room, SMS/MMS, Voice/SIP, Communications Relay, Private AI, and the Communications operator workspace remain specialized systems, but share canonical metadata contracts, evidence-based identity rules, search/correlation semantics, readiness truth, AI capability boundaries, common draft/action states, provenance, and operator navigation.
 
-No live traffic authority was added. Fresh authenticated Edge1 host acceptance was not possible because the approved live-shell connector was not exposed in the execution environment. Runtime claims therefore remain separate from repository/CI evidence.
+Fresh Edge1 acceptance has now been completed for Messaging Gateway `0.4.2`, BigBird `0.3.4-alpha.3`, bounded Mail AI status/draft behavior, and the persistent loopback-only Communications workspace. No production communication authority was added.
 
-## Architecture delivered
+Global `fresh_edge1_runtime_verified` remains false because the persistent workspace still has no authoritative canonical event feed/snapshot attached and MMS trusted scanning/private quarantine storage remain incomplete. Historical Voice/SIP and Relay reads remain accepted, but fresh service-active evidence alone is not promoted to new functional acceptance.
 
-### Canonical event and correlation
+## Current live safe-scope state
 
-`wwcx.communications-event.v1` is the channel-neutral reference contract. It preserves authoritative native channel records and carries bounded IDs, timestamps, identity references, source/provider references, state, security, attachment/media hashes, correspondence relations, AI-derived metadata, provenance, and audit references.
+### Messaging Gateway
 
-The shared core rejects embedded raw message bodies, raw audio, attachment bytes, credentials, passwords, private keys, secrets, and tokens. Search operates only over an explicit metadata allowlist. Conversation ordering is deterministic.
+- live `wwcx-messaging-gateway.service` version `0.4.2`;
+- loopback health/readiness accepted;
+- authenticated `messages.status.read` and `messages.conversation.read` accepted;
+- conversation content marked untrusted and non-mutating;
+- MMS quarantine metadata is fail-closed with release unauthorized;
+- storage remains `memory`;
+- rollback retained at `/opt/wwcx-messaging-gateway-staging/app.pre-uc-20260818T075057Z` plus evidence rollback script.
 
-### Identity
+### Private AI / BigBird
 
-The channel-neutral identity facade covers email, catch-all/domain, telephone/SMS, SIP, Relay, internal users/roles, organizations/contacts, cases, and projects.
+- live BigBird version `0.3.4-alpha.3`, mode `read-only`, listener `127.0.0.1:8787`;
+- eight read-only registry tools, preserving the original six and adding `messages.conversation.read` and `messages.draft.prepare`;
+- missing-scope checks fail closed;
+- prepared messaging drafts remain `prepared_not_sent`, `send_authorized: false`, `mutation_authorized: false`;
+- messaging control remains disabled;
+- unsigned `/v1/chat` returns HTTP 401;
+- rollback retained at `/var/backups/bigbird-ai-gateway-uc-chat-20260818T081344Z` and `/var/backups/bigbird-ai-gateway-uc-messaging-20260818T080100Z`.
 
-Cross-channel correlation requires explicit evidence. Similar names are not evidence and ambiguous records remain unlinked.
+### Mail AI
 
-### Private AI
-
-Historical accepted read-only capability evidence remains:
-
-- `communications.read`
-- `telephony.read`
-
-Repository-ready additions, not yet claimed live:
-
-- `messages.status.read`
-- `messages.conversation.read`
-- `messages.draft.prepare`
-- `mail.status.read`
-- `mail.draft.prepare`
-
-`mail.correspondence.read` remains closed until an explicitly authorized authoritative native Mail Room correspondence source is available.
-
-No send, call-origination, routing, quarantine-release, or generic execution authority is implied by these capabilities.
+- `mail.status.read` accepted locally;
+- `mail.draft.prepare` accepted with prepared-not-sent/no-send semantics;
+- `mail.correspondence.read` remains blocked until an explicitly authorized authoritative native Mail Room correspondence source is selected.
 
 ### Communications workspace
 
-`/communications/` now provides:
+- persistent `wwcx-communications-workspace.service` installed, enabled, active, and running;
+- detached runtime `/opt/wwcx-communications-workspace` from exact source commit `a46ec4433033648c3428ce061318cdaf347a3605`;
+- service identity `wwadmin:wwadmin`;
+- listener `127.0.0.1:8095` only;
+- health/readiness/static workspace HTTP 200;
+- event API returns an honest zero-event state because no canonical feed/snapshot is attached;
+- event responses remain untrusted and `mutation_authorized: false`;
+- POST/PUT/PATCH/DELETE remain rejected; tested POST returned HTTP 405;
+- no reverse proxy or public listener added;
+- live `/opt/edge1-management-interface` worktree remained unchanged by deployment;
+- rollback retained at `/tmp/edge1-uc-evidence-20260818T073658Z/rollback-communications-workspace-20260818T082857Z.sh`.
 
-- All activity, Inbox, Drafts, Sent/submitted, Quarantine, and attention views;
-- channel filters for Mail, SMS, MMS, Voice, SIP, News, and Relay;
-- bounded metadata search;
-- canonical chronological timeline;
-- details inspector for identity, case, channel, security, source/provider, AI derivation, and audit references;
-- readiness matrix presentation;
-- direct links to specialist channel tools.
+Operational warning: Phase 10 showed about 1.5 GiB available memory and no recent kernel OOM evidence, but the configured 1 GiB swap allocation was fully consumed. The workspace used about 11.4 MiB. Avoid unnecessary broad restarts until memory/swap pressure is separately understood.
 
-The companion server binds loopback only, reads an operator-supplied canonical JSONL snapshot, validates every event, caps snapshot/query size, and rejects POST/PUT/PATCH/DELETE.
+### Voice/SIP and Communications Relay
 
-### Security and quarantine
+- Asterisk, Kamailio, telephony analytics, telephony console, and `edge1-comms-relay.service` were active in fresh service checks;
+- `telephony.read` and `communications.read` retain historical accepted read-only evidence;
+- no call origination, routing, dialplan, upstream-posting, or other mutation authority is inferred.
 
-Mail keeps its native security/final-scan/quarantine discipline.
+### MMS security runtime
 
-MMS now has a fail-closed metadata foundation. Media defaults to held pending scan; missing digest, malicious result, or scanner error remain quarantined; even a clean scan is `scanned_clean_held` and does not authorize release. Provider media references are not exposed through the quarantine projection.
+- fail-closed metadata/quarantine foundation is live;
+- no installed `clamscan`, `clamdscan`, or `freshclam` was found;
+- no active ClamAV service/socket was found;
+- no candidate private quarantine-storage directory was found in the inspected `/var/lib`, `/srv`, or `/opt` paths;
+- trusted scanner/private storage therefore remain incomplete and security stays degraded;
+- quarantine release remains unauthorized.
 
-SMS without media is treated as not applicable for malware quarantine rather than given fabricated malware semantics.
+## Merged repository milestones
 
-Private quarantine storage, trusted scanner deployment, retention, and release remain separate runtime work.
+- PR #384 — canonical event/identity/readiness/correlation core — `6b272fb0308bfeb161f50598845fc88b77e5c561`
+- PR #385 — SMS/MMS Private AI read + draft — `ce5c561304a0a7aa109b887d1739ae90660b7633`
+- PR #386 — Mail AI status + draft — `9e26ea6df6e0bc3469d3bc63701362b01a80bd94`
+- PR #387 — Unified Communications workspace — `2b4550812cb6bc790cb3b3bc0d079bdfd261b220`
+- PR #389 — fail-closed MMS quarantine foundation — `721d5e538835a4b53a05c2208e7940f1d83ec043`
+- PR #396 — final repository reconciliation — `d7ccf2189a028df474ce5b7931870e10d6ec4292`
+- PR #397 — fresh Edge1 runtime acceptance reconciliation — `6d2c24dfb756bbb735dabc4ffca51d9a6a8b73fc`
+- PR #400 — hardened persistent Communications workspace deployment — `a46ec4433033648c3428ce061318cdaf347a3605`
 
-## Merged PRs and commits
+Repository CI and live-host acceptance are separate evidence. Green `Edge1 Operator Validation` workflow results are CI only; live claims above come from operator-run SSH acceptance.
 
-- PR #381 — original convergence continuation point; historical subsystem evidence preserved.
-- PR #384 — canonical event/identity/readiness/correlation core.
-  - `6b272fb0308bfeb161f50598845fc88b77e5c561`
-- PR #385 — SMS/MMS Private AI read + prepared-not-sent draft adapter.
-  - `ce5c561304a0a7aa109b887d1739ae90660b7633`
-- PR #386 — Mail Room AI status + prepared-not-sent draft adapter.
-  - `9e26ea6df6e0bc3469d3bc63701362b01a80bd94`
-- PR #387 — read-only Unified Communications workspace.
-  - `2b4550812cb6bc790cb3b3bc0d079bdfd261b220`
-- PR #389 — fail-closed MMS quarantine foundation.
-  - `721d5e538835a4b53a05c2208e7940f1d83ec043`
+## Remaining safe-scope work
 
-Unrelated `main` work that landed concurrently was preserved. No force-push or historical rewrite was used.
+1. Identify the authoritative native source(s) that can produce canonical `wwcx.communications-event.v1` metadata and attach a bounded feed/snapshot to the persistent workspace. Do not substitute unrelated audit logs or fabricate events.
+2. Attach private MMS quarantine storage with strict permissions/retention and a trusted scanner behind the existing fail-closed boundary. Clean results must remain held until a separately authorized release workflow exists.
+3. Select and explicitly authorize an authoritative native Mail Room correspondence source before implementing `mail.correspondence.read`.
+4. Perform fresh functional Voice/SIP and Relay read-only acceptance if required before setting the global runtime flag true.
+5. Reconcile final readiness only when each remaining safe-scope layer has evidence.
 
-## CI acceptance
+## Production boundaries
 
-PR #384:
+The following remain separately controlled and are not authorized by Unified Communications completion:
 
-- Validate repository — PASS
-- Edge1 Operator Validation — PASS
-
-PR #385:
-
-- WW.CX Messaging Gateway — PASS
-- BigBird Messaging Adapter — PASS
-- Validate repository — PASS
-- Edge1 Operator Validation — PASS
-
-PR #386:
-
-- Validate repository — PASS
-- Edge1 Operator Validation — PASS
-
-PR #387:
-
-- Validate repository — PASS
-- Edge1 Operator Validation — PASS
-
-PR #389:
-
-- WW.CX Messaging Gateway — PASS
-- Validate repository — PASS
-- Edge1 Operator Validation — PASS
-
-The workflow named `Edge1 Operator Validation` is retained as repository CI evidence only. It is not described here as a fresh authenticated live-host inspection.
-
-## Channel capability matrix
-
-| Channel | Repository | Private AI | Security | Live traffic authority |
-|---|---|---|---|---|
-| Mail | ready | `mail.status.read`, `mail.draft.prepare` ready; correspondence read pending | native Mail Room controls retained | disabled |
-| SMS/MMS | ready | status/conversation read + draft ready | SMS channel-specific; MMS fail-closed foundation, runtime scanner/storage pending | disabled |
-| Voice/SIP | ready | historical `telephony.read` accepted | specialist telephony boundaries retained | origination/routing changes disabled |
-| News/Relay | ready | historical `communications.read` accepted | untrusted-content/provenance rules retained | mutation disabled |
-| Communications workspace | ready | consumes canonical metadata, no separate execution capability | read-only loopback API | not applicable / disabled |
-| Private AI | ready | read/draft separation enforced | retrieved content cannot grant authority | privileged execution disabled |
-
-## Readiness interpretation
-
-The machine-readable matrix separately tracks repository implementation, CI, Edge1 runtime, Private AI adapter, identity mapping, security/quarantine, provider configuration, credentials, DNS/authentication, live routing, production authorization, live acceptance, and rollback evidence.
-
-`fresh_edge1_runtime_verified` remains false. Repository-ready does not mean runtime-ready; runtime-ready does not mean live-authorized; historical acceptance does not become a fresh runtime assertion.
-
-## What remains disabled or incomplete
-
-1. Fresh authenticated Edge1 runtime/deployment acceptance.
-2. `mail.correspondence.read` until a native authoritative correspondence source is approved.
-3. Private MMS quarantine storage and trusted scanner integration.
-4. Provider credentials/configuration where required.
-5. Live SMS/MMS transmission.
-6. Production call origination and SIP/carrier/emergency-route changes.
-7. Live mail transmission where not separately authorized.
-8. Quarantine release.
-9. DNS/firewall/certificate/authentication-policy changes.
-10. Number porting, STIR/SHAKEN, provider financial/contractual actions.
-
-## Smallest operator actions for full activation
-
-### A. Restore fresh runtime evidence
-
-Expose the approved Edge1 Live Shell connector to the operator session. Run read-only checks only:
-
-- confirm current deployed revision and working-tree state;
-- list relevant loopback listeners/services;
-- verify Messaging Gateway and Private AI versions/health;
-- verify the Communications workspace listener and canonical event source;
-- verify Mail Room prepare-only adapter availability;
-- verify Voice/SIP and Relay read-only capability health;
-- record rollback/checkpoint evidence.
-
-No production call/message/email is required for this acceptance.
-
-### B. Mail correspondence source
-
-Select and explicitly authorize the authoritative native Mail Room correspondence/thread source. Then implement and validate a bounded sanitized `mail.correspondence.read` adapter that preserves native IDs, authorization and provenance.
-
-### C. MMS quarantine runtime
-
-Attach approved private storage and a trusted scanner behind the existing fail-closed interface. Verify degradation behavior. Design quarantine release as a separately authorized audited action; do not grant release to AI.
-
-### D. Production/provider activation
-
-For any requested live traffic, separately approve the exact provider/credential/routing action. Continue to stop before credentials, DNS/firewall/certificate/authentication policy, SIP/carrier/emergency routing, number porting, STIR/SHAKEN, live traffic, quarantine release, financial/contractual, or destructive actions unless specifically authorized.
+- live SMS/MMS transmission;
+- production mail send unless separately authorized;
+- call origination;
+- SIP/carrier/emergency route or dialplan mutation;
+- quarantine release;
+- credentials/key disclosure or rotation;
+- DNS/firewall/certificate/authentication-policy changes;
+- number porting or STIR/SHAKEN changes;
+- provider financial/contractual actions;
+- destructive or irreversible operations.
 
 ## Durable recovery points
 
@@ -180,6 +114,7 @@ For any requested live traffic, separately approve the exact provider/credential
 - `.agent/unified-communications-validation-20260818.md`
 - `.agent/unified-communications-backlog-20260818.md`
 - `config/communications/readiness-matrix-v1.json`
+- `docs/communications/unified-communications-live-acceptance-20260818.md`
 - this handoff document
 
-These records are intended to be sufficient for the next operator/agent to continue from evidence rather than reconstructing project state from memory.
+These records are intended to let the next operator continue from verified evidence rather than reconstructing project state from memory.
