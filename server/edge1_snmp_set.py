@@ -4,24 +4,18 @@
 This module is intentionally not exposed as an automatic API action. It enforces
 both the global configuration gate and the per-device write gate before invoking
 Net-SNMP. Callers must still pass through the privileged-network-change policy.
+Passphrases are supplied through the secure ephemeral snmp.conf execution path,
+not process arguments.
 """
 from __future__ import annotations
 
-import re
 import subprocess
 from typing import Any, Callable
 
 from edge1_snmp_platform import CredentialResolver, canonical_oid, get_device, load_config
+from edge1_snmp_secure_exec import SecureNetSNMP
 
 _ALLOWED_TYPES = {"i", "u", "t", "a", "o", "s", "x", "d", "b"}
-
-
-def _redact_error(text: str) -> str:
-    return re.sub(
-        r"(?i)(community|password|passphrase|authpass|privpass)\s*[:=]\s*\S+",
-        r"\1=[REDACTED]",
-        text,
-    )[-4000:]
 
 
 def execute_set(
@@ -46,28 +40,16 @@ def execute_set(
     if value_type not in _ALLOWED_TYPES:
         raise ValueError("unsupported Net-SNMP SET value type")
     oid = canonical_oid(oid)
-    profile = (resolver or CredentialResolver()).load(device["credential_reference"])
+    credential_resolver = resolver or CredentialResolver()
+    profile = credential_resolver.load(device["credential_reference"])
     if profile.version != "3":
         raise PermissionError("SNMP SET credential profile must use SNMPv3")
-    argv = [
-        "snmpset", "-OQn", "-t", "3", "-r", "1", "-v3", "-l", "authPriv",
-        "-u", profile.username or "", "-a", profile.auth_protocol or "SHA",
-        "-A", profile.auth_password or "", "-x", profile.priv_protocol or "AES",
-        "-X", profile.priv_password or "", f"udp:{device['management_address']}:{device['snmp_port']}",
-        oid, value_type, value,
-    ]
-    try:
-        result = runner(
-            argv,
-            text=True,
-            capture_output=True,
-            timeout=15,
-            check=False,
-            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "MIBS": ""},
-        )
-    finally:
-        for index in range(len(argv)):
-            argv[index] = "[REDACTED]"
-    if result.returncode != 0:
-        raise RuntimeError(_redact_error(result.stderr or result.stdout or "SNMP SET failed"))
+    SecureNetSNMP(credential_resolver, runner=runner).set_value(
+        device["management_address"],
+        int(device["snmp_port"]),
+        device["credential_reference"],
+        oid,
+        value_type,
+        value,
+    )
     return {"device_id": device_id, "oid": oid, "status": "succeeded"}
