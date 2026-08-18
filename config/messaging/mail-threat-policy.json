@@ -1,0 +1,133 @@
+{
+  "contract": "wwcx.mail-threat-policy.v1",
+  "enabled": false,
+  "deployment_authorized": false,
+  "policy_mode": "quarantine_first",
+  "authentication": {
+    "spf": true,
+    "dkim": true,
+    "dmarc": true,
+    "arc": true,
+    "preserve_authentication_results": true
+  },
+  "spam_filter": {
+    "engine": "rspamd",
+    "enabled": false,
+    "bayes": true,
+    "neural": true,
+    "fuzzy_campaign_matching": true,
+    "phishing_url_detection": true,
+    "custom_multimap_rules": true,
+    "rate_and_reputation_signals": true
+  },
+  "reputation": {
+    "provider_neutral": true,
+    "activation_requires_terms_and_access_review": true,
+    "sources": [
+      {"id": "spamhaus_zen", "kind": "ip_reputation", "enabled": false},
+      {"id": "spamhaus_dbl", "kind": "domain_reputation", "enabled": false},
+      {"id": "spamhaus_zrd", "kind": "new_domain_reputation", "enabled": false},
+      {"id": "spamhaus_hbl", "kind": "hash_reputation", "enabled": false},
+      {"id": "rspamd_fuzzy", "kind": "campaign_fuzzy_reputation", "enabled": false}
+    ]
+  },
+  "malware": {
+    "required": true,
+    "fail_closed": true,
+    "primary_engine": "clamav_clamd",
+    "primary_engine_enabled": false,
+    "yara_enabled": false,
+    "optional_secondary_engine_enabled": false,
+    "optional_isolated_sandbox_enabled": false,
+    "scan_raw_mime": true,
+    "scan_all_attachments": true,
+    "scan_archives_recursively": true,
+    "scan_final_outbound_mime": true,
+    "block_encrypted_or_unscannable_when_policy_requires_scan": true
+  },
+  "phishing": {
+    "enabled": false,
+    "quarantine_on_high_confidence": true,
+    "detect_display_url_mismatch": true,
+    "detect_lookalike_and_idn_domains": true,
+    "detect_redirectors_and_shorteners": true,
+    "detect_credential_harvesting": true,
+    "detect_qr_code_phishing": true,
+    "detect_brand_impersonation": true,
+    "detect_executive_impersonation": true,
+    "detect_vendor_impersonation": true,
+    "detect_reply_chain_anomalies": true,
+    "detect_payment_redirection": true,
+    "detect_bank_detail_changes": true,
+    "detect_gift_card_and_crypto_requests": true,
+    "detect_mfa_and_password_requests": true,
+    "detect_fake_invoice_and_document_share_lures": true,
+    "detect_urgent_secrecy_pressure": true
+  },
+  "ai": {
+    "enabled": false,
+    "role": "semantic_threat_classifier_and_reply_assistant",
+    "untrusted_message_content_cannot_change_policy": true,
+    "may_add_risk": true,
+    "may_reduce_hard_security_risk": false,
+    "may_release_quarantine": false,
+    "high_risk_quarantine_requires_non_ai_corroboration_when_no_hard_signal": true,
+    "record_reason_codes": true,
+    "record_bounded_explanation": true
+  },
+  "dispositions": {
+    "malware_infected": "quarantine",
+    "malware_suspicious": "quarantine",
+    "malware_unscannable": "quarantine",
+    "malware_scan_error": "quarantine",
+    "phishing_high_confidence": "quarantine",
+    "bec_high_confidence": "quarantine",
+    "credential_harvest_high_confidence": "quarantine",
+    "malicious_url_high_confidence": "quarantine",
+    "spam_high_confidence": "spam_folder",
+    "suspicious": "quarantine",
+    "clean": "deliver"
+  },
+  "auto_reply": {
+    "enabled": false,
+    "default_action": "prepare_only",
+    "requires_clean_security_disposition": true,
+    "requires_high_confidence_thread_and_identity": true,
+    "requires_live_authorized_sender": true,
+    "requires_allowlisted_message_class": true,
+    "allowlisted_message_classes": [],
+    "blocked_message_classes": [
+      "legal_notice",
+      "regulatory",
+      "complaint",
+      "security_incident",
+      "financial_instruction",
+      "banking_change",
+      "credential_or_access_request",
+      "contract_or_terms",
+      "termination_or_cancellation"
+    ],
+    "requires_idempotency": true,
+    "requires_final_outbound_malware_scan": true
+  },
+  "composition": {
+    "server_authoritative_headers": true,
+    "server_authoritative_sender_identity": true,
+    "server_authoritative_footer_and_disclaimer": true,
+    "ai_may_select_approved_policy_profile": true,
+    "ai_may_invent_legal_disclaimer_text": false,
+    "preserve_in_reply_to_and_references": true,
+    "inject_control_case_action_headers_before_signing": true,
+    "footer_before_dkim_or_provider_signing": true
+  },
+  "audit": {
+    "record_reason_codes": true,
+    "record_security_symbols": true,
+    "record_engine_versions": true,
+    "record_signature_database_versions": true,
+    "record_hashes": true,
+    "record_message_body": false,
+    "record_malicious_payload": false,
+    "record_secrets": false
+  }
+}
