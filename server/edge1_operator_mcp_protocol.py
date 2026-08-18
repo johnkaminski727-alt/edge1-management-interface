@@ -1,18 +1,30 @@
 #!/usr/bin/env python3
-"""Edge1 Operator MCP protocol boundary."""
-
+"""Static MCP tool contract for the Edge1 Operator."""
 from __future__ import annotations
 
 
+def _tool(name: str, description: str) -> dict:
+    return {
+        "name": name,
+        "description": description,
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    }
+
+
 TOOLS = [
-    {
-        "name": "edge1.identity",
-        "description": "Return verified Edge1 operator identity information.",
-        "inputSchema": {"type": "object"},
-    },
-    {
-        "name": "edge1.health",
-        "description": "Return Edge1 operator health information.",
-        "inputSchema": {"type": "object"},
-    },
+    _tool("edge1.identity", "Return verified Edge1 operator identity information."),
+    _tool("edge1.health", "Return operator and loopback Operations API health."),
+    _tool("edge1.inventory", "Run the deterministic read-only Edge1 inventory and return its audited result."),
+    _tool("edge1.services", "Return bounded running/failed service state."),
+    _tool("edge1.network_state", "Return bounded interface, route, and classified listener state."),
+    _tool("edge1.disk_state", "Return bounded filesystem usage for approved Edge1 filesystems."),
+    _tool("edge1.bigbird_status", "Return bounded BigBird health and tool-registry state."),
+    _tool("edge1.operations_status", "Return loopback Operations API health."),
+    _tool("edge1.apache_status", "Return bounded Apache service state."),
+    _tool("edge1.asterisk_status", "Return fixed read-only Asterisk diagnostics."),
+    _tool("edge1.telephony_status", "Return bounded telephony console status."),
+    _tool("edge1.messaging_status", "Return bounded messaging health."),
+    _tool("edge1.time_authority_status", "Return bounded WW.CX time-authority summary."),
+    _tool("edge1.git_state", "Return repository dirty/head state without fetching or changing branches."),
+    _tool("edge1.config_digest", "Return SHA-256 digests for selected repository-controlled operator configuration."),
 ]

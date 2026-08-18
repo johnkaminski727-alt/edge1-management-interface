@@ -1,24 +1,20 @@
-"""Edge1 Operator tool registry.
+"""Edge1 Operator MCP-visible tool registry.
 
-Keeps MCP-visible capabilities separate from runtime execution.
+Only named read-only capabilities are exposed here. Mutating operations remain
+separate Operations API actions and are not surfaced as a generic MCP exec tool.
 """
+from __future__ import annotations
+
+from .edge1_operator_mcp_protocol import TOOLS as PROTOCOL_TOOLS
+
 
 TOOLS = {
-    "edge1.health": {
+    item["name"]: {
         "access": "read",
-        "description": "Return operator health and identity information.",
-        "handler": "health",
-    },
-    "edge1.system_status": {
-        "access": "read",
-        "description": "Return bounded system status information.",
-        "handler": "system_status",
-    },
-    "edge1.exec": {
-        "access": "controlled_write",
-        "description": "Execute approved bounded operations.",
-        "handler": "execute",
-    },
+        "description": item["description"],
+        "inputSchema": item["inputSchema"],
+    }
+    for item in PROTOCOL_TOOLS
 }
 
 
