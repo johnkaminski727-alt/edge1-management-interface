@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the reconciled Unified Communications completion and fresh runtime state."""
+"""Validate the reconciled Unified Communications completion and runtime truth."""
 
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ paths = {
     "workspace_page": ROOT / "src" / "web" / "communications" / "index.html",
     "workspace_script": ROOT / "src" / "web" / "communications" / "app.js",
     "mail_ai": ROOT / "server" / "mail_ai_adapter.py",
+    "mail_store": ROOT / "server" / "mail_correspondence_store.py",
+    "mail_local_source": ROOT / "server" / "mail_local_rfc822_source.py",
+    "mail_bigbird_manifest": ROOT / "integrations" / "bigbird-mail" / "tool-manifest.json",
+    "mail_bigbird_tools": ROOT / "integrations" / "bigbird_mail" / "tools.py",
     "messaging_main": ROOT / "services" / "wwcx-messaging-gateway" / "app" / "main.py",
     "mms_quarantine": ROOT / "services" / "wwcx-messaging-gateway" / "app" / "media_quarantine.py",
     "agent_state": ROOT / ".agent" / "unified-communications.md",
@@ -44,8 +48,14 @@ assert set(assistant["accepted_live_capabilities"]) == {
     "messages.conversation.read",
     "messages.draft.prepare",
 }
-assert set(assistant["repository_ready_capabilities"]) == {"mail.status.read", "mail.draft.prepare"}
+assert set(assistant["repository_ready_capabilities"]) == {
+    "mail.status.read",
+    "mail.draft.prepare",
+    "mail.correspondence.read",
+}
 assert assistant["pending_capabilities"] == ["mail.correspondence.read"]
+assert assistant["pending_live_capabilities"] == ["mail.correspondence.read"]
+assert assistant["provider_pending_capabilities"] == ["mail.correspondence.read.production_native"]
 for forbidden in {
     "messages.send",
     "mail.send",
@@ -101,10 +111,40 @@ assert "payload.mutation_authorized !== false" in script
 assert "payload.content_is_untrusted !== true" in script
 
 mail_ai = paths["mail_ai"].read_text(encoding="utf-8")
-for token in ("mail.status.read", "mail.draft.prepare", "prepared_not_sent", "blocked_pending_authoritative_source"):
+for token in (
+    "mail.status.read",
+    "mail.draft.prepare",
+    "mail.correspondence.read",
+    "prepared_not_sent",
+    "blocked_configuration_disabled",
+    "ready_local_native",
+    "production_provider_ready",
+):
     assert token in mail_ai, token
 for forbidden in ("smtplib", "send_message(", ".send("):
     assert forbidden not in mail_ai, forbidden
+
+mail_store = paths["mail_store"].read_text(encoding="utf-8")
+for token in ("source_scope", "local_native", "production_native", "read_only"):
+    assert token in mail_store, token
+mail_source = paths["mail_local_source"].read_text(encoding="utf-8")
+for token in ("local-mailroom-rfc822", "text/plain", "Message-ID", "In-Reply-To", "References"):
+    assert token in mail_source, token
+for forbidden in ("smtplib", "urllib.request", "requests.", "subprocess"):
+    assert forbidden not in mail_source, forbidden
+
+mail_manifest = json.loads(paths["mail_bigbird_manifest"].read_text(encoding="utf-8"))
+assert mail_manifest["default_enabled"] is False
+assert {tool["name"] for tool in mail_manifest["tools"]} == {
+    "mail.status.read",
+    "mail.correspondence.read",
+    "mail.draft.prepare",
+}
+assert "mail.send" in mail_manifest["forbidden_capabilities"]
+mail_tools = paths["mail_bigbird_tools"].read_text(encoding="utf-8")
+for token in ("content_is_untrusted", "authoritative", "prepared_not_sent"):
+    assert token in mail_tools, token
+assert "def send" not in mail_tools
 
 messaging = paths["messaging_main"].read_text(encoding="utf-8")
 for token in ("messages.status.read", "messages.conversation.read", "mutation_authorized", "media_quarantine"):
@@ -134,9 +174,10 @@ for token in (
     assert token in live_acceptance, token
 
 print("Unified Communications completion validation passed")
-print("Fresh Messaging Gateway and BigBird read/draft runtime acceptance is reconciled")
-print("Fresh Mail status/draft local adapter acceptance is reconciled")
-print("Persistent Communications workspace runtime acceptance is reconciled")
-print("Canonical workspace feed and MMS scanner/private storage remain incomplete")
-print("Global fresh_edge1_runtime_verified remains false until those safe-scope gaps close")
+print("Fresh Messaging Gateway and BigBird read/draft runtime acceptance remains reconciled")
+print("Fresh Mail status/draft live adapter acceptance remains reconciled")
+print("Phase 28 adds repository-functional local RFC822 -> store -> API -> BigBird mail.correspondence.read")
+print("Mail correspondence remains pending live Edge1 acceptance and production-native provider connection")
+print("MMS trusted scanner/private storage still require authenticated Edge1 live acceptance")
+print("Global fresh_edge1_runtime_verified remains false")
 print("No live communications or generic execution authority is accepted by this completion state")
