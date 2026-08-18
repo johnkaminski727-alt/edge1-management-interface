@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import mail_identity_registry
+import mail_secure_submission
 import mail_threading
 import outbound_mail_gateway
 
@@ -169,28 +170,30 @@ def send_message(
     *,
     confirmation: bool,
     audit_path: str | Path | None = None,
+    final_scanner: Callable[[bytes], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    prepared, selection = prepare_payload(identities, payload)
-    if not selection.live_enabled:
-        if selection.reason == CATCH_ALL_PROPOSAL_REASON:
+    preview = compose_preview(config, policy, identities, payload)
+    selection = preview["sender_selection"]
+    if not selection["live_enabled"]:
+        if selection["reason"] == CATCH_ALL_PROPOSAL_REASON:
             raise outbound_mail_gateway.DeliveryDisabledError(
                 "catch-all sender identity is proposed but not authorized for live delivery"
             )
         raise outbound_mail_gateway.DeliveryDisabledError(
             "selected sender identity is not authorized for live delivery"
         )
-    result = outbound_mail_gateway.send_message(
+    result = mail_secure_submission.send_preview(
         config,
         policy,
-        prepared,
+        preview,
         confirmation=confirmation,
-        audit_path=None,
+        final_scanner=final_scanner,
     )
     event = result["audit_event"]
-    event["sender_address"] = selection.address
-    event["sender_selection_reason"] = selection.reason
-    event["sender_identity_key"] = selection.identity_key
-    result["sender_selection"] = selection.to_dict()
+    event["sender_address"] = selection["address"]
+    event["sender_selection_reason"] = selection["reason"]
+    event["sender_identity_key"] = selection["identity_key"]
+    result["sender_selection"] = selection
     if audit_path is not None and policy["audit"]["write_jsonl"]:
         outbound_mail_gateway.append_audit_event(audit_path, event)
     return result
