@@ -72,6 +72,9 @@ class SecuritySnmpHttpMixin:
         upstream = self._snmp_upstream_path(request.path)
         method = request.method.upper()
         payload: dict[str, Any] | None = None
+        rate_kind = "snmp-read"
+        rate_limit = self.config.session_requests
+        rate_window = self.config.session_window_seconds
         if method == "POST":
             self._require_same_origin(request)
             self._require_csrf(request, context.session_identifier_hash)
@@ -84,18 +87,21 @@ class SecuritySnmpHttpMixin:
             if not isinstance(payload, dict):
                 raise ValueError("json_object_required")
             base_path = upstream.split("?", 1)[0]
-            if base_path in MUTATING_POST_PATHS and SNMP_OPERATE_SCOPE not in context.scopes:
-                raise AuthorizationError("snmp_operate_scope_required")
-            limit = self.config.action_requests if base_path in SAFE_POST_PATHS else self.config.session_requests
-            window = self.config.action_window_seconds if base_path in SAFE_POST_PATHS else self.config.session_window_seconds
-        else:
-            limit = self.config.session_requests
-            window = self.config.session_window_seconds
+            if base_path in MUTATING_POST_PATHS:
+                if SNMP_OPERATE_SCOPE not in context.scopes:
+                    raise AuthorizationError("snmp_operate_scope_required")
+                rate_kind = "snmp-mutate"
+                rate_limit = self.config.action_requests
+                rate_window = self.config.action_window_seconds
+            elif base_path in SAFE_POST_PATHS:
+                rate_kind = "snmp-ai"
+                rate_limit = self.config.action_requests
+                rate_window = self.config.action_window_seconds
         if not self.gateway.store.allow_rate(
-            "snmp-api:" + context.session_identifier_hash,
+            rate_kind + ":" + context.session_identifier_hash,
             int(self.now()),
-            limit=limit,
-            window_seconds=window,
+            limit=rate_limit,
+            window_seconds=rate_window,
         ):
             return self._json(429, {"error": "rate_limited"})
         try:
@@ -104,11 +110,7 @@ class SecuritySnmpHttpMixin:
             return self._json(503, {"error": "snmp_api_timeout"})
         except SnmpUiClientError:
             return self._json(503, {"error": "snmp_api_unavailable"})
-        if isinstance(result, dict):
-            browser_payload = result
-        else:
-            browser_payload = {"result": result}
-        return self._json(status, browser_payload)
+        return self._json(status, result if isinstance(result, dict) else {"result": result})
 
     @staticmethod
     def _snmp_upstream_path(path: str) -> str:
