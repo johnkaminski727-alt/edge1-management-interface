@@ -2,8 +2,11 @@
 
 Date: 2026-08-18
 Base main at branch creation: `967096132bc5f998d68893ff43c81ffc3f37e2b5`
-Branch: `agent/unified-communications-phase27-20260818`
-Scope: repository implementation and bounded validation only; live Edge1 acceptance not executed in this session
+Implementation branch: `agent/unified-communications-phase27-20260818`
+Exact reviewed head: `ec8f069c39947cfdb944e7782fef72b71a274638`
+PR: #424 — `Complete UC Phase 27 scanner and correspondence foundations`
+Merge: `d01a2620c8d252260391cc9a2f86ec32938c146c`
+Scope: repository implementation and bounded validation only; live Edge1 Phase 27 acceptance not executed in this session
 
 ## Repository implementation
 
@@ -34,18 +37,37 @@ Phase 27 adds the remaining repository-side foundations without claiming runtime
    - canonical Message-ID validation;
    - explicit thread IDs and preserved provider message/thread IDs;
    - bounded subject/body/provider IDs/results;
-   - explicit source provenance including `authoritative` boolean;
+   - source provenance including authority persisted per record;
+   - reopening a store cannot relabel earlier synthetic records as authoritative;
    - message bodies always returned with `content_is_untrusted=true`;
    - `mutation_authorized=false` and `send_authorized=false`;
    - no network or provider code.
 
 4. **Mail synthetic validation**
    - `tests/validate_mail_correspondence_store.py`
-   - validates persistence, thread ordering, provenance, explicit reply linkage, size bounds, duplicate/malformed-ID failure, private permissions, and prompt-like body non-authority.
+   - validates persistence, thread ordering, immutable provenance, explicit reply linkage, ISO-8601 timezone requirement, address/header-injection bounds, duplicate/malformed-ID failure, private permissions, and prompt-like body non-authority.
 
 5. **Runtime acceptance procedure**
    - `docs/communications/unified-communications-phase27-runtime-acceptance-20260818.md`
    - separates repository readiness from Edge1 scanner/root deployment and native Mail source authorization.
+
+## Review defect found and fixed before merge
+
+PR review found that the first Mail-store implementation derived the projected `authoritative` value from the reader instance rather than the persisted record. That could have allowed a synthetic record to be relabeled authoritative simply by reopening the same database with a differently configured reader.
+
+The merged implementation persists `source_authoritative` with each row and projects authority only from stored provenance. A regression test reopens a synthetic database using an `authoritative=True` reader and proves the original record remains `authoritative=false`.
+
+## Exact-head GitHub CI
+
+All required pull-request workflows completed successfully on exact head `ec8f069c39947cfdb944e7782fef72b71a274638` before merge:
+
+- **WW.CX Messaging Gateway** — run `32194754869` — success;
+- **Validate repository** — run `32194754894` — success;
+- **Edge1 Operator Validation** — run `32194754898` — success.
+
+No inline review threads remained. PR #424 was merged only after those exact-head checks were green.
+
+Green GitHub CI is repository evidence only and is not live Edge1 acceptance.
 
 ## Source audit conclusion
 
@@ -74,13 +96,3 @@ Until live acceptance exists:
 - SMS/MMS `security_quarantine` remains `degraded` even though the concrete scanner adapter is repository-ready;
 - Mail `mail.correspondence.read` remains intentionally disabled/blocked;
 - live carrier readiness, provider credentials, DNS readiness, mail delivery readiness, emergency calling, and quarantine release are unchanged and not implied.
-
-## Required CI
-
-Exact-head pull-request CI must include at minimum:
-
-- WW.CX Messaging Gateway unit tests and compile validation;
-- repository validation covering `tests/validate_mail_correspondence_store.py` or an equivalent explicit invocation;
-- relevant repository/Edge1 Operator validation workflows triggered by the changed files.
-
-Green CI is repository evidence only and is not live Edge1 acceptance.
