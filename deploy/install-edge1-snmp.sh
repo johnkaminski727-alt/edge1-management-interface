@@ -11,5 +11,7 @@ chmod 0600 /etc/edge1-snmp/api.secret /etc/edge1-snmp/config.json
 install -m 0644 "$ROOT/deploy/edge1-snmp-api.service" /etc/systemd/system/edge1-snmp-api.service
 install -m 0644 "$ROOT/deploy/edge1-snmp-poller.service" /etc/systemd/system/edge1-snmp-poller.service
 install -m 0644 "$ROOT/deploy/edge1-snmp-poller.timer" /etc/systemd/system/edge1-snmp-poller.timer
+install -m 0644 "$ROOT/deploy/edge1-snmp-actions.service" /etc/systemd/system/edge1-snmp-actions.service
+install -m 0644 "$ROOT/deploy/edge1-snmp-actions.timer" /etc/systemd/system/edge1-snmp-actions.timer
 systemctl daemon-reload
-printf '%s\n' "Staged SNMP services. Validate configuration and credential profiles before enabling." "Backup: $BACKUP"
+printf '%s\n' "Staged SNMP services. Validate configuration, credential profiles, AI identity and policy gates before enabling." "Backup: $BACKUP"
