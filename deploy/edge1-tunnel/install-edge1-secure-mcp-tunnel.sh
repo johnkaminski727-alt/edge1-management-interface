@@ -11,7 +11,11 @@ BINARY=/usr/local/bin/tunnel-client
 
 [ "$(id -u)" -eq 0 ] || { echo "run with sudo/root" >&2; exit 1; }
 id edge1-operator >/dev/null 2>&1 || { echo "edge1-operator account missing" >&2; exit 2; }
-[ -x "$BINARY" ] || { echo "install the official tunnel-client binary at $BINARY first" >&2; exit 3; }
+[ -x "$BINARY" ] || { echo "install the official tunnel-client release at $BINARY first" >&2; exit 3; }
+"$BINARY" cloudflared version >/dev/null 2>&1 || {
+    echo "tunnel-client companion runtime unavailable; install the complete official release bundle" >&2
+    exit 4
+}
 
 python3 - "$ROOT/deploy/edge1-tunnel/tunnel-client.yaml" <<'PY'
 from pathlib import Path
@@ -22,6 +26,7 @@ required = (
     'Authorization: env:EDGE1_MCP_AUTHORIZATION',
     'api_key: file:/etc/edge1-tunnel/runtime-api-key',
     'listen_addr: 127.0.0.1:0',
+    'managed: true',
 )
 for token in required:
     if token not in text:
@@ -31,11 +36,11 @@ PY
 case "$MODE" in
     "")
         echo "Dry run passed. No files changed."
-        echo "Use --apply to stage the disabled tunnel service after tunnel-client is installed."
+        echo "Use --apply to stage the disabled tunnel service after the complete tunnel-client release is installed."
         exit 0
         ;;
     --apply) ;;
-    *) echo "unknown argument: $MODE" >&2; exit 4 ;;
+    *) echo "unknown argument: $MODE" >&2; exit 5 ;;
 esac
 
 install -d -o root -g edge1-operator -m 0750 "$ETC_DIR"
@@ -60,7 +65,7 @@ systemd-analyze verify "$UNIT"
     mode=$(stat -c '%a' "$ETC_DIR/runtime-api-key")
     [ "$owner" = root:edge1-operator ] && [ "$mode" = 640 ] || {
         echo "existing runtime-api-key has unexpected owner/mode: $owner $mode" >&2
-        exit 5
+        exit 6
     }
 }
 
@@ -69,17 +74,17 @@ systemd-analyze verify "$UNIT"
     mode=$(stat -c '%a' "$ETC_DIR/tunnel-id")
     [ "$owner" = root:edge1-operator ] && [ "$mode" = 640 ] || {
         echo "existing tunnel-id has unexpected owner/mode: $owner $mode" >&2
-        exit 6
+        exit 7
     }
 }
 
 if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
     echo "refusing: tunnel service unexpectedly enabled" >&2
-    exit 7
+    exit 8
 fi
 if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
     echo "refusing: tunnel service unexpectedly active" >&2
-    exit 8
+    exit 9
 fi
 
 echo "Secure MCP Tunnel assets staged; service remains disabled/inactive."
