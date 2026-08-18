@@ -15,53 +15,108 @@
     }
   },
   "live_state": {
-    "verification": "blocked-unverified",
-    "edge1_checkout_head": null,
-    "bigbird_version": null,
-    "operator_service": null,
-    "operations_api_service": null,
+    "verification": "partially-live-verified",
+    "edge1_checkout_head": "ad0eed2dd0c52494c9805ce86739ccf2d4c40536",
+    "edge1_checkout_branch": "main",
+    "edge1_checkout_clean": true,
+    "bigbird_version": "0.3.4-alpha.2",
+    "bigbird_mode": "read-only",
+    "bigbird_library_integrity": "ok",
+    "operator_service": {
+      "unit": "edge1-operator-mcp.service",
+      "state": "active-running",
+      "exec_start": "/usr/bin/python3 -m server.edge1_operator_entrypoint",
+      "http_transport_live": false
+    },
+    "portal_api": {
+      "unit": "wwcx-portal-api.service",
+      "listener": "127.0.0.1:8098",
+      "state": "active-running"
+    },
+    "operations_api_service": {
+      "health": "ok",
+      "actions": 14,
+      "mutations_enabled": false,
+      "evidence_class": "live-verified"
+    },
     "private_mcp_attachment": null,
-    "last_verified_utc": null
+    "reviewed_mcp_listener": "127.0.0.1:8102",
+    "reviewed_mcp_transport_installed": false,
+    "suricata_state": {
+      "managed_runtime": "wwcx-network-sensor-suricata.service",
+      "managed_runtime_state": "active-enabled",
+      "legacy_runtime": "suricata.service",
+      "legacy_runtime_state": "active-disabled",
+      "update_service": "failed",
+      "swap_free_bytes": 0,
+      "classification": "duplicate-runtime-oom-pressure"
+    },
+    "last_verified_utc": "2026-08-18T07:00:00Z"
   },
   "known_blockers": [
-    {"id": "edge1-direct-execution", "status": "blocked", "summary": "No direct authenticated Edge1 live-shell connector is exposed in the current ChatGPT session."},
-    {"id": "operator-live-acceptance", "status": "blocked", "summary": "Repository-side bounded operator bridge is merged; fresh Edge1 host and private MCP transport acceptance remain unverified."}
+    {
+      "id": "edge1-direct-execution",
+      "status": "blocked",
+      "summary": "No direct authenticated Edge1 live-shell connector is exposed in the current ChatGPT session; the 1984 QEMU console is visible but not keyboard-controllable through the browser connector."
+    },
+    {
+      "id": "suricata-live-repair",
+      "status": "ready-for-attended-execution",
+      "summary": "PR #388 merged the reviewed repository-owned updater repair. The guarded detached-worktree transaction still requires attended authenticated execution on Edge1 and live acceptance evidence."
+    },
+    {
+      "id": "operator-live-acceptance",
+      "status": "blocked-behind-suricata-repair",
+      "summary": "The reviewed authenticated MCP HTTP transport is repository-confirmed on loopback 8102 but is not installed live; /etc/edge1-operator/mcp-token was absent at the last live check."
+    }
   ],
   "outstanding_milestones": [
-    "fresh Edge1 read-only discovery",
-    "private production MCP transport and ChatGPT attachment",
-    "operator service/listener/audit/rollback acceptance",
-    "repository-versus-live drift reconciliation",
-    "current BigBird runtime/version/config reconciliation"
+    "execute the merged PR #388 guarded Suricata updater/runtime repair from an exact detached worktree and verify one managed sensor plus memory recovery",
+    "re-prove clean-tree and ancestry state before broader live checkout reconciliation",
+    "install and accept the private production MCP transport on loopback 8102",
+    "complete private ChatGPT MCP attachment",
+    "run deterministic snapshot, drift, acceptance evidence and Control Surfaces inventory on the reconciled host"
   ],
   "canonical_evidence_locations": [
     "/05 - Project Big Bird Recovery Gap Register and Backlog.md",
     "/06 - Project Big Bird Validation and Evidence Register.md",
     "/07 - Project Big Bird Continuation Handoff.md",
     "/WW.CX/Edge1/Archives/2026-08-18 - WW.CX Edge1 BigBird Library Cleanup Register.md",
+    "docs/security/edge1-suricata-updater-runtime-repair-20260818.md",
     "docs/edge1-operator/08-mcp-integration-status.md",
     "docs/edge1-operator/13-completion-status.md",
     "docs/edge1-operator/15-bounded-tool-surface.md"
   ],
   "last_successful_acceptance": {
-    "scope": "bounded Edge1 operator repository bridge",
-    "source_commit": "15c3706d629ada2b8d6c29c0a6812e6c650b799e",
-    "merge_commit": "00cd28b884376f5ae65251fa60258293d1127de1",
-    "checks": ["Edge1 Operator Validation", "Edge1 operations API", "Validate Edge1 Control Surfaces", "Validate repository"],
+    "scope": "Suricata updater runtime repair repository validation",
+    "source_commit": "ecee806a3f95e64465ed94483bc8a74267951d2a",
+    "merge_commit": "41c8c2eb824e8ae51afaa60afcef563c1b11ebb3",
+    "checks": ["Edge1 Operator Validation", "Validate repository"],
     "result": "pass"
   },
   "rollback_points": [
-    {"scope": "bounded operator bridge", "repository_parent": "99bfe104a2b05917226db383c7da5a1b5e024175", "note": "Git rollback point only; no live deployment is claimed."}
+    {
+      "scope": "live Edge1 checkout before future broad fast-forward",
+      "repository_head": "ad0eed2dd0c52494c9805ce86739ccf2d4c40536",
+      "note": "Observed clean live checkout. A fresh host-side recovery point remains required immediately before any mutation."
+    },
+    {
+      "scope": "Suricata updater/runtime repair",
+      "repository_commit": "41c8c2eb824e8ae51afaa60afcef563c1b11ebb3",
+      "note": "The guarded repair creates transaction-specific backups/evidence and restores prior updater/unit files plus the prior legacy-service state on failed verification."
+    }
   ],
   "unresolved_drift": [
-    "live Edge1 checkout versus repository main",
-    "live operator/Operations API installation versus repository implementation",
-    "live BigBird runtime/version/config versus repository records"
+    "live Edge1 checkout ad0eed2... versus current repository main",
+    "live operator service still uses the old entrypoint while repository source uses authenticated HTTP MCP on loopback 8102",
+    "live Operations API allowlist is at 14 actions versus newer repository source",
+    "live Suricata still has duplicate runtimes until the merged guarded repair is executed and accepted"
   ],
   "next_safe_actions": [
-    "regenerate this manifest from the current repository checkout",
-    "run the read-only drift detector when a sanitized live snapshot becomes available",
-    "prefer a direct authenticated read-only Edge1 connector if one becomes available",
-    "otherwise use one attended QEMU discovery relay only after repository and Library work are exhausted"
+    "re-fetch current main and pin the exact merged Suricata repair commit before live execution",
+    "use the documented detached-worktree path to avoid combining the bounded Suricata repair with an unrelated bulk checkout fast-forward",
+    "run the guarded repair on Edge1 with its PLAN/BACKUP/APPLY/VERIFY/ROLLBACK evidence path",
+    "verify exactly one managed --pcap=wg0 Suricata process, update-timer dependency, observability and memory/swap recovery",
+    "only after Suricata acceptance resume the larger checkout and MCP 8102 activation sequence"
   ]
 }
