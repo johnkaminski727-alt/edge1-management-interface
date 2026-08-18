@@ -27,7 +27,8 @@ from mail_correspondence_store import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO_ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
 DEFAULT_IDENTITIES = REPO_ROOT / "config" / "messaging" / "mail-identities.json"
-DEFAULT_CORRESPONDENCE_DB = Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
+PRIVATE_CORRESPONDENCE_ROOT = Path("/var/lib/wwcx-mail-room")
+DEFAULT_CORRESPONDENCE_DB = PRIVATE_CORRESPONDENCE_ROOT / "correspondence.sqlite3"
 CORRESPONDENCE_ENABLE_ENV = "WWCX_MAIL_CORRESPONDENCE_READ_ENABLED"
 CORRESPONDENCE_DB_ENV = "WWCX_MAIL_CORRESPONDENCE_DB"
 
@@ -56,11 +57,24 @@ def _correspondence_enabled(enabled: bool | None = None) -> bool:
     return os.getenv(CORRESPONDENCE_ENABLE_ENV, "false").strip().casefold() == "true"
 
 
+def _runtime_db_path(configured: str) -> Path:
+    candidate = Path(configured).absolute()
+    try:
+        candidate.relative_to(PRIVATE_CORRESPONDENCE_ROOT)
+    except ValueError as exc:
+        raise MailAIAdapterError(
+            "runtime correspondence database must remain under /var/lib/wwcx-mail-room"
+        ) from exc
+    return candidate
+
+
 def _correspondence_db(path: Path | None = None) -> Path:
+    # Explicit path injection is reserved for local tests/internal calls. Runtime
+    # configuration is constrained to the private Mail Room root.
     if path is not None:
         return Path(path).absolute()
     configured = os.getenv(CORRESPONDENCE_DB_ENV, "").strip()
-    return Path(configured).absolute() if configured else DEFAULT_CORRESPONDENCE_DB
+    return _runtime_db_path(configured) if configured else DEFAULT_CORRESPONDENCE_DB
 
 
 def _read_store(path: Path) -> MailCorrespondenceStore:
@@ -94,13 +108,26 @@ def correspondence_read_state(
     db_path: Path | None = None,
     enabled: bool | None = None,
 ) -> dict[str, Any]:
-    resolved_db = _correspondence_db(db_path)
+    try:
+        resolved_db = _correspondence_db(db_path)
+    except MailAIAdapterError as exc:
+        return {
+            "contract": "wwcx.mail-correspondence-read-state.v1",
+            "capability": "mail.correspondence.read",
+            "read_enabled": _correspondence_enabled(enabled),
+            "state": "blocked_store_invalid",
+            "reason": str(exc),
+            "production_provider_ready": False,
+            "content_is_untrusted": True,
+            "send_authorized": False,
+            "mutation_authorized": False,
+        }
     is_enabled = _correspondence_enabled(enabled)
     base = {
         "contract": "wwcx.mail-correspondence-read-state.v1",
         "capability": "mail.correspondence.read",
-        "database": str(resolved_db),
         "read_enabled": is_enabled,
+        "store_location": "private_mail_room_root",
         "repository_foundation": "server/mail_correspondence_store.py",
         "content_is_untrusted": True,
         "send_authorized": False,
@@ -225,12 +252,12 @@ def prepare_draft(
 def _require_correspondence_ready(
     db_path: Path | None,
     enabled: bool | None,
-) -> tuple[Path, MailCorrespondenceStore]:
+) -> MailCorrespondenceStore:
     resolved_db = _correspondence_db(db_path)
     state = correspondence_read_state(db_path=resolved_db, enabled=enabled)
     if not _state_is_ready(state):
         raise MailAIAdapterError(str(state.get("reason", "correspondence read is unavailable")))
-    return resolved_db, _read_store(resolved_db)
+    return _read_store(resolved_db)
 
 
 def read_correspondence_message(
@@ -239,7 +266,7 @@ def read_correspondence_message(
     db_path: Path | None = None,
     enabled: bool | None = None,
 ) -> dict[str, Any]:
-    _, store = _require_correspondence_ready(db_path, enabled)
+    store = _require_correspondence_ready(db_path, enabled)
     try:
         record = store.read_message(message_id)
     except CorrespondenceStoreError as exc:
@@ -265,7 +292,7 @@ def read_correspondence_thread(
     db_path: Path | None = None,
     enabled: bool | None = None,
 ) -> dict[str, Any]:
-    _, store = _require_correspondence_ready(db_path, enabled)
+    store = _require_correspondence_ready(db_path, enabled)
     try:
         thread = store.read_thread(thread_id, limit=limit)
     except CorrespondenceStoreError as exc:
