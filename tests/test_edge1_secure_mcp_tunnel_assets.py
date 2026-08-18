@@ -24,6 +24,11 @@ class SecureMcpTunnelAssetsTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertNotIn(token, PROFILE)
 
+    def test_profile_uses_managed_companion_runtime(self):
+        self.assertIn("cloudflared:\n  managed: true", PROFILE)
+        self.assertIn('"$BINARY" cloudflared version', INSTALLER)
+        self.assertIn("complete official release bundle", INSTALLER)
+
     def test_launcher_reuses_existing_operator_token_without_persistent_copy(self):
         self.assertIn("/etc/edge1-operator/mcp-token", LAUNCHER)
         self.assertIn('export EDGE1_MCP_AUTHORIZATION="Bearer $MCP_TOKEN"', LAUNCHER)
