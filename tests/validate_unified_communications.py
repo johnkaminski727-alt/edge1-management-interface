@@ -28,22 +28,23 @@ assert registry["product"] == "WW.CX Communications"
 assert registry["read_only_by_default"] is True
 assert registry["production_traffic_authorized"] is False
 assert registry["generic_execution_authorized"] is False
-
 channels = registry["channels"]
 assert [item["id"] for item in channels] == ["mail", "sms_mms", "voice_sip", "communications_relay"]
 for channel in channels:
-    assert channel["live_traffic_authorized"] is False, channel["id"]
-    assert channel["mutation_authorized"] is False, channel["id"]
-    assert channel["surface"].startswith("/"), channel["id"]
+    assert channel["live_traffic_authorized"] is False
+    assert channel["mutation_authorized"] is False
+    assert channel["surface"].startswith("/")
 
 by_id = {item["id"]: item for item in channels}
-assert by_id["mail"]["current_mode"] == "prepare_only"
-assert by_id["mail"]["ai_integration"]["state"] == "planned"
-assert by_id["mail"]["ai_integration"]["capabilities"] == ["mail.status.read", "mail.correspondence.read", "mail.draft.prepare"]
-assert by_id["sms_mms"]["current_mode"] == "operations_and_simulator"
-assert by_id["sms_mms"]["ai_integration"]["state"] == "repository_ready_read_only"
-assert by_id["sms_mms"]["ai_integration"]["live_acceptance"] == "unverified"
-assert by_id["sms_mms"]["ai_integration"]["capabilities"] == ["messages.status.read", "messages.conversation.read", "messages.draft.prepare"]
+mail = by_id["mail"]["ai_integration"]
+assert mail["state"] == "repository_ready_partial"
+assert mail["capabilities"] == ["mail.status.read", "mail.draft.prepare"]
+assert mail["pending_capabilities"] == ["mail.correspondence.read"]
+assert mail["live_acceptance"] == "unverified"
+sms = by_id["sms_mms"]["ai_integration"]
+assert sms["state"] == "repository_ready_read_only"
+assert sms["capabilities"] == ["messages.status.read", "messages.conversation.read", "messages.draft.prepare"]
+assert sms["live_acceptance"] == "unverified"
 assert by_id["voice_sip"]["ai_integration"] == {"state": "accepted_read_only", "capabilities": ["telephony.read"]}
 assert by_id["communications_relay"]["ai_integration"] == {"state": "accepted_read_only", "capabilities": ["communications.read"]}
 
@@ -53,11 +54,14 @@ assert assistant["edge1_gateway_version"] == "0.3.4-alpha.2"
 assert assistant["edge1_mode"] == "read_only"
 assert assistant["edge1_listener"] == "127.0.0.1:8787"
 assert set(assistant["accepted_live_capabilities"]) == {"communications.read", "telephony.read"}
-assert set(assistant["repository_ready_capabilities"]) == {"messages.status.read", "messages.conversation.read", "messages.draft.prepare"}
+assert set(assistant["repository_ready_capabilities"]) == {
+    "messages.status.read", "messages.conversation.read", "messages.draft.prepare", "mail.status.read", "mail.draft.prepare"
+}
+assert assistant["pending_capabilities"] == ["mail.correspondence.read"]
 assert assistant["browser_route"] == "/admin/ai/"
 assert assistant["browser_production_acceptance"] == "unverified"
-
 assert all(value is True for value in registry["rules"].values())
+
 core_event = json.loads(CORE_EVENT_PATH.read_text(encoding="utf-8"))
 assert core_event["$id"] == "wwcx.communications-event.v1"
 assert core_event["properties"]["security"]["properties"]["quarantine_release_authorized"]["const"] is False
@@ -88,5 +92,6 @@ for forbidden in ("/send-sms", "/send-mms", "/originate-call", "/reload-dialplan
 print("Unified Communications convergence validation passed")
 print("Accepted live AI reads: communications.read, telephony.read")
 print("Repository-ready SMS AI: messages.status.read, messages.conversation.read, messages.draft.prepare")
-print("Mail AI remains planned; SMS live acceptance remains unverified")
+print("Repository-ready Mail AI: mail.status.read, mail.draft.prepare")
+print("Blocked pending authoritative source: mail.correspondence.read")
 print("No production call, message, email, carrier, route, or generic execution authority added")
