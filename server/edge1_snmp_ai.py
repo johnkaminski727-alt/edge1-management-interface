@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Provider abstraction for evidence-bounded Edge1 SNMP AI analysis.
 
-The default production adapter reuses the accepted loopback BigBird Private AI
-gateway and its existing HMAC identity. Only sanitized evidence is serialized.
-Credential profiles, API secrets, SNMP communities and passphrases are never read
-by this module and therefore cannot be included in model requests.
+The production adapter reuses the accepted loopback BigBird Private AI gateway
+and its existing HMAC identity. Only sanitized evidence is serialized.
+Credential profiles, API secrets, SNMP communities and passphrases are never
+included in model requests.
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 from edge1_snmp_platform import evidence_query
@@ -37,6 +38,16 @@ class AIProvider(Protocol):
     def analyze(self, *, question: str, evidence: dict[str, Any]) -> dict[str, Any]: ...
 
 
+def _runtime_credential(name: str) -> str:
+    directory = os.environ.get("CREDENTIALS_DIRECTORY", "").strip()
+    if not directory:
+        return ""
+    try:
+        return (Path(directory) / name).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 @dataclass(frozen=True)
 class SignedGatewayConfig:
     url: str
@@ -45,8 +56,8 @@ class SignedGatewayConfig:
 
     @classmethod
     def from_environment(cls) -> "SignedGatewayConfig":
-        key_id = os.environ.get("BB_RELAY_KEY_ID", "")
-        secret = os.environ.get("BB_RELAY_SECRET", "")
+        key_id = os.environ.get("BB_RELAY_KEY_ID", "") or _runtime_credential("bb_relay_key_id")
+        secret = os.environ.get("BB_RELAY_SECRET", "") or _runtime_credential("bb_relay_secret")
         url = os.environ.get("EDGE1_SNMP_AI_GATEWAY_URL", DEFAULT_GATEWAY_URL)
         if not key_id or not secret:
             raise AIProviderError("Private AI gateway signing identity is not configured")
