@@ -2,13 +2,32 @@
 """Run focused authenticated SNMP Operations Console unit/static regressions in CI."""
 from __future__ import annotations
 
+import subprocess
 import unittest
+from pathlib import Path
 
 from tests.test_edge1_snmp_ui_client import SnmpUiClientTests
 from tests.test_snmp_operations_console import SnmpOperationsConsoleStaticTests
 
 
+def validate_embedded_javascript() -> None:
+    source = Path("src/web/operations-center/snmp.html").read_text(encoding="utf-8")
+    if source.count("<script>") != 1 or source.count("</script>") != 1:
+        raise RuntimeError("SNMP console script template shape is invalid")
+    script = source.split("<script>", 1)[1].split("</script>", 1)[0]
+    completed = subprocess.run(
+        ["node", "--check", "-"],
+        input=script,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError((completed.stderr or completed.stdout or "JavaScript syntax validation failed")[-4000:])
+
+
 def main() -> int:
+    validate_embedded_javascript()
     suite = unittest.TestSuite()
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(SnmpUiClientTests))
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(SnmpOperationsConsoleStaticTests))
