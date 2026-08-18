@@ -1,0 +1,35 @@
+{
+  "contract": "wwcx.communications-identity-registry.v1",
+  "correlation_policy": {
+    "explicit_evidence_required": true,
+    "name_similarity_is_evidence": false,
+    "cross_channel_inference_enabled": false,
+    "preserve_private_shared_system_distinctions": true,
+    "preserve_telephony_authorization_boundaries": true
+  },
+  "identity_types": [
+    "email_address",
+    "catch_all_email_identity",
+    "domain",
+    "telephone_number",
+    "sms_number",
+    "sip_uri",
+    "sip_extension",
+    "sip_endpoint",
+    "relay_identity",
+    "internal_user",
+    "role",
+    "organization",
+    "contact",
+    "case",
+    "project"
+  ],
+  "records": [],
+  "links": [],
+  "rules": {
+    "records_reference_authoritative_native_sources": true,
+    "links_require_evidence_refs": true,
+    "links_require_operator_or_system_provenance": true,
+    "ambiguous_identity_matches_remain_unlinked": true
+  }
+}
