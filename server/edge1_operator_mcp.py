@@ -1,50 +1,30 @@
 #!/usr/bin/env python3
-"""Edge1 Operator MCP service scaffold.
+"""Compatibility status entrypoint for the bounded Edge1 Operator.
 
-Local/private service boundary for audited Edge1 operations.
+Historical revisions exposed a generic ``run_bounded(command)`` helper here.
+That helper is intentionally removed: MCP-visible authority is now limited to
+named, parameterless tools backed by the hardened loopback Operations API.
 """
 from __future__ import annotations
 
-import hashlib
 import json
-import os
-import subprocess
-import time
-from pathlib import Path
 
-EVIDENCE_ROOT = Path(os.environ.get("EDGE1_OPERATOR_EVIDENCE", "/var/lib/edge1-operator/evidence"))
-ALLOWED_ROOTS = [Path(p) for p in os.environ.get("EDGE1_OPERATOR_ROOTS", "/opt").split(":")]
+from .edge1_operator_entrypoint import build_operator
 
 
-def identity():
-    return {
-        "hostname": os.uname().nodename,
-        "principal": os.environ.get("USER", "unknown"),
-        "service": "edge1-operator-mcp",
-    }
-
-
-def evidence_id(command: str) -> str:
-    value = f"{time.time()}:{command}".encode()
-    return hashlib.sha256(value).hexdigest()[:16]
-
-
-def run_bounded(command: list[str], timeout: int = 30):
-    eid = evidence_id(" ".join(command))
-    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
-    return {
-        "execution_id": eid,
-        "identity": identity(),
-        "command": command,
-        "exit_code": result.returncode,
-        "stdout": result.stdout[-10000:],
-        "stderr": result.stderr[-10000:],
-        "completed": True,
-    }
-
-
-def main():
-    print(json.dumps({"status": "ready", "identity": identity()}))
+def main() -> None:
+    operator, runtime = build_operator()
+    tools = operator.dispatcher.dispatch("tools/list")
+    print(
+        json.dumps(
+            {
+                "status": "ready",
+                "identity": runtime.identity(),
+                "tools": tools["tools"],
+            },
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":

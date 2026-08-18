@@ -1,20 +1,17 @@
 # Edge1 Operator MCP Integration Status
 
 Last reconciled: 2026-08-18
-Status: repository foundation present; permanent ChatGPT MCP attachment not yet directly verified
+Status: bounded repository integration complete; production ChatGPT MCP attachment not yet directly verified
 
 ## Completed repository foundation
 
-- Repository architecture
-- Operator service scaffold
-- Runtime boundary and runtime-bridge scaffolding
-- Tool-contract and registry scaffolding
-- Bootstrap procedure
-- Installation verification assets
-- Initial validation coverage
-- Loopback Edge1 Operations API with HMAC authentication, replay protection and server-side action allowlist
-- Fixed read-only Control Surfaces diagnostic actions
-- Bounded Control Surfaces live-inventory runner and dedicated CI
+- Repository architecture and authority/risk boundaries.
+- Loopback Edge1 Operations API with HMAC-SHA256 authentication, replay protection, audit logging, mutation gating, and a server-side fixed action allowlist.
+- Fixed read-only Control Surfaces diagnostics and live-inventory tooling.
+- Named MCP protocol/adapter contract with no generic `edge1.exec` capability.
+- Bounded operator runtime that delegates only fixed read-only actions to the Operations API.
+- Internal `tools/list` and `tools/call` dispatch wired through the adapter/runtime path.
+- Focused tests that reject non-loopback Operations API URLs, arbitrary action names, MCP parameters, and mutating actions through the read-only tool surface.
 
 The intended architecture remains:
 
@@ -25,44 +22,63 @@ private authenticated transport
         |
 edge1-operator-mcp service
         |
-bounded operator policy / tool layer
+named typed read-only MCP tools
         |
-loopback Edge1 Operations API and/or reviewed fixed handlers
+loopback HMAC/replay-protected Edge1 Operations API
+        |
+fixed server-side actions
         |
 Edge1 services and repositories
 ```
 
+## MCP-visible read-only tools
+
+The repository contract exposes:
+
+- `edge1.identity`
+- `edge1.health`
+- `edge1.inventory`
+- `edge1.services`
+- `edge1.network_state`
+- `edge1.disk_state`
+- `edge1.bigbird_status`
+- `edge1.operations_status`
+- `edge1.apache_status`
+- `edge1.asterisk_status`
+- `edge1.telephony_status`
+- `edge1.messaging_status`
+- `edge1.time_authority_status`
+- `edge1.git_state`
+- `edge1.config_digest`
+
+These tools accept no caller-controlled command, URL, port, path, service name, SQL, AMI/ARI command, or Operations API action name.
+
+Mutating Operations API actions remain separately classified and are not reachable through this read-only MCP surface.
+
 ## Current access-path finding
 
-On 2026-08-18, the connected Opera browser was re-inspected and showed an authenticated 1984 Hosting session with an active QEMU out-of-band console for `edge1.ww.cx`.
+Historical 2026-08-18 evidence showed an authenticated 1984 Hosting session with an active QEMU out-of-band console for `edge1.ww.cx`, but the browser connector could not type into the QEMU canvas. That remains historical evidence until rechecked.
 
-The browser connector can inspect and navigate the provider page but does not expose keyboard input into the QEMU canvas. This creates a valid human-relay execution path for reviewed paste-ready command blocks, but it is not direct ChatGPT shell execution and it is not the permanent MCP connection.
+A direct Edge1 Live Shell / permanent MCP connector is not considered available merely because repository source exists.
 
 ## Remaining integration work
 
-1. Complete and review the production MCP transport.
-2. Connect MCP protocol handlers to the bounded runtime / Operations API without introducing arbitrary shell, URL, port, path, SQL, AMI or ARI authority.
-3. Complete installer/service hardening needed by the production transport.
-4. Run the full repository validation suite on the exact implementation revision.
-5. Perform a fresh Edge1 host installation/service/listener/log validation.
-6. Attach the approved private ChatGPT workspace/tunnel transport.
-7. Prove ChatGPT discovery plus successful identity/health and approved diagnostic calls.
-8. Prove audit/evidence behavior and rollback before declaring the permanent operator complete.
+1. Implement/review the production private MCP transport/attachment around the now-bounded tool contract.
+2. Complete any installer/service hardening needed by that transport without creating a public management listener.
+3. Run repository CI on the exact merged implementation revision.
+4. Perform fresh Edge1 host installation, service, listener, log, and Operations API validation.
+5. Attach the approved private ChatGPT workspace/tunnel transport.
+6. Prove ChatGPT discovery plus successful identity/health and approved diagnostic calls.
+7. Prove audit/evidence behavior and rollback before declaring the permanent operator complete.
 
 ## Historical installation note
 
-`docs/edge1-operator/deployment-completion-record.md` preserves an earlier record that states `edge1-operator-mcp.service` was installed, enabled and active. That record is retained as historical evidence, but the current session has not independently re-run shell validation on Edge1.
-
-Therefore the historical record must not be used by itself as current proof that the production MCP transport, present service implementation, listener state or ChatGPT attachment is complete.
+`docs/edge1-operator/deployment-completion-record.md` preserves an earlier record that states `edge1-operator-mcp.service` was installed, enabled and active. Preserve it as historical evidence only. Current production claims require fresh authenticated host verification.
 
 ## Security boundary
 
-Private credentials, HMAC material, provider session data and tunnel secrets remain outside Git. They must be provisioned through the trusted deployment/connection environment and never copied into repository documentation or chat.
-
-The permanent MCP layer must preserve the existing fixed/allowlisted execution model and must not create a public management listener merely to make ChatGPT connectivity easier.
+Private credentials, HMAC material, provider session data and tunnel secrets remain outside Git and chat. The MCP layer must remain private and must not reintroduce generic execution authority.
 
 ## Completion condition
 
-The project is complete only when the operator is freshly validated on Edge1, discoverable by the authorized ChatGPT MCP client through the approved private transport, able to execute the intended bounded tools with durable audit evidence, and recoverable through a documented rollback path.
-
-See `docs/archive/edge1-control-surfaces-operator-archive-readiness-20260818.md` for the sanitized archive-readiness reconciliation.
+The permanent operator is complete only when the bounded repository implementation is validated on Edge1, reachable through the approved private transport, discoverable by the authorized ChatGPT client, able to execute the intended named tools with durable audit evidence, and recoverable through a documented rollback path.

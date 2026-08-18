@@ -1,16 +1,29 @@
-"""Integration flow checks for Edge1 Operator components.
-
-These tests verify the adapter, registry, dispatcher, transport, and runtime
-layers can be composed into an executable request path.
-"""
+"""Integration flow checks for Edge1 Operator components."""
 
 from server.edge1_operator_dispatch import OperatorDispatcher, OperatorDispatchError
+from server.edge1_operator_entrypoint import build_operator
 from server.edge1_operator_mcp_adapter import MCPAdapter
 from server.edge1_operator_runtime import execution_id
-from server.edge1_operator_transport import (
-    Edge1OperatorTransport,
-    TransportRequest,
-)
+from server.edge1_operator_transport import Edge1OperatorTransport, TransportRequest
+
+
+EXPECTED_TOOLS = {
+    "edge1.apache_status",
+    "edge1.asterisk_status",
+    "edge1.bigbird_status",
+    "edge1.config_digest",
+    "edge1.disk_state",
+    "edge1.git_state",
+    "edge1.health",
+    "edge1.identity",
+    "edge1.inventory",
+    "edge1.messaging_status",
+    "edge1.network_state",
+    "edge1.operations_status",
+    "edge1.services",
+    "edge1.telephony_status",
+    "edge1.time_authority_status",
+}
 
 
 class Runtime:
@@ -24,7 +37,7 @@ class Runtime:
 def test_adapter_lists_and_calls_runtime_tools():
     adapter = MCPAdapter(Runtime())
 
-    assert adapter.list_tools() == ["edge1.health", "edge1.identity"]
+    assert set(adapter.list_tools()) == EXPECTED_TOOLS
 
     identity = adapter.call_tool("edge1.identity")
     assert identity.status == "ok"
@@ -61,6 +74,22 @@ def test_dispatcher_and_transport_execute_request_path():
         "status": "ok",
         "payload": {"service": "edge1-operator"},
     }
+
+
+def test_build_operator_registers_protocol_methods_without_opening_shell():
+    operator, _runtime = build_operator(runtime=Runtime())
+    listed = operator.handle(TransportRequest(method="tools/list", payload={}))
+    names = {tool["name"] for tool in listed.result["tools"]}
+    assert names == EXPECTED_TOOLS
+    assert "edge1.exec" not in names
+
+    called = operator.handle(
+        TransportRequest(
+            method="tools/call",
+            payload={"name": "edge1.identity", "arguments": {}},
+        )
+    )
+    assert called.result["status"] == "ok"
 
 
 def test_dispatcher_rejects_unknown_tool():
