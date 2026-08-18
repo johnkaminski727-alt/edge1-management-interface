@@ -58,18 +58,11 @@ class Handler(BaseHTTPRequestHandler):
 
 def build_adapter() -> Edge1SecurityAuthHttpAdapter:
     root = Path(os.environ.get("EDGE1_SECURITY_AUTH_ROOT", "/opt/edge1-management-interface"))
-    gateway_config_path = Path(os.environ.get(
-        "EDGE1_SECURITY_AUTH_CONFIG",
-        str(root / "config/security/edge1-security-auth-gateway.json"),
-    ))
-    http_config_path = Path(os.environ.get(
-        "EDGE1_SECURITY_AUTH_HTTP_CONFIG",
-        str(root / "config/security/edge1-security-auth-http.json"),
-    ))
-    console_path = Path(os.environ.get(
-        "EDGE1_SECURITY_CONSOLE_FILE",
-        str(root / "src/web/edge1-ops/security/index.html"),
-    ))
+    gateway_config_path = Path(os.environ.get("EDGE1_SECURITY_AUTH_CONFIG", str(root / "config/security/edge1-security-auth-gateway.json")))
+    http_config_path = Path(os.environ.get("EDGE1_SECURITY_AUTH_HTTP_CONFIG", str(root / "config/security/edge1-security-auth-http.json")))
+    console_path = Path(os.environ.get("EDGE1_SECURITY_CONSOLE_FILE", str(root / "src/web/edge1-ops/security/index.html")))
+    control_surfaces_path = Path(os.environ.get("EDGE1_CONTROL_SURFACES_FILE", str(root / "src/web/edge1-ops/control-surfaces/index.html")))
+    control_surfaces_registry_path = Path(os.environ.get("EDGE1_CONTROL_SURFACES_REGISTRY", str(root / "config/security/edge1-control-surfaces.json")))
     gateway_config = GatewayConfig.from_path(gateway_config_path)
     http_config = HttpAdapterConfig.from_path(http_config_path)
     gateway = Edge1SecurityAuthGateway(gateway_config)
@@ -77,6 +70,8 @@ def build_adapter() -> Edge1SecurityAuthHttpAdapter:
         http_config,
         gateway,
         console_path=console_path,
+        control_surfaces_path=control_surfaces_path,
+        control_surfaces_registry_path=control_surfaces_registry_path,
     )
 
 
