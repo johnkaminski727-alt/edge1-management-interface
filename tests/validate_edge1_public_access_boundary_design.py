@@ -74,7 +74,13 @@ class Edge1PublicAccessBoundaryDesignTests(unittest.TestCase):
         self.assertIn("security-correlation.json", self.domain_register)
         self.assertIn("network-defense/data/network-defense.json", self.domain_register)
         self.assertIn('DEST="/var/www/edge1-status/index.html"', self.publisher)
-        self.assertIn('install -m 0644 "$SOURCE" "$DEST"', self.publisher)
+        # The public publisher may transform the Operations Center before install
+        # so restricted modules link to the authenticated operator boundary.
+        self.assertIn('sed \'s#/edge1-status/operations-center/snmp.html#/edge1-ops/snmp/#g\' "$SOURCE" > "$TMP_INDEX"', self.publisher)
+        self.assertIn('install -m 0644 "$TMP_INDEX" "$DEST"', self.publisher)
+        self.assertIn('install -m 0644 "$TMP_SNMP" "$SNMP_DEST"', self.publisher)
+        self.assertIn('This operator console requires an authenticated Edge1 session.', self.publisher)
+        self.assertNotIn('install -m 0644 "$SNMP_SOURCE" "$SNMP_DEST"', self.publisher)
 
     def test_operations_page_consumes_mixed_detailed_feeds(self) -> None:
         for feed in (
