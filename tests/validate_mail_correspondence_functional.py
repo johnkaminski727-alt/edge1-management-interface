@@ -114,7 +114,9 @@ def main() -> int:
     assert base_config["enabled"] is False
     assert base_config["external_delivery_authorized"] is False
     assert base_config["admin"]["send_endpoint_enabled"] is False
-    assert CLIENT_ID in base_config["preparation_api"]["allowed_clients"]
+    # Production authentication policy remains unchanged by Phase 28. The dedicated
+    # Private AI client is registered only in this isolated integration-test config.
+    assert CLIENT_ID not in base_config["preparation_api"]["allowed_clients"]
 
     unique = uuid.uuid4().hex
     nonce_relative = f"var/outbound-mail/phase28-nonces-{unique}.sqlite3"
@@ -183,6 +185,7 @@ def main() -> int:
         assert ready["state"] == "ready_local_native"
         assert ready["production_provider_ready"] is False
         assert ready["source_truth"] == "local_native_only"
+        assert "database" not in ready
 
         direct = mail_ai_adapter.read_correspondence_message(
             "<local-root@example.test>", db_path=db_path, enabled=True
@@ -209,27 +212,29 @@ def main() -> int:
         except mail_ai_adapter.MailAIAdapterError:
             pass
 
+        try:
+            mail_ai_adapter._runtime_db_path("/tmp/arbitrary.sqlite3")
+            raise AssertionError("runtime arbitrary filesystem path was accepted")
+        except mail_ai_adapter.MailAIAdapterError:
+            pass
+
         config = copy.deepcopy(base_config)
         config["preparation_api"]["enabled"] = True
         config["preparation_api"]["nonce_store"] = nonce_relative
+        config["preparation_api"]["allowed_clients"].append(CLIENT_ID)
+        gateway.validate_gateway_config(config)
         temporary_config = temporary / "gateway.json"
         temporary_config.write_text(json.dumps(config), encoding="utf-8")
 
         secret_env = config["preparation_api"]["secret_env"]
-        old_values = {
-            secret_env: os.environ.get(secret_env),
-            mail_ai_adapter.CORRESPONDENCE_ENABLE_ENV: os.environ.get(
-                mail_ai_adapter.CORRESPONDENCE_ENABLE_ENV
-            ),
-            mail_ai_adapter.CORRESPONDENCE_DB_ENV: os.environ.get(
-                mail_ai_adapter.CORRESPONDENCE_DB_ENV
-            ),
-        }
+        old_secret = os.environ.get(secret_env)
         os.environ[secret_env] = SECRET
-        os.environ[mail_ai_adapter.CORRESPONDENCE_ENABLE_ENV] = "true"
-        os.environ[mail_ai_adapter.CORRESPONDENCE_DB_ENV] = str(db_path)
 
-        application = gateway_server.GatewayApplication(temporary_config)
+        application = gateway_server.GatewayApplication(
+            temporary_config,
+            correspondence_db_path=db_path,
+            correspondence_enabled=True,
+        )
         server = gateway_server.GatewayServer(("127.0.0.1", 0), application)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -243,19 +248,20 @@ def main() -> int:
 
             tools = BigBirdMailTools(
                 MailToolConfig(
-                    base_url=f"http://127.0.0.1:{port}" if port == 8104 else "http://127.0.0.1:8104",
+                    base_url="http://127.0.0.1:8104",
                     secret=SECRET,
                     client_id=CLIENT_ID,
                 )
             )
-            # The production client intentionally fixes the approved port. For this ephemeral
-            # test server, patch only the validated base URL after construction; request signing,
-            # paths, HMAC and all response boundary checks remain unchanged.
+            # Production configuration permits only the approved loopback port. The local
+            # integration server uses an OS-assigned port, so the validated client target is
+            # replaced only inside this test after constructor policy validation.
             tools.client.base_url = f"http://127.0.0.1:{port}"
 
             correspondence_status = tools.correspondence_status()
             assert correspondence_status["state"] == "ready_local_native"
             assert correspondence_status["production_provider_ready"] is False
+            assert "database" not in correspondence_status
 
             api_message = tools.correspondence_message(message_id="<local-root@example.test>")
             assert api_message["message"]["thread_id"] == first["thread_id"]
@@ -282,16 +288,17 @@ def main() -> int:
                 }
             )
             assert draft["preparation_api"]["delivery_status"] == "prepared_not_sent"
+            assert draft["sender_selection"]["live_enabled"] is False
+            assert draft["audit_record"]["live_delivery_authorized"] is False
             assert "action_token" not in draft
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
-            for name, old_value in old_values.items():
-                if old_value is None:
-                    os.environ.pop(name, None)
-                else:
-                    os.environ[name] = old_value
+            if old_secret is None:
+                os.environ.pop(secret_env, None)
+            else:
+                os.environ[secret_env] = old_secret
 
     for path in (
         nonce_path,
@@ -304,7 +311,8 @@ def main() -> int:
     print("Functional local Mail Room acceptance passed")
     print("RFC822 -> private store -> authenticated API -> BigBird correspondence read: PASS")
     print("Local-native provenance is explicit; provider production readiness remains false")
-    print("Synthetic records remain unreadable; message content remains untrusted")
+    print("Synthetic records remain unreadable; arbitrary runtime DB paths fail closed")
+    print("Production authentication policy remains unchanged; test client registration is isolated")
     print("Draft path remains prepared_not_sent; no send or mutation authority added")
     return 0
 
