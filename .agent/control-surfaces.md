@@ -2,44 +2,51 @@
 
 Last reconciled: 2026-08-18  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
-Workstream: Control Surfaces / exposure reduction / private operational diagnostics
+Workstream: Control Surfaces / exposure reduction / permanent private operator
 
-## Repository completion
+## Relevant repository milestones
 
-The read-only Control Surfaces foundation is merged to authoritative Edge1 `main` through PR #355:
-
-```text
-merge: 5a9b071d401ed6eb551b11b8ee1aefde65e3620b
-```
-
-The companion authenticated WW.CX Operations Center interface is merged to `johnkaminski727-alt/ww-cx-website` `main` through PR #71:
+The read-only Control Surfaces diagnostics foundation is merged through PR #355:
 
 ```text
-merge: faf73cc09854653bdba03ceff0c2baed88ea67e1
+5a9b071d401ed6eb551b11b8ee1aefde65e3620b
 ```
 
-The repository-state reconciliation was merged through PR #356:
+The companion authenticated WW.CX Operations Center interface is merged to `johnkaminski727-alt/ww-cx-website` through PR #71:
 
 ```text
-merge: 13e3d658247a076f427ee907526780de0caf4054
+faf73cc09854653bdba03ceff0c2baed88ea67e1
 ```
 
-Before the Edge1 feature merge, all four applicable GitHub Actions runs passed on the exact PR head:
+Repository-state reconciliation was merged through PR #356:
 
-- Validate repository;
-- Edge1 Operator Validation;
-- Edge1 operations API;
-- Validate Edge1 Control Surfaces.
+```text
+13e3d658247a076f427ee907526780de0caf4054
+```
 
-The website PR passed its Control Surfaces interface and WW.CX AI browser validation workflows before merge.
+Outside-in browser-baseline reconciliation was merged through PR #357:
+
+```text
+918b58ad878704c419ca0b0a406f3ecb87a73f2b
+```
+
+The bounded read-only live-inventory package was merged through PR #359:
+
+```text
+efd3ffdbc424678553d39017341dc8f69b6aebc8
+```
+
+PR #359 added `scripts/control-surfaces-live-inventory.sh`, its documentation, static safety-contract tests and dedicated CI. The applicable repository, Edge1 Operator, Control Surfaces and dedicated live-inventory validations passed on the exact PR head before merge.
+
+Authoritative repository `main` has subsequently advanced with unrelated work. Use current Git history as the source of truth rather than treating the Control Surfaces merge SHA as the repository head.
 
 ## Current verified repository state
 
-The Edge1 foundation adds fixed diagnostic profiles for listener classification, Asterisk, Kamailio and FreePBX status and only non-mutating fixed-argv actions to the operations allowlist.
+The Edge1 foundation provides fixed diagnostic profiles for listener classification, Asterisk, Kamailio and FreePBX status and only non-mutating fixed-argv Control Surfaces actions in the Operations API allowlist.
 
-The implementation does not accept arbitrary commands, backend URLs, ports, file paths or Asterisk/Kamailio command text from a caller. Output is bounded and secret-like fields are redacted.
+The accepted implementation does not accept arbitrary commands, backend URLs, ports, file paths or Asterisk/Kamailio command text from a caller. Output is bounded and secret-like fields are redacted.
 
-The required classes are:
+The required listener classes are exactly:
 
 - `public-infrastructure`;
 - `peering`;
@@ -47,52 +54,99 @@ The required classes are:
 - `internal-service`;
 - `unknown-needs-attribution`.
 
-Classification is intentionally conservative. Unknown/public Asterisk surfaces are not assumed to be peering dependencies without fresh host evidence.
+Classification is intentionally conservative. Unknown/public listeners are not assumed safe or legitimate without fresh host dependency evidence.
 
-## Browser integration
+## Permanent operator / MCP state
 
-The companion `ww-cx-website` main contains the authenticated `Control Surfaces` Operations Center page and canonical navigation entry. It reuses the server-side HMAC operations bridge and does not expose Edge1 signing material or direct machine access to the browser.
+The repository already contains substantial Edge1 Operator / MCP scaffolding and deployment assets, plus the loopback HMAC Operations API used by the Control Surfaces bridge.
 
-FreePBX Administration and UCP native-session controls remain closed/disabled until a separately reviewed temporary-session broker exists and is live-validated.
+The permanent target remains:
 
-Repository merge does not prove the website files have been deployed to Business159/shared hosting.
+```text
+ChatGPT / authorized MCP client
+        |
+private authenticated transport
+        |
+Edge1 Operator bounded tool boundary
+        |
+loopback Operations API and/or fixed reviewed handlers
+        |
+Edge1 services and repositories
+```
 
-## AI boundary
+The production MCP transport, current host validation and private ChatGPT workspace/tunnel attachment are not yet directly verified complete. Historical documents that record an earlier `edge1-operator-mcp.service` installation are retained as historical evidence but are not treated as current proof.
 
-The design extends the accepted private BigBird pattern: external providers may analyze bounded results through private, allowlisted tools, but provider selection does not grant new tool authority. No direct provider-to-shell, AMI, ARI, database or unrestricted HTTP access is introduced.
+See:
 
-## Outside-in browser baseline — 2026-08-18
+- `docs/edge1-operator/08-mcp-integration-status.md`;
+- `docs/edge1-operator/13-completion-status.md`;
+- `docs/archive/edge1-control-surfaces-operator-archive-readiness-20260818.md`.
 
-A connected browser produced direct outside-in observations during the authorized activation session:
+## Authenticated 1984 Hosting / QEMU access
 
-- `https://edge1.ww.cx/` loaded the Debian Apache2 default page (`Apache2 Debian Default Page: It works`). The intended ordinary public redirect to `https://creekco.ca/time/` is therefore not active yet.
-- Navigating to `http://edge1.ww.cx/` ended at the same HTTPS Apache default page. The browser connector does not expose enough transport detail to distinguish browser HTTPS upgrade from a server-side HTTP redirect, so no claim is made about the exact HTTP status/redirect chain.
-- `https://edge1.ww.cx/admin/` resolved to the FreePBX Administration surface (`/admin/config.php`). This confirms the native FreePBX administration surface is presently WAN-reachable over ordinary public HTTPS and must be classified `private-control` pending live dependency inspection and exposure reduction.
-- `https://edge1.ww.cx/ucp/` loaded the FreePBX User Control Panel login. This confirms the native UCP surface is presently WAN-reachable over ordinary public HTTPS and must be classified `private-control` pending live dependency inspection and exposure reduction.
-- The FreePBX pages exposed runtime-generated/session-adjacent and internal-network data in their rendered page. Those values are intentionally not copied into this repository evidence record.
-- A narrow browser request to the known loopback-intended Operations API port `8097` did not finish loading. That result is inconclusive and is not treated as proof that the port is closed or open from WAN.
-- `https://creekco.ca/time/` loaded successfully with title `CreekCo | WW.CX Time Service`, confirming the approved redirect destination is presently browser-reachable.
-- `https://ww.cx/admin/bigbird-control-surfaces.php` returned `404 Not Found`. The merged Control Surfaces page is therefore not present at that production URL yet.
-- `https://ww.cx/admin/bigbird-operations-console.php` redirected an unauthenticated browser to the existing WW.CX Store sign-in page, confirming the established Operations Console route is deployed and protected by the existing authentication boundary.
-- `https://ww.cx/admin/` redirected to the existing `WW.CX Store sign in` page, confirming the existing production admin surface is reachable but the connected browser does not hold an authenticated WW.CX admin session.
-- The available browser control does not support entering credentials or completing the WW.CX sign-in form, so authenticated Control Surfaces acceptance remains unexecuted.
+The connected Opera browser was re-inspected on 2026-08-18 and showed an authenticated 1984 Hosting account session with an active QEMU out-of-band console for `edge1.ww.cx`.
 
-These browser observations are baseline evidence only. They do not replace the required fresh authenticated Edge1 listener/service/firewall/vhost inventory.
+The Opera connector can inspect and navigate the provider page but cannot type into the QEMU canvas. Therefore the current authenticated host path is a **human-relay execution path**:
 
-## Live execution status
+```text
+ChatGPT prepares exact bounded paste-ready commands
+        |
+user pastes them into the authenticated QEMU console
+        |
+output is returned or inspected
+        |
+ChatGPT validates and prepares the next bounded step
+```
 
-No fresh authenticated Edge1 shell/operator execution path is available in the current session. Therefore no present-day listener, Apache configuration, nftables, WireGuard, FreePBX, Asterisk, Kamailio, database, Node, DNS, TLS, service dependency or privileged runtime state is claimed from shell evidence, and no production Edge1 mutation has been executed.
+Do not describe this as direct autonomous shell execution.
 
-The live browser baseline proves that the ordinary public Edge1 redirect and WW.CX Control Surfaces production deployment are still pending, and that the FreePBX Administration and UCP native web surfaces are presently WAN-reachable. It does not establish the backend binding, current firewall path, service-specific dependencies or safest rollback procedure.
+## Browser / outside-in baseline — 2026-08-18
 
-The next live step is the fresh authenticated inventory required by `docs/control-surfaces/README.md`, followed by evidence-backed exposure reduction with a predeclared rollback for each change. The Business159 deployment and authenticated browser acceptance also remain pending an approved execution path.
+Direct connected-browser observations established:
 
-## Smallest blocked operator action
+- `https://edge1.ww.cx/` presented the Debian Apache default page; the intended ordinary public redirect to `https://creekco.ca/time/` was not active.
+- `https://edge1.ww.cx/admin/` resolved to the FreePBX Administration surface. The native administration surface was therefore WAN-reachable over ordinary public HTTPS and is treated as `private-control` pending live dependency inspection and exposure reduction.
+- `https://edge1.ww.cx/ucp/` exposed the FreePBX User Control Panel login over public HTTPS and is likewise treated as `private-control`.
+- Rendered FreePBX pages contained runtime/session-adjacent and internal-network values; those values are intentionally excluded from durable documentation.
+- A browser request to the known loopback-intended Operations API port `8097` did not finish loading. That result is inconclusive and is not evidence that the port is either open or closed from WAN.
+- `https://creekco.ca/time/` loaded successfully.
+- `https://ww.cx/admin/bigbird-control-surfaces.php` returned `404 Not Found`, so the merged Control Surfaces page was not present at the production WW.CX URL during the observation.
+- the existing Operations Console and admin routes redirected an unauthenticated browser to the established WW.CX sign-in boundary.
+- the available browser control could not enter WW.CX credentials, so authenticated browser acceptance remained unexecuted.
 
-Expose/connect the approved authenticated Edge1 Live Shell or equivalent restricted operator connector to the active ChatGPT session. Do not paste credentials or secret values into chat.
+These are outside-in observations only. They do not replace fresh host-side listener, firewall, vhost, telephony, DNS, TLS or service dependency evidence.
 
-For the companion WW.CX deployment, expose/connect the approved Business159/shared-hosting deployment execution path capable of running the repository deployer. Do not paste hosting credentials or deploy keys into chat.
+## Live inventory readiness
+
+`main` now contains `scripts/control-surfaces-live-inventory.sh`, documented in `docs/control-surfaces/live-inventory.md`.
+
+The runner is read-only by design and creates a private timestamped evidence directory with sanitized retained output, command status/timestamps and SHA-256 hashes. It covers host identity, repositories, listeners, routes, Apache, nftables, WireGuard, Asterisk, Kamailio, FreePBX, local HTTP behavior, the Operations API, BigBird health and TLS identity where the authenticated principal is permitted to inspect them.
+
+The evidence directory is host-local protected operational evidence and must not be committed wholesale to Git.
+
+## Remaining live sequence
+
+1. Verify host and authenticated principal through the QEMU relay or the completed permanent operator.
+2. Inspect `/opt/edge1-management-interface` branch/head/dirty state and preserve unrelated work.
+3. Run the bounded read-only live inventory and review sanitized evidence.
+4. Attribute all listeners to the five required classes and leave unresolved listeners unchanged until understood.
+5. Identify verified SIP/TLS/RTP/media/DNS/certificate and management dependencies before firewall/listener/vhost changes.
+6. Create backup/recovery and explicit rollback before each material mutation.
+7. Remove unintended WAN FreePBX Administration/UCP exposure only after the private replacement path and dependent path/cookie/WebSocket/security behavior are proven.
+8. Configure ordinary `edge1.ww.cx` behavior to redirect to `https://creekco.ca/time/` only after current vhost/TLS/service routing proves that change safe.
+9. Establish the approved Business159 execution path, dry-run and deploy the authoritative WW.CX `main`, preserving hosting ownership/mode invariants.
+10. Perform authenticated WW.CX browser acceptance.
+11. Complete and validate the permanent private MCP/operator connection and temporary/private FreePBX session mechanism.
+12. Reconcile final repository documentation with directly observed production state.
+
+## Archive readiness
+
+The sanitized checkpoint is prepared in:
+
+`docs/archive/edge1-control-surfaces-operator-archive-readiness-20260818.md`
+
+That record is suitable for durable repository retention but intentionally marks the workstream **active / incomplete** until the permanent MCP tool and remaining live Control Surfaces acceptance criteria are directly verified.
 
 ## Safety boundary
 
-Do not infer live host state from repository CI. Do not change carrier routing, originate calls/messages, alter emergency calling, open live carrier peering traffic for testing, rotate credentials, expose secrets, or classify an unknown listener as safe to change without dependency evidence.
+Do not infer current live host state from repository CI or historical completion records. Do not change carrier routing, originate calls/messages, alter emergency calling, rotate credentials, expose secrets, create a new public management listener, or classify an unknown listener as safe to change without dependency evidence and a rollback path.
