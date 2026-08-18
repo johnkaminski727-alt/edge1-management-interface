@@ -409,7 +409,7 @@
   ['mailing-address', 'privacy-url', 'contact-email', 'original-recipient', 'sender-profile'].forEach((id) => $(`#${id}`).addEventListener('input', updateSetup));
   $('#system-generated').addEventListener('change', updateSetup);
   $('#message-class').addEventListener('change', () => $('#unsubscribe-wrap').classList.toggle('hidden', $('#message-class').value !== 'commercial'));
-  $('#generate-preview').addEventListener('click', generatePreview);
+  ['generate-preview', 'generate-preview-options'].forEach((id) => $(`#${id}`).addEventListener('click', generatePreview));
   $('#submit-message').addEventListener('click', submitMessage);
   $('#copy-preview').addEventListener('click', async () => {
     if (!state.preview) {
