@@ -99,6 +99,14 @@ required_repair = (
     "update_timer_state_preserved=true",
     "retention_dropin_preserved=true",
     "updater_targets_managed_sensor=true",
+    "unit_list_has()",
+    'list=$2',
+    'for unit in $list',
+    'unit_list_has "$SENSOR_SERVICE" "$REQUIRES"',
+    'unit_list_has "$LEGACY_SERVICE" "$REQUIRES"',
+    'declare -F rollback',
+    'rollback 1',
+    'if [ "$#" -gt 0 ]',
 )
 missing = [marker for marker in required_repair if marker not in repair]
 if missing:
@@ -106,6 +114,9 @@ if missing:
 
 forbidden_repair = (
     '[ -d "$ROOT/.git" ]',
+    'grep -Fq "$LEGACY_SERVICE"',
+    '<<< "$REQUIRES"',
+    '${REQUIRES_UNITS[@]}',
     "iptables",
     "nft flush",
     "ip route add",
