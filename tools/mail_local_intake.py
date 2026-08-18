@@ -17,8 +17,8 @@ if str(SERVER_ROOT) not in sys.path:
 from mail_local_rfc822_source import ingest_rfc822_file, open_local_store
 
 
-DEFAULT_DB = pathlib.Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
-KNOWN_WEB_SEGMENTS = {"public_html", "htdocs"}
+PRIVATE_ROOT = pathlib.Path("/var/lib/wwcx-mail-room")
+DEFAULT_DB = PRIVATE_ROOT / "correspondence.sqlite3"
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,23 +29,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def reject_web_root(path: pathlib.Path) -> None:
+def private_database_path(path: pathlib.Path) -> pathlib.Path:
     target = path.absolute()
-    lowered = {part.casefold() for part in target.parts}
-    if lowered & KNOWN_WEB_SEGMENTS:
-        raise SystemExit("refusing correspondence database below a known web document root")
-    repo_web = (ROOT / "src" / "web").resolve()
     try:
-        target.resolve().relative_to(repo_web)
-    except ValueError:
-        return
-    raise SystemExit("refusing correspondence database below repository web assets")
+        target.relative_to(PRIVATE_ROOT)
+    except ValueError as exc:
+        raise SystemExit("correspondence database must remain under /var/lib/wwcx-mail-room") from exc
+    if target == PRIVATE_ROOT:
+        raise SystemExit("correspondence database must be a file below the private root")
+    return target
 
 
 def main() -> int:
     args = parse_args()
-    reject_web_root(args.db)
-    store = open_local_store(args.db)
+    db_path = private_database_path(args.db)
+    store = open_local_store(db_path)
     results = []
     for message_path in args.messages:
         projected = ingest_rfc822_file(message_path, store, direction=args.direction)
@@ -64,7 +62,7 @@ def main() -> int:
         json.dumps(
             {
                 "contract": "wwcx.mail-local-intake-result.v1",
-                "database": str(args.db.absolute()),
+                "store_location": "private_mail_room_root",
                 "count": len(results),
                 "messages": results,
                 "network_activity": False,
