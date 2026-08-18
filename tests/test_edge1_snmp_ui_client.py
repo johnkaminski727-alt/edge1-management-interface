@@ -73,6 +73,20 @@ class SnmpUiClientTests(unittest.TestCase):
         self.assertNotIn("community", value)
         self.assertEqual(value["nested"], {"status": "ready"})
 
+    def test_sanitizer_redacts_secret_like_text_and_private_paths(self):
+        value = sanitize_for_browser({
+            "error": "profile failed password=hunter2 at /etc/edge1-snmp/profiles/router.json",
+            "detail": "relay_secret: super-secret token=abcdef",
+        })
+        self.assertNotIn("hunter2", value["error"])
+        self.assertNotIn("/etc/edge1-snmp", value["error"])
+        self.assertIn("password=[REDACTED]", value["error"])
+        self.assertIn("[PRIVATE_PATH]", value["error"])
+        self.assertNotIn("super-secret", value["detail"])
+        self.assertNotIn("abcdef", value["detail"])
+        self.assertIn("relay_secret=[REDACTED]", value["detail"])
+        self.assertIn("token=[REDACTED]", value["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()
