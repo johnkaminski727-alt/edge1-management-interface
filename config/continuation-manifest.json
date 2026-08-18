@@ -1,0 +1,67 @@
+{
+  "schema": "wwcx-edge1-continuation-v1",
+  "project": "WW.CX / Edge1 / Project Big Bird",
+  "repository_heads": {
+    "edge1-management-interface": {
+      "repository": "johnkaminski727-alt/edge1-management-interface",
+      "expected_head": "SELF",
+      "evidence_class": "repository-confirmed"
+    },
+    "ww-cx-website": {
+      "repository": "johnkaminski727-alt/ww-cx-website",
+      "expected_head": "78bcbfd92be0ef3e378d4d2b0454c6dec50fc26f",
+      "observed_utc": "2026-08-18T06:29:00Z",
+      "evidence_class": "repository-confirmed-external"
+    }
+  },
+  "live_state": {
+    "verification": "blocked-unverified",
+    "edge1_checkout_head": null,
+    "bigbird_version": null,
+    "operator_service": null,
+    "operations_api_service": null,
+    "private_mcp_attachment": null,
+    "last_verified_utc": null
+  },
+  "known_blockers": [
+    {"id": "edge1-direct-execution", "status": "blocked", "summary": "No direct authenticated Edge1 live-shell connector is exposed in the current ChatGPT session."},
+    {"id": "operator-live-acceptance", "status": "blocked", "summary": "Repository-side bounded operator bridge is merged; fresh Edge1 host and private MCP transport acceptance remain unverified."}
+  ],
+  "outstanding_milestones": [
+    "fresh Edge1 read-only discovery",
+    "private production MCP transport and ChatGPT attachment",
+    "operator service/listener/audit/rollback acceptance",
+    "repository-versus-live drift reconciliation",
+    "current BigBird runtime/version/config reconciliation"
+  ],
+  "canonical_evidence_locations": [
+    "/05 - Project Big Bird Recovery Gap Register and Backlog.md",
+    "/06 - Project Big Bird Validation and Evidence Register.md",
+    "/07 - Project Big Bird Continuation Handoff.md",
+    "/WW.CX/Edge1/Archives/2026-08-18 - WW.CX Edge1 BigBird Library Cleanup Register.md",
+    "docs/edge1-operator/08-mcp-integration-status.md",
+    "docs/edge1-operator/13-completion-status.md",
+    "docs/edge1-operator/15-bounded-tool-surface.md"
+  ],
+  "last_successful_acceptance": {
+    "scope": "bounded Edge1 operator repository bridge",
+    "source_commit": "15c3706d629ada2b8d6c29c0a6812e6c650b799e",
+    "merge_commit": "00cd28b884376f5ae65251fa60258293d1127de1",
+    "checks": ["Edge1 Operator Validation", "Edge1 operations API", "Validate Edge1 Control Surfaces", "Validate repository"],
+    "result": "pass"
+  },
+  "rollback_points": [
+    {"scope": "bounded operator bridge", "repository_parent": "99bfe104a2b05917226db383c7da5a1b5e024175", "note": "Git rollback point only; no live deployment is claimed."}
+  ],
+  "unresolved_drift": [
+    "live Edge1 checkout versus repository main",
+    "live operator/Operations API installation versus repository implementation",
+    "live BigBird runtime/version/config versus repository records"
+  ],
+  "next_safe_actions": [
+    "regenerate this manifest from the current repository checkout",
+    "run the read-only drift detector when a sanitized live snapshot becomes available",
+    "prefer a direct authenticated read-only Edge1 connector if one becomes available",
+    "otherwise use one attended QEMU discovery relay only after repository and Library work are exhausted"
+  ]
+}
