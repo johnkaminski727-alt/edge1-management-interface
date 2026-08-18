@@ -35,6 +35,30 @@ def read_secret() -> bytes:
     return value
 
 
+def approved_profile_version(profile_reference: str, *, legacy_protocol_approved: bool = False, net=None) -> str:
+    """Resolve the real credential-profile protocol and fail closed on legacy use."""
+    if not profile_reference:
+        raise ValueError("credential_reference is required")
+    client = net or SecureNetSNMP()
+    profile = client.resolver.load(profile_reference)
+    version = str(profile.version)
+    if version not in {"1", "2c", "3"}:
+        raise ValueError("unsupported SNMP credential profile version")
+    if version != "3" and not legacy_protocol_approved:
+        raise ValueError("SNMPv1/v2c requires explicit legacy_protocol_approved=true")
+    return version
+
+
+def validate_device_profile(payload: dict, *, net=None) -> str:
+    reference = str(payload.get("credential_reference") or "")
+    legacy = bool(payload.get("legacy_protocol_approved", False))
+    actual = approved_profile_version(reference, legacy_protocol_approved=legacy, net=net)
+    declared = str(payload.get("snmp_version", actual))
+    if declared != actual:
+        raise ValueError("declared SNMP version does not match credential profile")
+    return actual
+
+
 def authenticate(headers, method: str, path: str, body: bytes) -> tuple[bool, str, str]:
     actor = headers.get("X-WWCX-Actor", "").strip()
     nonce = headers.get("X-WWCX-Nonce", "").strip()
@@ -168,13 +192,22 @@ class Handler(BaseHTTPRequestHandler):
             with connect_db() as conn:
                 ensure_extended_schema(conn)
                 if self.path == "/api/snmp/devices":
+                    net = SecureNetSNMP()
+                    payload = dict(payload)
+                    payload["snmp_version"] = validate_device_profile(payload, net=net)
                     self.send_json(201, add_device(conn, payload, actor=actor)); return
                 if self.path == "/api/snmp/discovery":
                     cidr = str(payload.get("cidr") or "")
                     profile = str(payload.get("credential_reference") or "")
                     if not cidr or not profile:
                         raise ValueError("cidr and credential_reference are required")
-                    result = asyncio.run(DiscoveryService(net=SecureNetSNMP()).scan(
+                    net = SecureNetSNMP()
+                    approved_profile_version(
+                        profile,
+                        legacy_protocol_approved=bool(payload.get("legacy_protocol_approved", False)),
+                        net=net,
+                    )
+                    result = asyncio.run(DiscoveryService(net=net).scan(
                         cidr, profile, dry_run=bool(payload.get("dry_run", True)),
                         concurrency=int(payload.get("concurrency", 16))))
                     audit(conn, actor=actor, source="api", action="discovery.scan", target=cidr,
