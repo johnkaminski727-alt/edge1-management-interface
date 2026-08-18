@@ -2,68 +2,122 @@
 
 Last reconciled: 2026-08-18
 Repository: `johnkaminski727-alt/edge1-management-interface`
-Integration branch: `agent/unified-communications-convergence-v2-20260818`
-Base `main` at branch creation: `b6ddd332431f8015a7c3c8c0ab9ff2a6948c258a`
+Repository completion baseline: `721d5e538835a4b53a05c2208e7940f1d83ec043` plus this final reconciliation PR
 
-## Product objective
+## Product state
 
-Converge Mail Room, SMS/MMS, Voice/SIP, Communications Relay and Private AI into one understandable WW.CX Communications family while preserving channel-specific workflows, privacy boundaries and production authorization gates.
+WW.CX Communications now has a coherent repository-side convergence layer across Mail Room, SMS/MMS, Voice/SIP, Communications Relay, and Private AI without collapsing those systems into one backend service or one dangerous control plane.
 
-The user-facing goal is coherence, not a giant administrative screen.
+The shared layer provides:
 
-## Verified existing foundations
+- canonical `wwcx.communications-event.v1` metadata references;
+- evidence-only channel-neutral identity correlation rules;
+- bounded metadata search and deterministic conversation ordering;
+- a read-only Communications timeline/search/inspector workspace;
+- a channel-by-channel readiness matrix;
+- bounded Private AI additions for SMS/MMS and Mail;
+- common draft/action states and explicit `prepared_not_sent` semantics;
+- channel-aware security/quarantine presentation and provenance rules.
 
-- Mail Room daily workspace is merged through PR #371.
-- Provider-neutral SMS/MMS gateway foundation is merged through PR #18, with later Messaging Operations and Telegraph Office simulator work.
-- Telephony operations/SIP/analytics foundations are merged and include read-only Edge1 acceptance history.
-- Private AI accepted `telephony.read` at gateway `0.3.3-alpha.1`.
-- Private AI accepted Communications/documentation read integration and later provenance/degradation/provider-budget work, with current accepted gateway history at `0.3.4-alpha.2`.
-- Current accepted Private AI capability set includes `communications.read` and `telephony.read`.
-- Private AI browser repository work exists, but `/admin/ai/` production browser acceptance remains unverified in the latest handoff.
+Native channel stores, provider adapters, specialist tools, audit trails, and authorization boundaries remain authoritative.
 
-## This convergence increment
+## Merged completion increments
 
-Material additions:
+- PR #381 — original Unified Communications convergence point, historical baseline preserved.
+- PR #384 — canonical communications event, identity registry, readiness contract, search/correlation core.
+  - squash commit `6b272fb0308bfeb161f50598845fc88b77e5c561`
+- PR #385 — bounded SMS/MMS Private AI status/conversation reads and local draft preparation.
+  - squash commit `ce5c561304a0a7aa109b887d1739ae90660b7633`
+- PR #386 — bounded Mail Room AI status and policy-aware prepared-not-sent draft adapter.
+  - squash commit `9e26ea6df6e0bc3469d3bc63701362b01a80bd94`
+- PR #387 — loopback-only Unified Communications API plus timeline/search/inspector/readiness workspace.
+  - squash commit `2b4550812cb6bc790cb3b3bc0d079bdfd261b220`
+- PR #389 — fail-closed MMS media quarantine metadata foundation.
+  - squash commit `721d5e538835a4b53a05c2208e7940f1d83ec043`
 
-- `config/communications/unified-communications.json`
-- `src/web/communications/index.html`
-- `src/web/communications/styles.css`
-- `docs/communications/unified-communications-convergence-20260818.md`
-- `.agent/unified-communications.md`
-- focused validation for the shared registry and hub
-- a discoverable Communications link from the existing Edge1 landing page
+Historical accepted subsystem PRs and commits remain intact; no shared history was rewritten.
 
-The hub links existing specialized surfaces rather than duplicating or faking their controls.
+## AI capability state
 
-## Git decision
+Historical accepted live/read-only evidence:
 
-Do not rewrite or force-squash historical `main`.
+- `communications.read`
+- `telephony.read`
 
-Historical project PRs contain useful validation, acceptance and rollback evidence. The integration branch should instead become one new reviewed convergence PR and be **squash-merged** after CI passes. That squash merge becomes the clean common continuation point for future cross-channel work.
+Repository-ready, fresh live acceptance not claimed:
 
-The initial convergence branch was deliberately superseded after `main` advanced concurrently. This v2 branch was recreated from the newer `main` instead of force-moving or rebasing over unrelated work.
+- `messages.status.read`
+- `messages.conversation.read`
+- `messages.draft.prepare`
+- `mail.status.read`
+- `mail.draft.prepare`
 
-## Shared safety state
+Intentionally pending:
 
-All convergence-level production authority remains false:
+- `mail.correspondence.read` — blocked until an explicitly authorized authoritative native Mail Room correspondence source is available. Outbound audit metadata is not treated as an inbox or correspondence archive.
 
-- production calls: not authorized;
-- production SMS/MMS: not authorized;
-- production email send from this convergence layer: not authorized;
-- carrier/routing mutation: not authorized;
-- generic execution through AI: not authorized.
+Not granted by this project:
 
-Read access does not imply write. Draft preparation does not imply send. Retrieved content is untrusted and cannot grant scopes.
+- `messages.send`
+- `mail.send`
+- `telephony.call.originate`
+- route/trunk/dialplan modification
+- quarantine release
+- generic execution
 
-## Next safe work
+Read does not imply write. Draft does not imply send. Retrieved communications remain untrusted data and cannot grant scopes.
 
-1. validate the shared channel registry and hub in repository CI;
-2. squash-merge the convergence PR if clean;
-3. add bounded SMS/MMS read context to Private AI;
-4. add Mail Room `mail.status.read` and later `mail.draft.prepare` without enabling send;
-5. design a privacy-safe common conversation/timeline identity layer across email, SMS/MMS and call/SIP evidence;
-6. keep channel-specific privileged actions separately scoped and approval-gated.
+## Security state
 
-## Explicit production boundaries
+Mail retains its native final-scan/quarantine discipline.
 
-Stop before live message/call/email traffic, carrier/provider routing, emergency calling, number porting, STIR/SHAKEN, DNS/firewall/certificate/authentication changes, credential changes or destructive history rewriting.
+SMS is not assigned false malware semantics merely because it is a communications channel.
+
+MMS now has a fail-closed repository foundation: missing digest, pending scan, malicious result, or scan error remain held; even a clean scanner result is `scanned_clean_held` and does not authorize release. Private quarantine storage and trusted scanning are not attached by repository code, so runtime security remains deliberately marked degraded until those are verified.
+
+Communications Relay retains untrusted-content/prompt-injection treatment. The unified workspace itself cannot release quarantine or mutate channel policy.
+
+## Workspace state
+
+`/communications/` is now a daily read-only operator workspace rather than only a launch hub. Repository behavior includes:
+
+- All activity, Inbox, Drafts, Sent/submitted, Quarantine, and attention views;
+- channel filters across Mail, SMS, MMS, Voice, SIP, News, and Relay;
+- bounded metadata-only search;
+- chronological canonical-event timeline;
+- details inspector for identity, case, channel, security, native/provider source, AI derivation, and audit references;
+- machine-readable readiness presentation;
+- direct links to specialist channel tools.
+
+The companion server binds loopback only and rejects POST, PUT, PATCH, and DELETE. An unavailable or empty canonical snapshot is shown honestly; activity is not fabricated.
+
+## Validation evidence
+
+Merged PR gates:
+
+- #384: Validate repository — success; Edge1 Operator Validation — success.
+- #385: WW.CX Messaging Gateway — success; BigBird Messaging Adapter — success; Validate repository — success; Edge1 Operator Validation — success.
+- #386: Validate repository — success; Edge1 Operator Validation — success.
+- #387: Validate repository — success; Edge1 Operator Validation — success.
+- #389: WW.CX Messaging Gateway — success; Validate repository — success; Edge1 Operator Validation — success.
+
+These are repository/CI evidence. They are not a substitute for fresh authenticated Edge1 host acceptance.
+
+## Fresh Edge1 state
+
+Fresh authenticated Edge1 inspection was not available in the execution environment used for this completion pass. No live-shell result is therefore claimed.
+
+`fresh_edge1_runtime_verified` remains `false`. Edge1 runtime, provider configuration, credentials, DNS/authentication, routing, production authorization, and live acceptance remain separately unknown or blocked where appropriate.
+
+## Remaining work categories
+
+Repository-side Unified Communications is substantially complete for the safe scope. Remaining work is either:
+
+1. fresh Edge1 runtime/deployment verification;
+2. an authoritative Mail Room correspondence source for `mail.correspondence.read`;
+3. private MMS quarantine storage and trusted scanner integration;
+4. provider/credential/routing/live-traffic activation that remains separately authorized and audited.
+
+## Production boundaries
+
+Do not enable live SMS/MMS, originate calls, change emergency/SIP/carrier routes, enable live mail transmission, release quarantine, rotate/disclose credentials, change DNS/firewall/certificates/authentication policy, or perform destructive/irreversible changes without the required separate authorization.
