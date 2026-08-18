@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import hmac
 import json
@@ -12,9 +13,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from edge1_snmp_ai import AIProviderError, analyze_question
+from edge1_snmp_incidents import incident_summary
 from edge1_snmp_platform import (
     add_device, audit, connect_db, evidence_query, get_device, health, list_devices,
-    normalize_trap, propose_action, utcnow,
+    normalize_trap, propose_action,
 )
 from edge1_snmp_services import AlertEngine, DiscoveryService, MIBService, ensure_extended_schema, get_topology, search_all
 
@@ -102,7 +105,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 self.send_json(503, {"status": "error", "detail": str(exc)[:500]})
             return
-        ok, actor = self.require_auth()
+        ok, _actor = self.require_auth()
         if not ok:
             return
         try:
@@ -120,26 +123,21 @@ class Handler(BaseHTTPRequestHandler):
                     rows = [dict(r) for r in conn.execute("SELECT * FROM metrics WHERE device_id=? ORDER BY ts DESC LIMIT ?", (device_id, limit))]
                     self.send_json(200, {"metrics": rows}); return
                 if parsed.path.startswith("/api/snmp/devices/"):
-                    device_id = parsed.path.rsplit("/", 1)[-1]
-                    self.send_json(200, get_device(conn, device_id)); return
+                    self.send_json(200, get_device(conn, parsed.path.rsplit("/", 1)[-1])); return
                 if parsed.path == "/api/snmp/topology":
                     self.send_json(200, get_topology(conn)); return
                 if parsed.path == "/api/snmp/search":
-                    q = parse_qs(parsed.query).get("q", [""])[0]
-                    self.send_json(200, search_all(conn, q)); return
+                    self.send_json(200, search_all(conn, parse_qs(parsed.query).get("q", [""])[0])); return
                 if parsed.path == "/api/snmp/mibs":
                     rows = [dict(r) for r in conn.execute("SELECT * FROM mib_imports ORDER BY imported_at DESC LIMIT 500")]
                     self.send_json(200, {"imports": rows}); return
                 if parsed.path == "/api/snmp/events":
                     limit = min(500, max(1, int(parse_qs(parsed.query).get("limit", [100])[0])))
-                    rows = [dict(r) for r in conn.execute("SELECT * FROM events ORDER BY ts DESC LIMIT ?", (limit,))]
-                    self.send_json(200, {"events": rows}); return
+                    self.send_json(200, {"events": [dict(r) for r in conn.execute("SELECT * FROM events ORDER BY ts DESC LIMIT ?", (limit,))]}); return
                 if parsed.path == "/api/snmp/alerts":
-                    rows = [dict(r) for r in conn.execute("SELECT * FROM alerts ORDER BY updated_at DESC LIMIT 500")]
-                    self.send_json(200, {"alerts": rows}); return
+                    self.send_json(200, {"alerts": [dict(r) for r in conn.execute("SELECT * FROM alerts ORDER BY updated_at DESC LIMIT 500")]}); return
                 if parsed.path == "/api/snmp/audit":
-                    rows = [dict(r) for r in conn.execute("SELECT * FROM audit ORDER BY ts DESC LIMIT 500")]
-                    self.send_json(200, {"audit": rows}); return
+                    self.send_json(200, {"audit": [dict(r) for r in conn.execute("SELECT * FROM audit ORDER BY ts DESC LIMIT 500")]}); return
                 if parsed.path == "/api/snmp/oids":
                     q = parse_qs(parsed.query).get("q", [""])[0][:200]
                     if q:
@@ -175,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
                     profile = str(payload.get("credential_reference") or "")
                     if not cidr or not profile:
                         raise ValueError("cidr and credential_reference are required")
-                    result = __import__("asyncio").run(DiscoveryService().scan(
+                    result = asyncio.run(DiscoveryService().scan(
                         cidr, profile, dry_run=bool(payload.get("dry_run", True)),
                         concurrency=int(payload.get("concurrency", 16))))
                     audit(conn, actor=actor, source="api", action="discovery.scan", target=cidr,
@@ -197,13 +195,29 @@ class Handler(BaseHTTPRequestHandler):
                     audit(conn, actor=actor, source="trap-ingest", action="trap.ingest", target=result["event_id"],
                           reason="SNMP trap/inform normalization", result="duplicate" if result.get("duplicate") else "succeeded")
                     self.send_json(200, result); return
+                if self.path == "/api/snmp/ai/incidents":
+                    minutes = int(payload.get("minutes", 60))
+                    response = incident_summary(conn, minutes=minutes)
+                    audit(conn, actor=actor, source="deterministic", action="ai.incidents", target=None,
+                          reason=f"incident correlation over {minutes} minutes", result="succeeded", ai_involvement="evidence-preparation")
+                    self.send_json(200, response); return
                 if self.path == "/api/snmp/ai/query":
                     question = str(payload.get("question") or "")[:4000]
                     if not question:
                         raise ValueError("question is required")
-                    response = evidence_query(conn, question)
+                    use_model = bool(payload.get("use_model", True))
+                    if use_model:
+                        try:
+                            response = analyze_question(conn, question)
+                        except AIProviderError as exc:
+                            fallback = evidence_query(conn, question)
+                            audit(conn, actor=actor, source="ai", action="ai.query", target=None, reason=question[:500],
+                                  result="provider_unavailable", ai_involvement="fallback")
+                            self.send_json(503, {"error": str(exc), "deterministic_evidence": fallback}); return
+                    else:
+                        response = evidence_query(conn, question)
                     audit(conn, actor=actor, source="ai", action="ai.query", target=None, reason=question[:500],
-                          result="succeeded", ai_involvement="analysis")
+                          result="succeeded", ai_involvement="analysis" if use_model else "evidence-only")
                     self.send_json(200, response); return
                 if self.path == "/api/snmp/actions":
                     result = propose_action(conn, actor=actor, action=str(payload.get("action") or ""),
