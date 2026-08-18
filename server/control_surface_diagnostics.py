@@ -210,24 +210,159 @@ def listeners() -> dict:
     }
 
 
+def passive_socket_rows() -> tuple[dict, list[dict]]:
+    result = run_fixed(("ss", "-H", "-lntu"), timeout=10)
+    if result["status"] != "ok":
+        return result, []
+    rows = []
+    for line in result["stdout"].splitlines():
+        row = parse_ss_line(line)
+        if row is not None:
+            rows.append(row)
+    return result, rows
+
+
+def process_probe(name: str) -> dict:
+    result = run_fixed(("pgrep", "-x", name), timeout=5)
+    return {
+        "name": "process_running",
+        "argv_id": f"passive.{name}.process",
+        "available": result["available"],
+        "status": result["status"],
+        "exit_code": result["exit_code"],
+        "duration_ms": result["duration_ms"],
+        "stdout": "running\n" if result["status"] == "ok" else "",
+        "stderr": result["stderr"],
+    }
+
+
+def passive_asterisk() -> dict:
+    process = process_probe("asterisk")
+    socket_result, rows = passive_socket_rows()
+    sip_loopback = any(row["local_port"] == 5061 and is_loopback(row["local_host"]) for row in rows)
+    http_loopback = sorted(
+        port for port in (8088, 8089)
+        if any(row["local_port"] == port and is_loopback(row["local_host"]) for row in rows)
+    )
+    socket_ok = socket_result["status"] == "ok" and sip_loopback
+    return {
+        "status": "ok" if process["status"] == "ok" and socket_ok else "failed",
+        "evidence": "passive process/listener probe; native Asterisk CLI remains privilege-gated",
+        "checks": [
+            process,
+            {
+                "name": "loopback_sip_listener",
+                "argv_id": "passive.asterisk.listeners",
+                "available": socket_result["available"],
+                "status": "ok" if socket_ok else "failed",
+                "exit_code": socket_result["exit_code"],
+                "duration_ms": socket_result["duration_ms"],
+                "stdout": json.dumps({"loopback_5061": sip_loopback, "loopback_http_ports": http_loopback}, sort_keys=True),
+                "stderr": socket_result["stderr"],
+            },
+        ],
+    }
+
+
+def passive_kamailio() -> dict:
+    process = process_probe("kamailio")
+    socket_result, rows = passive_socket_rows()
+    loopback_5060 = any(row["local_port"] == 5060 and is_loopback(row["local_host"]) for row in rows)
+    non_loopback_5060 = any(row["local_port"] == 5060 and not is_loopback(row["local_host"]) for row in rows)
+    socket_ok = socket_result["status"] == "ok" and loopback_5060 and non_loopback_5060
+    return {
+        "status": "ok" if process["status"] == "ok" and socket_ok else "failed",
+        "evidence": "passive process/listener probe; native Kamailio control socket remains privilege-gated",
+        "checks": [
+            process,
+            {
+                "name": "sip_listener_pair",
+                "argv_id": "passive.kamailio.listeners",
+                "available": socket_result["available"],
+                "status": "ok" if socket_ok else "failed",
+                "exit_code": socket_result["exit_code"],
+                "duration_ms": socket_result["duration_ms"],
+                "stdout": json.dumps({"loopback_5060": loopback_5060, "non_loopback_5060": non_loopback_5060}, sort_keys=True),
+                "stderr": socket_result["stderr"],
+            },
+        ],
+    }
+
+
+def local_https_code(path: str) -> dict:
+    result = run_fixed((
+        "curl",
+        "-k",
+        "-sS",
+        "-o",
+        "/dev/null",
+        "-w",
+        "%{http_code}",
+        "--max-time",
+        "5",
+        "--resolve",
+        "edge1.ww.cx:443:127.0.0.1",
+        f"https://edge1.ww.cx{path}",
+    ), timeout=8)
+    code = result["stdout"].strip() if result["status"] == "ok" else ""
+    accepted = code in {"200", "301", "302", "303", "307", "308"}
+    return {
+        "name": "private_http_surface",
+        "argv_id": f"passive.freepbx.{path.strip('/').replace('/', '_') or 'root'}",
+        "available": result["available"],
+        "status": "ok" if result["status"] == "ok" and accepted else "failed",
+        "exit_code": result["exit_code"],
+        "duration_ms": result["duration_ms"],
+        "stdout": code + ("\n" if code else ""),
+        "stderr": result["stderr"],
+    }
+
+
+def passive_freepbx() -> dict:
+    admin = local_https_code("/admin/")
+    ucp = local_https_code("/ucp/")
+    return {
+        "status": "ok" if admin["status"] == "ok" and ucp["status"] == "ok" else "failed",
+        "evidence": "private loopback HTTP probe; fwconsole remains unavailable to the Operations API account",
+        "checks": [admin, ucp],
+    }
+
+
+PASSIVE_FALLBACKS = {
+    "asterisk": passive_asterisk,
+    "kamailio": passive_kamailio,
+    "freepbx": passive_freepbx,
+}
+
+
 def component(profile: str) -> dict:
     checks = []
     for name, argv in PROFILES[profile]:
         result = run_fixed(argv)
         checks.append({"name": name, "argv_id": f"{profile}.{name}", **result})
     if checks and all(check["status"] == "ok" for check in checks):
-        status = "ok"
+        native_status = "ok"
     elif any(check["status"] == "ok" for check in checks):
-        status = "limited"
+        native_status = "limited"
     elif all(check["status"] == "command_unavailable" for check in checks):
-        status = "unavailable"
+        native_status = "unavailable"
     else:
-        status = "error"
+        native_status = "error"
+
+    fallback = None
+    status = native_status
+    if native_status in {"error", "unavailable"}:
+        fallback = PASSIVE_FALLBACKS[profile]()
+        if fallback["status"] == "ok":
+            status = "limited"
+
     return {
         "component": profile,
         "status": status,
+        "native_cli_status": native_status,
         "read_only": True,
         "checks": checks,
+        "passive_fallback": fallback,
     }
 
 
@@ -237,6 +372,7 @@ def summary() -> dict:
     for profile, commands in PROFILES.items():
         components[profile] = {
             "command_available": all(shutil.which(argv[0], path=PATH) is not None for _, argv in commands),
+            "passive_fallback_available": True,
             "diagnostic_action": f"{profile}.diagnostics",
         }
     return {
