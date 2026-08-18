@@ -30,7 +30,7 @@ def test_default_mms_media_is_quarantined_pending_scan() -> None:
     assert result["release_authorized"] is False
     item = result["items"][0]
     assert item["state"] == "quarantined_pending_scan"
-    assert item["source_url_exposed"] is False
+    assert item["provider_reference_exposed"] is False
     assert "url" not in item
 
 
@@ -82,8 +82,8 @@ def test_sms_without_media_is_not_given_false_malware_semantics() -> None:
     }
 
 
-def test_assessment_never_exposes_provider_url() -> None:
+def test_assessment_never_exposes_provider_reference() -> None:
     item = MediaItem(url="https://provider.invalid/private/object/2", content_type="image/png", sha256="b" * 64)
     record = assess_media_item(item).to_dict()
     assert "provider.invalid" not in str(record)
-    assert record["source_url_exposed"] is False
+    assert record["provider_reference_exposed"] is False
