@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
         db_path,
         source="synthetic-local-validation",
         source_authoritative=False,
+        source_scope="synthetic",
     )
     first = store.ingest(message("<first@example.test>"))
     second = store.ingest(
@@ -57,6 +58,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
     assert first["provider_thread_id"] == "provider-thread-001"
     assert first["provenance"] == {
         "source": "synthetic-local-validation",
+        "scope": "synthetic",
         "authoritative": False,
     }
     assert first["content_is_untrusted"] is True
@@ -76,17 +78,44 @@ with tempfile.TemporaryDirectory() as temp_dir:
     assert thread["send_authorized"] is False
 
     # Authority is immutable provenance on each persisted record. Reopening the same
-    # database with a differently configured reader must never upgrade synthetic data.
+    # database with a differently configured writer must never upgrade synthetic data.
     relabel_attempt = MailCorrespondenceStore(
         db_path,
         source="reviewed-native-source",
         source_authoritative=True,
+        source_scope="local_native",
     )
     reread = relabel_attempt.read_message("<first@example.test>")
     assert reread["provenance"] == {
         "source": "synthetic-local-validation",
+        "scope": "synthetic",
         "authoritative": False,
     }
+
+    read_only = MailCorrespondenceStore(
+        db_path,
+        source="read-only-validation",
+        source_authoritative=False,
+        source_scope="synthetic",
+        read_only=True,
+    )
+    assert read_only.status()["record_count"] == 2
+    try:
+        read_only.ingest(message("<read-only-write@example.test>"))
+        raise AssertionError("read-only store accepted a write")
+    except CorrespondenceStoreError:
+        pass
+
+    try:
+        MailCorrespondenceStore(
+            db_path,
+            source="invalid-authority",
+            source_authoritative=True,
+            source_scope="synthetic",
+        )
+        raise AssertionError("synthetic source was incorrectly allowed to claim authority")
+    except CorrespondenceStoreError:
+        pass
 
     assert os.stat(db_path.parent).st_mode & 0o077 == 0
     assert os.stat(db_path).st_mode & 0o077 == 0
@@ -143,6 +172,7 @@ for forbidden in ("smtplib", "send_message(", "requests.", "urllib.request", "su
     assert forbidden not in source, forbidden
 
 print("Mail Room private correspondence store validation passed")
-print("Synthetic persisted message/thread reads preserve immutable source provenance")
+print("Synthetic persisted records preserve immutable source and scope provenance")
+print("Read-only mode rejects writes; synthetic scope cannot claim authority")
 print("Message bodies remain untrusted and grant no send or mutation authority")
 print("No network or production routing authority added")
