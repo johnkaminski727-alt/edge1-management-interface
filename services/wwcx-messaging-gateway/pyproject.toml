@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wwcx-messaging-gateway"
-version = "0.4.2"
+version = "0.4.3"
 description = "Provider-neutral SMS/MMS gateway for WW.CX"
 requires-python = ">=3.11"
 dependencies = [

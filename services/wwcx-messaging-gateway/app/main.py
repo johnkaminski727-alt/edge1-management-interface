@@ -5,13 +5,13 @@ from fastapi import FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from .media_quarantine import quarantine_summary
-from .models import NormalizedMessage
+from .models import Direction, NormalizedMessage
 from .persistence import PostgresEventStore
 from .providers import ProviderWebhookRequest, build_provider_registry
 from .store import InMemoryEventStore
 from .telegraph_office import build_router
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.2")
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.3")
 
 database_url = os.getenv("DATABASE_URL")
 store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
@@ -86,13 +86,21 @@ def management_status(
 ) -> dict[str, object]:
     require_token(x_wwcx_management_token, "WWCX_MANAGEMENT_READ_TOKEN", "development-read-only")
     control = store.get_control_state()
+    capabilities = ["messages.status.read", "messages.conversation.read"]
+    if callable(getattr(store, "outbound_queue_status", None)):
+        capabilities.append("messages.outbound.queue.read")
     return {
         "service": "wwcx-messaging-gateway",
         "version": app.version,
         "storage": "postgres" if database_url else "memory",
         "event_count": store.count(),
-        "capabilities": ["messages.status.read", "messages.conversation.read"],
+        "capabilities": capabilities,
         "providers": sorted(providers),
+        "outbound_worker": {
+            "enabled": os.getenv("WWCX_OUTBOUND_WORKER_ENABLED", "false").lower() == "true",
+            "continuous_mode": False,
+            "default_provider_allowlist": "simulator",
+        },
         "mms_media_quarantine": {
             "state": "foundation_ready_fail_closed",
             "default": "quarantined_pending_scan",
@@ -100,6 +108,21 @@ def management_status(
         },
         "mutation_authorized": False,
         **control,
+    }
+
+
+@app.get("/v1/management/outbound/queue")
+def management_outbound_queue(
+    x_wwcx_management_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    require_token(x_wwcx_management_token, "WWCX_MANAGEMENT_READ_TOKEN", "development-read-only")
+    queue_status = getattr(store, "outbound_queue_status", None)
+    if not callable(queue_status):
+        raise HTTPException(status_code=503, detail="durable outbound queue unavailable")
+    return {
+        "contract": "wwcx.messages-outbound-queue-read.v1",
+        **queue_status(),
+        "mutation_authorized": False,
     }
 
 
@@ -160,6 +183,34 @@ def receive_simulated_message(
         raise HTTPException(status_code=503, detail="messaging intake is paused")
     accepted = store.put_if_absent(message)
     return {"accepted": accepted, "duplicate": not accepted, "event_id": str(message.event_id)}
+
+
+@app.post("/v1/simulator/outbound", status_code=status.HTTP_202_ACCEPTED)
+def queue_simulated_outbound(
+    message: NormalizedMessage,
+    x_wwcx_simulator_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    if os.getenv("WWCX_SIMULATOR_OUTBOUND_ENABLED", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="simulator outbound queueing is disabled")
+    if x_wwcx_simulator_token != simulator_token():
+        raise HTTPException(status_code=401, detail="invalid simulator token")
+    if message.direction != Direction.OUTBOUND:
+        raise HTTPException(status_code=400, detail="outbound queue requires direction=outbound")
+    if message.provider != "simulator":
+        raise HTTPException(status_code=400, detail="simulator outbound route accepts provider=simulator only")
+    if store.get_control_state()["paused"]:
+        raise HTTPException(status_code=503, detail="messaging is paused")
+    enqueue = getattr(store, "enqueue_outbound", None)
+    if not callable(enqueue):
+        raise HTTPException(status_code=503, detail="durable outbound queue unavailable")
+    accepted = enqueue(message)
+    return {
+        "queued": accepted,
+        "duplicate": not accepted,
+        "event_id": str(message.event_id),
+        "send_authorized": False,
+        "worker_required": True,
+    }
 
 
 @app.get("/v1/simulator/events/count")
