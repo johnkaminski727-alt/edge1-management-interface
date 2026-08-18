@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -15,13 +16,15 @@ def validate_embedded_javascript() -> None:
     if source.count("<script>") != 1 or source.count("</script>") != 1:
         raise RuntimeError("SNMP console script template shape is invalid")
     script = source.split("<script>", 1)[1].split("</script>", 1)[0]
-    completed = subprocess.run(
-        ["node", "--check", "-"],
-        input=script,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".js", encoding="utf-8") as handle:
+        handle.write(script)
+        handle.flush()
+        completed = subprocess.run(
+            ["node", "--check", handle.name],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
     if completed.returncode != 0:
         raise RuntimeError((completed.stderr or completed.stdout or "JavaScript syntax validation failed")[-4000:])
 
