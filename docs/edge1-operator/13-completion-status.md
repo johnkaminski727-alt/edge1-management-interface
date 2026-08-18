@@ -4,7 +4,7 @@ Last reconciled: 2026-08-18
 
 ## Purpose
 
-Track the transition from repository architecture work to a permanently available, private, authenticated ChatGPT Edge1 operator.
+Track the transition from repository architecture work to a permanently available, private, authenticated ChatGPT Edge1 operator without promoting repository state or historical deployment claims into live acceptance.
 
 ## Repository work completed
 
@@ -18,38 +18,63 @@ Track the transition from repository architecture work to a permanently availabl
 - Runtime mappings from named MCP tools to fixed read-only Operations API actions.
 - `tools/list` / `tools/call` internal dispatch path.
 - Removal of the legacy MCP-visible generic `edge1.exec` contract and generic `run_bounded(command)` scaffold.
-- Focused source validation for bounded-tool behavior.
+- Authenticated loopback MCP Streamable HTTP transport.
+- Source-side listener collision correction: the reviewed MCP transport is now assigned `127.0.0.1:8102`; established Portal API ownership of `127.0.0.1:8098` is preserved.
+- Focused source validation for bounded-tool and deployment behavior.
 
 ## Repository implementation boundary
 
-Source now supports named read-only operator capabilities without accepting arbitrary commands, URLs, ports, paths, service names, action names, SQL, AMI/ARI commands, or caller parameters.
+Source supports named read-only operator capabilities without accepting arbitrary commands, URLs, ports, paths, service names, action names, SQL, AMI/ARI commands, or caller-controlled shell parameters. The reviewed MCP HTTP transport requires bearer authentication and loopback binding.
 
-This is **repository-confirmed source state**, not live deployment proof.
+Repository implementation is not equivalent to live deployment acceptance.
 
-## Current execution-path status
+## Fresh live evidence — 2026-08-18T07:00Z
 
-The production private MCP transport and ChatGPT attachment remain unverified. Historical QEMU/browser evidence must not be promoted into current live state without a fresh check.
+Fresh authenticated read-only Edge1 inspection established:
+
+- live checkout: clean `main` at `ad0eed2dd0c52494c9805ce86739ccf2d4c40536`;
+- `edge1-operator-mcp.service`: active/running, still executing `/usr/bin/python3 -m server.edge1_operator_entrypoint` rather than the reviewed HTTP transport;
+- `wwcx-portal-api.service`: active/running and owns loopback `127.0.0.1:8098`;
+- `/etc/edge1-operator/mcp-token`: absent, so the reviewed bearer-authenticated MCP HTTP transport is not live-installed;
+- Operations API: healthy with 14 actions and `mutations_enabled: false`, demonstrating version/config drift from current source;
+- BigBird: `0.3.4-alpha.2`, read-only, Library available with integrity `ok`;
+- no public MCP management listener was created by this continuation pass.
+
+Current repository source assigns MCP to loopback `8102`. Re-fetch `main` immediately before any deployment because concurrent repository work is active.
+
+## Immediate operational dependency — Suricata
+
+The larger checkout/MCP activation is intentionally deferred behind a live resource/sensor defect:
+
+- `wwcx-network-sensor-suricata.service` is the intended managed libpcap sensor and is active/enabled;
+- legacy `suricata.service` is disabled but active on the same `wg0` interface;
+- the scheduled `wwcx-suricata-update.service` still declares a dependency on legacy `suricata.service` and its root-owned updater targets that legacy runtime;
+- both packet engines experienced OOM/restart pressure during the 2026-08-18 rule-update window;
+- latest captured state had about 348 MiB memory available and all 1 GiB swap in use;
+- the updater failed during blocking rule reload when the legacy daemon was OOM-killed, then failed to reload the restored rules because its control socket was unavailable.
+
+Do not run the existing runtime-consolidation script by itself: the current scheduled updater can recreate the retired legacy runtime.
 
 ## Remaining completion tasks
 
-- Complete/review the production private MCP transport around the bounded tool contract.
-- Complete any transport-specific installer/service hardening.
-- Run repository CI on the exact final implementation revision and reconcile failures if any.
-- Perform fresh Edge1 host installation, service, listener, Operations API and log validation.
-- Complete private ChatGPT workspace/tunnel attachment.
-- Prove connector discovery and successful identity/health calls.
-- Prove approved diagnostics and audit/evidence behavior through the permanent connector.
-- Confirm rollback/recovery behavior.
-- Continue the remaining live Control Surfaces exposure-reduction and WW.CX deployment work after the operator path is established.
+1. Capture the complete root-owned `/usr/local/sbin/wwcx-suricata-update` source read-only, plus the complete managed Suricata unit, without returning secret material.
+2. Re-fetch current repository `main` and reconcile the scheduled updater to target only `wwcx-network-sensor-suricata.service` using the reviewed systemd reload/SIGUSR2 contract.
+3. Add regression tests preventing any `suricata.service` dependency or target in the scheduled update path while preserving candidate validation, current-rules backup, rollback and restart-count verification semantics.
+4. After green CI, perform one guarded live transaction with backups: install the reconciled updater/unit, daemon-reload if required, execute the reviewed runtime consolidation, and verify exactly one managed `--pcap=wg0` process, timer safety, observability and memory recovery. Roll back on failed verification.
+5. Reassess RAM/swap before the larger Edge1 checkout/MCP activation.
+6. Re-prove clean tree, ancestry and a current origin/main immediately before any checkout mutation; then create a host recovery point and fast-forward only if the safety gates still pass.
+7. Install the reviewed MCP transport on loopback `8102`, provision its local token without returning the token to chat, and verify authentication rejection, initialization, ping, named tool discovery/calls, parameter rejection, audit output and restart persistence.
+8. Run deterministic snapshot, drift, acceptance/evidence and Control Surfaces inventory on the reconciled host.
+9. Complete the approved private MCP/Secure MCP Tunnel attachment only after local transport acceptance.
 
-## Historical record caution
+## Current execution-path status
 
-A historical `deployment-completion-record.md` states that `edge1-operator-mcp.service` was previously installed, enabled and active. Preserve that record, but do not treat it as fresh evidence of the present service implementation, transport, listener state or ChatGPT connectivity.
+The 1984 Hosting QEMU console is connected and visible through the browser connector, but the terminal canvas is not keyboard-controllable through that connector. No dedicated authenticated Edge1 live-shell connector is exposed in the present ChatGPT session. The attended `ssh edge1` relay therefore remains the current path for the one remaining read-only root source capture.
 
 ## Archive state
 
-Repository documentation remains a sanitized checkpoint; the operator workstream is **active / incomplete** until live transport and host acceptance are verified.
+The operator workstream remains **active / incomplete**. Fresh live evidence now exists for the checkout, old operator unit, Portal listener, Operations API, BigBird and Suricata incident; production MCP transport installation, live convergence, acceptance and private ChatGPT attachment remain outstanding.
 
 ## Operating rule
 
-Routine engineering work continues without repeated approval requests under the standing authorization. Credentials, secret material, irreversible/destructive changes, legal/commercial commitments, privileged network/security changes, and other explicit stop conditions remain gated.
+Routine engineering and evidence work continues without repeated approval requests under the standing authorization. Credentials, secret material, irreversible/destructive changes, legal/commercial commitments, privileged network/security changes, and other explicit stop conditions remain gated.
