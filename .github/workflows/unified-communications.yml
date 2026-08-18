@@ -53,6 +53,9 @@ jobs:
       - name: Validate deployment definitions
         run: |
           sh -n deploy/run-wwcx-communications-workspace.sh
+          sudo install -d /opt/edge1-management-interface/deploy /opt/wwcx-communications-workspace/server
+          sudo install -m 0755 deploy/run-wwcx-communications-workspace.sh /opt/edge1-management-interface/deploy/run-wwcx-communications-workspace.sh
+          sudo install -m 0644 server/communications_relay_snapshot.py /opt/wwcx-communications-workspace/server/communications_relay_snapshot.py
           systemd-analyze verify deploy/wwcx-communications-workspace.service
           systemd-analyze verify deploy/wwcx-communications-relay-snapshot.service
           systemd-analyze verify deploy/wwcx-communications-relay-snapshot.timer
