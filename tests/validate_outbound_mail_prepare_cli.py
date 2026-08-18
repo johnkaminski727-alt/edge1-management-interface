@@ -135,6 +135,25 @@ assert spirit_artifact["request"]["from_address"] == "john@spiritcreekgardens.co
 assert spirit_artifact["audit_record"]["from_address"] == "john@spiritcreekgardens.com"
 assert "Email: john@spiritcreekgardens.com" in spirit_artifact["body"]
 
+catch_all = sample_request()
+catch_all.pop("identity_hint")
+catch_all["original_recipient"] = "invoices@creekco.ca"
+catch_all_result = run_cli(["--pretty"], catch_all)
+assert catch_all_result.returncode == 0, catch_all_result.stderr
+catch_all_artifact = json.loads(catch_all_result.stdout)
+assert catch_all_artifact["status"] == "prepared_not_sent"
+assert catch_all_artifact["request"]["from_address"] == "invoices@creekco.ca"
+assert catch_all_artifact["request"]["reply_to"] == "invoices@creekco.ca"
+assert catch_all_artifact["request"]["original_recipient"] == "invoices@creekco.ca"
+assert catch_all_artifact["request"]["sender_identity_key"] is None
+assert catch_all_artifact["request"]["sender_selection_reason"] == "original_recipient_catch_all_proposal"
+assert "not provider-authorized" in catch_all_artifact["request"]["live_delivery_block_reason"]
+assert catch_all_artifact["sender_selection"]["address"] == "invoices@creekco.ca"
+assert catch_all_artifact["sender_selection"]["reason"] == "original_recipient_catch_all_proposal"
+assert catch_all_artifact["sender_selection"]["live_enabled"] is False
+assert catch_all_artifact["audit_record"]["from_address"] == "invoices@creekco.ca"
+assert "Email: invoices@creekco.ca" in catch_all_artifact["body"]
+
 system = sample_request()
 system.pop("identity_hint")
 system["system_generated"] = True
@@ -152,12 +171,19 @@ invalid_hint_result = run_cli([], invalid_hint)
 assert invalid_hint_result.returncode == 2
 assert "identity_hint is invalid" in invalid_hint_result.stderr
 
-unknown_recipient = sample_request()
-unknown_recipient.pop("identity_hint")
-unknown_recipient["original_recipient"] = "unknown@ww.cx"
-unknown_recipient_result = run_cli([], unknown_recipient)
-assert unknown_recipient_result.returncode == 2
-assert "original recipient is not a registered mail identity" in unknown_recipient_result.stderr
+unmanaged_recipient = sample_request()
+unmanaged_recipient.pop("identity_hint")
+unmanaged_recipient["original_recipient"] = "unknown@example.net"
+unmanaged_recipient_result = run_cli([], unmanaged_recipient)
+assert unmanaged_recipient_result.returncode == 2
+assert "original recipient is not a registered mail identity" in unmanaged_recipient_result.stderr
+
+internal_recipient = sample_request()
+internal_recipient.pop("identity_hint")
+internal_recipient["original_recipient"] = "maildesk@ww.cx"
+internal_recipient_result = run_cli([], internal_recipient)
+assert internal_recipient_result.returncode == 2
+assert "internal-only or reserved" in internal_recipient_result.stderr
 
 commercial = sample_request()
 commercial["message_class"] = "commercial"
@@ -166,4 +192,4 @@ assert commercial_result.returncode == 2
 assert "unsubscribe_url" in commercial_result.stderr
 
 print("Identity-aware outbound mail preparation CLI validation passed")
-print("Canonical sender selection is active; live delivery remains unavailable")
+print("Managed catch-all identities are proposal-only; live delivery remains unavailable")
