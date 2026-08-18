@@ -1,0 +1,31 @@
+[Unit]
+Description=WW.CX Edge1 Secure MCP Tunnel
+After=network-online.target edge1-operator-mcp.service
+Wants=network-online.target
+Requires=edge1-operator-mcp.service
+
+[Service]
+Type=simple
+User=edge1-operator
+Group=edge1-operator
+ExecStart=/usr/local/libexec/edge1-tunnel/edge1-secure-mcp-tunnel.sh run
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=edge1-secure-mcp-tunnel
+RuntimeDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/edge1-tunnel /etc/edge1-operator/mcp-token /usr/local/bin/tunnel-client /usr/local/libexec/edge1-tunnel
+ReadWritePaths=/run/edge1-secure-mcp-tunnel
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
