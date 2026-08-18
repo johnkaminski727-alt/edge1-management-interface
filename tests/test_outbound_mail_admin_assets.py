@@ -123,6 +123,12 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
         self.assertIn("outside the managed Mail Room domains", self.js)
         self.assertNotIn("Original inbound recipient is not a registered sender identity.", self.js)
 
+    def test_stale_preview_is_invalidated_after_message_edits(self) -> None:
+        self.assertIn("function invalidatePreview()", self.js)
+        self.assertIn("The message changed. Generate a fresh review before sending.", self.js)
+        self.assertIn("$('#submit-message').disabled = true;", self.js)
+        self.assertIn("state.preview = null", self.js)
+
     def test_draft_privacy_and_keyboard_shortcuts_are_explicit(self) -> None:
         self.assertIn("Draft bodies are not saved to browser storage", self.html)
         self.assertIn("Mail Room shortcuts", self.html)
