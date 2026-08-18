@@ -97,8 +97,12 @@ def correspondence_read_state() -> dict[str, Any]:
         "capability": "mail.correspondence.read",
         "state": "blocked_pending_authoritative_source",
         "reason": (
-            "No channel-neutral adapter is permitted to invent correspondence from outbound audit metadata; "
-            "an explicitly authorized native Mail Room correspondence source is required."
+            "Phase 27 provides a private persisted correspondence-store foundation, but no reviewed "
+            "native mailbox/MTA source is yet proven and connected. Outbound audit metadata and "
+            "synthetic local records cannot be substituted for authoritative correspondence."
         ),
+        "repository_foundation": "server/mail_correspondence_store.py",
+        "source_authoritative": False,
+        "send_authorized": False,
         "mutation_authorized": False,
     }
