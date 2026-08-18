@@ -76,8 +76,8 @@ assert readiness["channels"]["sms_mms"]["production_authorization"] == "blocked"
 assert readiness["channels"]["private_ai"]["edge1_runtime"] == "runtime_ready"
 assert readiness["channels"]["private_ai"]["live_acceptance"] == "runtime_ready"
 assert readiness["channels"]["communications_workspace"]["repository_implementation"] == "repository_ready"
-assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "degraded"
-assert readiness["channels"]["communications_workspace"]["live_acceptance"] == "degraded"
+assert readiness["channels"]["communications_workspace"]["edge1_runtime"] == "runtime_ready"
+assert readiness["channels"]["communications_workspace"]["live_acceptance"] == "runtime_ready"
 assert readiness["channels"]["communications_workspace"]["production_authorization"] == "blocked"
 assert readiness["rules"]["repository_ready_does_not_imply_runtime_ready"] is True
 assert readiness["rules"]["runtime_ready_does_not_imply_live_authorized"] is True
@@ -114,7 +114,7 @@ for token in ("quarantined_pending_scan", "scanned_clean_held", "quarantined_mal
     assert token in mms, token
 
 handoff = paths["handoff"].read_text(encoding="utf-8")
-for token in ("PR #384", "PR #385", "PR #386", "PR #387", "PR #389", "fresh_edge1_runtime_verified", "mail.correspondence.read"):
+for token in ("PR #384", "PR #385", "PR #386", "PR #387", "PR #389", "PR #400", "fresh_edge1_runtime_verified", "mail.correspondence.read"):
     assert token in handoff, token
 
 live_acceptance = paths["live_acceptance"].read_text(encoding="utf-8")
@@ -126,7 +126,9 @@ for token in (
     "messages.draft.prepare",
     "prepared_not_sent",
     "release_authorized: false",
-    "wwcx-communications-workspace.service` is not installed",
+    "wwcx-communications-workspace.service` is installed, enabled, active, and running",
+    "127.0.0.1:8095",
+    "canonical snapshot/feed is attached",
     "clamscan",
 ):
     assert token in live_acceptance, token
@@ -134,6 +136,7 @@ for token in (
 print("Unified Communications completion validation passed")
 print("Fresh Messaging Gateway and BigBird read/draft runtime acceptance is reconciled")
 print("Fresh Mail status/draft local adapter acceptance is reconciled")
-print("Persistent Communications workspace and MMS scanner/private storage remain incomplete")
+print("Persistent Communications workspace runtime acceptance is reconciled")
+print("Canonical workspace feed and MMS scanner/private storage remain incomplete")
 print("Global fresh_edge1_runtime_verified remains false until those safe-scope gaps close")
 print("No live communications or generic execution authority is accepted by this completion state")
