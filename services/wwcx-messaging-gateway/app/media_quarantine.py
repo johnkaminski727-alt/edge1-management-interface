@@ -17,14 +17,14 @@ class MediaQuarantineRecord:
     state: str
     scan_result: str | None
     release_authorized: bool = False
-    source_url_exposed: bool = False
+    provider_reference_exposed: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
 def assess_media_item(item: MediaItem, scanner: MediaScanner | None = None) -> MediaQuarantineRecord:
-    """Assess metadata without fetching provider URLs or releasing content.
+    """Assess metadata without fetching provider references or releasing content.
 
     The default is fail-closed. A media item is not considered clean unless a trusted
     caller supplies a scanner callback and that scanner explicitly returns ``clean``.
