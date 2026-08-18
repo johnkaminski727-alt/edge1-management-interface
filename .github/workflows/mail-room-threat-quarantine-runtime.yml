@@ -1,0 +1,50 @@
+name: Validate Mail Room threat quarantine runtime
+
+on:
+  pull_request:
+    paths:
+      - 'config/messaging/mail-threat-policy.json'
+      - 'server/mail_threat_decision.py'
+      - 'server/mail_quarantine.py'
+      - 'tests/test_mail_threat_decision.py'
+      - 'tests/test_mail_quarantine.py'
+      - 'docs/messaging-operations/mail-threat-quarantine-runtime-20260818.md'
+      - '.github/workflows/mail-room-threat-quarantine-runtime.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/messaging/mail-threat-policy.json'
+      - 'server/mail_threat_decision.py'
+      - 'server/mail_quarantine.py'
+      - 'tests/test_mail_threat_decision.py'
+      - 'tests/test_mail_quarantine.py'
+      - 'docs/messaging-operations/mail-threat-quarantine-runtime-20260818.md'
+      - '.github/workflows/mail-room-threat-quarantine-runtime.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile \
+            server/mail_threat_decision.py \
+            server/mail_quarantine.py \
+            tests/test_mail_threat_decision.py \
+            tests/test_mail_quarantine.py
+      - name: Run threat decision tests
+        run: python3 -m unittest tests.test_mail_threat_decision -v
+      - name: Run quarantine tests
+        run: python3 -m unittest tests.test_mail_quarantine -v
+      - name: Assert no obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
+            server/mail_threat_decision.py \
+            server/mail_quarantine.py \
+            tests/test_mail_threat_decision.py \
+            tests/test_mail_quarantine.py
