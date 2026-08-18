@@ -1,6 +1,6 @@
 {
   "name": "WW.CX Edge1 SNMP Control API",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "base_path": "/api/snmp",
   "authentication": "WW.CX HMAC-SHA256 headers; health endpoint only is unauthenticated and loopback-bound",
   "resources": {
@@ -8,13 +8,30 @@
     "GET /devices": "managed device inventory",
     "POST /devices": "explicit device onboarding",
     "GET /devices/{id}": "managed device detail",
-    "GET /events": "normalized SNMP events",
+    "GET /devices/{id}/interfaces": "discovered interface inventory",
+    "GET /devices/{id}/metrics?limit=": "historical device telemetry",
+    "POST /discovery": "bounded dry-run or credential-referenced discovery scan",
+    "GET /events?limit=": "normalized SNMP events",
     "POST /traps": "normalized trap/inform ingestion",
     "GET /alerts": "alert state",
-    "GET /oids?q=": "MIB/OID lookup",
+    "POST /alerts/evaluate": "deterministic alert policy evaluation",
+    "GET /mibs": "MIB import history",
+    "POST /mibs/import": "local Net-SNMP MIB module import",
+    "GET /oids?q=": "MIB/OID lookup and search",
+    "GET /topology": "evidence-labelled confirmed and inferred topology",
+    "GET /search?q=": "cross-resource search",
     "POST /ai/query": "evidence-backed operational query",
     "POST /actions": "bounded remediation proposal",
     "GET /audit": "auditable material actions"
   },
-  "security": {"default_snmp_version": "3", "default_security_level": "authPriv", "snmp_set_default": false, "credential_values_in_api": false, "public_bind_allowed": false}
+  "security": {
+    "default_snmp_version": "3",
+    "default_security_level": "authPriv",
+    "legacy_onboarding_requires_explicit_approval": true,
+    "snmp_set_default": false,
+    "snmp_set_api_exposed": false,
+    "credential_values_in_api": false,
+    "public_bind_allowed": false,
+    "ai_arbitrary_shell_allowed": false
+  }
 }
