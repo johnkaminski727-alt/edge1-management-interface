@@ -9,6 +9,7 @@ RULES="/var/lib/suricata/rules/suricata.rules"
 TEST_LOG_DIR="/var/log/suricata-update-test"
 BACKUP_ROOT="/root/backups/suricata-rule-history"
 VALIDATE_ONLY="${WWCX_SURICATA_UPDATE_VALIDATE_ONLY:-0}"
+RELOAD_STABILIZE_SECONDS="${WWCX_SURICATA_RELOAD_STABILIZE_SECONDS:-300}"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -20,6 +21,13 @@ if [ "$SURICATA_SERVICE" = "suricata.service" ]; then
     echo "ERROR: legacy suricata.service is not an accepted update target."
     exit 1
 fi
+
+case "$RELOAD_STABILIZE_SECONDS" in
+    ''|*[!0-9]*)
+        echo "ERROR: WWCX_SURICATA_RELOAD_STABILIZE_SECONDS must be a non-negative integer."
+        exit 1
+        ;;
+esac
 
 if ! systemctl is-active --quiet "$SURICATA_SERVICE"; then
     echo "ERROR: managed Suricata service is not active: $SURICATA_SERVICE"
@@ -97,6 +105,19 @@ if [ "$VALIDATE_ONLY" = "1" ]; then
 fi
 
 RELOAD_RESULT="not required"
+BACKUP_DIR=""
+
+restore_previous_rules() {
+    if [ -z "$BACKUP_DIR" ] || [ ! -s "$BACKUP_DIR/suricata.rules.before" ]; then
+        return 0
+    fi
+    echo "Restoring the previous rules file..."
+    install -o root -g suricata -m 0640 "$BACKUP_DIR/suricata.rules.before" "$RULES.restore"
+    mv -f "$RULES.restore" "$RULES"
+    echo "Requesting reload of the restored rules..."
+    systemctl reload "$SURICATA_SERVICE" || true
+}
+
 if [ "$HASH_BEFORE" = "$HASH_CANDIDATE" ]; then
     echo
     echo "Candidate rules match the active rules."
@@ -114,16 +135,43 @@ else
 
     echo "Requesting managed systemd rule reload..."
     if ! systemctl reload "$SURICATA_SERVICE"; then
-        echo "ERROR: candidate-rule reload failed."
-        echo "Restoring the previous rules file..."
-        install -o root -g suricata -m 0640 "$BACKUP_DIR/suricata.rules.before" "$RULES.restore"
-        mv -f "$RULES.restore" "$RULES"
-        echo "Reloading the restored rules..."
-        systemctl reload "$SURICATA_SERVICE" || true
+        echo "ERROR: candidate-rule reload request failed."
+        restore_previous_rules
         exit 1
     fi
-
     RELOAD_RESULT="requested"
+
+    echo "Observing managed Suricata stability for ${RELOAD_STABILIZE_SECONDS}s..."
+    ELAPSED=0
+    while [ "$ELAPSED" -lt "$RELOAD_STABILIZE_SECONDS" ]; do
+        REMAINING=$((RELOAD_STABILIZE_SECONDS - ELAPSED))
+        STEP=5
+        if [ "$REMAINING" -lt "$STEP" ]; then
+            STEP=$REMAINING
+        fi
+        [ "$STEP" -gt 0 ] || break
+        sleep "$STEP"
+        ELAPSED=$((ELAPSED + STEP))
+
+        if ! systemctl is-active --quiet "$SURICATA_SERVICE"; then
+            echo "ERROR: managed Suricata became inactive during reload stabilization."
+            restore_previous_rules
+            exit 1
+        fi
+        PID_NOW="$(systemctl show "$SURICATA_SERVICE" --property=MainPID --value)"
+        RESTARTS_NOW="$(systemctl show "$SURICATA_SERVICE" --property=NRestarts --value)"
+        if [ "$PID_NOW" != "$PID_BEFORE" ]; then
+            echo "ERROR: managed Suricata PID changed during reload stabilization."
+            restore_previous_rules
+            exit 1
+        fi
+        if [ "$RESTARTS_NOW" != "$RESTARTS_BEFORE" ]; then
+            echo "ERROR: managed Suricata restart count changed during reload stabilization."
+            restore_previous_rules
+            exit 1
+        fi
+    done
+    RELOAD_RESULT="stable-${RELOAD_STABILIZE_SECONDS}s"
 
     mapfile -t OLD_BACKUPS < <(
         find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' |
@@ -135,7 +183,6 @@ else
     done
 fi
 
-sleep 2
 systemctl is-active --quiet "$SURICATA_SERVICE"
 PID_AFTER="$(systemctl show "$SURICATA_SERVICE" --property=MainPID --value)"
 RESTARTS_AFTER="$(systemctl show "$SURICATA_SERVICE" --property=NRestarts --value)"
