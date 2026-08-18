@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import mail_identity_registry
+import mail_threading
 import outbound_mail_gateway
 
 
@@ -157,7 +158,7 @@ def compose_preview(
         preview["request"]["live_delivery_block_reason"] = (
             "catch-all reply identity is proposed only and is not provider-authorized for live delivery"
         )
-    return preview
+    return mail_threading.apply_to_preview(preview, payload)
 
 
 def send_message(

@@ -67,6 +67,42 @@
       "type": "string",
       "pattern": "^[A-Z0-9][A-Z0-9._:-]{5,127}$"
     },
+    "correspondence_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9._:-]{5,127}$",
+      "description": "Stable WW.CX correspondence identifier supplied by trusted intake or workflow state."
+    },
+    "thread_id": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9._:-]{5,127}$",
+      "description": "Stable WW.CX thread identifier; never inferred from untrusted subject text alone."
+    },
+    "source_message_id": {
+      "$ref": "#/$defs/messageId"
+    },
+    "in_reply_to": {
+      "$ref": "#/$defs/messageId"
+    },
+    "references": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/messageId"
+      }
+    },
+    "provider_thread_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque provider conversation/thread identifier retained as internal metadata only."
+    },
+    "provider_message_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque provider message identifier retained as internal metadata only."
+    },
     "unsubscribe_url": {
       "type": "string",
       "format": "uri",
@@ -107,6 +143,11 @@
         "type": "string",
         "format": "email"
       }
+    },
+    "messageId": {
+      "type": "string",
+      "maxLength": 998,
+      "pattern": "^<[^<>\\r\\n\\s]+@[^<>\\r\\n\\s]+>$"
     }
   }
 }
