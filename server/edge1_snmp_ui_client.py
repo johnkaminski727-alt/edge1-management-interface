@@ -40,6 +40,15 @@ FORBIDDEN_KEY_MARKERS = (
     "private_key", "api_key", "relay_key", "relay_secret", "auth_key",
     "priv_key", "token_value", "hmac_key",
 )
+_SECRET_TEXT_RE = re.compile(
+    r"(?i)\b(community|password|passphrase|authpass|privpass|secret|token|"
+    r"api[_-]?key|relay[_-]?(?:key|secret)|hmac[_-]?key)\s*[:=]\s*"
+    r"(?:\"[^\"]*\"|'[^']*'|[^\s,;]+)"
+)
+_PRIVATE_PATH_RE = re.compile(
+    r"/(?:etc/(?:edge1-snmp|edge1-operator|bigbird[^/\s]*|wwcx[^/\s]*)|"
+    r"run/(?:credentials|edge1-snmp-ai-identity))(?:/[^\s'\";,]*)?"
+)
 
 
 class SnmpUiClientError(RuntimeError):
@@ -107,6 +116,12 @@ def _validate_post_path(path: str) -> str:
     return parsed.path
 
 
+def _sanitize_text(value: str) -> str:
+    text = _SECRET_TEXT_RE.sub(lambda match: f"{match.group(1)}=[REDACTED]", value)
+    text = _PRIVATE_PATH_RE.sub("[PRIVATE_PATH]", text)
+    return text[:12000]
+
+
 def sanitize_for_browser(value: Any) -> Any:
     if isinstance(value, dict):
         result: dict[str, Any] = {}
@@ -120,10 +135,10 @@ def sanitize_for_browser(value: Any) -> Any:
     if isinstance(value, list):
         return [sanitize_for_browser(item) for item in value[:5000]]
     if isinstance(value, str):
-        return value[:12000]
+        return _sanitize_text(value)
     if isinstance(value, (int, float, bool)) or value is None:
         return value
-    return str(value)[:2000]
+    return _sanitize_text(str(value)[:2000])
 
 
 class Edge1SnmpUiClient:
