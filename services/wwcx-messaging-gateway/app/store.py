@@ -1,16 +1,18 @@
 from threading import Lock
 
-from .models import NormalizedMessage
+from .compliance import SuppressionRegistry
+from .models import Channel, Direction, NormalizedMessage
 
 
 class InMemoryEventStore:
-    """Development-only idempotency, ledger, and control store."""
+    """Development-only idempotency, ledger, compliance, and control store."""
 
     def __init__(self) -> None:
         self._lock = Lock()
         self._events: dict[tuple[str, str], NormalizedMessage] = {}
         self._paused = False
         self._last_control: dict[str, str] | None = None
+        self._compliance = SuppressionRegistry()
 
     def put_if_absent(self, message: NormalizedMessage) -> bool:
         key = (message.provider, message.provider_event_id)
@@ -18,6 +20,13 @@ class InMemoryEventStore:
             if key in self._events:
                 return False
             self._events[key] = message
+            if message.direction == Direction.INBOUND and message.channel == Channel.SMS:
+                self._compliance.apply(
+                    message.sender,
+                    message.text,
+                    occurred_at=message.occurred_at,
+                    message_id=str(message.event_id),
+                )
             return True
 
     def count(self) -> int:
@@ -36,6 +45,10 @@ class InMemoryEventStore:
                 if str(message.event_id) == event_id:
                     return message
         return None
+
+    def compliance_status(self, limit: int = 25) -> dict[str, object]:
+        with self._lock:
+            return self._compliance.status(limit)
 
     def get_control_state(self) -> dict[str, object]:
         with self._lock:
