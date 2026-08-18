@@ -24,10 +24,12 @@ class SecureMcpTunnelAssetsTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertNotIn(token, PROFILE)
 
-    def test_profile_uses_managed_companion_runtime(self):
-        self.assertIn("cloudflared:\n  managed: true", PROFILE)
-        self.assertIn('"$BINARY" cloudflared version', INSTALLER)
-        self.assertIn("complete official release bundle", INSTALLER)
+    def test_profile_is_compatible_with_proven_shared_0_0_10_runtime(self):
+        self.assertNotIn("cloudflared:", PROFILE)
+        self.assertIn("version < (0, 0, 10)", INSTALLER)
+        self.assertIn("tunnel-client run command unavailable", INSTALLER)
+        self.assertIn("tunnel-client doctor command unavailable", INSTALLER)
+        self.assertNotIn("cloudflared version", INSTALLER)
 
     def test_launcher_reuses_existing_operator_token_without_persistent_copy(self):
         self.assertIn("/etc/edge1-operator/mcp-token", LAUNCHER)
@@ -36,7 +38,7 @@ class SecureMcpTunnelAssetsTests(unittest.TestCase):
         self.assertNotIn("cp ", LAUNCHER)
         self.assertNotIn("tee ", LAUNCHER)
 
-    def test_service_runs_as_bounded_operator_and_preserves_hardening(self):
+    def test_service_runs_as_bounded_operator_and_uses_separate_runtime_namespace(self):
         required = (
             "User=edge1-operator",
             "Group=edge1-operator",
@@ -46,16 +48,20 @@ class SecureMcpTunnelAssetsTests(unittest.TestCase):
             "CapabilityBoundingSet=",
             "AmbientCapabilities=",
             "Requires=edge1-operator-mcp.service",
+            "RuntimeDirectory=edge1-secure-mcp-tunnel",
         )
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, SERVICE)
+        self.assertIn("pid_file: /run/edge1-secure-mcp-tunnel/tunnel-client.pid", PROFILE)
 
-    def test_staging_never_enables_or_starts_tunnel(self):
+    def test_installer_reuses_binary_and_never_enables_or_starts_tunnel(self):
+        self.assertIn("BINARY=/usr/local/bin/tunnel-client", INSTALLER)
         self.assertIn('systemctl disable "$SERVICE"', INSTALLER)
         self.assertIn('systemctl stop "$SERVICE"', INSTALLER)
         self.assertIn("service remains disabled/inactive", INSTALLER)
         self.assertNotIn("enable --now", INSTALLER)
+        self.assertNotIn("/opt/openai-tunnel-client", INSTALLER)
 
     def test_no_network_or_auth_broadening_primitives(self):
         combined = "\n".join((PROFILE, LAUNCHER, SERVICE, INSTALLER))
