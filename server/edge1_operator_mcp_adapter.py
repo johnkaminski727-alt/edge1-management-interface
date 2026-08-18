@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
-"""Edge1 Operator MCP adapter exposing named, read-only capabilities."""
+"""Edge1 Operator MCP adapter exposing named, read-only capabilities.
+
+Turn-ownership tools (agent.turn.status, agent.turn.handoff) are the only
+tools that accept parameters; every other tool remains strictly
+parameterless, preserving the existing contract exactly.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable
+
+from .edge1_operator_turn_state import (
+    StaleEpochError,
+    UnauthorizedOwnerError,
+    UnknownTurnError,
+)
 
 
 @dataclass(frozen=True)
@@ -14,8 +25,9 @@ class ToolResult:
 
 
 class MCPAdapter:
-    def __init__(self, runtime: Any):
+    def __init__(self, runtime: Any, turn_store: Any = None):
         self.runtime = runtime
+        self.turn_store = turn_store
         self._tools: dict[str, Callable[..., ToolResult]] = {
             "edge1.identity": self.identity,
             "edge1.health": self.health,
@@ -33,7 +45,10 @@ class MCPAdapter:
             "edge1.time_authority_status": self.time_authority_status,
             "edge1.git_state": self.git_state,
             "edge1.config_digest": self.config_digest,
+            "agent.turn.status": self.turn_status,
+            "agent.turn.handoff": self.turn_handoff,
         }
+        self._parameterized_tools = {"agent.turn.status", "agent.turn.handoff"}
 
     def list_tools(self) -> list[str]:
         return sorted(self._tools)
@@ -42,10 +57,11 @@ class MCPAdapter:
         handler = self._tools.get(name)
         if handler is None:
             return ToolResult(name, "error", {"message": "unknown_tool"})
-        if kwargs:
+        accepts_params = name in self._parameterized_tools
+        if kwargs and not accepts_params:
             return ToolResult(name, "error", {"message": "parameters_not_accepted"})
         try:
-            return handler()
+            return handler(**kwargs) if accepts_params else handler()
         except Exception:
             return ToolResult(name, "error", {"message": "runtime_error"})
 
@@ -99,3 +115,44 @@ class MCPAdapter:
 
     def config_digest(self) -> ToolResult:
         return self._call("edge1.config_digest", "config_digest")
+
+    def turn_status(self, task_id: str, conversation_id: str) -> ToolResult:
+        if self.turn_store is None:
+            return ToolResult("agent.turn.status", "error", {"message": "turn_store_unavailable"})
+        try:
+            data = self.turn_store.status(task_id, conversation_id)
+            return ToolResult("agent.turn.status", "ok", data)
+        except UnknownTurnError:
+            return ToolResult("agent.turn.status", "error", {"message": "unknown_task_conversation"})
+
+    def turn_handoff(
+        self,
+        task_id: str,
+        conversation_id: str,
+        requesting_agent: str,
+        to_agent: str,
+        expected_epoch: int,
+        idempotency_key: str,
+        reason: str | None = None,
+        evidence: str | None = None,
+    ) -> ToolResult:
+        if self.turn_store is None:
+            return ToolResult("agent.turn.handoff", "error", {"message": "turn_store_unavailable"})
+        try:
+            data = self.turn_store.handoff(
+                task_id=task_id,
+                conversation_id=conversation_id,
+                requesting_agent=requesting_agent,
+                to_agent=to_agent,
+                expected_epoch=expected_epoch,
+                idempotency_key=idempotency_key,
+                reason=reason,
+                evidence=evidence,
+            )
+            return ToolResult("agent.turn.handoff", "ok", data)
+        except UnknownTurnError:
+            return ToolResult("agent.turn.handoff", "error", {"message": "unknown_task_conversation"})
+        except UnauthorizedOwnerError:
+            return ToolResult("agent.turn.handoff", "error", {"message": "unauthorized_owner"})
+        except StaleEpochError:
+            return ToolResult("agent.turn.handoff", "error", {"message": "stale_epoch"})
