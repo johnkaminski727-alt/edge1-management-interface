@@ -1,5 +1,5 @@
 {
-  "contract": "wwcx.inbound-mail-hub.v1",
+  "contract": "wwcx.inbound-mail-hub.v2",
   "enabled": false,
   "deployment_authorized": false,
   "production_routing_authorized": false,
@@ -38,7 +38,11 @@
     "omegafx.com"
   ],
   "routing": {
-    "unknown_recipient_action": "quarantine",
+    "managed_domain_catchall": {
+      "destination_type": "mailbox",
+      "destination": "maildesk@ww.cx",
+      "enabled": true
+    },
     "routes": {
       "john@ww.cx": {"destination_type": "mailbox", "destination": "john-inbox@ww.cx", "enabled": true},
       "records@ww.cx": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},

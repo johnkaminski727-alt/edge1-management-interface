@@ -18,10 +18,9 @@ from pathlib import Path
 from typing import Any
 
 
-CONTRACT = "wwcx.inbound-mail-hub.v1"
+CONTRACT = "wwcx.inbound-mail-hub.v2"
 SUPPORTED_INGRESS_TYPES = {"disabled", "webhook", "local_mta"}
 SUPPORTED_DESTINATION_TYPES = {"mailbox", "webhook", "quarantine"}
-UNKNOWN_ACTIONS = {"reject", "quarantine"}
 
 
 class InboundHubError(RuntimeError):
@@ -97,6 +96,14 @@ def normalize_address(value: Any) -> str:
     return address
 
 
+def _validate_destination(route: dict[str, Any], label: str) -> None:
+    _require_exact_keys(route, {"destination_type", "destination", "enabled"}, label)
+    if route["destination_type"] not in SUPPORTED_DESTINATION_TYPES:
+        raise ConfigurationError("route destination type is unsupported")
+    _require_text(route["destination"], f"{label}.destination")
+    _require_bool(route["enabled"], f"{label}.enabled")
+
+
 def validate_config(config: dict[str, Any]) -> None:
     _require_exact_keys(
         config,
@@ -153,9 +160,14 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ConfigurationError("domains must be unique")
 
     routing = config["routing"]
-    _require_exact_keys(routing, {"unknown_recipient_action", "routes"}, "routing")
-    if routing["unknown_recipient_action"] not in UNKNOWN_ACTIONS:
-        raise ConfigurationError("unknown recipient action is unsupported")
+    _require_exact_keys(routing, {"managed_domain_catchall", "routes"}, "routing")
+    catchall = routing["managed_domain_catchall"]
+    if not isinstance(catchall, dict):
+        raise ConfigurationError("routing.managed_domain_catchall must be an object")
+    _validate_destination(catchall, "routing.managed_domain_catchall")
+    if catchall["destination_type"] != "mailbox":
+        raise ConfigurationError("managed-domain catch-all must route to a mailbox")
+
     routes = routing["routes"]
     if not isinstance(routes, dict):
         raise ConfigurationError("routing.routes must be an object")
@@ -165,11 +177,7 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ConfigurationError("route keys must be normalized lowercase addresses")
         if normalized.rsplit("@", 1)[1] not in normalized_domains:
             raise ConfigurationError("route recipient is outside configured domains")
-        _require_exact_keys(route, {"destination_type", "destination", "enabled"}, f"route.{recipient}")
-        if route["destination_type"] not in SUPPORTED_DESTINATION_TYPES:
-            raise ConfigurationError("route destination type is unsupported")
-        _require_text(route["destination"], f"route.{recipient}.destination")
-        _require_bool(route["enabled"], f"route.{recipient}.enabled")
+        _validate_destination(route, f"route.{recipient}")
 
     limits = config["limits"]
     _require_exact_keys(limits, {"max_message_bytes", "max_recipient_count", "audit_view_limit"}, "limits")
@@ -193,6 +201,8 @@ def validate_config(config: dict[str, Any]) -> None:
         profile = profiles[selected]
         if profile["type"] == "disabled" or not profile["enabled"]:
             raise ConfigurationError("enabled hub requires an enabled ingress profile")
+        if not catchall["enabled"]:
+            raise ConfigurationError("enabled hub requires managed-domain catch-all routing")
 
 
 def status_payload(config: dict[str, Any]) -> dict[str, Any]:
@@ -201,6 +211,7 @@ def status_payload(config: dict[str, Any]) -> dict[str, Any]:
     profile = config["ingress"]["profiles"][selected]
     secret_name = profile.get("secret_env") or profile.get("trusted_token_env")
     configured = bool(secret_name and os.environ.get(secret_name, "").strip())
+    catchall = config["routing"]["managed_domain_catchall"]
     ready = bool(
         config["enabled"]
         and config["deployment_authorized"]
@@ -208,6 +219,7 @@ def status_payload(config: dict[str, Any]) -> dict[str, Any]:
         and profile["enabled"]
         and profile["type"] != "disabled"
         and configured
+        and catchall["enabled"]
     )
     return {
         "hub": "wwcx-inbound-mail-hub",
@@ -219,7 +231,8 @@ def status_payload(config: dict[str, Any]) -> dict[str, Any]:
         "ingress_configured": configured,
         "domains": list(config["domains"]),
         "route_count": len(config["routing"]["routes"]),
-        "unknown_recipient_action": config["routing"]["unknown_recipient_action"],
+        "managed_domain_catchall_enabled": catchall["enabled"],
+        "managed_domain_catchall_destination": catchall["destination"],
         "persist_raw_message": config["content"]["persist_raw_message"],
         "persist_attachment_bytes": config["content"]["persist_attachment_bytes"],
         "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -268,7 +281,7 @@ def route_envelope(config: dict[str, Any], envelope: dict[str, Any]) -> list[Rou
     validate_config(config)
     domains = {item.casefold() for item in config["domains"]}
     routes = config["routing"]["routes"]
-    unknown_action = config["routing"]["unknown_recipient_action"]
+    catchall = config["routing"]["managed_domain_catchall"]
     decisions: list[RouteDecision] = []
     for recipient in envelope["recipients"]:
         domain = recipient.rsplit("@", 1)[1]
@@ -286,14 +299,25 @@ def route_envelope(config: dict[str, Any], envelope: dict[str, Any]) -> list[Rou
                     "explicit_route",
                 )
             )
+            continue
+        if catchall["enabled"]:
+            decisions.append(
+                RouteDecision(
+                    recipient,
+                    "route",
+                    catchall["destination_type"],
+                    catchall["destination"],
+                    "managed_domain_catchall",
+                )
+            )
         else:
             decisions.append(
                 RouteDecision(
                     recipient,
-                    unknown_action,
+                    "quarantine",
                     "quarantine",
                     None,
-                    "unknown_recipient",
+                    "managed_domain_catchall_disabled",
                 )
             )
     return decisions
