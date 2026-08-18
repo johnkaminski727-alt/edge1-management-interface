@@ -20,35 +20,65 @@ Track the transition from repository architecture work to a permanently availabl
 - Removal of the legacy MCP-visible generic `edge1.exec` contract and generic `run_bounded(command)` scaffold.
 - Focused source validation for bounded-tool behavior.
 
-## Repository implementation boundary
+## Fresh production state verified 2026-08-18
 
-Source now supports named read-only operator capabilities without accepting arbitrary commands, URLs, ports, paths, service names, action names, SQL, AMI/ARI commands, or caller parameters.
+The live Edge1 operator service is no longer historical-only evidence:
 
-This is **repository-confirmed source state**, not live deployment proof.
+- `edge1-operator-mcp.service` is loaded, enabled, active and running.
+- Service principal: `edge1-operator`.
+- Working runtime is hardened with `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, and `ProtectHome=true`.
+- MCP listener: `127.0.0.1:8102` only.
+- Operations API listener: `127.0.0.1:8097` only.
+- MCP bearer token metadata verified owner `edge1-operator`, mode `0600`; value not exposed.
+- Unauthenticated MCP request returned HTTP 401.
+- Authenticated MCP initialize and tool-list requests returned HTTP 200.
+- Fresh tool discovery returned 16 named parameterless read-only tools.
+- `edge1.identity` returned `edge1.ww.cx`, principal `edge1-operator`, status ready.
+- `edge1.health` returned operator status ok and Operations API health ok with 27 actions, loopback true and `mutations_enabled=false`.
+- `edge1.apache_status` returned a successful bounded read-only Apache status action.
+
+This establishes the production server-side MCP boundary as **verified live**.
 
 ## Current execution-path status
 
-The production private MCP transport and ChatGPT attachment remain unverified. Historical QEMU/browser evidence must not be promoted into current live state without a fresh check.
+The remaining incomplete portion is the private ChatGPT-side transport/attachment.
+
+OpenAI's current ChatGPT guidance says local/private-network MCP servers are not connected directly; private/on-premises servers should use **Secure MCP Tunnel** so the MCP server does not need to be exposed to the public internet.
+
+Therefore the intended transport is now explicitly:
+
+```text
+ChatGPT custom MCP app
+        |
+Secure MCP Tunnel
+        |
+Edge1 private host
+        |
+127.0.0.1:8102 edge1-operator-mcp
+```
+
+No Apache public MCP proxy, WAN MCP listener, or firewall opening is part of the completion plan.
 
 ## Remaining completion tasks
 
-- Complete/review the production private MCP transport around the bounded tool contract.
-- Complete any transport-specific installer/service hardening.
-- Run repository CI on the exact final implementation revision and reconcile failures if any.
-- Perform fresh Edge1 host installation, service, listener, Operations API and log validation.
-- Complete private ChatGPT workspace/tunnel attachment.
-- Prove connector discovery and successful identity/health calls.
+- Enable the applicable ChatGPT developer/custom-app capability using the authorized account/workspace UI.
+- Enroll Secure MCP Tunnel for the Edge1 loopback MCP service without disclosing enrollment/token material in chat or Git.
+- Scan/discover the 16 MCP tools from ChatGPT and verify the contract.
+- Prove ChatGPT-side `edge1.identity` and `edge1.health` calls.
 - Prove approved diagnostics and audit/evidence behavior through the permanent connector.
-- Confirm rollback/recovery behavior.
-- Continue the remaining live Control Surfaces exposure-reduction and WW.CX deployment work after the operator path is established.
+- Record tunnel rollback/revocation procedure and complete final closeout.
 
-## Historical record caution
+Account sign-in, developer-mode enablement, private activation links, tunnel enrollment secrets, and equivalent credential material remain explicit human boundaries.
 
-A historical `deployment-completion-record.md` states that `edge1-operator-mcp.service` was previously installed, enabled and active. Preserve that record, but do not treat it as fresh evidence of the present service implementation, transport, listener state or ChatGPT connectivity.
+## Other Control Surfaces state
+
+The public Edge1 web exposure-reduction work is accepted and repository-reconciled: ordinary root traffic redirects to `https://creekco.ca/time/`, WAN FreePBX Administration/UCP access is denied, and approved private WireGuard/Tailscale paths remain available. The WW.CX Operations Center Control Surfaces page is deployed and authenticated-browser verified.
+
+Asterisk/Kamailio/FreePBX native CLI diagnostic cards currently report degraded/unavailable states through the Operations API while the higher-level telephony broker reports healthy. This is being reconciled without weakening service hardening or widening account permissions.
 
 ## Archive state
 
-Repository documentation remains a sanitized checkpoint; the operator workstream is **active / incomplete** until live transport and host acceptance are verified.
+Repository documentation is now a current sanitized checkpoint. The operator workstream remains **active / incomplete only at the ChatGPT private-transport attachment and final diagnostic reconciliation gates**.
 
 ## Operating rule
 
