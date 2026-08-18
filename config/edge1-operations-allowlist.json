@@ -1,134 +1,98 @@
 {
-  "version": 1,
+  "version": 2,
   "actions": {
     "repository.status": {
-      "argv": [
-        "git",
-        "status",
-        "--short",
-        "--branch"
-      ],
+      "argv": ["git", "status", "--short", "--branch"],
       "mutating": false,
       "timeout_seconds": 30
     },
     "repository.fetch": {
-      "argv": [
-        "git",
-        "fetch",
-        "--prune",
-        "origin"
-      ],
+      "argv": ["git", "fetch", "--prune", "origin"],
       "mutating": true,
       "timeout_seconds": 120
     },
     "repository.fast_forward_main": {
-      "argv": [
-        "git",
-        "pull",
-        "--ff-only",
-        "origin",
-        "main"
-      ],
+      "argv": ["git", "pull", "--ff-only", "origin", "main"],
       "mutating": true,
       "timeout_seconds": 180
     },
     "validation.interconnect": {
-      "argv": [
-        "sh",
-        "deploy/interconnect/validate-staging-assets.sh"
-      ],
+      "argv": ["sh", "deploy/interconnect/validate-staging-assets.sh"],
       "mutating": false,
       "timeout_seconds": 300
     },
     "validation.numbering_node": {
-      "argv": [
-        "python3",
-        "-m",
-        "unittest",
-        "discover",
-        "-s",
-        "tests",
-        "-p",
-        "test_wwcx_numbering_node.py",
-        "-v"
-      ],
+      "argv": ["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_wwcx_numbering_node.py", "-v"],
       "mutating": false,
       "timeout_seconds": 300
     },
     "numbering.health": {
-      "argv": [
-        "curl",
-        "-fsS",
-        "http://127.0.0.1:8093/healthz"
-      ],
+      "argv": ["curl", "-fsS", "http://127.0.0.1:8093/healthz"],
       "mutating": false,
       "timeout_seconds": 30
     },
     "telephony.health": {
-      "argv": [
-        "curl",
-        "-fsS",
-        "http://127.0.0.1:8096/api/telephony/status"
-      ],
+      "argv": ["curl", "-fsS", "http://127.0.0.1:8096/api/telephony/status"],
       "mutating": false,
       "timeout_seconds": 30
     },
     "bigbird.health": {
-      "argv": [
-        "curl",
-        "-fsS",
-        "http://127.0.0.1:8787/v1/health"
-      ],
+      "argv": ["curl", "-fsS", "http://127.0.0.1:8787/v1/health"],
       "mutating": false,
       "timeout_seconds": 30
     },
     "bigbird.tools": {
-      "argv": [
-        "curl",
-        "-fsS",
-        "http://127.0.0.1:8787/v1/tools"
-      ],
+      "argv": ["curl", "-fsS", "http://127.0.0.1:8787/v1/tools"],
       "mutating": false,
       "timeout_seconds": 30
     },
     "messaging.health": {
-      "argv": [
-        "curl",
-        "-fsS",
-        "http://127.0.0.1:58080/healthz"
-      ],
+      "argv": ["curl", "-fsS", "http://127.0.0.1:58080/healthz"],
       "mutating": false,
       "timeout_seconds": 30
     },
     "time_authority.summary": {
-      "argv": [
-        "python3",
-        "server/time_authority_summary.py"
-      ],
+      "argv": ["python3", "server/time_authority_summary.py"],
       "mutating": false,
       "timeout_seconds": 30
     },
+    "control_surfaces.summary": {
+      "argv": ["python3", "server/control_surface_diagnostics.py", "summary"],
+      "mutating": false,
+      "timeout_seconds": 45
+    },
+    "control_surfaces.listeners": {
+      "argv": ["python3", "server/control_surface_diagnostics.py", "listeners"],
+      "mutating": false,
+      "timeout_seconds": 30
+    },
+    "asterisk.diagnostics": {
+      "argv": ["python3", "server/control_surface_diagnostics.py", "asterisk"],
+      "mutating": false,
+      "timeout_seconds": 120
+    },
+    "kamailio.diagnostics": {
+      "argv": ["python3", "server/control_surface_diagnostics.py", "kamailio"],
+      "mutating": false,
+      "timeout_seconds": 90
+    },
+    "freepbx.diagnostics": {
+      "argv": ["python3", "server/control_surface_diagnostics.py", "freepbx"],
+      "mutating": false,
+      "timeout_seconds": 90
+    },
     "security.validate_config": {
-      "argv": [
-        "bash",
-        "tools/security/validate-suricata.sh"
-      ],
+      "argv": ["bash", "tools/security/validate-suricata.sh"],
       "mutating": false,
       "timeout_seconds": 300
     },
     "security.logs.rotate": {
-      "argv": [
-        "bash",
-        "tools/security/rotate-suricata-logs.sh"
-      ],
+      "argv": ["bash", "tools/security/rotate-suricata-logs.sh"],
       "mutating": true,
       "timeout_seconds": 120
     },
     "security.rules.reload": {
-      "argv": [
-        "bash",
-        "tools/security/reload-suricata-rules.sh"
-      ],
+      "argv": ["bash", "tools/security/reload-suricata-rules.sh"],
       "mutating": true,
       "timeout_seconds": 120
     }
