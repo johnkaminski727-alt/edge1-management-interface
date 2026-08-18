@@ -1,15 +1,32 @@
 #!/usr/bin/env python3
-"""Protocol handler smoke tests for Edge1 Operator."""
+"""Protocol boundary smoke tests for Edge1 Operator."""
 
 from server.edge1_operator_protocol import Edge1OperatorProtocol
 
 
-def test_protocol_registers_tools():
-    protocol = Edge1OperatorProtocol()
-    assert protocol.tools()
+class RecordingDispatcher:
+    def __init__(self, result):
+        self.result = result
+        self.requests = []
+
+    def dispatch(self, request):
+        self.requests.append(request)
+        return self.result
 
 
-def test_unknown_tool_is_rejected():
-    protocol = Edge1OperatorProtocol()
-    result = protocol.call("missing", {})
-    assert result["ok"] is False
+def test_protocol_delegates_request_to_dispatcher():
+    dispatcher = RecordingDispatcher({"ok": True})
+    protocol = Edge1OperatorProtocol(dispatcher)
+    request = {"method": "tools/list", "payload": {}}
+
+    assert protocol.handle(request) == {"ok": True}
+    assert dispatcher.requests == [request]
+
+
+def test_protocol_returns_dispatcher_rejection():
+    dispatcher = RecordingDispatcher({"ok": False, "error": "unknown_tool"})
+    protocol = Edge1OperatorProtocol(dispatcher)
+    request = {"method": "tools/call", "payload": {"name": "missing"}}
+
+    assert protocol.handle(request) == {"ok": False, "error": "unknown_tool"}
+    assert dispatcher.requests == [request]

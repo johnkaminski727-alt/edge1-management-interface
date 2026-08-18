@@ -21,6 +21,7 @@ EXPECTED_TOOLS = {
     "edge1.network_state",
     "edge1.operations_status",
     "edge1.services",
+    "edge1.snapshot",
     "edge1.telephony_status",
     "edge1.time_authority_status",
 }
