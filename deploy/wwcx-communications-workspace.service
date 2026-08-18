@@ -1,0 +1,37 @@
+[Unit]
+Description=WW.CX Unified Communications read-only workspace
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=WWCX_COMMUNICATIONS_HOST=127.0.0.1
+Environment=WWCX_COMMUNICATIONS_PORT=8095
+EnvironmentFile=-/etc/wwcx-communications-workspace.env
+ExecStart=/opt/edge1-management-interface/deploy/run-wwcx-communications-workspace.sh
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadOnlyPaths=/opt/edge1-management-interface
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
