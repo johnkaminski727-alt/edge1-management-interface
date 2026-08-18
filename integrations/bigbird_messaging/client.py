@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
@@ -22,6 +23,26 @@ class MessagingGatewayClient:
         return self._request(
             "GET",
             "/v1/management/status",
+            token=self.read_token,
+            token_header="X-WWCX-Management-Token",
+        )
+
+    def recent_messages(self, *, limit: int = 25) -> dict[str, Any]:
+        bounded = min(max(int(limit), 1), 100)
+        return self._request(
+            "GET",
+            f"/v1/management/messages/recent?{urlencode({'limit': bounded})}",
+            token=self.read_token,
+            token_header="X-WWCX-Management-Token",
+        )
+
+    def message(self, event_id: str) -> dict[str, Any]:
+        event_id = event_id.strip()
+        if not event_id or "/" in event_id or "?" in event_id or "#" in event_id:
+            raise ValueError("event_id must be a single opaque identifier")
+        return self._request(
+            "GET",
+            f"/v1/management/messages/{event_id}",
             token=self.read_token,
             token_header="X-WWCX-Management-Token",
         )
