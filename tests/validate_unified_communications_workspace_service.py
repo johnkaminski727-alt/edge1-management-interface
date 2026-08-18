@@ -60,7 +60,7 @@ for token in (
     'POST_CODE=$(curl',
     '[ "$POST_CODE" = "405" ]',
     "mutation_authorized",
-    "0\\.0\\.0\\.0",
+    r"0\\.0\\.0\\.0",
     "rollback_backup=",
 ):
     assert token in installer, token
