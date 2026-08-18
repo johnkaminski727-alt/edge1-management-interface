@@ -23,6 +23,7 @@ def status_payload(
 ) -> dict[str, Any]:
     status = outbound_mail_gateway.status_payload(config, policy)
     identity_status = mail_identity_registry.status_payload(identities)
+    identity_status["managed_domains"] = sorted(identities["domains"])
     system_sender = identity_status["system_sender"]
     identity_status["identities"] = [
         item for item in identity_status["identities"]
