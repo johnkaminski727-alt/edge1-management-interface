@@ -1,8 +1,10 @@
-"""Tests for Edge1 Operator turn-state store (T0b bounded spike)."""
+"""Tests for Edge1 Operator turn-state store (T0b, SQLite-backed atomic version)."""
 from __future__ import annotations
 
 import shutil
+import sqlite3
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -138,6 +140,97 @@ class TestTurnStateStore(unittest.TestCase):
         status = fresh_store.status("task-5", "conv-1")
         self.assertEqual(status["owner_agent"], "gus")
         self.assertEqual(status["turn_epoch"], 1)
+
+    def test_forced_mid_transaction_rollback_leaves_no_partial_rows(self):
+        self.store.seed("task-6", "conv-1", owner_agent="fen")
+
+        class InjectedFailure(Exception):
+            pass
+
+        def fail_after_state_update(checkpoint):
+            if checkpoint == "after_state_update":
+                raise InjectedFailure("forced rollback for test")
+
+        faulty_store = TurnStateStore(
+            root=str(self.tmp),
+            audit_writer=None,
+            _fault_injector=fail_after_state_update,
+        )
+
+        with self.assertRaises(InjectedFailure):
+            faulty_store.handoff(
+                task_id="task-6",
+                conversation_id="conv-1",
+                requesting_agent="fen",
+                to_agent="gus",
+                expected_epoch=0,
+                idempotency_key="k1",
+            )
+
+        # State must be completely unchanged -- the UPDATE that ran before
+        # the injected failure must have been rolled back along with
+        # everything else in the same transaction.
+        status = self.store.status("task-6", "conv-1")
+        self.assertEqual(status["owner_agent"], "fen")
+        self.assertEqual(status["turn_epoch"], 0)
+
+        conn = sqlite3.connect(str(self.store.db_path))
+        try:
+            audit_count = conn.execute(
+                "SELECT COUNT(*) FROM turn_audit WHERE task_id = ?", ("task-6",)
+            ).fetchone()[0]
+            outbox_count = conn.execute(
+                "SELECT COUNT(*) FROM turn_outbox WHERE task_id = ?", ("task-6",)
+            ).fetchone()[0]
+            idem_count = conn.execute(
+                "SELECT COUNT(*) FROM turn_idempotency WHERE task_id = ?", ("task-6",)
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(audit_count, 0)
+        self.assertEqual(outbox_count, 0)
+        self.assertEqual(idem_count, 0)
+
+    def test_two_writer_same_epoch_race_only_one_succeeds(self):
+        self.store.seed("task-7", "conv-1", owner_agent="fen")
+
+        results = {}
+        errors = {}
+
+        def attempt(name, to_agent, key):
+            try:
+                results[name] = self.store.handoff(
+                    task_id="task-7",
+                    conversation_id="conv-1",
+                    requesting_agent="fen",
+                    to_agent=to_agent,
+                    expected_epoch=0,
+                    idempotency_key=key,
+                )
+            except (StaleEpochError, UnauthorizedOwnerError) as exc:
+                # Both threads race as the same original owner ("fen"). The
+                # loser's rejection reason depends on exact timing: if it
+                # re-reads after the winner's commit, ownership has already
+                # moved on, so UnauthorizedOwnerError is the natural (and
+                # equally valid) outcome, not necessarily StaleEpochError.
+                # What matters is that exactly one writer succeeds and the
+                # other is safely rejected without corrupting state -- not
+                # which specific exception subtype it gets.
+                errors[name] = exc
+
+        t1 = threading.Thread(target=attempt, args=("t1", "gus", "race-key-1"))
+        t2 = threading.Thread(target=attempt, args=("t2", "edge1-ai", "race-key-2"))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        self.assertEqual(len(results), 1, f"expected exactly one winner, got {results} / {errors}")
+        self.assertEqual(len(errors), 1, f"expected exactly one stale-epoch loser, got {results} / {errors}")
+
+        final = self.store.status("task-7", "conv-1")
+        self.assertEqual(final["turn_epoch"], 1)
+        self.assertIn(final["owner_agent"], ("gus", "edge1-ai"))
 
 
 if __name__ == "__main__":

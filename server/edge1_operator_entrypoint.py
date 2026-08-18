@@ -6,10 +6,7 @@ not open a public listener.
 """
 from __future__ import annotations
 
-import os
-import tempfile
 import time
-from pathlib import Path
 
 from .edge1_operator_audit import write_event
 from .edge1_operator_dispatch import OperatorDispatcher
@@ -28,28 +25,14 @@ def _tool_result(result):
     }
 
 
-def _default_turn_state_root() -> str:
-    # A relative repo-local path is not safe to default to: directories like
-    # var/ here are root-owned and not writable by the service account or by
-    # test runs. Fall back to the system temp dir, which is writable in any
-    # environment (dev, tests, CI). Production deployment should set
-    # EDGE1_OPERATOR_TURN_STATE_ROOT explicitly to a dedicated, properly
-    # permissioned path -- that is a deployment decision, out of scope here.
-    configured = os.environ.get("EDGE1_OPERATOR_TURN_STATE_ROOT")
-    if configured:
-        return configured
-    return str(Path(tempfile.gettempdir()) / "edge1-operator-turn-state")
-
-
 def build_operator(
     runtime: Edge1OperatorRuntime | None = None,
     turn_store: TurnStateStore | None = None,
 ):
     runtime = runtime or Edge1OperatorRuntime()
-    turn_store = turn_store or TurnStateStore(
-        root=_default_turn_state_root(),
-        audit_writer=write_event,
-    )
+    # TurnStateStore resolves its own durable default root (see
+    # edge1_operator_turn_state._default_root) when none is given here.
+    turn_store = turn_store or TurnStateStore(audit_writer=write_event)
     adapter = MCPAdapter(runtime, turn_store=turn_store)
     dispatcher = OperatorDispatcher()
     dispatcher.register("tools/list", lambda: {"tools": TOOLS})

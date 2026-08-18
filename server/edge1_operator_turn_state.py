@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Deterministic file-based turn-ownership state for Fen/Gus/Edge1 coordination.
+"""Deterministic SQLite-backed turn-ownership state for Fen/Gus/Edge1 coordination.
 
-Turn state is keyed by (task_id, conversation_id). Storage is a single JSON
-file with atomic write-then-rename and a simple exclusive lock guarding the
-read-modify-write critical section. This intentionally does not use a
-database -- consistent with the existing audit.jsonl append pattern and the
-bounded scope of this spike.
+Turn state is keyed by (task_id, conversation_id). All mutating operations
+commit turn_state, turn_audit, turn_outbox, and turn_idempotency changes in a
+single SQLite transaction -- a true atomic multi-table commit, not
+sequential best-effort writes. This uses only the Python standard library
+(sqlite3); no new dependency.
 
-Atomicity note: the state-file commit and the audit-event append happen
-sequentially while holding the lock, not as a single multi-file transaction.
-If the process is killed between the two steps, the state file will reflect
-the handoff but the audit record for it may be missing. This is a real,
-documented limitation, not a hidden gap.
+Storage default: a durable per-user state directory under the home
+directory, not system temp -- restart-persistent state must not default to
+somewhere the OS is free to clear. Real production deployment should set
+EDGE1_OPERATOR_TURN_STATE_ROOT explicitly to a dedicated, ops-provisioned
+path; that is a deployment decision and out of scope for this spike.
 
 Task/conversation creation is out of scope for this spike. status() and
 handoff() only operate on already-seeded state; seed() exists for that
@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
@@ -44,112 +44,147 @@ class UnauthorizedOwnerError(TurnStateError):
     """Raised when the requesting agent is not the current owner."""
 
 
-def _key(task_id: str, conversation_id: str) -> str:
-    return f"{task_id}::{conversation_id}"
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS turn_state (
+    task_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    owner_agent TEXT NOT NULL,
+    state TEXT NOT NULL,
+    turn_epoch INTEGER NOT NULL,
+    started_at REAL NOT NULL,
+    last_activity_at REAL NOT NULL,
+    handed_off_at REAL,
+    previous_owner TEXT,
+    handoff_reason TEXT,
+    handoff_evidence TEXT,
+    PRIMARY KEY (task_id, conversation_id)
+);
+
+CREATE TABLE IF NOT EXISTS turn_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    event TEXT NOT NULL,
+    from_agent TEXT,
+    to_agent TEXT,
+    turn_epoch INTEGER NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    execution_id TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS turn_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    delivered INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS turn_idempotency (
+    task_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    PRIMARY KEY (task_id, conversation_id, idempotency_key)
+);
+"""
 
 
-@dataclass
-class TurnRecord:
-    task_id: str
-    conversation_id: str
-    owner_agent: str
-    state: str
-    turn_epoch: int
-    started_at: float
-    last_activity_at: float
-    handed_off_at: float | None = None
-    previous_owner: str | None = None
-    handoff_reason: str | None = None
-    handoff_evidence: str | None = None
-    processed_idempotency_keys: dict[str, dict] = field(default_factory=dict)
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "TurnRecord":
-        return cls(**data)
-
-
-class _FileLock:
-    """Exclusive lock via atomic file creation. POSIX-only, matches this host."""
-
-    def __init__(self, path: Path, timeout: float = 5.0, poll_interval: float = 0.02):
-        self.path = path
-        self.timeout = timeout
-        self.poll_interval = poll_interval
-        self._fd: int | None = None
-
-    def __enter__(self) -> "_FileLock":
-        deadline = time.time() + self.timeout
-        while True:
-            try:
-                self._fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                return self
-            except FileExistsError:
-                if time.time() > deadline:
-                    raise TimeoutError(f"could not acquire lock {self.path}")
-                time.sleep(self.poll_interval)
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        if self._fd is not None:
-            os.close(self._fd)
-        try:
-            os.remove(self.path)
-        except FileNotFoundError:
-            pass
+def _default_root() -> str:
+    configured = os.environ.get("EDGE1_OPERATOR_TURN_STATE_ROOT")
+    if configured:
+        return configured
+    # Durable per-user state dir, not system temp -- survives reboots and
+    # requires no privileged setup. Production deployment should override
+    # this via the env var above with a dedicated, ops-provisioned path.
+    return str(Path.home() / ".local" / "state" / "edge1-operator-mcp" / "turn-state")
 
 
 class TurnStateStore:
-    def __init__(self, root: str, audit_writer: Callable[[str, dict], Any] | None = None):
-        self.root = Path(root)
+    def __init__(
+        self,
+        root: str | None = None,
+        audit_writer: Callable[[str, dict], Any] | None = None,
+        _fault_injector: Callable[[str], None] | None = None,
+    ):
+        self.root = Path(root or _default_root())
         self.root.mkdir(parents=True, exist_ok=True)
-        self.state_path = self.root / "turn_state.json"
-        self.lock_path = self.root / "turn_state.lock"
+        self.db_path = self.root / "turn_state.sqlite3"
+        # Optional legacy JSONL projection -- NOT authoritative, may lag or
+        # be skipped entirely without affecting correctness.
         self._audit_writer = audit_writer
+        # Test-only hook: called with a checkpoint name during handoff(); a
+        # test can raise from it to force a mid-transaction rollback and
+        # prove no partial rows survive. No-op in production.
+        self._fault_injector = _fault_injector or (lambda checkpoint: None)
+        self._init_schema()
 
-    def _load_all(self) -> dict[str, TurnRecord]:
-        if not self.state_path.exists():
-            return {}
-        with self.state_path.open("r", encoding="utf-8") as handle:
-            raw = json.load(handle)
-        return {k: TurnRecord.from_dict(v) for k, v in raw.items()}
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), timeout=10.0, isolation_level=None)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        return conn
 
-    def _save_all(self, records: dict[str, TurnRecord]) -> None:
-        serializable = {k: v.to_dict() for k, v in records.items()}
-        tmp_path = self.state_path.with_suffix(".tmp")
-        with tmp_path.open("w", encoding="utf-8") as handle:
-            json.dump(serializable, handle, sort_keys=True, indent=2)
-        os.replace(tmp_path, self.state_path)
+    def _init_schema(self) -> None:
+        conn = self._connect()
+        try:
+            conn.executescript(_SCHEMA)
+        finally:
+            conn.close()
 
-    def _lock(self) -> _FileLock:
-        return _FileLock(self.lock_path)
+    @staticmethod
+    def _row_to_dict(row: sqlite3.Row) -> dict:
+        return {k: row[k] for k in row.keys()}
 
     def seed(self, task_id: str, conversation_id: str, owner_agent: str, state: str = "ACTIVE") -> dict:
-        with self._lock():
-            records = self._load_all()
-            key = _key(task_id, conversation_id)
-            now = time.time()
-            records[key] = TurnRecord(
-                task_id=task_id,
-                conversation_id=conversation_id,
-                owner_agent=owner_agent,
-                state=state,
-                turn_epoch=0,
-                started_at=now,
-                last_activity_at=now,
+        now = time.time()
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                """
+                INSERT INTO turn_state
+                    (task_id, conversation_id, owner_agent, state, turn_epoch,
+                     started_at, last_activity_at)
+                VALUES (?, ?, ?, ?, 0, ?, ?)
+                ON CONFLICT(task_id, conversation_id) DO UPDATE SET
+                    owner_agent=excluded.owner_agent,
+                    state=excluded.state,
+                    turn_epoch=0,
+                    started_at=excluded.started_at,
+                    last_activity_at=excluded.last_activity_at,
+                    handed_off_at=NULL,
+                    previous_owner=NULL,
+                    handoff_reason=NULL,
+                    handoff_evidence=NULL
+                """,
+                (task_id, conversation_id, owner_agent, state, now, now),
             )
-            self._save_all(records)
-            return records[key].to_dict()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        return self.status(task_id, conversation_id)
 
     def status(self, task_id: str, conversation_id: str) -> dict:
-        records = self._load_all()
-        record = records.get(_key(task_id, conversation_id))
-        if record is None:
+        conn = self._connect()
+        try:
+            cur = conn.execute(
+                "SELECT * FROM turn_state WHERE task_id = ? AND conversation_id = ?",
+                (task_id, conversation_id),
+            )
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        if row is None:
             raise UnknownTurnError(f"no turn state for {task_id}/{conversation_id}")
-        result = record.to_dict()
-        result.pop("processed_idempotency_keys", None)
-        return result
+        return self._row_to_dict(row)
 
     def handoff(
         self,
@@ -162,47 +197,123 @@ class TurnStateStore:
         reason: str | None = None,
         evidence: str | None = None,
     ) -> dict:
-        with self._lock():
-            records = self._load_all()
-            key = _key(task_id, conversation_id)
-            record = records.get(key)
-            if record is None:
+        conn = self._connect()
+        result: dict | None = None
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            self._fault_injector("after_begin")
+
+            cur = conn.execute(
+                "SELECT * FROM turn_state WHERE task_id = ? AND conversation_id = ?",
+                (task_id, conversation_id),
+            )
+            row = cur.fetchone()
+            if row is None:
                 raise UnknownTurnError(f"no turn state for {task_id}/{conversation_id}")
+            current = self._row_to_dict(row)
 
-            # Idempotency check comes before the epoch check: a legitimate
-            # replay of an already-applied request must succeed even though
-            # the epoch has since advanced past what the caller originally
+            # Idempotency check before the epoch check: a legitimate replay
+            # of an already-applied request must succeed even though the
+            # epoch has since advanced past what the caller originally
             # expected. Only a genuinely new request can be stale.
-            prior = record.processed_idempotency_keys.get(idempotency_key)
-            if prior is not None:
-                return dict(prior)
+            idem_row = conn.execute(
+                """
+                SELECT result_json FROM turn_idempotency
+                WHERE task_id = ? AND conversation_id = ? AND idempotency_key = ?
+                """,
+                (task_id, conversation_id, idempotency_key),
+            ).fetchone()
+            if idem_row is not None:
+                conn.rollback()
+                return json.loads(idem_row["result_json"])
 
-            if record.owner_agent != requesting_agent:
+            if current["owner_agent"] != requesting_agent:
                 raise UnauthorizedOwnerError(
-                    f"{requesting_agent} is not the current owner ({record.owner_agent})"
+                    f"{requesting_agent} is not the current owner ({current['owner_agent']})"
                 )
-            if record.turn_epoch != expected_epoch:
+            if current["turn_epoch"] != expected_epoch:
                 raise StaleEpochError(
-                    f"expected epoch {expected_epoch}, current epoch is {record.turn_epoch}"
+                    f"expected epoch {expected_epoch}, current epoch is {current['turn_epoch']}"
                 )
+
+            self._fault_injector("after_checks")
 
             now = time.time()
-            record.previous_owner = record.owner_agent
-            record.owner_agent = to_agent
-            record.state = "HANDED_OFF"
-            record.turn_epoch += 1
-            record.last_activity_at = now
-            record.handed_off_at = now
-            record.handoff_reason = reason
-            record.handoff_evidence = evidence
+            new_epoch = current["turn_epoch"] + 1
+            conn.execute(
+                """
+                UPDATE turn_state SET
+                    previous_owner = owner_agent,
+                    owner_agent = ?,
+                    state = 'HANDED_OFF',
+                    turn_epoch = ?,
+                    last_activity_at = ?,
+                    handed_off_at = ?,
+                    handoff_reason = ?,
+                    handoff_evidence = ?
+                WHERE task_id = ? AND conversation_id = ?
+                """,
+                (to_agent, new_epoch, now, now, reason, evidence, task_id, conversation_id),
+            )
 
-            result = record.to_dict()
-            result.pop("processed_idempotency_keys", None)
-            record.processed_idempotency_keys[idempotency_key] = result
+            self._fault_injector("after_state_update")
 
-            self._save_all(records)
+            execution_id = uuid.uuid4().hex[:16]
+            conn.execute(
+                """
+                INSERT INTO turn_audit
+                    (task_id, conversation_id, event, from_agent, to_agent,
+                     turn_epoch, idempotency_key, execution_id, created_at)
+                VALUES (?, ?, 'turn.handed_off', ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id, conversation_id, current["owner_agent"], to_agent,
+                    new_epoch, idempotency_key, execution_id, now,
+                ),
+            )
 
-            if self._audit_writer is not None:
+            self._fault_injector("after_audit_insert")
+
+            cur = conn.execute(
+                "SELECT * FROM turn_state WHERE task_id = ? AND conversation_id = ?",
+                (task_id, conversation_id),
+            )
+            result = self._row_to_dict(cur.fetchone())
+            outbox_payload = json.dumps(result, sort_keys=True)
+
+            conn.execute(
+                """
+                INSERT INTO turn_outbox
+                    (task_id, conversation_id, event_type, payload_json, created_at)
+                VALUES (?, ?, 'turn.handed_off', ?, ?)
+                """,
+                (task_id, conversation_id, outbox_payload, now),
+            )
+
+            self._fault_injector("after_outbox_insert")
+
+            conn.execute(
+                """
+                INSERT INTO turn_idempotency
+                    (task_id, conversation_id, idempotency_key, result_json, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (task_id, conversation_id, idempotency_key, outbox_payload, now),
+            )
+
+            self._fault_injector("before_commit")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+        if self._audit_writer is not None and result is not None:
+            # Optional, non-authoritative projection into the legacy JSONL
+            # audit convention. Best-effort: a failure here must not affect
+            # the SQLite transaction already committed above.
+            try:
                 self._audit_writer(
                     str(self.root / "audit"),
                     {
@@ -213,8 +324,9 @@ class TurnStateStore:
                         "to_agent": result["owner_agent"],
                         "turn_epoch": result["turn_epoch"],
                         "idempotency_key": idempotency_key,
-                        "execution_id": uuid.uuid4().hex[:16],
                     },
                 )
+            except Exception:
+                pass
 
-            return result
+        return result
