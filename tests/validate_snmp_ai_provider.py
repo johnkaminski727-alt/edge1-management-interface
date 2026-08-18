@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server"))
@@ -61,6 +64,16 @@ class ProviderTests(unittest.TestCase):
     def test_provider_rejects_non_loopback_endpoint(self):
         with self.assertRaises(Exception):
             BigBirdPrivateAIProvider(SignedGatewayConfig(url="https://example.com/v1/chat", key_id="k", secret="x" * 40))
+
+    def test_systemd_credentials_supply_gateway_identity_without_environment_secret(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "bb_relay_key_id").write_text("runtime-key", encoding="utf-8")
+            Path(tmp, "bb_relay_secret").write_text("s" * 40, encoding="utf-8")
+            with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": tmp}, clear=True):
+                config = SignedGatewayConfig.from_environment()
+        self.assertEqual(config.key_id, "runtime-key")
+        self.assertEqual(config.secret, "s" * 40)
+        self.assertEqual(config.url, "http://127.0.0.1:8787/v1/chat")
 
 
 if __name__ == "__main__":
