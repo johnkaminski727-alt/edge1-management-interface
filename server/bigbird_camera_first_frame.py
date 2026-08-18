@@ -3,9 +3,10 @@
 
 The probe is intentionally one-shot and model-neutral. It reads a protected local
 JSON configuration, tries only explicitly configured candidate endpoints in a fixed
-transport priority, captures one real image, verifies that the payload is image-like,
-and writes a SHA-256 evidence record. It does not discover credentials, scan arbitrary
-networks, start listeners, or persist a daemon.
+transport priority, captures one candidate image payload, verifies that the payload
+is image-like, and writes SHA-256 evidence. It does not discover credentials, scan
+arbitrary networks, start listeners, persist a daemon, or claim that a captured
+payload has been visually verified as coming from the physical camera.
 """
 from __future__ import annotations
 
@@ -182,7 +183,7 @@ def write_evidence(camera_id: str, candidate: Candidate, frame: Path, evidence_d
     evidence_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(evidence_dir, 0o700)
     record = {
-        "contract": "wwcx.bigbird-camera-first-frame.v1",
+        "contract": "wwcx.bigbird-camera-first-frame.v2",
         "captured_at": utcnow(),
         "camera_id": camera_id,
         "transport": candidate.transport,
@@ -191,7 +192,9 @@ def write_evidence(camera_id: str, candidate: Candidate, frame: Path, evidence_d
         "frame_bytes": frame.stat().st_size,
         "sha256": digest,
         "verified_image_payload": True,
-        "live_camera_pixels_verified": True,
+        "live_camera_pixels_verified": False,
+        "visual_verification_required": True,
+        "acceptance_state": "pending_visual_verification",
     }
     evidence = evidence_dir / f"{camera_id}-first-frame.json"
     temp = evidence.with_suffix(".json.tmp")
@@ -217,12 +220,13 @@ def run(config_path: Path, camera_id: str, output_dir: Path, evidence_dir: Path)
             capture(candidate, frame)
             evidence = write_evidence(camera_id, candidate, frame, evidence_dir)
             return {
-                "status": "first_frame_captured",
+                "status": "frame_captured_pending_visual_verification",
                 "camera_id": camera_id,
                 "transport": candidate.transport,
                 "source": redact_uri(candidate.uri),
                 "frame": str(frame),
                 "evidence": str(evidence),
+                "acceptance_state": "pending_visual_verification",
             }
         except Exception as exc:
             if frame.exists():
