@@ -16,6 +16,8 @@ CORE_PATH = SERVER_ROOT / "inbound_mail_hub.py"
 SERVER_PATH = SERVER_ROOT / "inbound_mail_hub_server.py"
 IDENTITY_ENGINE_PATH = SERVER_ROOT / "mail_identity_registry.py"
 DOC_PATH = ROOT / "docs" / "messaging" / "inbound-mail-hub.md"
+THREAT_POLICY_PATH = ROOT / "config" / "messaging" / "mail-threat-policy.json"
+THREAT_DOC_PATH = ROOT / "docs" / "messaging" / "mail-room-threat-intelligence-and-ai-policy-20260818.md"
 
 sys.path.insert(0, str(SERVER_ROOT))
 
@@ -36,11 +38,13 @@ inbound_mail_hub.validate_config(config)
 mail_identity_registry.validate_registry(identities)
 status = inbound_mail_hub.status_payload(config)
 assert status["hub"] == "wwcx-inbound-mail-hub"
+assert status["contract"] == "wwcx.inbound-mail-hub.v2"
 assert status["state"] == "disabled"
 assert status["production_routing_enabled"] is False
 assert status["persist_raw_message"] is False
 assert status["persist_attachment_bytes"] is False
-assert status["unknown_recipient_action"] == "quarantine"
+assert status["managed_domain_catchall_enabled"] is True
+assert status["managed_domain_catchall_destination"] == ROLE_DESTINATION
 assert set(status["domains"]) == {
     "ww.cx",
     "creekco.ca",
@@ -62,12 +66,16 @@ assert identities["mailboxes"]["private_john"]["accepts_direct_public_use"] is F
 assert identities["mailboxes"]["shared_role"]["accepts_direct_public_use"] is False
 
 routes = config["routing"]["routes"]
+catchall = config["routing"]["managed_domain_catchall"]
 john_routes = {address: route for address, route in routes.items() if address.startswith("john@")}
 role_routes = {address: route for address, route in routes.items() if not address.startswith("john@")}
 assert len(john_routes) == 5
 assert len(role_routes) == 32
 assert all(route["destination"] == PRIVATE_DESTINATION for route in john_routes.values())
 assert all(route["destination"] == ROLE_DESTINATION for route in role_routes.values())
+assert catchall["enabled"] is True
+assert catchall["destination_type"] == "mailbox"
+assert catchall["destination"] == ROLE_DESTINATION
 assert PRIVATE_DESTINATION not in routes
 assert ROLE_DESTINATION not in routes
 assert SYSTEM_SENDER not in routes
@@ -81,7 +89,31 @@ for address, profile_key in RECONCILED_CREEKCO.items():
     assert profiles[profile_key]["status"] == "verified_operational"
     assert profiles[profile_key]["outbound_enabled"] is False
 
-for path in (CORE_PATH, SERVER_PATH, IDENTITY_ENGINE_PATH, DOC_PATH, IDENTITIES_PATH):
+sample = inbound_mail_hub.normalize_envelope(
+    config,
+    {
+        "envelope_from": "sender@example.com",
+        "recipients": ["unregistered-local-part@creekco.ca", "john@creekco.ca"],
+        "message_size": 256,
+        "provider_message_id": "validation-catchall",
+    },
+)
+decisions = {item.recipient: item for item in inbound_mail_hub.route_envelope(config, sample)}
+assert decisions["unregistered-local-part@creekco.ca"].action == "route"
+assert decisions["unregistered-local-part@creekco.ca"].destination == ROLE_DESTINATION
+assert decisions["unregistered-local-part@creekco.ca"].reason == "managed_domain_catchall"
+assert decisions["john@creekco.ca"].destination == PRIVATE_DESTINATION
+assert decisions["john@creekco.ca"].reason == "explicit_route"
+
+for path in (
+    CORE_PATH,
+    SERVER_PATH,
+    IDENTITY_ENGINE_PATH,
+    DOC_PATH,
+    IDENTITIES_PATH,
+    THREAT_POLICY_PATH,
+    THREAT_DOC_PATH,
+):
     assert path.is_file(), path
     assert path.stat().st_size > 100, path
 
@@ -98,7 +130,7 @@ for token in (
     assert token in server, token
 
 result = subprocess.run(
-    [sys.executable, "-m", "unittest", "tests.test_inbound_mail_hub"],
+    [sys.executable, "-m", "unittest", "tests.test_inbound_mail_hub", "tests.test_mail_threat_policy"],
     cwd=ROOT,
     check=False,
 )
@@ -112,6 +144,7 @@ compile_result = subprocess.run(
         str(CORE_PATH),
         str(SERVER_PATH),
         str(IDENTITY_ENGINE_PATH),
+        str(ROOT / "tests" / "test_mail_threat_policy.py"),
     ],
     cwd=ROOT,
     check=False,
@@ -119,8 +152,9 @@ compile_result = subprocess.run(
 assert compile_result.returncode == 0
 
 print("Inbound mail hub validation passed")
-print("Five private John routes deliver to john-inbox@ww.cx")
-print("Thirty-two shared role routes deliver to maildesk@ww.cx")
+print("Five private John routes override catch-all and deliver to john-inbox@ww.cx")
+print("Thirty-two named role routes and arbitrary managed-domain local-parts deliver to maildesk@ww.cx")
+print("Exact original recipients remain present in catch-all route decisions")
 print("CreekCo accessibility and NOC identities are registered but live-disabled")
 print("noreply@ww.cx is reserved as an outbound-only system identity")
-print("Production routing, MX changes, SMTP listeners, and outbound activation remain disabled")
+print("Production routing, reputation feeds, threat engines, MX changes, and outbound activation remain disabled")
