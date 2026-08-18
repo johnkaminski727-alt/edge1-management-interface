@@ -129,12 +129,20 @@ class OutboundMailAdminAssetsTests(unittest.TestCase):
         self.assertIn("$('#submit-message').disabled = true;", self.js)
         self.assertIn("state.preview = null", self.js)
 
-    def test_draft_privacy_and_keyboard_shortcuts_are_explicit(self) -> None:
+    def test_draft_privacy_and_leave_protection_are_explicit(self) -> None:
         self.assertIn("Draft bodies are not saved to browser storage", self.html)
+        self.assertIn("function hasDraftContent()", self.js)
+        self.assertIn("beforeunload", self.js)
+        self.assertIn("draftCommitted", self.js)
+
+    def test_keyboard_shortcuts_do_not_disrupt_typing(self) -> None:
         self.assertIn("Mail Room shortcuts", self.html)
         self.assertIn("handleKeyboard", self.js)
+        self.assertIn("const typing = isTypingTarget(event.target);", self.js)
+        self.assertIn("event.key === 'Escape' && !typing", self.js)
         self.assertIn("event.metaKey || event.ctrlKey", self.js)
         self.assertIn("navigator.clipboard.writeText", self.js)
+        self.assertIn("$('#quick-compose').addEventListener", self.js)
 
     def test_chatgpt_and_provider_abstraction_are_documented(self) -> None:
         self.assertIn("ChatGPT and automation path", self.doc)
