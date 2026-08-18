@@ -1,0 +1,34 @@
+{
+  "contract": "wwcx.mail-auto-reply-policy.v1",
+  "enabled": false,
+  "automatic_transmission_authorized": false,
+  "default_mode": "prepare_only",
+  "allowlisted_message_classes": [],
+  "blocked_message_classes": [
+    "legal_notice",
+    "regulatory_notice",
+    "complaint",
+    "security_incident",
+    "payment_or_banking_change",
+    "credential_or_access_request",
+    "suspicious_invoice",
+    "contract_or_terms",
+    "termination_or_cancellation",
+    "identity_or_security_event"
+  ],
+  "required_gates": [
+    "security_clean",
+    "phishing_bec_risk_acceptable",
+    "sender_identity_confident",
+    "thread_identity_confident",
+    "outbound_sender_live_authorized",
+    "footer_profile_resolved",
+    "message_class_allowlisted",
+    "idempotency_passed",
+    "final_outbound_scan_clean",
+    "domain_policy_allows",
+    "identity_policy_allows",
+    "workflow_policy_allows",
+    "human_approval_not_required"
+  ]
+}
