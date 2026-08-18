@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Bounded repository adapter for WW.CX Mail Room Private AI capabilities.
+"""Bounded WW.CX Mail Room Private AI capabilities.
 
-This adapter supports sanitized status and draft preparation only. It never calls a
-provider, never invokes the send path, and does not claim inbound correspondence
-retrieval until an explicitly authorized native correspondence source is available.
+Draft preparation remains local and never sends. Correspondence reads are disabled by
+default and become available only when a private persisted store exists and the selected
+records carry immutable authoritative `local_native` or `production_native` provenance.
 """
 
 from __future__ import annotations
 
 import copy
+import os
 from pathlib import Path
 from typing import Any
 
@@ -16,11 +17,18 @@ import identity_aware_outbound_gateway
 import mail_identity_registry
 import outbound_mail_gateway
 import outbound_mail_policy
+from mail_correspondence_store import (
+    READABLE_AUTHORITATIVE_SCOPES,
+    CorrespondenceStoreError,
+    MailCorrespondenceStore,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO_ROOT / "config" / "messaging" / "outbound-mail-gateway.json"
 DEFAULT_IDENTITIES = REPO_ROOT / "config" / "messaging" / "mail-identities.json"
+DEFAULT_CORRESPONDENCE_DB = Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
+CORRESPONDENCE_ENABLE_ENV = "WWCX_MAIL_CORRESPONDENCE_READ_ENABLED"
 
 
 class MailAIAdapterError(RuntimeError):
@@ -41,17 +49,134 @@ def _load(
     return config, policy, identities
 
 
+def _correspondence_enabled(enabled: bool | None = None) -> bool:
+    if enabled is not None:
+        return bool(enabled)
+    return os.getenv(CORRESPONDENCE_ENABLE_ENV, "false").strip().casefold() == "true"
+
+
+def _read_store(path: Path) -> MailCorrespondenceStore:
+    try:
+        return MailCorrespondenceStore(
+            path,
+            source="mail-ai-read-adapter",
+            source_authoritative=False,
+            source_scope="synthetic",
+            read_only=True,
+        )
+    except CorrespondenceStoreError as exc:
+        raise MailAIAdapterError(str(exc)) from exc
+
+
+def _record_is_authorized(record: dict[str, Any]) -> bool:
+    provenance = record.get("provenance")
+    return bool(
+        isinstance(provenance, dict)
+        and provenance.get("authoritative") is True
+        and provenance.get("scope") in READABLE_AUTHORITATIVE_SCOPES
+    )
+
+
+def _state_is_ready(state: dict[str, Any]) -> bool:
+    return str(state.get("state", "")).startswith("ready_")
+
+
+def correspondence_read_state(
+    *,
+    db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    enabled: bool | None = None,
+) -> dict[str, Any]:
+    is_enabled = _correspondence_enabled(enabled)
+    base = {
+        "contract": "wwcx.mail-correspondence-read-state.v1",
+        "capability": "mail.correspondence.read",
+        "database": str(db_path),
+        "read_enabled": is_enabled,
+        "repository_foundation": "server/mail_correspondence_store.py",
+        "content_is_untrusted": True,
+        "send_authorized": False,
+        "mutation_authorized": False,
+    }
+    if not is_enabled:
+        return {
+            **base,
+            "state": "blocked_configuration_disabled",
+            "reason": (
+                "Correspondence reads are disabled until an approved private source/store is selected."
+            ),
+            "production_provider_ready": False,
+        }
+    if db_path.is_symlink() or not db_path.is_file():
+        return {
+            **base,
+            "state": "blocked_store_unavailable",
+            "reason": "The configured private correspondence database is unavailable.",
+            "production_provider_ready": False,
+        }
+    try:
+        store_status = _read_store(db_path).status()
+    except MailAIAdapterError as exc:
+        return {
+            **base,
+            "state": "blocked_store_invalid",
+            "reason": str(exc),
+            "production_provider_ready": False,
+        }
+    authorized_sources = [
+        item
+        for item in store_status["sources"]
+        if item["authoritative"] is True and item["scope"] in READABLE_AUTHORITATIVE_SCOPES
+    ]
+    if not authorized_sources:
+        return {
+            **base,
+            "state": "blocked_no_authoritative_records",
+            "reason": (
+                "The store contains no records from an authoritative local or production-native source."
+            ),
+            "record_count": store_status["record_count"],
+            "production_provider_ready": False,
+        }
+    scopes = sorted({str(item["scope"]) for item in authorized_sources})
+    production_ready = "production_native" in scopes
+    state = "ready_production_native" if production_ready else "ready_local_native"
+    return {
+        **base,
+        "state": state,
+        "record_count": store_status["record_count"],
+        "authoritative_scopes": scopes,
+        "production_provider_ready": production_ready,
+        "source_truth": (
+            "provider_native" if production_ready else "local_native_only"
+        ),
+    }
+
+
 def status(
     config_path: Path = DEFAULT_CONFIG,
     identities_path: Path = DEFAULT_IDENTITIES,
+    *,
+    correspondence_db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    correspondence_enabled: bool | None = None,
 ) -> dict[str, Any]:
     config, policy, identities = _load(config_path, identities_path)
     payload = identity_aware_outbound_gateway.status_payload(config, policy, identities)
+    correspondence = correspondence_read_state(
+        db_path=correspondence_db_path,
+        enabled=correspondence_enabled,
+    )
+    capabilities = ["mail.status.read", "mail.draft.prepare"]
+    pending: list[str] = []
+    if _state_is_ready(correspondence):
+        capabilities.append("mail.correspondence.read")
+    else:
+        pending.append("mail.correspondence.read")
     return {
         "contract": "wwcx.mail-ai-status.v1",
-        "capabilities": ["mail.status.read", "mail.draft.prepare"],
-        "pending_capabilities": ["mail.correspondence.read"],
+        "capabilities": capabilities,
+        "pending_capabilities": pending,
         "gateway": payload,
+        "correspondence": correspondence,
         "content_is_untrusted": True,
         "send_authorized": False,
         "mutation_authorized": False,
@@ -90,19 +215,59 @@ def prepare_draft(
     return result
 
 
-def correspondence_read_state() -> dict[str, Any]:
-    """Describe the intentionally closed correspondence-read boundary."""
+def _require_correspondence_ready(db_path: Path, enabled: bool | None) -> MailCorrespondenceStore:
+    state = correspondence_read_state(db_path=db_path, enabled=enabled)
+    if not _state_is_ready(state):
+        raise MailAIAdapterError(str(state.get("reason", "correspondence read is unavailable")))
+    return _read_store(db_path)
+
+
+def read_correspondence_message(
+    message_id: str,
+    *,
+    db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    enabled: bool | None = None,
+) -> dict[str, Any]:
+    store = _require_correspondence_ready(db_path, enabled)
+    try:
+        record = store.read_message(message_id)
+    except CorrespondenceStoreError as exc:
+        raise MailAIAdapterError(str(exc)) from exc
+    if not _record_is_authorized(record):
+        raise MailAIAdapterError("correspondence record is not authorized for Private AI read")
+    scope = str(record["provenance"]["scope"])
     return {
-        "contract": "wwcx.mail-correspondence-read-state.v1",
-        "capability": "mail.correspondence.read",
-        "state": "blocked_pending_authoritative_source",
-        "reason": (
-            "Phase 27 provides a private persisted correspondence-store foundation, but no reviewed "
-            "native mailbox/MTA source is yet proven and connected. Outbound audit metadata and "
-            "synthetic local records cannot be substituted for authoritative correspondence."
-        ),
-        "repository_foundation": "server/mail_correspondence_store.py",
-        "source_authoritative": False,
+        "contract": "wwcx.mail-ai-correspondence-message-read.v1",
+        "message": record,
+        "source_scope": scope,
+        "production_provider_ready": scope == "production_native",
+        "content_is_untrusted": True,
+        "send_authorized": False,
+        "mutation_authorized": False,
+    }
+
+
+def read_correspondence_thread(
+    thread_id: str,
+    *,
+    limit: int = 50,
+    db_path: Path = DEFAULT_CORRESPONDENCE_DB,
+    enabled: bool | None = None,
+) -> dict[str, Any]:
+    store = _require_correspondence_ready(db_path, enabled)
+    try:
+        thread = store.read_thread(thread_id, limit=limit)
+    except CorrespondenceStoreError as exc:
+        raise MailAIAdapterError(str(exc)) from exc
+    if not all(_record_is_authorized(item) for item in thread["messages"]):
+        raise MailAIAdapterError("thread contains records not authorized for Private AI read")
+    scopes = sorted({str(item["provenance"]["scope"]) for item in thread["messages"]})
+    return {
+        "contract": "wwcx.mail-ai-correspondence-thread-read.v1",
+        "thread": thread,
+        "source_scopes": scopes,
+        "production_provider_ready": bool(scopes) and set(scopes) == {"production_native"},
+        "content_is_untrusted": True,
         "send_authorized": False,
         "mutation_authorized": False,
     }
