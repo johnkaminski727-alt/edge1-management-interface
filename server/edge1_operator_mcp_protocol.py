@@ -14,6 +14,7 @@ def _tool(name: str, description: str) -> dict:
 TOOLS = [
     _tool("edge1.identity", "Return verified Edge1 operator identity information."),
     _tool("edge1.health", "Return operator and loopback Operations API health."),
+    _tool("edge1.snapshot", "Collect one deterministic read-only Edge1 host snapshot through the audited Operations API."),
     _tool("edge1.inventory", "Run the deterministic read-only Edge1 inventory and return its audited result."),
     _tool("edge1.services", "Return bounded running/failed service state."),
     _tool("edge1.network_state", "Return bounded interface, route, and classified listener state."),

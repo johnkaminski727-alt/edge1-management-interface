@@ -19,6 +19,7 @@ class MCPAdapter:
         self._tools: dict[str, Callable[..., ToolResult]] = {
             "edge1.identity": self.identity,
             "edge1.health": self.health,
+            "edge1.snapshot": self.snapshot,
             "edge1.inventory": self.inventory,
             "edge1.services": self.services,
             "edge1.network_state": self.network_state,
@@ -56,6 +57,9 @@ class MCPAdapter:
 
     def health(self) -> ToolResult:
         return self._call("edge1.health", "health")
+
+    def snapshot(self) -> ToolResult:
+        return self._call("edge1.snapshot", "snapshot")
 
     def inventory(self) -> ToolResult:
         return self._call("edge1.inventory", "inventory")
