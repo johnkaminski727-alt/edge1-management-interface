@@ -72,7 +72,11 @@ def main() -> int:
     assert clean_recovered["release_authorized"] is False
     assert eicar_recovered["release_authorized"] is False
 
-    for path in (root, *store._dirs.values()):
+    private_directories = (
+        root,
+        *(path for path in root.rglob("*") if path.is_dir()),
+    )
+    for path in private_directories:
         assert os.stat(path).st_mode & 0o077 == 0, path
     assert os.stat(store.verify_blob(clean_ingest["attachment_id"])).st_mode & 0o077 == 0
     assert os.stat(store.verify_blob(eicar_ingest["attachment_id"])).st_mode & 0o077 == 0

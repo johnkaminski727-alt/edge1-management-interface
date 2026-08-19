@@ -97,7 +97,17 @@ class PrivateQuarantineStore:
 
     def _prepare_private_tree(self) -> None:
         self._ensure_private_directory(self.root)
-        for path in self._dirs.values(): self._ensure_private_directory(path)
+        # pathlib.mkdir(parents=True, mode=0o700) applies the requested mode only
+        # to the final component. Explicitly secure structural parents so a normal
+        # process umask cannot leave blobs/metadata/scan-state group/world readable.
+        for path in (
+            self.root / "blobs",
+            self.root / "metadata",
+            self.root / "scan-state",
+        ):
+            self._ensure_private_directory(path)
+        for path in self._dirs.values():
+            self._ensure_private_directory(path)
     @staticmethod
     def _ensure_private_directory(path: Path) -> None:
         if path.exists() and path.is_symlink(): raise QuarantineStorageError(f"private path may not be a symlink: {path}")
