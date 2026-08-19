@@ -4,6 +4,8 @@ from typing import Literal
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from .delivery_router import build_delivery_router
+from .delivery_status import InMemoryDeliveryStatusStore, PostgresDeliveryStatusStore
 from .media_quarantine import quarantine_summary
 from .models import Direction, NormalizedMessage
 from .persistence import PostgresEventStore
@@ -12,12 +14,15 @@ from .store import InMemoryEventStore
 from .telegraph_office import build_router
 from .webhook_receipts import InMemoryWebhookReceiptLedger, PostgresWebhookReceiptLedger
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.5")
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.6")
 
 database_url = os.getenv("DATABASE_URL")
 store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
 webhook_receipts = (
     PostgresWebhookReceiptLedger(database_url) if database_url else InMemoryWebhookReceiptLedger()
+)
+delivery_store = (
+    PostgresDeliveryStatusStore(database_url) if database_url else InMemoryDeliveryStatusStore()
 )
 
 
@@ -25,9 +30,14 @@ def simulator_token() -> str:
     return os.getenv("WWCX_SIMULATOR_TOKEN", "development-only")
 
 
+def management_read_token() -> str:
+    return os.getenv("WWCX_MANAGEMENT_READ_TOKEN", "development-read-only")
+
+
 providers = build_provider_registry(simulator_token)
 
 app.include_router(build_router(store, simulator_token))
+app.include_router(build_delivery_router(providers, delivery_store, management_read_token))
 
 
 class ControlRequest(BaseModel):
@@ -94,6 +104,7 @@ def management_status(
         "messages.status.read",
         "messages.conversation.read",
         "messages.webhooks.receipts.read",
+        "messages.delivery.status.read",
     ]
     if callable(getattr(store, "outbound_queue_status", None)):
         capabilities.append("messages.outbound.queue.read")
@@ -110,6 +121,12 @@ def management_status(
             "durable": bool(database_url),
             "records_verified_callbacks_only": True,
             "unverified_request_persistence": False,
+        },
+        "delivery_status": {
+            "durable": bool(database_url),
+            "asynchronous_provider_callbacks": True,
+            "final_statuses": ["delivered", "failed", "undelivered"],
+            "real_carrier_adapter_registered": False,
         },
         "outbound_worker": {
             "enabled": os.getenv("WWCX_OUTBOUND_WORKER_ENABLED", "false").lower() == "true",
