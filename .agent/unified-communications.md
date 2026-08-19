@@ -1,33 +1,36 @@
 # Unified Communications — Current State
 
-Last reconciled: 2026-08-18, Phase 28 closeout
+Last reconciled: 2026-08-19, safe-scope completion approval recorded
 Repository: `johnkaminski727-alt/edge1-management-interface`
 Phase 28 implementation PR: #427
 Reviewed implementation head: `88253f0c3c2839b2192cc1d9f723c92a79b293be`
 Phase 28 implementation merge: `e7d7fda638a4f69d68bf54cdebdbee9070143384`
+Safe-scope approval record: `docs/communications/unified-communications-safe-scope-approval-20260819.md`
 Global `fresh_edge1_runtime_verified`: **false**
 
 ## Current truth
 
-WW.CX Communications remains read-only/non-sending by default. Phase 28 delivered and merged a functional local-native Mail correspondence software path while preserving all production, provider, authentication-policy, and quarantine-release boundaries.
+WW.CX Communications remains read-only/non-sending by default. Phase 28 delivered and merged a functional local-native Mail correspondence software path while preserving production traffic, provider, credential, and quarantine-release boundaries.
 
 The merged functional chain is:
 
 `local RFC822 file -> bounded local-native parser -> private SQLite message/thread store -> authenticated loopback Mail API -> BigBird Mail facade -> mail.correspondence.read`
 
-No Phase 28 state grants live Mail send, live SMS/MMS, call origination, route/trunk/dialplan mutation, generic execution, provider credentials, quarantine release, or new public management exposure.
+On 2026-08-19 the user explicitly approved the remaining **safe-scope completion work**, including bounded Edge1 deployment, package installation when required for the trusted local scanner, private storage creation, directly affected service restarts, and the exact authentication-policy change required to add dedicated Mail HMAC client `wwcx-private-ai` and register least-privileged BigBird Mail tools.
+
+That approval clears the previously documented human-approval blocker. It does not itself constitute live execution or live acceptance evidence.
+
+No current project state grants live Mail send, live SMS/MMS, call origination, route/trunk/dialplan mutation, provider credentials, quarantine release, destructive operations, or new public management exposure.
 
 ## Repository and CI state
 
-Phase 28 began from current `main` `9711461125a73f013b0f0a09347a6b1d1105eb5f`, which already included PR #426's fail-closed durable outbound Messaging queue. Unrelated SNMP and other parallel work was preserved.
-
-PR #427 merged the Phase 28 implementation as `e7d7fda638a4f69d68bf54cdebdbee9070143384` after exact-head validation passed on `88253f0c3c2839b2192cc1d9f723c92a79b293be`:
+Phase 28 began from `main` `9711461125a73f013b0f0a09347a6b1d1105eb5f`, which included PR #426's fail-closed durable outbound Messaging queue. PR #427 merged the Phase 28 implementation as `e7d7fda638a4f69d68bf54cdebdbee9070143384` after exact-head validation passed on `88253f0c3c2839b2192cc1d9f723c92a79b293be`:
 
 - Validate repository — run `32196436559` — PASS;
 - Edge1 Operator Validation — run `32196436531` — PASS;
 - Validate outbound mail suppression server — run `32196436670` — PASS.
 
-No review threads remained before merge.
+Phase 28 closeout PR #430 later merged as `bb34c144ab9375b4ee951834e270f794404fb27f`. Subsequent parallel work advanced `main`, including a guarded Edge1 Live Shell MCP connector. Parallel work must be preserved.
 
 ## Functional local Mail correspondence
 
@@ -48,11 +51,11 @@ No review threads remained before merge.
 - persisted source `local-mailroom-rfc822`, scope `local_native`, authoritative `true`;
 - local-native truth remains `production_provider_ready=false`.
 
-`tools/mail_local_intake.py` is the operator intake entry point and constrains runtime persistence to the private Mail Room root `/var/lib/wwcx-mail-room`.
+`tools/mail_local_intake.py` is the operator intake entry point and constrains runtime persistence to `/var/lib/wwcx-mail-room`.
 
 ### Store and provenance
 
-`server/mail_correspondence_store.py` now persists immutable source, authority, and source scope. Supported scopes are `synthetic`, `local_native`, `production_native`, and fail-safe `legacy_unscoped`.
+`server/mail_correspondence_store.py` persists immutable source, authority, and source scope. Supported scopes are `synthetic`, `local_native`, `production_native`, and fail-safe `legacy_unscoped`.
 
 Only persisted records with `authoritative=true` and scope `local_native` or `production_native` can cross the Private AI correspondence-read boundary. Synthetic records cannot claim authority and cannot be upgraded by reopening the database. Read-only consumers use SQLite `mode=ro` and reject writes.
 
@@ -62,9 +65,9 @@ Only persisted records with `authoritative=true` and scope `local_native` or `pr
 
 `server/outbound_mail_gateway_server.py` exposes correspondence status/message/thread reads behind the existing HMAC/replay-protected loopback API. The endpoints additionally require exact client ID `wwcx-private-ai`.
 
-A Phase 28 manual security review found and fixed a potential privilege inheritance issue before merge: the already-authorized `wwcx-website-admin` client could otherwise have inherited message-body read access. `tests/validate_mail_correspondence_client_isolation.py` now proves existing/unrelated HMAC clients are rejected from correspondence endpoints.
+A Phase 28 security review fixed potential privilege inheritance: the already-authorized `wwcx-website-admin` client does not inherit message-body access. `tests/validate_mail_correspondence_client_isolation.py` proves existing/unrelated HMAC clients are rejected from correspondence endpoints.
 
-The unauthenticated public status surface does not expose correspondence data or the private database path.
+The 2026-08-19 approval now authorizes adding exact client ID `wwcx-private-ai` to the **deployed** Mail HMAC allowed-client policy and live-registering only the least-privileged Mail status/correspondence/draft BigBird capabilities. The existing secret mechanism must be reused without exposing, rotating, or committing secret values.
 
 ### BigBird repository integration
 
@@ -75,29 +78,6 @@ Merged components:
 - `integrations/bigbird-mail/tool-manifest.json`.
 
 The client is loopback-only and HMAC-authenticated. The facade rechecks untrusted-content, non-mutation, no-send, and persisted provenance boundaries. It exposes repository tools for `mail.status.read`, `mail.correspondence.read`, and `mail.draft.prepare`; it has no send method. Draft preparation remains `prepared_not_sent`.
-
-The base/deployed HMAC allowed-client policy was deliberately left unchanged. The proposed live client `wwcx-private-ai` was registered only inside isolated integration-test configuration. Adding it live is an authentication-policy change requiring separate explicit approval.
-
-## Functional acceptance
-
-The merged exact-head repository validator executed the complete local path using generated fixtures:
-
-- root RFC822 ingest;
-- reply RFC822 ingest and explicit thread reconstruction;
-- native/provider ID preservation;
-- local private permissions in the fixture;
-- HTML-only fail-closed behavior;
-- synthetic-record isolation;
-- arbitrary runtime DB path rejection;
-- direct Mail AI reads;
-- unsigned API rejection;
-- HMAC-authenticated correspondence reads;
-- dedicated-client isolation;
-- BigBird facade message/thread reads;
-- prompt-like body retained as untrusted data;
-- prepared-not-sent draft with live delivery authorization false.
-
-This satisfies the provider-independent functional software fallback. It does not imply live Edge1 deployment or provider-production correspondence.
 
 ## MMS state
 
@@ -110,33 +90,33 @@ Phase 27's merged repository MMS implementation remains ready for live acceptanc
 - local clean/EICAR/error/restart acceptance tooling;
 - no automatic quarantine release.
 
-Live Edge1 scanner/private-root acceptance was not executed in Phase 28 because this session exposed no authenticated Edge1 execution connector and no usable local SSH identity. SMS/MMS `security_quarantine` therefore remains `degraded` until actual host evidence exists.
+The 2026-08-19 approval explicitly covers installing/enabling the resource-safe local scanner/signature data if absent, creating the private MMS root under the actual service identity, restarting only directly affected services, and running synthetic live acceptance with rollback/evidence.
+
+Live Edge1 scanner/private-root acceptance is still not claimed until an authenticated Edge1 execution connector is actually callable and the host tests pass. SMS/MMS `security_quarantine` therefore remains `degraded` for now.
 
 ## Existing shared runtime truth
 
 Prior accepted live evidence remains unchanged unless later fresh Edge1 evidence proves otherwise:
 
-- Messaging Gateway/PostgreSQL — runtime-ready from prior acceptance; PR #426's durable outbound queue is merged on main but Phase 28 did not live-operate it;
-- BigBird — previously runtime-ready for accepted Messaging/communications/telephony scopes; Phase 28 Mail tools are merged but not live-registered;
+- Messaging Gateway/PostgreSQL — runtime-ready from prior acceptance;
+- BigBird — previously runtime-ready for accepted Messaging/communications/telephony scopes; Phase 28 Mail tools are merged but not yet live-accepted;
 - Communications workspace/Relay — previously runtime-ready, loopback-only, authoritative Relay metadata attached;
-- Voice/SIP — bounded read-only acceptance remains runtime-ready; current external interconnect health remains `unknown` because the prior degraded display came from a stored 2026-07-20 status snapshot, not a fresh live probe.
+- Voice/SIP — bounded read-only acceptance remains runtime-ready; current external interconnect health remains `unknown` because prior degraded display data came from a stored 2026-07-20 status snapshot rather than a fresh live probe.
 
-## Remaining blockers
+## Remaining blocker
 
-1. **Authenticated Edge1 execution path** — required for live MMS scanner/private-root deployment and acceptance, live local-Mail deployment, service/listener/permission/restart checks, and rollback evidence.
-2. **Authentication-policy approval** — required before adding `wwcx-private-ai` to the deployed Mail HMAC allowlist and live-registering the BigBird Mail tools. Do not reuse `wwcx-website-admin` to bypass this boundary.
-3. **Production-native Mail source** — required only before claiming provider-production correspondence readiness. The local-native software path is already functional without it.
+The previous authentication-policy approval blocker is **cleared**.
+
+The remaining blocking condition for safe-scope completion is **callable authenticated Edge1 execution** so the approved deployment and live acceptance can actually run and produce evidence. The repository now contains a guarded Edge1 Live Shell MCP connector, but availability must be verified in the active operator session before any live claim.
+
+A production-native Mail source is optional/separate from local safe-scope completion. Read-only discovery of an already-existing source is approved when it requires no new credentials/provider activation; provider-production readiness must not be claimed without actual native source evidence.
 
 Exact live procedure: `docs/communications/unified-communications-phase28-live-acceptance-20260818.md`.
 
-Durable Phase 28 evidence:
+Approval record: `docs/communications/unified-communications-safe-scope-approval-20260819.md`.
 
-- `.agent/unified-communications-validation-phase28-20260818.md`;
-- `docs/communications/unified-communications-phase28-live-acceptance-20260818.md`;
-- `docs/handoff/unified-communications-phase28-20260818.md`.
+`fresh_edge1_runtime_verified` remains false until live evidence passes.
 
-`fresh_edge1_runtime_verified` remains false.
+## Still-protected production boundaries
 
-## Production boundaries
-
-Without separate explicit authorization, do not send live SMS/MMS or email, originate production calls, change emergency/SIP/carrier routing, modify DNS/firewall/certificates/authentication policy, rotate/disclose credentials, release quarantine, port numbers, perform STIR/SHAKEN actions, make destructive/irreversible changes, or enter financial/contractual/legal/regulatory commitments.
+The safe-scope approval does not authorize live SMS/MMS or email transmission, production calls, emergency/carrier routing changes, number porting, STIR/SHAKEN, credential disclosure/rotation, quarantine release, destructive/irreversible operations, provider financial/legal/regulatory commitments, or unrelated DNS/firewall/certificate/public-listener changes.
