@@ -31,6 +31,12 @@ Rollback evidence remains:
 
 HTTP 302 is intentional. Any 308 promotion is future optional work.
 
+## Repository continuation
+
+PR #450 is merged. The authenticated human operator fast-forwarded the clean Edge1 checkout from `0aa8ce54b8d79b450cb9f85b061ea8972abc172c` to the PR #450 merge `94670022e9318c3c0364bd1a9fcb5f326e2124bf`; the subsequent preactivation block stopped before sudo or service/doctor/inventory actions because of an overly strict executable-bit assertion in the operator command, not because of a host/service failure.
+
+Post-merge code review found two repository safety gaps before the next host run. PR #452 (`agent/edge1-preactivation-hardening-20260819`) is the focused follow-up and must merge only after exact-head CI is green.
+
 ## Edge1 Operator / Secure MCP Tunnel
 
 The bounded server-side Operator is accepted live:
@@ -64,19 +70,16 @@ HTTP 404 from http://127.0.0.1:8102/.well-known/oauth-protected-resource/mcp
 
 This is a reviewed old-build doctor compatibility issue, not a reason to add synthetic OAuth endpoints. Exact installed upstream source unconditionally requires OAuth metadata for every HTTP target, while later upstream source treats all-404 OAuth metadata discovery as optional for plain/non-OAuth MCP servers. Edge1 intentionally uses its existing loopback bearer boundary and supplies that Authorization header through both tunnel runtime and discovery static-header configuration.
 
-PR #450 adds a fail-closed compatibility validator that requires the exact reviewed tunnel-client version/SHA before invoking doctor, the exact Edge1 loopback target/header contract, the exact single old-doctor failure, unauthenticated MCP 401, and both OAuth metadata candidates 404. A different binary fails closed even if its raw doctor would pass; a future upgrade requires deliberate re-review/re-pinning.
+PR #452 hardens the preactivation gate so it cannot silently accept drift. The validator now requires the exact reviewed tunnel-client version/SHA, exact reviewed launcher/config/systemd-unit hashes, reviewed owner/mode metadata for the tunnel assets and credential files, unauthenticated GET `/mcp` -> 401, authenticated GET `/mcp` -> 405, both OAuth metadata candidates -> 404, and raw doctor -> exit 2 with only `oauth_metadata`. An unexpected raw-doctor success from the pinned old build fails closed for re-review.
 
-Compatibility record:
+PR #452 also makes the staging installer non-disruptive: `--apply` must refuse if the tunnel service is already active or enabled rather than stopping/disabling an accepted tunnel.
 
-`docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`
+Compatibility records:
 
-Next live read-only gate after PR #450 merges:
+- `docs/edge1-operator/14-secure-mcp-tunnel.md`
+- `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`
 
-```text
-deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
-```
-
-Only after that gate passes may attended tunnel activation be considered. Starting `edge1-secure-mcp-tunnel.service` remains an explicit production/account-linked boundary. Persistence stays blocked until attended tunnel + ChatGPT acceptance succeeds.
+Only after PR #452 merges, the clean Edge1 checkout advances, and the hardened read-only gate reports `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS` may attended tunnel activation be considered. Starting `edge1-secure-mcp-tunnel.service` remains an explicit production/account-linked boundary. Persistence stays blocked until attended tunnel + ChatGPT acceptance succeeds.
 
 No direct `edge1.*` MCP connector is attached to this ChatGPT session yet.
 
@@ -110,7 +113,7 @@ The read-only warning follow-up is complete at the service/configuration level:
 - local TLS 1.3 handshake succeeds using the Edge1 certificate;
 - audit produced zero failures.
 
-No listener/firewall/certificate/SIP/startup-policy mutation is justified. PR #450 corrects the audit's systemd-sysv stderr handling and validates the change statically; after merge, rerun the corrected read-only audit on Edge1 to capture the final warning/failure summary.
+No listener/firewall/certificate/SIP/startup-policy mutation is justified. PR #450 corrected the audit's systemd-sysv stderr handling; the corrected read-only audit still needs one final host rerun to retain the final warning/failure summary.
 
 The offline CAP-CP/EBS laboratory remains isolated; no `Actual` alert delivery, calls/pages, tones, or public delivery path are authorized by this state.
 
@@ -118,7 +121,7 @@ The offline CAP-CP/EBS laboratory remains isolated; no `Actual` alert delivery, 
 
 Fresh bounded diagnostics for summary/listeners/Asterisk/Kamailio/FreePBX completed. Native CLI diagnostics may be privilege-limited while passive fallback evidence succeeds and higher-level telephony health remains healthy. Do not widen permissions merely to make a diagnostic card green.
 
-The prior general-inventory `rc=126` was a repository packaging issue: the file was mode `0644`, while interpreter execution succeeded and the filesystem is executable. PR #450 corrects `scripts/control-surfaces-live-inventory.sh` to Git mode `100755`, and the dedicated inventory workflow passes. After merge, fast-forward the clean Edge1 checkout and rerun the executable read-only inventory.
+The prior general-inventory `rc=126` was a repository packaging issue: the file was mode `0644`, while interpreter execution succeeded and the filesystem is executable. PR #450 corrected `scripts/control-surfaces-live-inventory.sh` to Git mode `100755`; the Edge1 checkout has since fast-forwarded through that change. The executable read-only inventory still needs its final rerun and retained manifest/summary.
 
 Existing FreePBX Admin/UCP private-source boundaries remain unchanged. Any temporary/private native-session mechanism remains separately gated.
 
@@ -140,12 +143,13 @@ No live calls or DTMF transmission without separate explicit authorization.
 ## Current continuation order
 
 1. Keep the accepted public front door unchanged.
-2. Merge PR #450 only after exact-head CI remains green.
-3. Fast-forward the clean Edge1 checkout to merged `main` and run the compatibility validator read-only.
-4. Capture/classify the five remaining security-inventory records metadata-only and record the exact evidence directory.
-5. Rerun the executable Control Surfaces inventory and corrected Asterisk audit.
-6. Stop at the attended tunnel-activation boundary for explicit approval.
-7. Leave DTMF provider work pending until an external response arrives.
+2. Require exact-head green CI on PR #452 and merge it.
+3. Fast-forward the clean Edge1 checkout to the reviewed PR #452 merge.
+4. Run the hardened tunnel compatibility validator read-only.
+5. Capture/classify the five remaining security-inventory records metadata-only and record the exact evidence directory.
+6. Rerun the executable Control Surfaces inventory and corrected Asterisk audit.
+7. Stop at the attended tunnel-activation boundary for explicit approval.
+8. Leave DTMF provider work pending until an external response arrives.
 
 ## Safety boundary
 
