@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
-from .models import NormalizedMessage
+from .models import Direction, NormalizedMessage
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,14 @@ class ProviderWebhookRequest:
 
 
 class MessagingProvider(ABC):
-    """Boundary implemented by Telnyx, Bandwidth, and simulator adapters."""
+    """Boundary implemented by Telnyx, Bandwidth, and simulator adapters.
+
+    Adapter implementations are responsible for preserving provider identity
+    and direction at the boundary. Inbound webhook normalization must never
+    manufacture another provider's identity or an outbound message, and send
+    implementations must reject messages assigned to a different provider or
+    carrying a non-outbound direction.
+    """
 
     name: str
 
@@ -52,13 +59,14 @@ class MessagingProvider(ABC):
 
         Each provider parses request.body however its own callback format
         requires (a single JSON object, a JSON array, form-encoded, etc.) --
-        the shared dispatch route does not assume a dict payload.
+        the shared dispatch route does not assume a dict payload. The returned
+        message must identify this adapter's provider and be inbound.
         """
         raise NotImplementedError
 
     @abstractmethod
     def send(self, message: NormalizedMessage) -> SendResult:
-        """Submit an outbound message and return the provider identifier."""
+        """Submit one outbound message assigned to this provider."""
         raise NotImplementedError
 
 
@@ -100,9 +108,18 @@ class SimulatorProvider(MessagingProvider):
 
     def normalize_webhook(self, request: ProviderWebhookRequest) -> NormalizedMessage:
         payload = json.loads(request.body)
-        return NormalizedMessage.model_validate(payload)
+        message = NormalizedMessage.model_validate(payload)
+        if message.provider != self.name:
+            raise ValueError("webhook provider identity does not match adapter")
+        if message.direction != Direction.INBOUND:
+            raise ValueError("webhook normalization accepts inbound messages only")
+        return message
 
     def send(self, message: NormalizedMessage) -> SendResult:
+        if message.provider != self.name:
+            raise ValueError("outbound provider identity does not match adapter")
+        if message.direction != Direction.OUTBOUND:
+            raise ValueError("provider send accepts outbound messages only")
         return SendResult(provider_message_id=f"sim-{message.event_id}", accepted=True)
 
 
@@ -111,6 +128,8 @@ def build_provider_registry(token_provider: Callable[[], str]) -> dict[str, Mess
 
     Only the simulator is registered today. Adding a real provider is:
     implement MessagingProvider, add one entry here, and configure its
-    credentials -- no changes needed elsewhere.
+    credentials -- no changes needed elsewhere. Every adapter must preserve
+    the provider-identity and inbound/outbound direction invariants documented
+    on MessagingProvider.
     """
     return {"simulator": SimulatorProvider(token_provider)}
