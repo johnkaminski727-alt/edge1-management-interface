@@ -1,7 +1,7 @@
 {
-  "name": "edge1-operator",
-  "version": "0.1.1",
-  "description": "Automatically route Edge1 operational questions to the existing bounded Edge1 Operator app.",
+  "name": "wwcx-edge1-live-operator",
+  "version": "0.2.0",
+  "description": "Route WW.CX Edge1 operational questions to the existing bounded Edge1 Operator app.",
   "author": {
     "name": "Christmas Island Worldwide"
   },
@@ -9,15 +9,15 @@
   "repository": "https://github.com/johnkaminski727-alt/edge1-management-interface",
   "keywords": [
     "edge1",
+    "wwcx",
     "operations",
     "diagnostics",
-    "mcp",
-    "wwcx"
+    "mcp"
   ],
   "skills": "./skills/",
   "apps": "./.app.json",
   "interface": {
-    "displayName": "Edge1 Operator",
+    "displayName": "WW.CX Edge1 Live Operator",
     "shortDescription": "Live bounded Edge1 operations and diagnostics",
     "longDescription": "Routes natural-language Edge1 status and diagnostic questions to the existing private read-only Edge1 Operator app through its bounded MCP tools.",
     "developerName": "Christmas Island Worldwide",
