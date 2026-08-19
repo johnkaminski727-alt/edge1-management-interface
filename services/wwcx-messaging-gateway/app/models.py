@@ -15,6 +15,12 @@ class Direction(StrEnum):
     OUTBOUND = "outbound"
 
 
+class DeliveryStatus(StrEnum):
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    UNDELIVERED = "undelivered"
+
+
 class CoordinateSource(StrEnum):
     BROWSER = "browser"
     DEVICE = "device"
@@ -94,3 +100,13 @@ class NormalizedMessage(BaseModel):
     verification: VerificationEnvelope | None = None
 
     model_config = {"populate_by_name": True}
+
+
+class DeliveryStatusEvent(BaseModel):
+    event_id: UUID = Field(default_factory=uuid4)
+    provider: str
+    provider_event_id: str = Field(min_length=1, max_length=512)
+    provider_message_id: str = Field(min_length=1, max_length=512)
+    status: DeliveryStatus
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    raw_status: str | None = Field(default=None, max_length=256)
