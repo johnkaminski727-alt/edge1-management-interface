@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from .models import Channel
 from .outbound_policy import OutboundPolicy, PostgresSendRateLimiter, SendRateLimiter
 from .persistence import PostgresEventStore
-from .providers import MessagingProvider, build_provider_registry
+from .providers import MessagingProvider, ProviderSafeRetryError, build_provider_registry
 
 
 def parse_provider_allowlist(value: str | None) -> set[str]:
@@ -77,19 +77,29 @@ def run_once(
 
     try:
         result = provider.send(job.message)
-    except Exception as exc:  # provider adapters are an external boundary
+    except ProviderSafeRetryError as exc:
         state = store.retry_outbound_job(
             job.job_id,
-            f"provider send raised {type(exc).__name__}",
+            f"provider safe-retry error: {type(exc).__name__}",
             delay_seconds=retry_delay_seconds,
             max_attempts=max_attempts,
         )
-        return {"status": state, "reason": "provider_error", "job_id": str(job.job_id)}
+        return {"status": state, "reason": "provider_safe_retry", "job_id": str(job.job_id)}
+    except Exception as exc:  # provider acceptance may be unknown after an arbitrary failure
+        # Deliberately leave the claimed job in processing. Automatically
+        # requeueing an outcome-uncertain send can duplicate a real SMS/MMS.
+        # Reconciliation must establish provider outcome before any retry.
+        return {
+            "status": "reconcile_required",
+            "reason": "provider_outcome_unknown",
+            "provider_error_type": type(exc).__name__,
+            "job_id": str(job.job_id),
+        }
 
     if not result.accepted:
         state = store.retry_outbound_job(
             job.job_id,
-            "provider did not accept outbound message",
+            "provider explicitly did not accept outbound message",
             delay_seconds=retry_delay_seconds,
             max_attempts=max_attempts,
         )
