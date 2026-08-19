@@ -1,0 +1,12 @@
+interface:
+  display_name: Business159 Web Operator
+  short_description: Diagnose WW.CX PHP, HTTPS, routing, and releases
+  default_prompt: Diagnose the WW.CX web issue on Business159 using bounded PHP, HTTPS, deployment, and log evidence.
+dependencies:
+  tools:
+  - type: mcp
+    value: business159-live-shell
+    description: Bounded Business159 web, PHP, domain, TLS, deployment and filesystem tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true
