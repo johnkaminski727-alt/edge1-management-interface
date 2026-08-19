@@ -6,7 +6,7 @@ Workstream: Control Surfaces / exposure reduction / permanent private operator
 
 ## Current disposition
 
-The public front-door/exposure-reduction work is accepted and unchanged. The bounded Edge1 Operator is live on loopback. Fresh read-only diagnostics now show the remaining native-card degradation is a privilege-boundary presentation issue with successful passive fallback, not evidence that Asterisk, Kamailio, or FreePBX is down.
+The public front-door/exposure-reduction work is accepted and unchanged. The bounded Edge1 Operator is live on loopback. Fresh read-only diagnostics show the native-card degradation is a privilege-boundary presentation issue with successful passive fallback, not evidence that Asterisk, Kamailio, or FreePBX is down.
 
 ## Public Edge1 behavior — accepted
 
@@ -63,23 +63,25 @@ Treat this as an accepted privilege-boundary presentation condition unless futur
 
 ## General inventory script
 
-The previous `rc=126` from `scripts/control-surfaces-live-inventory.sh` is explained: the repository file is mode `0644`, so direct execution is denied; `bash scripts/control-surfaces-live-inventory.sh` returns successfully. The repository filesystem is mounted executable and is not `noexec`.
+The previous `rc=126` from `scripts/control-surfaces-live-inventory.sh` is explained: the repository file was mode `0644`, so direct execution was denied; interpreter execution succeeded and the repository filesystem is not `noexec`.
 
-Correct the file mode to executable in Git, then rerun the same read-only inventory. Do not alter production services merely to fix this repository packaging defect.
+PR #450 corrects the Git mode to `100755`. Its dedicated Control Surfaces inventory workflow passes. After merge, fast-forward the clean Edge1 checkout and rerun the script directly as a read-only inventory; no production service change is required merely for this packaging correction.
 
 ## Secure MCP Tunnel
 
 Local tunnel ID/runtime-key provisioning is complete with restricted metadata, but `edge1-secure-mcp-tunnel.service` remains disabled/inactive. The installed shared tunnel-client raw doctor returns one reviewed old-build false negative on missing OAuth protected-resource metadata. Edge1 does not rely on DCR/PRMD; it uses its existing bearer boundary and tunnel static Authorization headers.
 
-Use:
+PR #450 adds:
 
 ```text
 deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
 ```
 
-and require a fail-closed compatibility pass before attended activation. See `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`.
+The gate is fail-closed: it pins the exact reviewed tunnel-client version/SHA before doctor, verifies the loopback target/header contract, and accepts the old result only when `oauth_metadata` is the sole failure and local bearer/404 behavior remains exact. An unreviewed replacement tunnel-client fails before doctor even if it would otherwise report success.
 
-Do not add a public MCP proxy, fake OAuth authority, new WAN listener, firewall rule, or authentication weakening as a workaround.
+See `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`.
+
+Do not add a public MCP proxy, fake OAuth authority, new WAN listener, firewall rule, authentication weakening, or shared tunnel-client replacement as a workaround.
 
 ## Asterisk warning follow-up
 
@@ -91,7 +93,7 @@ Fresh read-only evidence confirms:
 - local TLS 1.3 handshake succeeds;
 - zero audit failures.
 
-No listener, firewall, certificate, SIP, or startup-policy mutation is indicated. A small repository reporting fix remains so systemd-sysv informational stderr does not create a false enablement warning.
+No listener, firewall, certificate, SIP, or startup-policy mutation is indicated. PR #450 corrects the audit's enablement capture so systemd-sysv informational stderr no longer creates a false warning; static safety validation passes. Rerun the corrected read-only audit after the Edge1 checkout fast-forwards.
 
 ## Current execution path
 
