@@ -2,51 +2,78 @@
 
 Last reconciled: 2026-08-19  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
-Branch prepared: `agent/edge1-front-door-20260819`
+Status: **LIVE / ACCEPTED**
 
 ## Mission
 
-Build the minimal public/default Edge1 web front door without exposing internal services. Canonical public destination is exactly `https://ww.cx/time/`.
+Provide a minimal public/default Edge1 web front door without exposing internal services. Canonical public destination is exactly `https://ww.cx/time/`.
 
-## Verified live baseline
+## Repository implementation
 
-Authenticated inspection at 2026-08-19T05:14:12Z established:
+The front-door implementation was prepared and validated through PR #447. The live implementation commit is:
 
-- host `edge1.ww.cx`, operator `wwadmin`;
-- `/opt/edge1-management-interface` clean `main` at `e74016d89cafd3d33d0ef14a388669f16cda2877`;
-- local and remote `origin/main` matched that SHA;
-- Apache active and `Syntax OK`;
-- HTTP default vhost: `default.invalid` / `000-default.conf`;
-- HTTPS default vhost: `edge1.ww.cx` / `edge1.ww.cx.conf`;
-- current control-surfaces include active in the Edge1 HTTPS vhost;
-- raw/unmatched HTTP root returned 200;
-- named Edge1 HTTP root returned 301 to HTTPS;
-- named Edge1 HTTPS root and `/index.html` returned 302 to `https://creekco.ca/time/`;
-- `/edge1-status/` returned 200;
-- `/edge1-ops/`, `/api/operations/`, synthetic ACME probe and unknown path returned 404 in the captured local matrix;
-- authenticated private-source `/admin/` returned 302 and `/ucp/` 200;
-- UDP/123 and TCP/4460 remained owned by chronyd; Apache remained on TCP/80 and TCP/443.
+```text
+74e7b1a6d19edebaf42c69df8d57838eb52eee78
+```
 
-## Decision
+The production Edge1 checkout was fast-forwarded from `e74016d89cafd3d33d0ef14a388669f16cda2877` to that commit before the live cutover.
 
-Use two narrow root-only policies:
+## Accepted live behavior
 
-1. update the existing named `edge1.ww.cx` Control Surfaces root redirect to `https://ww.cx/time/`;
-2. add a separate root-only include to the `default.invalid` HTTP vhost for raw/unmatched HTTP `/` and `/index.html`.
+The approved cutover completed on 2026-08-19 with `EDGE1_FRONT_DOOR_LOCAL_ACCEPTANCE=PASS`.
 
-Do not redirect arbitrary paths. Do not add a proxy. Do not alter raw-IP TLS behavior.
+Accepted response matrix:
 
-Use HTTP 302 for deployment/acceptance. A later 308 promotion is separate work.
+- raw/default IPv4 HTTP `/`: `302 -> https://ww.cx/time/`;
+- unmatched Host HTTP `/`: `302 -> https://ww.cx/time/`;
+- `edge1.ww.cx` HTTP `/`: existing `301 -> https://edge1.ww.cx/` preserved;
+- `edge1.ww.cx` HTTPS `/`: `302 -> https://ww.cx/time/`;
+- `edge1.ww.cx` HTTPS `/index.html`: `302 -> https://ww.cx/time/`;
+- `/edge1-status/`: `200`, preserved;
+- `/edge1-ops/`: `404`, preserved;
+- `/api/operations/`: `404` for the captured unauthenticated root probe, preserved;
+- synthetic ACME HTTP probe: `404`, preserved;
+- unknown HTTPS path: `404`, preserved;
+- raw HTTPS default-vhost HTTP behavior after TLS: `200`, unchanged;
+- `pbx.ww.cx` root: `302 -> https://pbx.ww.cx/admin/`, preserved;
+- `sip.ww.cx` root: `200`, preserved;
+- authenticated private-source `/admin/`: `302` to FreePBX config, preserved;
+- authenticated private-source `/ucp/`: `200`, preserved.
 
-## Safety boundary
+Apache passed `configtest` before and after the controlled reload. Apache and chrony remained active. Existing TCP 80/443 Apache ownership and UDP 123/TCP 4460 chronyd ownership passed post-change verification.
 
-Repository work, tests, branch, PR and CI are authorized. The production Apache/public-route mutation is not. Stop immediately before live application and request explicit approval with exact files, route matrix, configtest, rollback and validation plan.
+## Independent browser verification
 
-## Remaining sequence
+A connected-browser check initially rendered a stale cached Debian default page at the bare Edge1 root. Cache-busted navigations then independently confirmed the active routing:
 
-1. publish and validate focused repository branch/PR;
-2. merge only when exact-head CI is green;
-3. verify production preflight against expected current hashes/state;
-4. request explicit live-cutover approval;
-5. after approval, backup -> apply smallest change -> configtest -> reload -> full route/listener/NTP/NTS/ACME verification -> preserve rollback evidence;
-6. record acceptance and closeout in a follow-up repository change.
+- `https://edge1.ww.cx/?wwcx_frontdoor=20260819T0529Z` landed on `https://ww.cx/time/?wwcx_frontdoor=20260819T0529Z`;
+- `https://edge1.ww.cx/index.html?wwcx_frontdoor=20260819T0529Z` landed on the same WW.CX Time page;
+- `http://89.147.109.253/?wwcx_frontdoor=20260819T0529Z` landed on the same WW.CX Time page;
+- `/edge1-status/` still rendered the WW.CX Edge1 Operations Center;
+- a synthetic unknown non-root HTTPS path still rendered `404 Not Found`.
+
+The connected browser is on the approved private management environment, so it is not independent WAN evidence for `/admin/` or `/ucp/` denial. This cutover did not broaden that access policy and introduced no new proxy or listener.
+
+## Rollback evidence
+
+Protected live backup:
+
+```text
+/var/backups/wwcx-edge1-front-door-approved-20260819T052836Z
+```
+
+Rollback script:
+
+```text
+/var/backups/wwcx-edge1-front-door-approved-20260819T052836Z/rollback.sh
+```
+
+The backup contains pre/post Apache vhost and listener evidence plus SHA-256 manifests.
+
+## Safety outcome
+
+No DNS, firewall, certificate, authentication, Asterisk, Kamailio, carrier, NTP/NTS, host-clock, or new-listener change was made. No internal service was proxied or newly exposed.
+
+## Deferred
+
+HTTP 302 remains intentional for the accepted rollout. Promotion to HTTP 308 is a separate future decision and must not be performed automatically.
