@@ -12,7 +12,7 @@ required = (
     "#!/bin/sh",
     "pjsip show transports",
     "127.0.0.1:5061",
-    "systemctl is-enabled asterisk",
+    "systemctl is-enabled asterisk 2>/dev/null",
     "http show status",
     "openssl s_client",
     "nft list ruleset",
