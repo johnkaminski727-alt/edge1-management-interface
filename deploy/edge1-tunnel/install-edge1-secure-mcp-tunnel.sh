@@ -51,12 +51,23 @@ PY
 case "$MODE" in
     "")
         echo "Dry run passed. No files changed."
-        echo "Use --apply to stage the disabled tunnel service with the existing compatible tunnel-client binary."
+        echo "Use --apply only while the tunnel service is disabled/inactive."
         exit 0
         ;;
     --apply) ;;
     *) echo "unknown argument: $MODE" >&2; exit 7 ;;
 esac
+
+# This is a staging installer, not a redeploy/recovery command. Never make an
+# accepted tunnel unavailable just because --apply was rerun later.
+if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
+    echo "refusing: tunnel service is enabled; use the documented maintenance workflow instead of staging --apply" >&2
+    exit 10
+fi
+if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
+    echo "refusing: tunnel service is active; use the documented maintenance workflow instead of staging --apply" >&2
+    exit 11
+fi
 
 install -d -o root -g edge1-operator -m 0750 "$ETC_DIR"
 install -d -o root -g root -m 0755 "$LIBEXEC_DIR"
@@ -71,8 +82,6 @@ install -o root -g root -m 0644 \
     "$UNIT"
 
 systemctl daemon-reload
-systemctl disable "$SERVICE" >/dev/null 2>&1 || true
-systemctl stop "$SERVICE" >/dev/null 2>&1 || true
 systemd-analyze verify "$UNIT"
 
 [ ! -e "$ETC_DIR/runtime-api-key" ] || {
@@ -94,13 +103,13 @@ systemd-analyze verify "$UNIT"
 }
 
 if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
-    echo "refusing: tunnel service unexpectedly enabled" >&2
+    echo "refusing: tunnel service became enabled during staging" >&2
     exit 10
 fi
 if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
-    echo "refusing: tunnel service unexpectedly active" >&2
+    echo "refusing: tunnel service became active during staging" >&2
     exit 11
 fi
 
 echo "Secure MCP Tunnel assets staged with existing tunnel-client; service remains disabled/inactive."
-echo "Credential/account enrollment is still required before doctor/start."
+echo "Credential/account enrollment and compatibility doctor validation are required before attended start."
