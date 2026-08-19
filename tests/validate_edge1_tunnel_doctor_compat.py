@@ -14,9 +14,10 @@ required = (
     "EXPECTED_CLIENT_VERSION='0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144'",
     "FAILED_CHECKS",
     '"$FAILED_CHECKS" = "oauth_metadata"',
-    "unauthenticated_mcp_http",
-    "oauth_path_candidate_http",
-    "oauth_root_candidate_http",
+    '"unauthenticated_mcp"',
+    '"oauth_path_candidate"',
+    '"oauth_root_candidate"',
+    'print(f"{name}_http={code}")',
     "EDGE1_TUNNEL_COMPAT_DOCTOR=PASS",
     "Authorization: env:EDGE1_MCP_AUTHORIZATION",
 )
