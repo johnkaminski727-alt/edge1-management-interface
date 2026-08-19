@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Static safety validation for the Edge1 Secure MCP Tunnel doctor compatibility gate."""
+import hashlib
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh"
+LAUNCHER = ROOT / "deploy/edge1-tunnel/edge1-secure-mcp-tunnel.sh"
+CONFIG = ROOT / "deploy/edge1-tunnel/tunnel-client.yaml"
+SERVICE = ROOT / "deploy/edge1-tunnel/edge1-secure-mcp-tunnel.service"
 
 text = SCRIPT.read_text(encoding="utf-8")
 
@@ -12,9 +16,6 @@ required = (
     "#!/bin/sh",
     "EXPECTED_CLIENT_SHA=937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100",
     "EXPECTED_CLIENT_VERSION='0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144'",
-    "EXPECTED_LAUNCHER_SHA=c0b7788bc40c3668b75b6f6410885bd9ce89a39e08c962b80a2e86f4497868f4",
-    "EXPECTED_CONFIG_SHA=370c00ebb6a7a82d27137feb7a30beb6b881d8482c6ec950faf73cf42187b566",
-    "EXPECTED_SERVICE_SHA=a79a7ae19b2fb639c34a895c36b3ef3055a83b2342e037ddf60546cdda4d77dd",
     "require_metadata",
     "FAILED_CHECKS",
     '"$FAILED_CHECKS" = "oauth_metadata"',
@@ -30,6 +31,24 @@ required = (
 for token in required:
     if token not in text:
         raise SystemExit(f"missing required compatibility behavior: {token}")
+
+# Keep the runtime integrity pins mechanically tied to the repository assets.
+# A future launcher/config/unit edit must deliberately update the validator pin
+# in the same change or CI fails.
+asset_pins = {
+    "EXPECTED_LAUNCHER_SHA": LAUNCHER,
+    "EXPECTED_CONFIG_SHA": CONFIG,
+    "EXPECTED_SERVICE_SHA": SERVICE,
+}
+for name, path in asset_pins.items():
+    match = re.search(rf"^{name}=([0-9a-f]{{64}})$", text, re.MULTILINE)
+    if match is None:
+        raise SystemExit(f"missing or malformed runtime integrity pin: {name}")
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if match.group(1) != actual:
+        raise SystemExit(
+            f"stale runtime integrity pin: {name} expected {actual}, found {match.group(1)}"
+        )
 
 # The exact pinned old client is expected to keep returning the one reviewed
 # OAuth-metadata false negative. A raw success must not bypass the independent
