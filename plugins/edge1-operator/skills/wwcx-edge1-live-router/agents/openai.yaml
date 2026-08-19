@@ -1,0 +1,11 @@
+interface:
+  display_name: WW.CX Edge1 Live Router
+  short_description: Automatically route Edge1 questions to live Edge1 tools
+  default_prompt: Check Edge1's current health using the live Edge1 Operator.
+dependencies:
+  tools:
+  - type: mcp
+    value: edge1
+    description: Live bounded Edge1 Operator tools supplied by the Edge1 Operator app
+policy:
+  allow_implicit_invocation: true
