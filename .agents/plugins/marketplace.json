@@ -11,7 +11,7 @@
         "path": "./plugins/edge1-operator"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
+        "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
       "category": "Developer Tools"
