@@ -1,9 +1,9 @@
 ---
-name: edge1-operator-router
-description: Route ordinary Edge1 operational questions to the narrowest live bounded Edge1 Operator tool. Use for Edge1 identity, health, snapshot, inventory, services, network, storage, Big Bird, Operations, Apache, Asterisk, telephony, messaging, time authority, Git, or configuration-digest questions, including natural requests such as “What is Edge1's health?”.
+name: wwcx-edge1-live-router
+description: Route ordinary WW.CX Edge1 operational questions to the narrowest live bounded Edge1 Operator tool. Use for Edge1 identity, health, snapshot, inventory, services, network, storage, Big Bird, Operations, Apache, Asterisk, telephony, messaging, time authority, Git, or configuration-digest questions, including natural requests such as “What is Edge1's health?”.
 ---
 
-# Edge1 Operator Router
+# WW.CX Edge1 Live Router
 
 Use the live `edge1` app dependency whenever the request asks for current or authoritative Edge1 state.
 
