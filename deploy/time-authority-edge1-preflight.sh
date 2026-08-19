@@ -5,6 +5,7 @@ REPO_ROOT=${EDGE1_MANAGEMENT_ROOT:-/opt/edge1-management-interface}
 SYSTEMCTL_BIN=${EDGE1_TIME_AUTHORITY_SYSTEMCTL:-systemctl}
 SIMULATION=${EDGE1_TIME_AUTHORITY_SIMULATION:-0}
 DASHBOARD_PORT=${EDGE1_TIME_AUTHORITY_DASHBOARD_PORT:-8101}
+UNIT_DIR=${EDGE1_TIME_AUTHORITY_UNIT_DIR:-/etc/systemd/system}
 
 for command_name in python3 "$SYSTEMCTL_BIN" curl install; do
     command -v "$command_name" >/dev/null 2>&1 || {
@@ -14,12 +15,24 @@ for command_name in python3 "$SYSTEMCTL_BIN" curl install; do
 done
 
 if [ "$SIMULATION" != "1" ]; then
-    for command_name in useradd systemd-analyze; do
+    for command_name in useradd systemd-analyze stat; do
         command -v "$command_name" >/dev/null 2>&1 || {
             echo "Missing required command: $command_name" >&2
             exit 1
         }
     done
+
+    [ -d "$UNIT_DIR" ] || {
+        echo "Systemd unit directory is missing: $UNIT_DIR" >&2
+        exit 1
+    }
+
+    UNIT_DIR_OWNER=$(stat -c '%U:%G' "$UNIT_DIR" 2>/dev/null || true)
+    UNIT_DIR_MODE=$(stat -c '%a' "$UNIT_DIR" 2>/dev/null || true)
+    if [ "$UNIT_DIR_OWNER" != "root:root" ] || [ "$UNIT_DIR_MODE" != "755" ]; then
+        echo "Refusing Time Authority rollout: systemd unit directory must remain root:root mode 755; found $UNIT_DIR_OWNER mode $UNIT_DIR_MODE at $UNIT_DIR" >&2
+        exit 1
+    fi
 fi
 
 python3 - <<'PY'

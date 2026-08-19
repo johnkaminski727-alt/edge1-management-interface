@@ -4,9 +4,43 @@ Last reconciled: 2026-08-19
 
 This is the authoritative current Edge1 backlog. Completed historical checklists remain in dated acceptance/archive records and should not be reintroduced here as active work.
 
+## P0 — Restore global systemd unit-directory trust boundary
+
+The hardened Secure MCP preactivation validator exposed a separate production filesystem trust-boundary defect before tunnel activation.
+
+Verified live state:
+
+```text
+/etc/systemd/system owner=bigbird-time:bigbird-time mode=0750
+/etc/systemd/system/edge1-secure-mcp-tunnel.service owner=root:root mode=0644
+edge1-secure-mcp-tunnel.service sha256=a79a7ae19b2fb639c34a895c36b3ef3055a83b2342e037ddf60546cdda4d77dd
+```
+
+The tunnel unit itself matches the reviewed content. The parent-directory owner/mode came from the historical Time Authority installer assigning the service account to both its data directory and the global systemd unit directory.
+
+- [x] Identify the exact live traversal failure without changing permissions.
+- [x] Verify the tunnel unit itself has the reviewed root ownership, mode, path, and SHA-256.
+- [x] Identify the repository root cause in `deploy/install-time-authority-edge1.sh`.
+- [x] Correct Time Authority preflight so production requires `/etc/systemd/system` to remain `root:root` mode `0755`.
+- [x] Correct Time Authority installer so `bigbird-time` owns only its application data directory, never the global systemd unit directory.
+- [x] Add regression CI validation for this trust boundary.
+- [x] Prepare fail-closed dry-run-first remediation tool `deploy/repair-edge1-systemd-unit-dir-boundary.sh`.
+- [ ] Merge `agent/edge1-systemd-boundary-hardening-20260819` only after exact-head CI is green.
+- [ ] Obtain explicit production security-change approval before running remediation with `--apply`.
+- [ ] Run remediation dry-run and require the exact known drift `bigbird-time:bigbird-time 0750 -> root:root 0755`.
+- [ ] After approval, apply the metadata-only repair with protected evidence and rollback record.
+- [ ] Verify immediate `/etc/systemd/system` entries are unchanged and relevant service active/enabled states are unchanged.
+- [ ] Verify `edge1-operator` can traverse/read the world-readable Edge1 tunnel unit after the safe parent-directory restoration.
+
+Finding record:
+
+`docs/security/edge1-systemd-unit-dir-boundary-20260819.md`
+
+Do not weaken the MCP validator or grant `edge1-operator` membership in `bigbird-time` as a workaround.
+
 ## P0 — Permanent private Edge1 Operator / ChatGPT attachment
 
-Server-side Operator, non-secret Secure MCP Tunnel staging, and local tunnel credential provisioning are complete. The service itself remains deliberately disabled/inactive pending attended activation and ChatGPT-side acceptance.
+Server-side Operator, non-secret Secure MCP Tunnel staging, and local tunnel credential provisioning are complete. The service itself remains deliberately disabled/inactive pending the systemd-boundary repair, hardened compatibility validation, attended activation, and ChatGPT-side acceptance.
 
 - [ ] Confirm the applicable ChatGPT developer/custom-app capability in the authorized workspace/account.
 - [x] Create/select the Secure MCP Tunnel through the authorized account boundary.
@@ -14,9 +48,11 @@ Server-side Operator, non-secret Secure MCP Tunnel staging, and local tunnel cre
 - [x] Verify tunnel credential file ownership/mode/readability without displaying values.
 - [x] Run the staged raw tunnel launcher doctor and capture the exact result without activating the service.
 - [x] Merge PR #450 and fast-forward the clean Edge1 checkout to its accepted merge state.
-- [ ] Merge PR #452 only after exact-head CI is green; it closes the post-review fail-closed gaps in the preactivation validator and staging installer.
-- [ ] Fast-forward the clean Edge1 checkout after PR #452 merges.
-- [ ] Run `deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh` on Edge1 and require `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS`.
+- [x] Merge PR #452 after exact-head CI; it closes the post-review fail-closed gaps in the preactivation validator and staging installer.
+- [x] Fast-forward the clean Edge1 checkout to PR #452 merge `1857e0afaa76a2e1e4f590cab2e2c1d30ce70db9`.
+- [x] Run the hardened validator once; it failed closed before doctor because the global systemd directory was not traversable by `edge1-operator`.
+- [ ] Restore the P0 global systemd unit-directory trust boundary under explicit production approval.
+- [ ] Rerun `deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh` and require `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS`.
 - [ ] Start `edge1-secure-mcp-tunnel.service` attended, without persistence, only after the compatibility gate passes and the activation boundary is explicitly approved.
 - [ ] Verify Big Bird tunnel remains healthy and unchanged.
 - [ ] Verify Edge1 MCP remains bearer-protected and loopback-only on `127.0.0.1:8102`.
@@ -39,19 +75,14 @@ sha256=937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100
 
 Raw doctor passed every prerequisite except `oauth_metadata`, which returned HTTP 404 and exit code 2. Exact installed upstream source unconditionally fails non-2xx OAuth metadata for every HTTP MCP target, while later upstream source explicitly treats all-404 OAuth metadata discovery as optional for plain/non-OAuth MCP servers. Edge1 intentionally uses its existing loopback bearer boundary plus tunnel `extra_headers` / `discovery_extra_headers`; do not add synthetic OAuth endpoints merely to satisfy the old doctor, and do not replace the shared tunnel binary solely for this result while Big Bird uses it.
 
-Post-merge review of PR #450 found two safety gaps that PR #452 closes before the next host run:
-
-- unexpected raw-doctor success from the pinned old build must fail closed instead of bypassing independent bearer checks;
-- the staging installer must refuse an active/enabled tunnel instead of stopping/disabling an accepted service when `--apply` is rerun.
-
-The hardened validator also pins the reviewed launcher/config/unit hashes and file ownership/modes, proves unauthenticated MCP 401 plus authenticated GET `/mcp` 405, and requires the exact reviewed OAuth-metadata-only raw-doctor failure.
+PR #452 hardened the validator to pin the reviewed launcher/config/unit hashes and file ownership/modes, prove unauthenticated MCP 401 plus authenticated GET `/mcp` 405, and require the exact reviewed OAuth-metadata-only raw-doctor failure. The validator correctly remains fail-closed while the global systemd directory trust boundary is unsafe.
 
 Compatibility records:
 
 - `docs/edge1-operator/14-secure-mcp-tunnel.md`
 - `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`
 
-Human/account credential material remains a stop boundary. No public MCP proxy, WAN listener, firewall opening, or authentication weakening is an acceptable substitute.
+Human/account credential material remains a stop boundary. No public MCP proxy, WAN listener, firewall opening, authentication weakening, or cross-service group-membership workaround is acceptable.
 
 ## P1 — Security-boundary live inventory and reconciliation
 
@@ -90,7 +121,7 @@ The offline CAP-CP/EBS laboratory remains isolated. Connecting a CAP source, acc
 - [x] Reconcile the native diagnostic degradation: constrained native CLI access falls back to successful passive evidence while higher-level telephony health remains healthy.
 - [x] Determine that no permission widening or hardening reduction is justified merely to make those native cards green.
 - [x] Correct Git executable mode on `scripts/control-surfaces-live-inventory.sh`; the dedicated inventory workflow passed in PR #450 CI.
-- [x] Fast-forward the clean Edge1 checkout after PR #450 merged; executable mode is now present in the checkout.
+- [x] Fast-forward the clean Edge1 checkout through that executable-mode fix.
 - [ ] Rerun the executable read-only inventory and retain its manifest/summary.
 - [ ] Re-verify public/private route isolation after any future Control Surfaces behavior change.
 - [ ] Keep any temporary/private FreePBX session broker blocked until authentication, expiry, revocation, CSRF, audit, redirects/cookies/WebSockets/CSP/X-Frame-Options, listener equivalence, and rollback are proven.
@@ -136,6 +167,7 @@ live_test_authorized=false
 
 - Never place credentials, client secrets, password hashes, tokens, cookies, private keys, tunnel IDs/API keys, or raw alert contents in Git/chat/evidence.
 - Never modify DNS, Unbound/RPZ, nftables/firewall, certificates, authentication policy, public listeners, carrier routing, emergency behavior, or production traffic solely from this backlog.
+- The live `/etc/systemd/system` owner/mode repair is a privileged production security change and requires explicit approval before `--apply`.
 - Never originate production calls/messages or transmit DTMF/alerts without the separate explicit authorization required by those workstreams.
 - Never delete retained evidence or sealed archives without tested rollback and explicit destructive-action approval.
 - Inspect first, preserve unrelated work, back up before mutation, validate syntax/health/listeners, and retain rollback evidence.

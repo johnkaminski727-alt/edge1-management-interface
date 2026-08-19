@@ -23,7 +23,11 @@ elif [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-EDGE1_MANAGEMENT_ROOT=$REPO_ROOT EDGE1_TIME_AUTHORITY_SIMULATION=$SIMULATION "$REPO_ROOT/deploy/time-authority-edge1-preflight.sh"
+EDGE1_MANAGEMENT_ROOT=$REPO_ROOT \
+EDGE1_TIME_AUTHORITY_SIMULATION=$SIMULATION \
+EDGE1_TIME_AUTHORITY_UNIT_DIR=$UNIT_DIR \
+EDGE1_TIME_AUTHORITY_SYSTEMCTL=$SYSTEMCTL_BIN \
+  "$REPO_ROOT/deploy/time-authority-edge1-preflight.sh"
 
 if [ "$SIMULATION" != "1" ] && ! id "$SERVICE_USER" >/dev/null 2>&1; then
   useradd --system --home-dir "$DATA_DIR" --shell /usr/sbin/nologin "$SERVICE_USER"
@@ -32,7 +36,17 @@ fi
 if [ "$SIMULATION" = "1" ]; then
   install -d -m 0750 "$DATA_DIR" "$UNIT_DIR"
 else
-  install -d -m 0750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$DATA_DIR" "$UNIT_DIR"
+  # The service account owns only its application data. The global systemd
+  # unit directory is a root-controlled trust boundary and must never be
+  # chowned to a service principal.
+  install -d -m 0750 -o "$SERVICE_USER" -g "$SERVICE_USER" "$DATA_DIR"
+
+  UNIT_DIR_OWNER=$(stat -c '%U:%G' "$UNIT_DIR" 2>/dev/null || true)
+  UNIT_DIR_MODE=$(stat -c '%a' "$UNIT_DIR" 2>/dev/null || true)
+  if [ "$UNIT_DIR_OWNER" != "root:root" ] || [ "$UNIT_DIR_MODE" != "755" ]; then
+    echo "Refusing Time Authority install: systemd unit directory must remain root:root mode 755; found $UNIT_DIR_OWNER mode $UNIT_DIR_MODE at $UNIT_DIR" >&2
+    exit 1
+  fi
 
   STAMP=$(date -u +%Y%m%dT%H%M%SZ)
   BACKUP_DIR="$BACKUP_ROOT/install-$STAMP"
@@ -49,6 +63,9 @@ else
     echo "installed_at_utc=$STAMP"
     echo "repository=$REPO_ROOT"
     echo "repository_head=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+    echo "systemd_unit_dir=$UNIT_DIR"
+    echo "systemd_unit_dir_owner=$UNIT_DIR_OWNER"
+    echo "systemd_unit_dir_mode=$UNIT_DIR_MODE"
   } >"$BACKUP_DIR/install-metadata.txt"
   chmod 0640 "$BACKUP_DIR/install-metadata.txt"
 fi
