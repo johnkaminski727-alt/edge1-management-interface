@@ -1,6 +1,6 @@
 {
   "name": "edge1-operator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Automatically route Edge1 operational questions to the existing bounded Edge1 Operator app.",
   "author": {
     "name": "Christmas Island Worldwide"
