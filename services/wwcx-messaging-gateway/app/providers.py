@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
-from .models import Direction, NormalizedMessage
+from .models import DeliveryStatusEvent, Direction, NormalizedMessage
 
 
 @dataclass(frozen=True)
@@ -26,52 +26,35 @@ class ProviderSafeRetryError(RuntimeError):
 
 @dataclass(frozen=True)
 class ProviderWebhookRequest:
-    """Generic inbound webhook request passed to a MessagingProvider.
-
-    Deliberately carries only the raw body and headers -- no assumption
-    about which header names carry authentication/signature information
-    (that varies per provider: Telnyx uses telnyx-signature-ed25519 +
-    telnyx-timestamp, Bandwidth may use HTTP Basic Auth, the simulator
-    reuses a shared token header) and no assumption about payload shape
-    (Bandwidth messaging callbacks are JSON arrays, not single objects).
-    `headers` is case-insensitive, matching Starlette's Headers behavior.
-    """
+    """Generic inbound webhook request passed to a MessagingProvider."""
 
     body: bytes
     headers: Mapping[str, str]
 
 
 class MessagingProvider(ABC):
-    """Boundary implemented by Telnyx, Bandwidth, and simulator adapters.
-
-    Adapter implementations are responsible for preserving provider identity
-    and direction at the boundary. Inbound webhook normalization must never
-    manufacture another provider's identity or an outbound message, and send
-    implementations must reject messages assigned to a different provider or
-    carrying a non-outbound direction.
-    """
+    """Carrier-neutral boundary for inbound, delivery, and outbound operations."""
 
     name: str
 
     @abstractmethod
     def verify_webhook(self, request: ProviderWebhookRequest) -> bool:
-        """Return True only for authentic, timely provider callbacks.
+        """Return True only for authentic callbacks inside the provider replay window.
 
-        Each provider extracts and validates its own authentication scheme
-        from request.headers / request.body -- the shared dispatch route
-        does not know or assume which headers matter.
+        Authentication, signature verification, timestamp freshness, and replay-
+        window enforcement are adapter obligations. The shared route deliberately
+        does not invent provider-specific header or timing rules.
         """
         raise NotImplementedError
 
     @abstractmethod
     def normalize_webhook(self, request: ProviderWebhookRequest) -> NormalizedMessage:
-        """Convert a provider-specific webhook body into the WW.CX message model.
+        """Convert a provider-specific inbound message callback."""
+        raise NotImplementedError
 
-        Each provider parses request.body however its own callback format
-        requires (a single JSON object, a JSON array, form-encoded, etc.) --
-        the shared dispatch route does not assume a dict payload. The returned
-        message must identify this adapter's provider and be inbound.
-        """
+    @abstractmethod
+    def normalize_delivery_webhook(self, request: ProviderWebhookRequest) -> DeliveryStatusEvent:
+        """Convert a provider-specific asynchronous delivery/status callback."""
         raise NotImplementedError
 
     @abstractmethod
@@ -86,13 +69,7 @@ class MessagingProvider(ABC):
 
 
 class SimulatorProvider(MessagingProvider):
-    """Reference MessagingProvider implementation used for local/dev testing.
-
-    A real carrier adapter implements this interface with its own signature
-    verification, payload normalization, and send semantics. The simulator
-    deliberately uses a static development token and never represents a real
-    carrier security model.
-    """
+    """Reference adapter used only for local/private simulator testing."""
 
     name = "simulator"
 
@@ -110,6 +87,12 @@ class SimulatorProvider(MessagingProvider):
         if message.direction != Direction.INBOUND:
             raise ValueError("webhook normalization accepts inbound messages only")
         return message
+
+    def normalize_delivery_webhook(self, request: ProviderWebhookRequest) -> DeliveryStatusEvent:
+        event = DeliveryStatusEvent.model_validate_json(request.body)
+        if event.provider != self.name:
+            raise ValueError("delivery provider identity does not match adapter")
+        return event
 
     def send(self, message: NormalizedMessage) -> SendResult:
         if message.provider != self.name:
