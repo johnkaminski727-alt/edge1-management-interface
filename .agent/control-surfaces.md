@@ -6,28 +6,17 @@ Workstream: Control Surfaces / exposure reduction / permanent private operator
 
 ## Current disposition
 
-The Control Surfaces workstream is no longer at the 2026-08-18 pre-activation baseline. Public front-door/exposure-reduction work is accepted, the bounded Edge1 Operator MCP service is verified live on loopback, and the remaining incomplete portion is the private ChatGPT transport/attachment plus a small set of read-only diagnostic reconciliations.
+The public front-door/exposure-reduction work is accepted and unchanged. The bounded Edge1 Operator is live on loopback. Fresh read-only diagnostics now show the remaining native-card degradation is a privilege-boundary presentation issue with successful passive fallback, not evidence that Asterisk, Kamailio, or FreePBX is down.
 
 ## Public Edge1 behavior — accepted
 
-The approved 2026-08-19 front-door cutover completed successfully.
-
-Canonical ordinary public destination:
+Canonical ordinary public destination remains:
 
 ```text
 https://ww.cx/time/
 ```
 
-Accepted behavior includes:
-
-- raw/default HTTP root -> 302 to WW.CX Time;
-- exact `edge1.ww.cx` HTTPS root and `/index.html` -> 302 to WW.CX Time;
-- existing HTTP-to-HTTPS named-host canonicalization preserved;
-- `/edge1-status/` preserved;
-- unknown/non-root paths not consumed by the front-door rule;
-- raw HTTPS certificate/default-vhost behavior not weakened;
-- PBX/SIP named-host behavior preserved;
-- Apache TCP 80/443 and chronyd UDP 123/TCP 4460 ownership preserved.
+Accepted behavior includes raw/default HTTP root and exact `edge1.ww.cx` HTTPS root/index redirects to WW.CX Time, preserved `/edge1-status/`, preserved unknown/non-root behavior, unchanged raw HTTPS certificate/default-vhost handling, preserved PBX/SIP named-host behavior, and unchanged Apache/chronyd listener ownership.
 
 Protected rollback evidence:
 
@@ -35,93 +24,79 @@ Protected rollback evidence:
 /var/backups/wwcx-edge1-front-door-approved-20260819T052836Z
 ```
 
-Acceptance record:
-
-`docs/control-surfaces/edge1-front-door-live-acceptance-20260819.md`
-
 HTTP 302 remains intentional; 308 promotion is deferred and separate.
 
 ## FreePBX Administration / UCP boundary
 
-Earlier accepted Control Surfaces evidence records ordinary WAN FreePBX Administration/UCP access denied while approved private WireGuard/Tailscale paths remained available. The 2026-08-19 front-door change did not broaden those rules. Host-local/private-source acceptance preserved `/admin/` and `/ucp/` behavior for approved management paths.
+Earlier accepted evidence records ordinary WAN FreePBX Administration/UCP denied while approved private management paths remain available. The 2026-08-19 front-door change did not broaden those rules.
 
-The connected browser used for today's cache-busted front-door acceptance is part of the private management environment, so it is not independent WAN-denial evidence. Do not infer a new public exposure from private-path browser access.
+Any future temporary/private native FreePBX session broker remains separately gated and must prove authentication/authorization, expiry, revocation, CSRF, audit, redirect/cookie/WebSocket compatibility, CSP/X-Frame-Options handling, listener/firewall equivalence, and rollback before activation.
 
-Any future temporary/private native FreePBX session broker remains separately gated and must prove authentication/authorization, short expiry, revocation, CSRF, audit, redirect/cookie/WebSocket compatibility, CSP/X-Frame-Options handling, listener/firewall equivalence, and rollback before activation.
+## Bounded Edge1 Operator
 
-## Bounded Edge1 Operator — server side verified live
+Current accepted server-side state:
 
-Fresh production verification from 2026-08-18 established:
-
-- `edge1-operator-mcp.service` loaded, enabled, active, running;
+- `edge1-operator-mcp.service` active/enabled;
 - principal `edge1-operator`;
 - MCP listener `127.0.0.1:8102` only;
-- Operations API listener `127.0.0.1:8097` only;
+- Operations API `127.0.0.1:8097` only;
 - hardened service settings retained;
-- bearer token metadata restricted and value not exposed;
-- unauthenticated MCP request -> 401;
-- authenticated initialize/tools/list -> 200;
-- 16 named parameterless read-only tools discovered;
-- `edge1.identity`, `edge1.health`, and `edge1.apache_status` succeeded;
-- Operations API loopback true and `mutations_enabled=false`.
+- bearer boundary retained; unauthenticated MCP returns 401;
+- reviewed contract is 16 named parameterless read-only tools;
+- Operations API loopback true and mutations disabled.
 
-No generic `edge1.exec`, arbitrary command, URL, path, service, SQL, AMI/ARI command, or caller-selected Operations API action is exposed through this MCP surface.
+No generic `edge1.exec`, arbitrary command/path/URL/service/SQL/AMI/ARI action, or caller-selected Operations API mutation is exposed.
 
-## Secure MCP Tunnel staging
+## Fresh diagnostic reconciliation
 
-Non-secret host-side staging was accepted on 2026-08-18.
+The approved read-only run exercised bounded `summary`, `listeners`, `asterisk`, `kamailio`, and `freepbx` diagnostics.
 
-- compatible official `tunnel-client` already present and shared with Big Bird;
-- Big Bird tunnel remained active and unchanged;
-- Edge1 tunnel config/launcher/unit staged in an isolated namespace;
-- `edge1-secure-mcp-tunnel.service` remained disabled/inactive;
-- tunnel ID and runtime API key remained absent;
-- no second tunnel process was started;
-- no public listener, firewall, DNS, Apache proxy, MCP auth change, or Operator restart was introduced.
+Result:
 
-OpenAI guidance was rechecked on 2026-08-19 and still says private/on-prem MCP servers should use Secure MCP Tunnel rather than direct local/private connectivity.
+- bounded diagnostic execution completed;
+- native CLI actions may report limited/unavailable under the restricted Operator principal;
+- passive fallback evidence succeeds;
+- higher-level telephony health remains healthy;
+- no evidence supports widening service-account permissions or weakening hardening merely to make a diagnostic card green.
 
-## Remaining permanent-Operator gate
+Treat this as an accepted privilege-boundary presentation condition unless future evidence shows functional service loss.
 
-The incomplete path is now specifically:
+## General inventory script
+
+The previous `rc=126` from `scripts/control-surfaces-live-inventory.sh` is explained: the repository file is mode `0644`, so direct execution is denied; `bash scripts/control-surfaces-live-inventory.sh` returns successfully. The repository filesystem is mounted executable and is not `noexec`.
+
+Correct the file mode to executable in Git, then rerun the same read-only inventory. Do not alter production services merely to fix this repository packaging defect.
+
+## Secure MCP Tunnel
+
+Local tunnel ID/runtime-key provisioning is complete with restricted metadata, but `edge1-secure-mcp-tunnel.service` remains disabled/inactive. The installed shared tunnel-client raw doctor returns one reviewed old-build false negative on missing OAuth protected-resource metadata. Edge1 does not rely on DCR/PRMD; it uses its existing bearer boundary and tunnel static Authorization headers.
+
+Use:
 
 ```text
-Authorized ChatGPT workspace/account
-        |
-Secure MCP Tunnel enrollment
-        |
-edge1-secure-mcp-tunnel service
-        |
-127.0.0.1:8102 edge1-operator-mcp
-        |
-16 reviewed read-only tools
+deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
 ```
 
-Remaining acceptance tasks:
+and require a fail-closed compatibility pass before attended activation. See `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`.
 
-1. authorized human enables the applicable developer/custom-app capability;
-2. authorized human creates/selects the Secure MCP Tunnel and provisions the tunnel ID/runtime API key locally on Edge1 without exposing them in chat/Git;
-3. run tunnel doctor;
-4. start the tunnel attended, still without persistence;
-5. scan tools in ChatGPT and verify the exact expected 16-tool contract;
-6. call `edge1.identity`, `edge1.health`, and approved diagnostics from ChatGPT;
-7. verify durable Edge1 audit evidence and Big Bird/Operator listener equivalence;
-8. test stop/disable plus account-side revocation procedure;
-9. enable persistence only after all acceptance checks pass;
-10. record final closeout.
+Do not add a public MCP proxy, fake OAuth authority, new WAN listener, firewall rule, or authentication weakening as a workaround.
 
-No direct `edge1.*` MCP connector is exposed to the current ChatGPT session, so this gate remains incomplete.
+## Asterisk warning follow-up
 
-## Remaining diagnostic reconciliation
+Fresh read-only evidence confirms:
 
-Native Asterisk/Kamailio/FreePBX diagnostic cards have previously reported degraded/unavailable states through the Operations API while the higher-level telephony broker reported healthy. Reconcile those states from fresh read-only evidence only. Do not widen service account permissions or weaken hardening merely to make a diagnostic card green.
+- configured PJSIP transport and Asterisk-owned loopback UDP `127.0.0.1:5061`;
+- Asterisk active and boot-enabled through the systemd-sysv wrapper with `S01asterisk` links in runlevels 2-5;
+- TCP `8089` loopback-only;
+- local TLS 1.3 handshake succeeds;
+- zero audit failures.
 
-The existing Asterisk warning follow-up audit should also be run before any transport/listener/startup-policy conclusions are made.
+No listener, firewall, certificate, SIP, or startup-policy mutation is indicated. A small repository reporting fix remains so systemd-sysv informational stderr does not create a false enablement warning.
 
-## Current safe execution path
+## Current execution path
 
-Until the private ChatGPT tunnel is attached, authenticated live work remains a human-relay path: ChatGPT prepares bounded commands, the authenticated operator runs them on Edge1, and output/evidence is returned for validation. Do not describe this as direct autonomous shell execution.
+Until the private ChatGPT tunnel is attached, authenticated live work remains a human-relay path: ChatGPT prepares bounded commands, the authenticated operator runs them on Edge1, and sanitized output/evidence is returned for validation. Do not describe this as direct autonomous shell execution.
 
 ## Safety boundary
 
-No credentials or secret values in chat/Git. No public MCP proxy. No new WAN management listener. No firewall/DNS/certificate/authentication changes, carrier routing, emergency-path change, call/message origination, or destructive action without the applicable explicit boundary and rollback evidence.
+No credentials or secret values in chat/Git. No public MCP proxy. No new WAN management listener. No firewall/DNS/certificate/authentication change, carrier routing, emergency-path change, call/message origination, DTMF/alert transmission, or destructive action without its applicable explicit boundary and rollback evidence.
