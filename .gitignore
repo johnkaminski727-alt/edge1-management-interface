@@ -48,3 +48,5 @@ var/outbound-mail/
 
 .venv-registry/
 data/registry/sources/itu-e164/e164-page.html
+
+*.egg-info/

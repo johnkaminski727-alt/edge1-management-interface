@@ -22,9 +22,21 @@ services:
     environment:
       DATABASE_URL: postgresql://wwcx:wwcx-test-only@postgres:5432/wwcx_messaging
       WWCX_SIMULATOR_TOKEN: test-token
+      WWCX_SIMULATOR_OUTBOUND_ENABLED: "true"
       WWCX_MANAGEMENT_READ_TOKEN: test-read-token
       WWCX_MANAGEMENT_CONTROL_TOKEN: test-control-token
       WWCX_MANAGEMENT_CONTROL_ENABLED: "false"
+      WWCX_OUTBOUND_WORKER_ENABLED: "true"
+      WWCX_OUTBOUND_PROVIDER_ALLOWLIST: simulator
+      WWCX_OUTBOUND_POLICY_ENABLED: "true"
+      WWCX_OUTBOUND_AUTHORIZED_SENDERS: "+16045550101"
+      WWCX_OUTBOUND_DESTINATION_PREFIX_ALLOWLIST: "+1"
+      WWCX_OUTBOUND_MAX_RECIPIENTS: "1"
+      WWCX_OUTBOUND_MAX_TEXT_CHARS: "1600"
+      WWCX_OUTBOUND_HOURLY_MESSAGE_LIMIT: "10"
+      WWCX_OUTBOUND_DAILY_MESSAGE_LIMIT: "25"
+      WWCX_OUTBOUND_RETRY_DELAY_SECONDS: "1"
+      WWCX_OUTBOUND_MAX_ATTEMPTS: "3"
     depends_on:
       postgres:
         condition: service_healthy

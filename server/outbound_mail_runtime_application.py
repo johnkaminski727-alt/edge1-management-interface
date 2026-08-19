@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import mail_ai_adapter
 import mail_identity_registry
 import outbound_mail_gateway as gateway
 import outbound_mail_gateway_server as base
@@ -24,6 +25,8 @@ class RuntimeGatewayApplication:
         config_root: str | Path = runtime_paths.DEFAULT_CONFIG_ROOT,
         state_root: str | Path = runtime_paths.DEFAULT_STATE_ROOT,
         require_root_owned_config: bool = True,
+        correspondence_db_path: Path | None = None,
+        correspondence_enabled: bool | None = None,
     ) -> None:
         self.repo_root = base.REPO_ROOT.resolve()
         self.config_path_input = Path(config_path)
@@ -33,6 +36,8 @@ class RuntimeGatewayApplication:
             state_root,
         )
         self.require_root_owned_config = require_root_owned_config
+        self.correspondence_db_path = correspondence_db_path
+        self.correspondence_enabled = correspondence_enabled
         self.last_resolved_paths: dict[str, Path] = {}
 
     def _config_file(self, configured: str | Path) -> Path:
@@ -75,6 +80,27 @@ class RuntimeGatewayApplication:
             "nonce": nonce_path,
         }
         return config, policy, identities, audit_path, nonce_path
+
+    def correspondence_state(self) -> dict[str, Any]:
+        return mail_ai_adapter.correspondence_read_state(
+            db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
+
+    def correspondence_message(self, message_id: str) -> dict[str, Any]:
+        return mail_ai_adapter.read_correspondence_message(
+            message_id,
+            db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
+
+    def correspondence_thread(self, thread_id: str) -> dict[str, Any]:
+        return mail_ai_adapter.read_correspondence_thread(
+            thread_id,
+            limit=50,
+            db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
 
     def resolved_path_summary(self) -> dict[str, str]:
         return {

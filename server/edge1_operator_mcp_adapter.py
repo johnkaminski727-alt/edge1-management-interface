@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from .edge1_operator_turn_state import (
+    IdempotencyConflictError,
     StaleEpochError,
     UnauthorizedOwnerError,
     UnknownTurnError,
@@ -156,3 +157,5 @@ class MCPAdapter:
             return ToolResult("agent.turn.handoff", "error", {"message": "unauthorized_owner"})
         except StaleEpochError:
             return ToolResult("agent.turn.handoff", "error", {"message": "stale_epoch"})
+        except IdempotencyConflictError:
+            return ToolResult("agent.turn.handoff", "error", {"message": "idempotency_conflict"})

@@ -36,6 +36,8 @@ status = mail_ai_adapter.status()
 assert status["contract"] == "wwcx.mail-ai-status.v1"
 assert status["capabilities"] == ["mail.status.read", "mail.draft.prepare"]
 assert status["pending_capabilities"] == ["mail.correspondence.read"]
+assert status["correspondence"]["state"] == "blocked_configuration_disabled"
+assert status["correspondence"]["production_provider_ready"] is False
 assert status["send_authorized"] is False
 assert status["mutation_authorized"] is False
 assert "password" not in str(status).casefold()
@@ -57,14 +59,17 @@ assert "AI-prepared records follow-up" in draft["draft"]["request"]["subject"]
 
 correspondence = mail_ai_adapter.correspondence_read_state()
 assert correspondence["capability"] == "mail.correspondence.read"
-assert correspondence["state"] == "blocked_pending_authoritative_source"
+assert correspondence["state"] == "blocked_configuration_disabled"
+assert correspondence["read_enabled"] is False
+assert correspondence["production_provider_ready"] is False
 assert correspondence["mutation_authorized"] is False
+assert correspondence["send_authorized"] is False
 
 source = (SERVER / "mail_ai_adapter.py").read_text(encoding="utf-8")
 for forbidden in ("smtplib", "send_message(", ".send(", "requests.", "urllib.request"):
     assert forbidden not in source, forbidden
 
 print("Mail Room Private AI adapter validation passed")
-print("Repository-ready: mail.status.read, mail.draft.prepare")
-print("Blocked pending authoritative source: mail.correspondence.read")
-print("No network, send, provider, or mutation authority added")
+print("Default capabilities: mail.status.read, mail.draft.prepare")
+print("mail.correspondence.read remains disabled unless a private authoritative store is enabled")
+print("No network, send, provider, or mutation authority added to the adapter")

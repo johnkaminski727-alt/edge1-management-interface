@@ -87,6 +87,31 @@ class TestTurnToolsThroughAdapter(unittest.TestCase):
         self.assertEqual(stale.status, "error")
         self.assertEqual(stale.payload["message"], "stale_epoch")
 
+    def test_idempotency_conflict_maps_to_error_result(self):
+        self.store.seed("t4", "c1", owner_agent="fen")
+        first = self.adapter.call_tool(
+            "agent.turn.handoff",
+            task_id="t4",
+            conversation_id="c1",
+            requesting_agent="fen",
+            to_agent="gus",
+            expected_epoch=0,
+            idempotency_key="dup-key",
+        )
+        self.assertEqual(first.status, "ok")
+
+        conflict = self.adapter.call_tool(
+            "agent.turn.handoff",
+            task_id="t4",
+            conversation_id="c1",
+            requesting_agent="gus",
+            to_agent="edge1-ai",
+            expected_epoch=1,
+            idempotency_key="dup-key",
+        )
+        self.assertEqual(conflict.status, "error")
+        self.assertEqual(conflict.payload["message"], "idempotency_conflict")
+
     def test_turn_store_unavailable_is_a_clean_error_not_a_crash(self):
         adapter_without_store = MCPAdapter(runtime=None, turn_store=None)
         result = adapter_without_store.call_tool(

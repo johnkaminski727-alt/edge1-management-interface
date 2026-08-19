@@ -1,0 +1,26 @@
+config_version: 1
+
+control_plane:
+  base_url: https://api.openai.com
+  api_key: file:/etc/edge1-tunnel/runtime-api-key
+
+health:
+  listen_addr: 127.0.0.1:0
+  url_file: /run/edge1-secure-mcp-tunnel/health-url
+
+admin_ui:
+  open_browser: false
+
+process:
+  pid_file: /run/edge1-secure-mcp-tunnel/tunnel-client.pid
+
+mcp:
+  server_urls:
+    - channel: main
+      url: http://127.0.0.1:8102/mcp
+  extra_headers:
+    Authorization: env:EDGE1_MCP_AUTHORIZATION
+  discovery_extra_headers:
+    Authorization: env:EDGE1_MCP_AUTHORIZATION
+  connection_max_ttl: 10m
+  max_concurrent_requests: 4

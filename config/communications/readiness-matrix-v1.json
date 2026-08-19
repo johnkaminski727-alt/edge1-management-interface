@@ -1,7 +1,7 @@
 {
   "contract": "wwcx.communications-readiness.v1",
   "generated_from": "repository_and_fresh_edge1_operator_evidence",
-  "fresh_edge1_runtime_verified": false,
+  "fresh_edge1_runtime_verified": true,
   "vocabulary": [
     "repository_ready",
     "runtime_ready",
@@ -43,8 +43,8 @@
       "live_routing": "blocked",
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
-      "rollback_evidence": "repository_ready",
-      "notes": "Fresh Edge1 local acceptance confirmed mail.status.read and mail.draft.prepare with prepared-not-sent/no-send semantics. mail.correspondence.read remains blocked pending an explicitly authorized authoritative native correspondence source. No live mail send is authorized by Unified Communications."
+      "rollback_evidence": "runtime_ready",
+      "notes": "Fresh 2026-08-19 Edge1 acceptance proved the local-native Mail path end to end. /var/lib/wwcx-mail-room is mode 0700 and correspondence.sqlite3 mode 0600 under wwcx-mail-gateway. Two authoritative local_native RFC822 records were ingested and threaded. The deployed Mail HMAC policy includes dedicated client wwcx-private-ai while website-admin remains rejected from correspondence reads. Unsigned, malformed-ID and replay cases fail closed. BigBird status/message/thread reads and prepared_not_sent draft preparation passed. Provider remains none, production_provider_ready=false, external delivery and send endpoint remain disabled. Provider-native Mail remains optional/separate and unproven."
     },
     "sms_mms": {
       "repository_implementation": "repository_ready",
@@ -52,7 +52,7 @@
       "edge1_runtime": "runtime_ready",
       "private_ai_adapter": "runtime_ready",
       "identity_mapping": "unknown",
-      "security_quarantine": "degraded",
+      "security_quarantine": "security_ready",
       "provider_configuration": "unknown",
       "credentials_available": "unknown",
       "dns_authentication": "not_applicable",
@@ -60,12 +60,12 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed Messaging Gateway 0.4.2, authenticated messages.status.read/messages.conversation.read, BigBird prepared-not-sent draft behavior, explicit non-mutation boundaries, and retained rollback. Messaging Gateway storage remains memory. The fail-closed MMS quarantine foundation is live, but no trusted scanner or private quarantine storage is attached, so security remains degraded. Live carrier traffic and quarantine release are not authorized."
+      "notes": "Fresh 2026-08-19 Edge1 acceptance installed command-line ClamAV/signature data without clamd, created the private MMS quarantine root, enforced all directories at 0700 and files at 0600, and validated clean -> scanned_clean_held, EICAR -> quarantined_malicious, restart persistence and release_authorized=false. No port-3310 ClamAV daemon listener exists and no new public UC management listener was introduced. ClamAV 1.4.3 reported upstream 1.4.6 recommended; current signature update and scanning acceptance passed. Live carrier traffic and quarantine release remain blocked."
     },
     "voice_sip": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
-      "edge1_runtime": "unknown",
+      "edge1_runtime": "runtime_ready",
       "private_ai_adapter": "runtime_ready",
       "identity_mapping": "unknown",
       "security_quarantine": "not_applicable",
@@ -74,14 +74,14 @@
       "dns_authentication": "unknown",
       "live_routing": "unknown",
       "production_authorization": "blocked",
-      "live_acceptance": "unknown",
+      "live_acceptance": "runtime_ready",
       "rollback_evidence": "repository_ready",
-      "notes": "telephony.read has historical accepted live evidence. Fresh service checks confirmed Asterisk, Kamailio, telephony analytics and console active, but this matrix does not convert service-active evidence into a new functional telephony acceptance and does not authorize call origination, emergency routing, trunk, route, or dialplan mutation."
+      "notes": "Fresh 2026-08-19 shared regression confirmed asterisk.service and kamailio.service active and the loopback telephony console/analytics surfaces responsive; analytics POST remained HTTP 405. Existing SIP listeners were observed only and were not changed. No call was originated and current external carrier/interconnect health was not established by traffic, so external operational health remains unknown while bounded read-only acceptance is runtime_ready."
     },
     "communications_relay": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
-      "edge1_runtime": "unknown",
+      "edge1_runtime": "runtime_ready",
       "private_ai_adapter": "runtime_ready",
       "identity_mapping": "unknown",
       "security_quarantine": "security_ready",
@@ -90,9 +90,9 @@
       "dns_authentication": "not_applicable",
       "live_routing": "not_applicable",
       "production_authorization": "blocked",
-      "live_acceptance": "unknown",
-      "rollback_evidence": "repository_ready",
-      "notes": "communications.read has historical accepted live evidence with provenance and untrusted-content handling. A fresh service check confirmed edge1-comms-relay active, but no new functional Relay acceptance is inferred from active state alone. No upstream posting/federation mutation is authorized here."
+      "live_acceptance": "runtime_ready",
+      "rollback_evidence": "runtime_ready",
+      "notes": "Fresh 2026-08-19 shared regression confirmed edge1-comms-relay.service active. Existing accepted authoritative native Relay metadata and untrusted-content boundaries remain in force. No posting/federation mutation was performed."
     },
     "communications_workspace": {
       "repository_implementation": "repository_ready",
@@ -108,14 +108,14 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed the persistent wwcx-communications-workspace.service active and enabled from detached runtime source commit a46ec4433033648c3428ce061318cdaf347a3605, bound only to 127.0.0.1:8095. Health, readiness, static workspace, empty-event truthfulness, POST-405 mutation rejection, unchanged live repository state, adjacent UC service health, and rollback evidence all passed. No authoritative canonical event snapshot/feed is attached yet, so the workspace is operational but intentionally empty and global fresh runtime completion remains false. No reverse proxy/public exposure is authorized."
+      "notes": "Fresh 2026-08-19 shared regression confirmed wwcx-communications-workspace.service active on 127.0.0.1:8095. The probed /healthz route is not implemented, root returned HTTP 404 and POST returned HTTP 405, preserving the read-only/query boundary. No public exposure or mutation was added."
     },
     "private_ai": {
       "repository_implementation": "repository_ready",
       "ci_validation": "repository_ready",
       "edge1_runtime": "runtime_ready",
       "private_ai_adapter": "runtime_ready",
-      "identity_mapping": "unknown",
+      "identity_mapping": "identity_verified",
       "security_quarantine": "security_ready",
       "provider_configuration": "unknown",
       "credentials_available": "unknown",
@@ -124,7 +124,7 @@
       "production_authorization": "blocked",
       "live_acceptance": "runtime_ready",
       "rollback_evidence": "runtime_ready",
-      "notes": "Fresh Edge1 acceptance confirmed BigBird 0.3.4-alpha.3 in read-only mode with eight registry tools, including messages.conversation.read and messages.draft.prepare. Missing-scope authorization failed closed, unsigned /v1/chat returned HTTP 401, messaging control remained disabled, and protected rollback was retained. Historical communications.read and telephony.read remain separate accepted capabilities. No privileged execution or production traffic authority is granted."
+      "notes": "Fresh 2026-08-19 acceptance confirmed BigBird 0.3.5-alpha.1 active on loopback 127.0.0.1:8787 with 11 registry tools, including mail.status.read, mail.correspondence.read and mail.draft.prepare. Dedicated wwcx-private-ai HMAC authentication, local-native status/message/thread reads, prompt-like-content untrusted handling, internal-viewer scope authorization, registered-user and missing-scope rejection, and prepared_not_sent Mail draft behavior all passed. External delivery remained false. The separate bigbird-edge1-connector lifecycle units were observed failed in the final generic failed-unit listing but are not dependencies of the accepted BigBird AI Gateway UC path and are tracked separately."
     }
   },
   "rules": {

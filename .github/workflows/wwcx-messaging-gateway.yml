@@ -40,7 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose -f compose.test.yaml up -d --build --wait
-      - run: sh scripts/smoke-test.sh
+      - run: WWCX_TEST_OUTBOUND_QUEUE=1 sh scripts/smoke-test.sh
+      - run: sh scripts/webhook-receipt-smoke.sh
+      - run: sh scripts/delivery-status-smoke.sh
       - if: always()
         run: docker compose -f compose.test.yaml logs --no-color
       - if: always()

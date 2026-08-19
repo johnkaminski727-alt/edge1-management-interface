@@ -44,6 +44,17 @@ class UnauthorizedOwnerError(TurnStateError):
     """Raised when the requesting agent is not the current owner."""
 
 
+class IdempotencyConflictError(TurnStateError):
+    """Raised when an idempotency_key is reused with different request parameters.
+
+    An exact replay (identical parameters) of an already-applied
+    idempotency_key returns the cached result safely. Reusing the same key
+    with different requesting_agent/to_agent/expected_epoch/reason/evidence
+    is a caller bug or key collision, not a replay, and must not silently
+    return stale cached data for a different request.
+    """
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS turn_state (
     task_id TEXT NOT NULL,
@@ -87,6 +98,7 @@ CREATE TABLE IF NOT EXISTS turn_idempotency (
     task_id TEXT NOT NULL,
     conversation_id TEXT NOT NULL,
     idempotency_key TEXT NOT NULL,
+    request_fingerprint TEXT NOT NULL,
     result_json TEXT NOT NULL,
     created_at REAL NOT NULL,
     PRIMARY KEY (task_id, conversation_id, idempotency_key)
@@ -102,6 +114,28 @@ def _default_root() -> str:
     # requires no privileged setup. Production deployment should override
     # this via the env var above with a dedicated, ops-provisioned path.
     return str(Path.home() / ".local" / "state" / "edge1-operator-mcp" / "turn-state")
+
+
+def _request_fingerprint(
+    requesting_agent: str,
+    to_agent: str,
+    expected_epoch: int,
+    reason: str | None,
+    evidence: str | None,
+) -> str:
+    """Canonical representation of a handoff request's identity, used to tell
+    an exact replay (same key, same params -- safe) apart from a reused key
+    with different params (a conflict, not a replay)."""
+    return json.dumps(
+        {
+            "requesting_agent": requesting_agent,
+            "to_agent": to_agent,
+            "expected_epoch": expected_epoch,
+            "reason": reason,
+            "evidence": evidence,
+        },
+        sort_keys=True,
+    )
 
 
 class TurnStateStore:
@@ -197,6 +231,8 @@ class TurnStateStore:
         reason: str | None = None,
         evidence: str | None = None,
     ) -> dict:
+        fingerprint = _request_fingerprint(requesting_agent, to_agent, expected_epoch, reason, evidence)
+
         conn = self._connect()
         result: dict | None = None
         try:
@@ -216,16 +252,28 @@ class TurnStateStore:
             # of an already-applied request must succeed even though the
             # epoch has since advanced past what the caller originally
             # expected. Only a genuinely new request can be stale.
+            #
+            # A replay is only "the same request" if its parameters match
+            # what was stored under this key. If the key is reused with
+            # different parameters, that is a conflict -- returning the old
+            # cached result would silently apply a different request than
+            # the one the caller actually sent.
             idem_row = conn.execute(
                 """
-                SELECT result_json FROM turn_idempotency
+                SELECT request_fingerprint, result_json FROM turn_idempotency
                 WHERE task_id = ? AND conversation_id = ? AND idempotency_key = ?
                 """,
                 (task_id, conversation_id, idempotency_key),
             ).fetchone()
             if idem_row is not None:
                 conn.rollback()
-                return json.loads(idem_row["result_json"])
+                if idem_row["request_fingerprint"] == fingerprint:
+                    return json.loads(idem_row["result_json"])
+                raise IdempotencyConflictError(
+                    f"idempotency_key {idempotency_key!r} was already used for a "
+                    "different request (different requesting_agent/to_agent/"
+                    "expected_epoch/reason/evidence)"
+                )
 
             if current["owner_agent"] != requesting_agent:
                 raise UnauthorizedOwnerError(
@@ -295,10 +343,10 @@ class TurnStateStore:
             conn.execute(
                 """
                 INSERT INTO turn_idempotency
-                    (task_id, conversation_id, idempotency_key, result_json, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                    (task_id, conversation_id, idempotency_key, request_fingerprint, result_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (task_id, conversation_id, idempotency_key, outbox_payload, now),
+                (task_id, conversation_id, idempotency_key, fingerprint, outbox_payload, now),
             )
 
             self._fault_injector("before_commit")
