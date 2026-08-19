@@ -162,45 +162,41 @@ class PostgresDeliveryStatusStore:
         return DeliveryApplyResult(True, applied, matched_message_id is not None)
 
     def reconcile_one(self) -> dict[str, object]:
-        """Apply one current unmatched state to a now-known outbound message."""
+        """Apply one current unmatched state that now has a matching outbound message."""
         with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
             with connection.transaction():
                 row = connection.execute(
                     """
-                    SELECT provider, provider_message_id, status
-                    FROM messaging_delivery_state
-                    WHERE matched_message_id IS NULL
-                    ORDER BY updated_at, provider, provider_message_id
-                    FOR UPDATE SKIP LOCKED
+                    SELECT s.provider, s.provider_message_id, s.status, m.id AS message_id
+                    FROM messaging_delivery_state AS s
+                    JOIN messages AS m
+                      ON m.provider = s.provider
+                     AND m.provider_message_id = s.provider_message_id
+                     AND m.direction = 'outbound'
+                    WHERE s.matched_message_id IS NULL
+                    ORDER BY s.updated_at, s.provider, s.provider_message_id
+                    FOR UPDATE OF s SKIP LOCKED
                     LIMIT 1
                     """
                 ).fetchone()
                 if row is None:
                     return {"status": "idle"}
-                matched = connection.execute(
+
+                connection.execute(
                     """
                     UPDATE messages
                     SET status = %s
-                    WHERE provider = %s
-                      AND provider_message_id = %s
-                      AND direction = 'outbound'
-                    RETURNING id
+                    WHERE id = %s
                     """,
-                    (row["status"], row["provider"], row["provider_message_id"]),
-                ).fetchone()
-                if matched is None:
-                    return {
-                        "status": "unmatched",
-                        "provider": row["provider"],
-                        "provider_message_id": row["provider_message_id"],
-                    }
+                    (row["status"], row["message_id"]),
+                )
                 connection.execute(
                     """
                     UPDATE messaging_delivery_state
                     SET matched_message_id = %s, updated_at = now()
                     WHERE provider = %s AND provider_message_id = %s
                     """,
-                    (matched["id"], row["provider"], row["provider_message_id"]),
+                    (row["message_id"], row["provider"], row["provider_message_id"]),
                 )
                 connection.execute(
                     """
@@ -211,13 +207,13 @@ class PostgresDeliveryStatusStore:
                       AND applied = true
                       AND matched_message_id IS NULL
                     """,
-                    (matched["id"], row["provider"], row["provider_message_id"]),
+                    (row["message_id"], row["provider"], row["provider_message_id"]),
                 )
                 return {
                     "status": "matched",
                     "provider": row["provider"],
                     "provider_message_id": row["provider_message_id"],
-                    "message_id": str(matched["id"]),
+                    "message_id": str(row["message_id"]),
                 }
 
     def status(self, limit: int = 25) -> dict[str, object]:
