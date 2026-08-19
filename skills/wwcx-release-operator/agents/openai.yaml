@@ -1,0 +1,15 @@
+interface:
+  display_name: WW.CX Release Operator
+  short_description: Verify and release Edge1 or Business159 safely
+  default_prompt: Preflight this WW.CX release, deploy through the existing bounded mechanism, and verify functional health or roll back.
+dependencies:
+  tools:
+  - type: mcp
+    value: edge1
+    description: Live bounded Edge1 Operator tools for release verification
+  - type: mcp
+    value: business159-live-shell
+    description: Business159 deployment and bounded verification tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true
