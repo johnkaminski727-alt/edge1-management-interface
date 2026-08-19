@@ -11,6 +11,7 @@ shape every provider must match.
 """
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app, store
@@ -95,9 +96,6 @@ def test_invalid_json_body_returns_400() -> None:
 
 
 def test_valid_json_but_schema_mismatch_returns_400() -> None:
-    # Valid JSON, but doesn't satisfy NormalizedMessage -- proves the route's
-    # generic "except ValueError" catches pydantic ValidationError too, not
-    # only json.JSONDecodeError.
     response = client.post(
         "/v1/webhooks/simulator",
         content=json.dumps({"not": "a normalized message"}).encode(),
@@ -105,6 +103,28 @@ def test_valid_json_but_schema_mismatch_returns_400() -> None:
             "X-WWCX-Signature": "development-only",
             "Content-Type": "application/json",
         },
+    )
+    assert response.status_code == 400
+
+
+def test_webhook_rejects_payload_for_different_provider() -> None:
+    body = payload()
+    body["provider"] = "telnyx"
+    response = client.post(
+        "/v1/webhooks/simulator",
+        json=body,
+        headers={"X-WWCX-Signature": "development-only"},
+    )
+    assert response.status_code == 400
+
+
+def test_webhook_rejects_outbound_direction() -> None:
+    body = payload()
+    body["direction"] = "outbound"
+    response = client.post(
+        "/v1/webhooks/simulator",
+        json=body,
+        headers={"X-WWCX-Signature": "development-only"},
     )
     assert response.status_code == 400
 
@@ -120,10 +140,29 @@ def test_management_status_advertises_providers() -> None:
 
 def test_simulator_provider_send_returns_accepted_result() -> None:
     provider = SimulatorProvider(lambda: "development-only")
-    message = NormalizedMessage.model_validate(payload())
+    body = payload()
+    body["direction"] = "outbound"
+    message = NormalizedMessage.model_validate(body)
     result = provider.send(message)
     assert result.accepted is True
     assert result.provider_message_id == f"sim-{message.event_id}"
+
+
+def test_simulator_provider_send_rejects_inbound_direction() -> None:
+    provider = SimulatorProvider(lambda: "development-only")
+    message = NormalizedMessage.model_validate(payload())
+    with pytest.raises(ValueError, match="outbound messages only"):
+        provider.send(message)
+
+
+def test_simulator_provider_send_rejects_wrong_provider() -> None:
+    provider = SimulatorProvider(lambda: "development-only")
+    body = payload()
+    body["direction"] = "outbound"
+    body["provider"] = "bandwidth"
+    message = NormalizedMessage.model_validate(body)
+    with pytest.raises(ValueError, match="provider identity"):
+        provider.send(message)
 
 
 def test_simulator_provider_verify_webhook_reads_its_own_header() -> None:
