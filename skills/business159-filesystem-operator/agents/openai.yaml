@@ -1,0 +1,12 @@
+interface:
+  display_name: Business159 Filesystem Operator
+  short_description: Stage, verify, apply, and roll back bounded files
+  default_prompt: Show the staged Business159 file diff and verify the safe lifecycle before applying it.
+dependencies:
+  tools:
+  - type: mcp
+    value: business159-live-shell
+    description: Business159 staged filesystem and bounded inspection tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true

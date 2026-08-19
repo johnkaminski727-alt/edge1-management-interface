@@ -1,0 +1,69 @@
+name: Business159 Operator Connector
+
+on:
+  pull_request:
+    paths:
+      - 'tools/mcp/business159-live-shell/**'
+      - 'skills/business159-*/**'
+      - 'skills/shared-host-security-auditor/**'
+      - 'skills/wwcx-cross-host-operator/**'
+      - 'skills/wwcx-release-operator/**'
+      - 'tests/validate_business159_operator.py'
+      - '.github/workflows/business159-operator.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/mcp/business159-live-shell/**'
+      - 'skills/business159-*/**'
+      - 'skills/shared-host-security-auditor/**'
+      - 'skills/wwcx-cross-host-operator/**'
+      - 'skills/wwcx-release-operator/**'
+      - 'tests/validate_business159_operator.py'
+      - '.github/workflows/business159-operator.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install connector dependencies
+        working-directory: tools/mcp/business159-live-shell
+        run: npm install --ignore-scripts
+      - name: Syntax check
+        working-directory: tools/mcp/business159-live-shell
+        run: npm run check
+      - name: Verify MCP SDK imports
+        working-directory: tools/mcp/business159-live-shell
+        run: node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')]).then(() => console.error('imports ok'))"
+      - name: Validate bounded operator contract
+        run: python3 tests/validate_business159_operator.py
+      - name: Validate Skill packages statically
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          names = [
+              'business159-operator-router', 'business159-shell-operator',
+              'business159-filesystem-operator', 'business159-authenticated-operator',
+              'business159-web-operator', 'shared-host-security-auditor',
+              'wwcx-cross-host-operator', 'wwcx-release-operator',
+          ]
+          root = Path('skills')
+          for name in names:
+              skill = root / name
+              assert (skill / 'SKILL.md').is_file(), f'{name}: missing SKILL.md'
+              assert (skill / 'agents/openai.yaml').is_file(), f'{name}: missing agents/openai.yaml'
+              text = (skill / 'SKILL.md').read_text(encoding='utf-8')
+              assert text.startswith('---\nname: ' + name + '\n'), f'{name}: invalid frontmatter name'
+              assert '\ndescription:' in text.split('---', 2)[1], f'{name}: missing description'
+          print('Skill static validation passed.')
+          PY

@@ -1,0 +1,12 @@
+interface:
+  display_name: Business159 Shell Operator
+  short_description: Safely inspect and operate the shared host
+  default_prompt: Inspect Business159 with the narrowest guarded tools and explain any issues.
+dependencies:
+  tools:
+  - type: mcp
+    value: business159-live-shell
+    description: Guarded Business159 account-level SSH and bounded operator tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true

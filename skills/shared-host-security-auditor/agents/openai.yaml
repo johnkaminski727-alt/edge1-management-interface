@@ -1,0 +1,12 @@
+interface:
+  display_name: Shared Host Security Auditor
+  short_description: Audit shared-host exposure and drift safely
+  default_prompt: Audit Business159 for shared-host security exposure and report safe metadata only.
+dependencies:
+  tools:
+  - type: mcp
+    value: business159-live-shell
+    description: Read-mostly Business159 account, web, filesystem metadata and status tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true
