@@ -4,30 +4,109 @@
   "read_only_by_default": true,
   "production_traffic_authorized": false,
   "generic_execution_authorized": false,
+  "fresh_edge1_runtime_verified": true,
   "channels": [
-    {"id":"mail","label":"Mail Room","surface":"/outbound-mail/","current_mode":"prepare_only","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"runtime_ready_local_prepare_repository_ready_local_correspondence","capabilities":["mail.status.read","mail.draft.prepare"],"repository_ready_capabilities":["mail.correspondence.read"],"pending_live_capabilities":["mail.correspondence.read"],"provider_pending_capabilities":["mail.correspondence.read.production_native"],"live_acceptance":"status_draft_local_adapter_accepted"}},
-    {"id":"sms_mms","label":"SMS & MMS","surface":"/messaging-operations.html","current_mode":"operations_and_simulator","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"accepted_read_only_prepare","capabilities":["messages.status.read","messages.conversation.read","messages.draft.prepare"],"live_acceptance":"accepted"}},
-    {"id":"voice_sip","label":"Voice & SIP","surface":"/telephony/","current_mode":"read_only_operations","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"accepted_read_only","capabilities":["telephony.read"]}},
-    {"id":"communications_relay","label":"News & Relay","surface":"/comms-relay/","current_mode":"read_only_private_relay","live_traffic_authorized":false,"mutation_authorized":false,"ai_integration":{"state":"accepted_read_only","capabilities":["communications.read"]}}
+    {
+      "id": "mail",
+      "label": "Mail Room",
+      "surface": "/outbound-mail/",
+      "current_mode": "local_native_read_and_prepare_only",
+      "live_traffic_authorized": false,
+      "mutation_authorized": false,
+      "ai_integration": {
+        "state": "accepted_local_native_read_and_prepare",
+        "capabilities": [
+          "mail.status.read",
+          "mail.correspondence.read",
+          "mail.draft.prepare"
+        ],
+        "live_acceptance": "accepted_local_native",
+        "provider_pending_capabilities": [
+          "mail.correspondence.read.production_native"
+        ],
+        "production_provider_ready": false
+      }
+    },
+    {
+      "id": "sms_mms",
+      "label": "SMS & MMS",
+      "surface": "/messaging-operations.html",
+      "current_mode": "operations_simulator_and_private_quarantine",
+      "live_traffic_authorized": false,
+      "mutation_authorized": false,
+      "security_quarantine": "security_ready",
+      "ai_integration": {
+        "state": "accepted_read_only_prepare",
+        "capabilities": [
+          "messages.status.read",
+          "messages.conversation.read",
+          "messages.draft.prepare"
+        ],
+        "live_acceptance": "accepted"
+      }
+    },
+    {
+      "id": "voice_sip",
+      "label": "Voice & SIP",
+      "surface": "/telephony/",
+      "current_mode": "read_only_operations",
+      "live_traffic_authorized": false,
+      "mutation_authorized": false,
+      "ai_integration": {
+        "state": "accepted_read_only",
+        "capabilities": [
+          "telephony.read"
+        ]
+      }
+    },
+    {
+      "id": "communications_relay",
+      "label": "News & Relay",
+      "surface": "/comms-relay/",
+      "current_mode": "read_only_private_relay",
+      "live_traffic_authorized": false,
+      "mutation_authorized": false,
+      "ai_integration": {
+        "state": "accepted_read_only",
+        "capabilities": [
+          "communications.read"
+        ]
+      }
+    }
   ],
   "assistant": {
-    "product":"WW.CX AI",
-    "edge1_gateway_version":"0.3.4-alpha.3",
-    "edge1_mode":"read_only",
-    "edge1_listener":"127.0.0.1:8787",
-    "accepted_live_capabilities":["communications.read","telephony.read","messages.status.read","messages.conversation.read","messages.draft.prepare"],
-    "repository_ready_capabilities":["mail.status.read","mail.draft.prepare","mail.correspondence.read"],
-    "pending_capabilities":["mail.correspondence.read"],
-    "pending_live_capabilities":["mail.correspondence.read"],
-    "provider_pending_capabilities":["mail.correspondence.read.production_native"],
-    "browser_route":"/admin/ai/",
-    "browser_production_acceptance":"unverified"
+    "product": "WW.CX AI",
+    "edge1_gateway_version": "0.3.5-alpha.1",
+    "edge1_mode": "read_only",
+    "edge1_listener": "127.0.0.1:8787",
+    "accepted_live_capabilities": [
+      "communications.read",
+      "telephony.read",
+      "messages.status.read",
+      "messages.conversation.read",
+      "messages.draft.prepare",
+      "mail.status.read",
+      "mail.correspondence.read",
+      "mail.draft.prepare"
+    ],
+    "repository_ready_capabilities": [
+      "mail.status.read",
+      "mail.draft.prepare",
+      "mail.correspondence.read"
+    ],
+    "pending_capabilities": [],
+    "pending_live_capabilities": [],
+    "provider_pending_capabilities": [
+      "mail.correspondence.read.production_native"
+    ],
+    "browser_route": "/admin/ai/",
+    "browser_production_acceptance": "unverified"
   },
   "rules": {
-    "channel_read_does_not_grant_write":true,
-    "draft_does_not_grant_send":true,
-    "retrieved_content_is_untrusted":true,
-    "production_call_message_or_mail_requires_separate_authorization":true,
-    "emergency_routing_and_carrier_changes_require_explicit_authorization":true
+    "channel_read_does_not_grant_write": true,
+    "draft_does_not_grant_send": true,
+    "retrieved_content_is_untrusted": true,
+    "production_call_message_or_mail_requires_separate_authorization": true,
+    "emergency_routing_and_carrier_changes_require_explicit_authorization": true
   }
 }
