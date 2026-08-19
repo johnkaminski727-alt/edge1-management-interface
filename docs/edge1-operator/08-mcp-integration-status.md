@@ -1,46 +1,45 @@
 # Edge1 Operator MCP Integration Status
 
-Last reconciled: 2026-08-18
-Status: bounded production MCP service verified on Edge1; private ChatGPT transport/attachment remains the final integration gate
+Last reconciled: 2026-08-19  
+Status: bounded production MCP service verified on Edge1; non-secret tunnel staging accepted; private ChatGPT transport/attachment remains the final integration gate
 
-## Completed repository and live foundation
+## Completed live foundation
 
-- Loopback Edge1 Operations API with HMAC-SHA256 authentication, replay protection, audit logging, mutation gating, and a server-side fixed action allowlist.
+- Loopback Edge1 Operations API with HMAC-SHA256 authentication, replay protection, audit logging, mutation gating, and fixed server-side allowlist.
 - Fixed read-only Control Surfaces diagnostics and live-inventory tooling.
 - Named MCP protocol/adapter contract with no generic `edge1.exec` capability.
-- Bounded operator runtime that delegates only fixed read-only actions to the Operations API.
-- Internal `tools/list` and `tools/call` dispatch wired through the adapter/runtime path.
-- Focused tests that reject non-loopback Operations API URLs, arbitrary action names, MCP parameters, and mutating actions through the read-only tool surface.
-- Fresh production verification on 2026-08-18 confirmed `edge1-operator-mcp.service` is installed, enabled and active.
-- The production service runs as `edge1-operator` and binds only to `127.0.0.1:8102`.
-- The service retains `NoNewPrivileges=true`, `PrivateTmp=true`, `ProtectSystem=strict`, `ProtectHome=true`, and repository/config read-only paths.
-- The bearer token file exists outside Git, is owned by `edge1-operator`, and was verified mode `0600`; token content was not displayed or stored.
-- Unauthenticated `GET /mcp` returns HTTP 401.
-- Authenticated MCP `initialize`, `tools/list`, `edge1.identity`, `edge1.health`, and `edge1.apache_status` calls returned HTTP 200.
-- `edge1.identity` reported hostname `edge1.ww.cx`, principal `edge1-operator`, service ready.
-- `edge1.health` reported the loopback Operations API healthy with 27 actions and `mutations_enabled=false`.
+- Bounded runtime delegates only fixed read-only actions to the Operations API.
+- Internal `tools/list` and `tools/call` dispatch wired through the reviewed adapter/runtime path.
+- Tests reject non-loopback Operations API URLs, arbitrary action names, MCP parameters, and mutating actions through the read-only surface.
+- Production `edge1-operator-mcp.service` verified installed, enabled, active.
+- Service principal `edge1-operator`; listener `127.0.0.1:8102` only.
+- Operations API `127.0.0.1:8097` only.
+- Hardened systemd boundary retained.
+- Bearer token file remains outside Git with restricted ownership/mode; value not displayed or stored.
+- Unauthenticated `GET /mcp` -> HTTP 401.
+- Authenticated MCP initialize/tools/list/identity/health/Apache-status -> HTTP 200.
+- `edge1.identity` reported expected Edge1 identity and ready state.
+- `edge1.health` reported loopback Operations API healthy with mutations disabled.
 
-The architecture is therefore live through the private Edge1 service boundary:
+The architecture is live through the private Edge1 service boundary:
 
 ```text
 ChatGPT / authorized MCP client
         |
 private authenticated transport   <-- remaining attachment gate
         |
-edge1-operator-mcp service (127.0.0.1:8102)
+edge1-operator-mcp (127.0.0.1:8102)
         |
-named typed read-only MCP tools
+16 named typed read-only MCP tools
         |
-loopback HMAC/replay-protected Edge1 Operations API
+loopback HMAC/replay-protected Operations API
         |
 fixed server-side actions
-        |
-Edge1 services and repositories
 ```
 
 ## MCP-visible read-only tools
 
-Fresh `tools/list` returned 16 parameterless tools:
+The reviewed contract contains exactly these 16 parameterless tools:
 
 - `edge1.identity`
 - `edge1.health`
@@ -59,39 +58,61 @@ Fresh `tools/list` returned 16 parameterless tools:
 - `edge1.git_state`
 - `edge1.config_digest`
 
-These tools accept no caller-controlled command, URL, port, path, service name, SQL, AMI/ARI command, Operations API action name, or tool parameters.
+They accept no caller-controlled command, URL, port, path, service name, SQL, AMI/ARI command, Operations API action name, or tool parameters. Mutating Operations API actions are not reachable through this MCP surface.
 
-Mutating Operations API actions remain separately classified and are not reachable through this MCP surface.
+## Secure MCP Tunnel decision — reverified 2026-08-19
 
-## Production transport decision
+OpenAI's current ChatGPT help guidance continues to state that ChatGPT does not directly connect to a local/private-network MCP server. Private/on-premises MCP servers should use **Secure MCP Tunnel** instead of being exposed to the public internet.
 
-OpenAI's current ChatGPT guidance states that ChatGPT does not directly connect to a local/private-network MCP server. For a private-network or on-premises MCP server, use **Secure MCP Tunnel** rather than exposing the server to the public internet.
+Accordingly, the approved direction remains:
 
-Reference: OpenAI Help Center, `Developer mode and MCP apps in ChatGPT`.
+1. keep `edge1-operator-mcp` loopback-only on `127.0.0.1:8102`;
+2. do not add an Apache public MCP proxy, WAN MCP listener, firewall opening, or authentication weakening;
+3. use the authorized ChatGPT developer/custom-app capability;
+4. bridge Edge1 with Secure MCP Tunnel;
+5. scan and verify the frozen/discovered 16-tool contract;
+6. prove identity/health/approved diagnostics from ChatGPT;
+7. prove durable audit evidence and rollback/revocation before persistence/final completion.
 
-Accordingly, the approved completion direction is:
+## Host-side tunnel staging — accepted
 
-1. Keep `edge1-operator-mcp` loopback-only on `127.0.0.1:8102`.
-2. Do not add an Apache public proxy or new WAN management listener for MCP.
-3. Enable the applicable ChatGPT developer/custom-app capability in the authorized workspace/account.
-4. Use Secure MCP Tunnel to bridge the private Edge1 MCP endpoint to ChatGPT.
-5. Scan the tools and verify the frozen/discovered tool contract matches the 16 named parameterless tools above.
-6. Test `edge1.identity`, `edge1.health`, and approved diagnostics from ChatGPT.
-7. Verify Edge1 audit evidence and tunnel rollback/revocation before declaring completion.
+The non-secret Edge1 tunnel assets were staged and accepted on 2026-08-18. The compatible existing official `tunnel-client` was retained unchanged, Big Bird's active tunnel remained untouched, and the Edge1 tunnel runtime was isolated.
 
-Any account sign-in, developer-mode enablement, connector activation token, private tunnel enrollment material, or equivalent secret remains a human credential/activation boundary and must not be pasted into Git or chat.
+Current intended pre-enrollment state:
+
+- Edge1 tunnel config/launcher/unit installed;
+- `edge1-secure-mcp-tunnel.service` disabled/inactive;
+- tunnel ID absent;
+- runtime API key absent;
+- no second tunnel process;
+- no public listener or proxy.
+
+See `docs/edge1-operator/14-secure-mcp-tunnel.md` for exact staging evidence and the credential/doctor/attended-activation sequence.
 
 ## Remaining integration work
 
-- Complete the Secure MCP Tunnel / ChatGPT custom-app attachment through the authorized account/workspace UI.
-- Prove ChatGPT-side discovery and successful identity/health calls.
-- Prove approved diagnostic calls and durable audit/evidence behavior through that permanent connection.
-- Record tunnel/service rollback and revocation procedure without recording secret values.
+- Authorized human/account boundary: enable developer/custom-app capability and create/select the Secure MCP Tunnel.
+- Provision tunnel ID and runtime API key locally on Edge1 without exposing values.
+- Run doctor.
+- Start tunnel attended without persistence.
+- Scan tools from ChatGPT; require exact 16-tool contract and no generic execution tool.
+- Prove ChatGPT-side `edge1.identity` and `edge1.health`.
+- Prove approved read-only diagnostic calls and durable audit evidence.
+- Verify Big Bird tunnel and Edge1 listener equivalence.
+- Test stop/disable and account-side tunnel/key revocation.
+- Enable persistence only after attended acceptance passes.
+- Record final closeout.
+
+No direct `edge1.*` MCP connector is exposed to the current ChatGPT session, so the private ChatGPT attachment remains incomplete.
+
+## Related 2026-08-19 production state
+
+The Edge1 public front door is now LIVE / ACCEPTED with canonical ordinary public destination `https://ww.cx/time/`. This is independent of the private MCP transport and must not be used as a reason to expose the Operator over Apache/public HTTPS.
 
 ## Security boundary
 
-Private credentials, HMAC material, MCP bearer material, provider session data and tunnel secrets remain outside Git and chat. The MCP layer remains private and must not reintroduce generic execution authority.
+Private credentials, HMAC material, MCP bearer material, provider session data, tunnel IDs, runtime API keys, and tunnel secrets remain outside Git/chat/evidence. The MCP layer remains private and must not reintroduce generic execution authority.
 
 ## Completion condition
 
-The permanent operator is complete only when the currently verified bounded Edge1 MCP service is reachable through the approved Secure MCP Tunnel/private ChatGPT transport, discoverable by the authorized ChatGPT client, able to execute the intended named tools with durable audit evidence, and recoverable through a documented rollback/revocation path.
+The permanent Operator is complete only when the verified bounded Edge1 MCP service is reachable through the approved private ChatGPT tunnel, discoverable by the authorized ChatGPT client, able to execute the intended named tools with durable audit evidence, and recoverable through documented stop/disable and account-side revocation paths.
