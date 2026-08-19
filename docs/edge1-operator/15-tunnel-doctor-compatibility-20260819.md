@@ -6,7 +6,7 @@ Status: host prerequisites verified; raw installed doctor has one reviewed false
 
 Authenticated read-only inspection on `edge1.ww.cx` verified:
 
-- repository checkout `0aa8ce54b8d79b450cb9f85b061ea8972abc172c`, clean `main`;
+- repository checkout reached merged PR #450 state on clean `main`;
 - `/usr/local/bin/tunnel-client` version `0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144`;
 - tunnel-client SHA-256 `937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100`;
 - `/etc/edge1-tunnel/tunnel-id` present, `root:edge1-operator`, mode `0640`, readable by `edge1-operator` without displaying its value;
@@ -56,21 +56,26 @@ Repository script:
 deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
 ```
 
-The validator is deliberately fail-closed. It accepts the old-doctor result only when all of the following are true:
+The validator is deliberately fail-closed. It accepts the reviewed old-doctor result only when all of the following are true:
 
 1. it runs as `edge1-operator`;
-2. the exact reviewed tunnel-client version and SHA-256 are present before doctor is invoked;
-3. the Edge1 tunnel config still targets only `http://127.0.0.1:8102/mcp`;
-4. the config still supplies the same bearer environment reference for both runtime and discovery headers;
-5. raw doctor exits exactly `2`;
-6. the only failed check is exactly `oauth_metadata`;
-7. the failure is the reviewed path-specific HTTP 404;
-8. unauthenticated MCP remains HTTP 401;
-9. both path-specific and root OAuth metadata candidates remain HTTP 404 when probed locally with the existing bearer credential, without exposing the credential value.
+2. the exact reviewed tunnel-client version and SHA-256 are present;
+3. the installed launcher, tunnel config, and systemd service unit match their reviewed SHA-256 values;
+4. tunnel-client, launcher, config, unit, tunnel ID, runtime API key, and MCP token retain their reviewed owner/mode metadata;
+5. unauthenticated `GET /mcp` remains HTTP 401;
+6. authenticated `GET /mcp` remains HTTP 405, proving the bearer credential is accepted by the POST-only transport without exposing it;
+7. both OAuth protected-resource metadata candidates remain HTTP 404;
+8. raw doctor exits exactly `2`;
+9. the only failed check is exactly `oauth_metadata`;
+10. the failure is the reviewed path-specific HTTP 404.
 
-If the pinned reviewed build begins returning raw doctor success, the compatibility override is not needed and the validator accepts that raw pass. A different tunnel-client version or SHA fails closed before doctor is invoked, even if that different binary would return success. Any future tunnel-client upgrade therefore requires a separate review and deliberate update of the version/SHA pin in this validator.
+Because this validator is pinned to the exact old client build, an unexpected raw-doctor success is treated as environment/authentication drift and fails closed for re-review rather than bypassing the independent checks. A different tunnel-client version or SHA also fails closed before doctor is invoked. Any future tunnel-client upgrade requires a separate review and deliberate update of the version/SHA pin and expected doctor behavior.
 
-Any different failed check, status, target, header configuration, or authentication behavior also fails closed.
+Any different failed check, status, target, file hash, file metadata, or authentication behavior also fails closed.
+
+## Staging installer safety
+
+`deploy/edge1-tunnel/install-edge1-secure-mcp-tunnel.sh --apply` is a staging operation, not a redeploy or recovery operation. It must refuse to proceed if `edge1-secure-mcp-tunnel.service` is already active or enabled. It must never stop or disable an accepted tunnel merely because staging is rerun later.
 
 ## Next boundary
 

@@ -55,13 +55,21 @@ class SecureMcpTunnelAssetsTests(unittest.TestCase):
                 self.assertIn(token, SERVICE)
         self.assertIn("pid_file: /run/edge1-secure-mcp-tunnel/tunnel-client.pid", PROFILE)
 
-    def test_installer_reuses_binary_and_never_enables_or_starts_tunnel(self):
+    def test_installer_reuses_binary_and_never_stops_or_enables_tunnel(self):
         self.assertIn("BINARY=/usr/local/bin/tunnel-client", INSTALLER)
-        self.assertIn('systemctl disable "$SERVICE"', INSTALLER)
-        self.assertIn('systemctl stop "$SERVICE"', INSTALLER)
+        self.assertIn('systemctl is-enabled --quiet "$SERVICE"', INSTALLER)
+        self.assertIn('systemctl is-active --quiet "$SERVICE"', INSTALLER)
         self.assertIn("service remains disabled/inactive", INSTALLER)
+        self.assertNotIn('systemctl disable "$SERVICE"', INSTALLER)
+        self.assertNotIn('systemctl stop "$SERVICE"', INSTALLER)
         self.assertNotIn("enable --now", INSTALLER)
         self.assertNotIn("/opt/openai-tunnel-client", INSTALLER)
+
+        first_install = INSTALLER.index('install -d -o root -g edge1-operator')
+        enabled_gate = INSTALLER.index('systemctl is-enabled --quiet "$SERVICE"')
+        active_gate = INSTALLER.index('systemctl is-active --quiet "$SERVICE"')
+        self.assertLess(enabled_gate, first_install)
+        self.assertLess(active_gate, first_install)
 
     def test_no_network_or_auth_broadening_primitives(self):
         combined = "\n".join((PROFILE, LAUNCHER, SERVICE, INSTALLER))

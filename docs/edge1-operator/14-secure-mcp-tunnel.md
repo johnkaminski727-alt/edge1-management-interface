@@ -1,7 +1,7 @@
 # Edge1 Secure MCP Tunnel activation
 
-Last reconciled: 2026-08-18
-Status: live non-secret staging accepted; account/credential enrollment and Edge1 Operator tunnel acceptance pending
+Last reconciled: 2026-08-19
+Status: live non-secret staging and local credential provisioning accepted; compatibility validation and attended Edge1 Operator tunnel acceptance pending
 
 ## Objective
 
@@ -63,6 +63,7 @@ Preconditions:
 2. `edge1-operator` and `edge1-operator-mcp.service` already exist.
 3. The local Operator remains healthy on loopback `8102`.
 4. Any existing tunnel-client consumer, including Big Bird, remains untouched.
+5. `edge1-secure-mcp-tunnel.service` is disabled and inactive.
 
 Dry run and staging:
 
@@ -70,6 +71,8 @@ Dry run and staging:
 sudo sh deploy/edge1-tunnel/install-edge1-secure-mcp-tunnel.sh
 sudo sh deploy/edge1-tunnel/install-edge1-secure-mcp-tunnel.sh --apply
 ```
+
+The `--apply` path is staging-only. It refuses to proceed if the tunnel service is already active or enabled; it must never stop or disable an accepted tunnel merely because the staging command is rerun later.
 
 Expected post-stage state:
 
@@ -95,11 +98,11 @@ Accepted production evidence:
 - `edge1-operator-mcp.service` remained active on `127.0.0.1:8102`, and an unauthenticated request still returned HTTP `401`;
 - `/etc/edge1-tunnel/tunnel-client.yaml`, `/usr/local/libexec/edge1-tunnel/edge1-secure-mcp-tunnel.sh`, and `/etc/systemd/system/edge1-secure-mcp-tunnel.service` were staged with the intended ownership/modes;
 - `edge1-secure-mcp-tunnel.service` remained disabled and inactive;
-- `/etc/edge1-tunnel/tunnel-id` and `/etc/edge1-tunnel/runtime-api-key` remained absent;
+- `/etc/edge1-tunnel/tunnel-id` and `/etc/edge1-tunnel/runtime-api-key` remained absent at the end of the staging event;
 - no second tunnel-client process was started;
 - the primary checkout remained untouched at its pre-existing commit.
 
-This establishes the end of the non-secret host-side staging phase. The next phase begins only after authorized OpenAI workspace/account enrollment supplies a tunnel ID and runtime API key locally on Edge1.
+This established the end of the non-secret host-side staging phase.
 
 ## Human credential/account gate
 
@@ -113,19 +116,32 @@ The authorized workspace/account operator must complete these steps locally:
 4. On Edge1, write the raw runtime API key to `/etc/edge1-tunnel/runtime-api-key`.
 5. Set both files to `root:edge1-operator` mode `0640`.
 
-This is the explicit credential boundary. Repository automation does not perform it.
+This credential gate was completed locally by 2026-08-19. Read-only inspection verified both files exist with the intended ownership/mode and are readable by `edge1-operator`; their values were not recorded in Git, chat, or evidence.
 
-## Doctor and activation
+Repository automation does not create, rotate, display, or revoke those credentials.
 
-After local credential provisioning, validate without exposing secret values:
+## Doctor compatibility and activation
+
+The installed pinned 0.0.10 tunnel-client has a reviewed doctor-only false negative: it returns exit code `2` with `oauth_metadata` as the only failed check because the Edge1 MCP server intentionally does not expose OAuth protected-resource metadata. Do not add synthetic OAuth endpoints and do not replace the shared tunnel-client merely to make this old doctor green.
+
+Before activation, run the repository compatibility gate from the current reviewed checkout:
 
 ```sh
-sudo -u edge1-operator /usr/local/libexec/edge1-tunnel/edge1-secure-mcp-tunnel.sh doctor
+sudo -u edge1-operator \
+  /opt/edge1-management-interface/deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
 ```
 
-The doctor command must succeed before service activation.
+Require:
 
-Then start attended, without enabling persistence yet:
+```text
+EDGE1_TUNNEL_COMPAT_DOCTOR=PASS
+```
+
+The gate fails closed unless the reviewed binary, launcher, config, systemd unit, ownership/modes, bearer behavior, OAuth-metadata 404 behavior, and exact single raw-doctor failure all match the accepted contract. Unexpected raw-doctor success from the pinned old build is also drift and requires re-review rather than bypassing those checks.
+
+Only after the compatibility gate passes may attended activation be considered. Starting the service is an explicit account-linked production activation boundary and requires approval.
+
+Then, when that boundary is approved, start attended without enabling persistence:
 
 ```sh
 sudo systemctl start edge1-secure-mcp-tunnel.service
@@ -140,7 +156,7 @@ sudo cat /run/edge1-secure-mcp-tunnel/health-url
 
 Verify there is still no public Edge1 MCP listener, the original Operator remains loopback-only on `127.0.0.1:8102`, and `bigbird-ai-tunnel.service` remains healthy.
 
-Only after doctor, tunnel readiness, ChatGPT discovery, identity/health calls, evidence, and rollback checks pass should persistence be enabled:
+Only after compatibility validation, tunnel readiness, ChatGPT discovery, identity/health calls, evidence, and rollback checks pass should persistence be enabled:
 
 ```sh
 sudo systemctl enable edge1-secure-mcp-tunnel.service

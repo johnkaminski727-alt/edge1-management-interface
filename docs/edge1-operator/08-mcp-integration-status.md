@@ -1,7 +1,7 @@
 # Edge1 Operator MCP Integration Status
 
 Last reconciled: 2026-08-19  
-Status: bounded production MCP service verified on Edge1; non-secret tunnel staging accepted; private ChatGPT transport/attachment remains the final integration gate
+Status: bounded production MCP service verified on Edge1; Secure MCP Tunnel staging and local credential provisioning complete; fail-closed preactivation and private ChatGPT attachment remain
 
 ## Completed live foundation
 
@@ -26,7 +26,7 @@ The architecture is live through the private Edge1 service boundary:
 ```text
 ChatGPT / authorized MCP client
         |
-private authenticated transport   <-- remaining attachment gate
+Secure MCP Tunnel                <-- final attachment/acceptance gate
         |
 edge1-operator-mcp (127.0.0.1:8102)
         |
@@ -60,54 +60,77 @@ The reviewed contract contains exactly these 16 parameterless tools:
 
 They accept no caller-controlled command, URL, port, path, service name, SQL, AMI/ARI command, Operations API action name, or tool parameters. Mutating Operations API actions are not reachable through this MCP surface.
 
-## Secure MCP Tunnel decision — reverified 2026-08-19
+## Secure MCP Tunnel direction
 
-OpenAI's current ChatGPT help guidance continues to state that ChatGPT does not directly connect to a local/private-network MCP server. Private/on-premises MCP servers should use **Secure MCP Tunnel** instead of being exposed to the public internet.
+The accepted direction remains to keep `edge1-operator-mcp` loopback-only and use Secure MCP Tunnel for the private ChatGPT attachment. Do not add an Apache public MCP proxy, WAN MCP listener, firewall opening, or authentication weakening as a substitute.
 
-Accordingly, the approved direction remains:
+## Host-side tunnel state
 
-1. keep `edge1-operator-mcp` loopback-only on `127.0.0.1:8102`;
-2. do not add an Apache public MCP proxy, WAN MCP listener, firewall opening, or authentication weakening;
-3. use the authorized ChatGPT developer/custom-app capability;
-4. bridge Edge1 with Secure MCP Tunnel;
-5. scan and verify the frozen/discovered 16-tool contract;
-6. prove identity/health/approved diagnostics from ChatGPT;
-7. prove durable audit evidence and rollback/revocation before persistence/final completion.
+Non-secret Edge1 tunnel assets were staged and accepted on 2026-08-18. By 2026-08-19 the authorized account-side tunnel selection and local credential provisioning were also complete without exposing secret values.
 
-## Host-side tunnel staging — accepted
-
-The non-secret Edge1 tunnel assets were staged and accepted on 2026-08-18. The compatible existing official `tunnel-client` was retained unchanged, Big Bird's active tunnel remained untouched, and the Edge1 tunnel runtime was isolated.
-
-Current intended pre-enrollment state:
+Current state:
 
 - Edge1 tunnel config/launcher/unit installed;
 - `edge1-secure-mcp-tunnel.service` disabled/inactive;
-- tunnel ID absent;
-- runtime API key absent;
-- no second tunnel process;
-- no public listener or proxy.
+- `/etc/edge1-tunnel/tunnel-id` present with restricted metadata;
+- `/etc/edge1-tunnel/runtime-api-key` present with restricted metadata;
+- existing official shared `tunnel-client` retained unchanged;
+- Big Bird tunnel remains accepted and must not be disrupted;
+- no accepted Edge1 tunnel process yet;
+- no public MCP listener or proxy.
 
-See `docs/edge1-operator/14-secure-mcp-tunnel.md` for exact staging evidence and the credential/doctor/attended-activation sequence.
+Installed tunnel-client identity:
+
+```text
+0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144
+sha256=937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100
+```
+
+Its raw doctor returns exit code `2` with only `oauth_metadata` failing on an expected HTTP 404. This is a reviewed old-client doctor behavior for the Edge1 bearer-authenticated non-OAuth MCP endpoint, not a reason to add fake OAuth metadata or upgrade the shared binary merely to make doctor green.
+
+The required preactivation command is the repository compatibility validator:
+
+```sh
+sudo -u edge1-operator \
+  /opt/edge1-management-interface/deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
+```
+
+Require:
+
+```text
+EDGE1_TUNNEL_COMPAT_DOCTOR=PASS
+```
+
+The hardened validator fails closed unless the reviewed client and installed tunnel assets match their expected hashes/metadata, the bearer boundary still returns unauthenticated 401 and authenticated GET 405, the OAuth metadata candidates remain 404, and raw doctor still has exactly the reviewed single failure. Unexpected raw success from the pinned client is drift requiring re-review.
+
+The staging installer is also non-disruptive: `--apply` refuses when `edge1-secure-mcp-tunnel.service` is already active or enabled instead of stopping/disabling an accepted tunnel.
+
+See:
+
+- `docs/edge1-operator/14-secure-mcp-tunnel.md`
+- `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`
 
 ## Remaining integration work
 
-- Authorized human/account boundary: enable developer/custom-app capability and create/select the Secure MCP Tunnel.
-- Provision tunnel ID and runtime API key locally on Edge1 without exposing values.
-- Run doctor.
+- Merge the preactivation hardening only after exact-head CI is green and fast-forward the clean Edge1 checkout.
+- Run the compatibility validator and require `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS`.
+- Obtain explicit approval for attended activation.
 - Start tunnel attended without persistence.
+- Verify its dynamic loopback health/readiness, Big Bird health, and Edge1 listener equivalence.
 - Scan tools from ChatGPT; require exact 16-tool contract and no generic execution tool.
 - Prove ChatGPT-side `edge1.identity` and `edge1.health`.
 - Prove approved read-only diagnostic calls and durable audit evidence.
-- Verify Big Bird tunnel and Edge1 listener equivalence.
-- Test stop/disable and account-side tunnel/key revocation.
+- Test attended stop and account-side tunnel/key revocation.
 - Enable persistence only after attended acceptance passes.
 - Record final closeout.
 
 No direct `edge1.*` MCP connector is exposed to the current ChatGPT session, so the private ChatGPT attachment remains incomplete.
 
-## Related 2026-08-19 production state
+## Related production state
 
-The Edge1 public front door is now LIVE / ACCEPTED with canonical ordinary public destination `https://ww.cx/time/`. This is independent of the private MCP transport and must not be used as a reason to expose the Operator over Apache/public HTTPS.
+The Edge1 public front door is LIVE / ACCEPTED with canonical ordinary public destination `https://ww.cx/time/`. This is independent of the private MCP transport and must not be used as a reason to expose the Operator over Apache/public HTTPS.
+
+Read-only security-boundary classification, the corrected Control Surfaces inventory, and the corrected Asterisk audit remain safe independent work before activation.
 
 ## Security boundary
 
@@ -115,4 +138,4 @@ Private credentials, HMAC material, MCP bearer material, provider session data, 
 
 ## Completion condition
 
-The permanent Operator is complete only when the verified bounded Edge1 MCP service is reachable through the approved private ChatGPT tunnel, discoverable by the authorized ChatGPT client, able to execute the intended named tools with durable audit evidence, and recoverable through documented stop/disable and account-side revocation paths.
+The permanent Operator is complete only when the verified bounded Edge1 MCP service is reachable through the approved private ChatGPT tunnel, discoverable by the authorized ChatGPT client, able to execute the intended named tools with durable audit evidence, and recoverable through documented attended stop and account-side revocation paths.
