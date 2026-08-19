@@ -2,156 +2,151 @@
 
 Last reconciled: 2026-08-19  
 Repository: `johnkaminski727-alt/edge1-management-interface`  
-Authoritative repository branch: `main`
+Authoritative branch: `main`
 
-This file is the concise cross-workstream continuation index. Historical detail remains in dated acceptance, runbook, archive, and workstream-specific `.agent/` records.
+This file is the concise cross-workstream continuation point. Historical details remain in dated acceptance/runbook records.
 
-## Repository state
+## Repository / public front door
 
-Repository `main` after the Edge1 front-door live closeout is:
+The 2026-08-19 Edge1 public front-door cutover is LIVE / ACCEPTED and must not be reopened without fresh contrary evidence.
 
-```text
-8dc7b584dd765eb53de9f84a46472ce96316352a
-```
+Accepted ordinary routing remains:
 
-The Edge1 production checkout used for the live front-door cutover remains at the implementation commit:
-
-```text
-74e7b1a6d19edebaf42c69df8d57838eb52eee78
-```
-
-The newer `main` commit is documentation/state closeout only. Do not advance a production checkout solely to make its HEAD match documentation unless the next approved workflow needs current repository assets and the working tree is clean.
-
-## Edge1 public front door — LIVE / ACCEPTED
-
-The 2026-08-19 public/default Edge1 front-door cutover is complete and must not be reopened without fresh contrary evidence.
-
-Accepted behavior:
-
-- raw/default IPv4 HTTP `/`: `302 -> https://ww.cx/time/`;
-- unmatched Host HTTP `/`: `302 -> https://ww.cx/time/`;
-- `edge1.ww.cx` HTTP `/`: existing `301 -> https://edge1.ww.cx/` preserved;
-- `edge1.ww.cx` HTTPS `/` and `/index.html`: `302 -> https://ww.cx/time/`;
-- `/edge1-status/`: preserved `200`;
-- unknown HTTPS path: preserved `404`;
-- raw HTTPS default-vhost HTTP behavior after TLS: unchanged;
+- raw/default IPv4 HTTP `/` -> `302 https://ww.cx/time/`;
+- unmatched Host HTTP `/` -> same;
+- `edge1.ww.cx` HTTP `/` -> existing `301 https://edge1.ww.cx/`;
+- `edge1.ww.cx` HTTPS `/` and `/index.html` -> `302 https://ww.cx/time/`;
+- `/edge1-status/` preserved;
+- unknown/non-root paths preserved;
+- raw HTTPS behavior not weakened;
 - PBX/SIP named-host behavior preserved;
-- Apache remained active on TCP 80/443;
-- chronyd remained active on UDP 123 and TCP 4460.
+- Apache and chronyd listener ownership preserved.
 
-Apache configtest passed before and after the controlled reload. Cache-busted browser verification confirmed the new root routing and preserved `/edge1-status/` / unknown-path behavior.
-
-Protected rollback evidence:
+Rollback evidence remains:
 
 ```text
 /var/backups/wwcx-edge1-front-door-approved-20260819T052836Z
 /var/backups/wwcx-edge1-front-door-approved-20260819T052836Z/rollback.sh
 ```
 
-Acceptance record:
+HTTP 302 is intentional. Any 308 promotion is future optional work.
 
-`docs/control-surfaces/edge1-front-door-live-acceptance-20260819.md`
+## Edge1 Operator / Secure MCP Tunnel
 
-HTTP 302 is intentional. Promotion to 308 is optional future work and is not authorized automatically.
+The bounded server-side Operator is accepted live:
 
-## Edge1 Operator / MCP
-
-The server-side private Operator boundary is already verified live from 2026-08-18 evidence:
-
-- `edge1-operator-mcp.service` installed, enabled, active;
+- `edge1-operator-mcp.service` active/enabled;
 - principal `edge1-operator`;
-- MCP listener `127.0.0.1:8102` only;
-- Operations API `127.0.0.1:8097` only;
-- bearer file outside Git with restricted metadata verified without exposing its value;
-- unauthenticated MCP request returned 401;
-- authenticated initialize/tools/list/identity/health/Apache-status calls succeeded;
-- 16 named parameterless read-only tools discovered;
-- Operations API reported loopback true and mutations disabled.
+- MCP loopback `127.0.0.1:8102` only;
+- Operations API loopback `127.0.0.1:8097` only;
+- bearer boundary retained; unauthenticated MCP returns 401;
+- reviewed contract is 16 named parameterless read-only tools;
+- Operations API mutations remain disabled.
 
-The non-secret Secure MCP Tunnel host assets were staged and accepted on 2026-08-18. The tunnel service intentionally remains disabled/inactive until account/workspace enrollment provides the tunnel ID and runtime API key locally on Edge1.
+Secure MCP Tunnel staging and local credential provisioning are complete without exposing secret values:
 
-The remaining permanent-Operator gate is the ChatGPT-side private transport/attachment:
+- `/etc/edge1-tunnel/tunnel-id` exists as `root:edge1-operator` mode `0640` and is readable by `edge1-operator`;
+- `/etc/edge1-tunnel/runtime-api-key` exists with the same restricted ownership/mode/readability;
+- `/etc/edge1-operator/mcp-token` remains `edge1-operator:edge1-operator` mode `0600`;
+- installed tunnel-client remains `0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144`, SHA-256 `937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100`;
+- `edge1-secure-mcp-tunnel.service` is disabled/inactive;
+- `bigbird-ai-tunnel.service` remains active/enabled;
+- no tunnel start/enable command has been run.
 
-1. authorized workspace/account developer/custom-app capability;
-2. Secure MCP Tunnel enrollment without recording secrets in Git/chat;
-3. ChatGPT tool scan matching the exact 16-tool contract;
-4. ChatGPT-side `edge1.identity`, `edge1.health`, and approved diagnostic calls;
-5. durable audit evidence plus tested stop/disable and account-side revocation path;
-6. persistence enablement only after attended acceptance succeeds.
+### Doctor compatibility
 
-OpenAI guidance was rechecked on 2026-08-19 and continues to state that local/private-network MCP servers are not connected directly; Secure MCP Tunnel is the supported private-network path. No public Apache MCP proxy, WAN MCP listener, firewall opening, or MCP authentication weakening is part of the plan.
+Raw doctor returned exit code 2 with exactly one failed check:
 
-No direct `edge1.*` MCP connector is exposed to this ChatGPT session yet, so the ChatGPT attachment gate is not complete.
+```text
+FAILED_CHECKS oauth_metadata
+HTTP 404 from http://127.0.0.1:8102/.well-known/oauth-protected-resource/mcp
+```
 
-Detailed records:
+This is a reviewed old-build doctor compatibility issue, not a reason to add synthetic OAuth endpoints. Exact installed upstream source unconditionally requires OAuth metadata for every HTTP target, while later upstream source treats all-404 OAuth metadata discovery as optional for plain/non-OAuth MCP servers. Edge1 intentionally uses its existing loopback bearer boundary and supplies that Authorization header through both tunnel runtime and discovery static-header configuration.
 
-- `docs/edge1-operator/08-mcp-integration-status.md`;
-- `docs/edge1-operator/13-completion-status.md`;
-- `docs/edge1-operator/14-secure-mcp-tunnel.md`.
+PR #450 adds a fail-closed compatibility validator that requires the exact reviewed tunnel-client version/SHA before invoking doctor, the exact Edge1 loopback target/header contract, the exact single old-doctor failure, unauthenticated MCP 401, and both OAuth metadata candidates 404. A different binary fails closed even if its raw doctor would pass; a future upgrade requires deliberate re-review/re-pinning.
+
+Compatibility record:
+
+`docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`
+
+Next live read-only gate after PR #450 merges:
+
+```text
+deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
+```
+
+Only after that gate passes may attended tunnel activation be considered. Starting `edge1-secure-mcp-tunnel.service` remains an explicit production/account-linked boundary. Persistence stays blocked until attended tunnel + ChatGPT acceptance succeeds.
+
+No direct `edge1.*` MCP connector is attached to this ChatGPT session yet.
+
+## Security-boundary inventory
+
+The current read-only security-boundary inventory has run successfully on Edge1. Aggregate result:
+
+```text
+records=164
+mapped=160
+missing_known=0
+unknown_preserved=4
+filesystem_anomaly=1
+```
+
+Apache config testing passed. The inventory reported no live configuration/source-tree/traffic-control mutation and did not collect credentials/cookie values.
+
+Remaining work is narrow: record the exact timestamped evidence directory and classify the four preserved unknowns plus one filesystem anomaly using path/mode/hash/relationship metadata only before any restricted-release/public-tree work proceeds.
+
+DNS, firewall, certificates, authentication policy, listeners, and production traffic remain separately gated.
+
+## Asterisk / alerting
+
+The read-only warning follow-up is complete at the service/configuration level:
+
+- Asterisk active;
+- PJSIP transport configuration exists;
+- Asterisk owns loopback UDP `127.0.0.1:5061`;
+- SysV `S01asterisk` startup links exist in runlevels 2-5 and `systemctl is-enabled` reports enabled through the systemd-sysv wrapper;
+- TCP `8089` is loopback-only;
+- local TLS 1.3 handshake succeeds using the Edge1 certificate;
+- audit produced zero failures.
+
+No listener/firewall/certificate/SIP/startup-policy mutation is justified. PR #450 corrects the audit's systemd-sysv stderr handling and validates the change statically; after merge, rerun the corrected read-only audit on Edge1 to capture the final warning/failure summary.
+
+The offline CAP-CP/EBS laboratory remains isolated; no `Actual` alert delivery, calls/pages, tones, or public delivery path are authorized by this state.
 
 ## Control Surfaces
 
-The public exposure-reduction/front-door portion is accepted. The existing private-source FreePBX Admin/UCP behavior was preserved by the 2026-08-19 front-door cutover. Earlier accepted Control Surfaces records state that ordinary WAN Admin/UCP access was denied while approved private paths remained available; today's connected browser is part of the private management environment and therefore is not independent WAN denial evidence.
+Fresh bounded diagnostics for summary/listeners/Asterisk/Kamailio/FreePBX completed. Native CLI diagnostics may be privilege-limited while passive fallback evidence succeeds and higher-level telephony health remains healthy. Do not widen permissions merely to make a diagnostic card green.
 
-The remaining Control Surfaces work is limited to:
+The prior general-inventory `rc=126` was a repository packaging issue: the file was mode `0644`, while interpreter execution succeeded and the filesystem is executable. PR #450 corrects `scripts/control-surfaces-live-inventory.sh` to Git mode `100755`, and the dedicated inventory workflow passes. After merge, fast-forward the clean Edge1 checkout and rerun the executable read-only inventory.
 
-- permanent ChatGPT Operator transport/attachment described above;
-- final reconciliation of native Asterisk/Kamailio/FreePBX diagnostic-card degraded states without weakening service hardening or widening permissions;
-- any temporary/private FreePBX native-session mechanism only after redirects, cookies, WebSockets, CSP, X-Frame-Options, expiry, revocation, CSRF, and audit behavior are proven.
-
-## Security-boundary completion work
-
-The merged security-boundary inventory bundle remains pending live execution through an approved authenticated Edge1 path.
-
-Next safe step is read-only:
-
-`sudo bash tools/security/edge1-security-boundary-live-inventory.sh`
-
-It must create protected evidence under `/var/lib/wwcx-deployment-evidence/edge1-security-boundary-live-inventory/`, retain unknown artifacts rather than altering them, and report no live configuration or traffic-control changes.
-
-Only after review of that evidence may restricted-release/authentication/public-tree work proceed. DNS, firewall, certificate, authentication, listener, or traffic changes remain separately gated.
-
-## Asterisk / alerting warning follow-up
-
-The offline alerting laboratory remains accepted and isolated. The next safe action is the existing read-only warning audit:
-
-`tools/alerting/asterisk_warning_followup_audit.sh`
-
-It must reconcile, without changing configuration:
-
-- PJSIP CLI transport visibility versus Asterisk-owned loopback UDP `127.0.0.1:5061`;
-- Asterisk boot persistence across the SysV/systemd wrapper state;
-- TCP `8089` bind scope, local TLS identity, firewall references, and operational need.
-
-Warnings do not authorize listener, startup-policy, certificate, or firewall changes.
+Existing FreePBX Admin/UCP private-source boundaries remain unchanged. Any temporary/private native-session mechanism remains separately gated.
 
 ## DTMF provider work
 
-Provider-response work remains externally blocked:
+Externally blocked. Mailbox recheck on 2026-08-19 found no substantive provider technical answer after the 2026-08-14 notice that there was still no update.
 
-- direct provider technical response not yet recorded;
-- matrix update remains blocked;
-- live call/DTMF testing remains separately authorization-gated.
+Keep:
 
-When a response arrives, retain the original only in the restricted mailbox, create a sanitized worksheet, classify all nine answers by scope/evidence strength, and run the repository validators before any matrix update.
+```text
+response_state=pending
+provider_reply_received=false
+matrix_update_allowed=false
+live_test_authorized=false
+```
 
-## Communications Relay / News Reader
-
-This workstream is sealed. Do not reopen it unless new contrary evidence appears.
-
-Accepted production checkout remains intentionally separate from current repository `main`. See the Communications Relay acceptance and archive-seal records for exact revisions and protected evidence.
+No live calls or DTMF transmission without separate explicit authorization.
 
 ## Current continuation order
 
-1. Keep the accepted front door unchanged.
-2. Complete repository state reconciliation and keep `main` authoritative for continuation docs.
-3. Advance the permanent Operator only through the Secure MCP Tunnel/account boundary; do not expose MCP publicly.
-4. Run and review the security-boundary inventory.
-5. Run and review the Asterisk warning follow-up audit.
-6. Reconcile remaining Control Surfaces diagnostic degradation from evidence.
-7. Leave DTMF provider work pending until external response arrives.
-8. Preserve sealed/accepted workstreams unless new evidence requires reopening.
+1. Keep the accepted public front door unchanged.
+2. Merge PR #450 only after exact-head CI remains green.
+3. Fast-forward the clean Edge1 checkout to merged `main` and run the compatibility validator read-only.
+4. Capture/classify the five remaining security-inventory records metadata-only and record the exact evidence directory.
+5. Rerun the executable Control Surfaces inventory and corrected Asterisk audit.
+6. Stop at the attended tunnel-activation boundary for explicit approval.
+7. Leave DTMF provider work pending until an external response arrives.
 
 ## Safety boundary
 
-Do not expose credentials or secret values. Do not change DNS, firewall, certificates, authentication policy, public listeners, production traffic, SIP/carrier routing, emergency behavior, alert delivery, call/DTMF transmission, or retained evidence/data from this state record alone. Inspect first; back up before mutations; use the smallest change; validate; preserve rollback; stop at explicit credential/account/security/production approval boundaries.
+No credentials or secret values in Git/chat/evidence. No public MCP proxy. No new WAN management listener. Do not modify DNS, firewall, certificates, authentication, production traffic, SIP/carrier routing, emergency behavior, alert delivery, calls/DTMF, or retained evidence merely from this state file. Inspect first; preserve unrelated work; back up before mutations; validate; preserve rollback; stop at explicit credential/account/security/production boundaries.

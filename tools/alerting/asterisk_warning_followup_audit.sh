@@ -130,7 +130,7 @@ done
 
 section "SERVICE AND BOOT PERSISTENCE"
 ACTIVE=$(systemctl is-active asterisk 2>&1 || true)
-ENABLED=$(systemctl is-enabled asterisk 2>&1 || true)
+ENABLED=$(systemctl is-enabled asterisk 2>/dev/null || true)
 echo "systemctl active: $ACTIVE"
 echo "systemctl enabled: $ENABLED"
 systemctl status asterisk --no-pager --full 2>&1 | sed -n '1,35p' || true
