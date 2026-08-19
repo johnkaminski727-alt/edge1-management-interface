@@ -26,10 +26,10 @@ paths = {
     "messaging_main": ROOT / "services" / "wwcx-messaging-gateway" / "app" / "main.py",
     "mms_quarantine": ROOT / "services" / "wwcx-messaging-gateway" / "app" / "media_quarantine.py",
     "agent_state": ROOT / ".agent" / "unified-communications.md",
-    "validation_record": ROOT / ".agent" / "unified-communications-validation-20260818.md",
+    "validation_record": ROOT / ".agent" / "unified-communications-validation-live-20260819.md",
     "backlog": ROOT / ".agent" / "unified-communications-backlog-20260818.md",
-    "handoff": ROOT / "docs" / "handoff" / "unified-communications-completion-20260818.md",
-    "live_acceptance": ROOT / "docs" / "communications" / "unified-communications-live-acceptance-20260818.md",
+    "handoff": ROOT / "docs" / "handoff" / "unified-communications-live-closeout-20260819.md",
+    "live_acceptance": ROOT / "docs" / "communications" / "unified-communications-live-acceptance-20260819.md",
 }
 
 for label, path in paths.items():
@@ -39,22 +39,26 @@ for label, path in paths.items():
 registry = json.loads(paths["registry"].read_text(encoding="utf-8"))
 assert registry["production_traffic_authorized"] is False
 assert registry["generic_execution_authorized"] is False
+assert registry["fresh_edge1_runtime_verified"] is True
 assistant = registry["assistant"]
-assert assistant["edge1_gateway_version"] == "0.3.4-alpha.3"
+assert assistant["edge1_gateway_version"] == "0.3.5-alpha.1"
 assert set(assistant["accepted_live_capabilities"]) == {
     "communications.read",
     "telephony.read",
     "messages.status.read",
     "messages.conversation.read",
     "messages.draft.prepare",
+    "mail.status.read",
+    "mail.correspondence.read",
+    "mail.draft.prepare",
 }
 assert set(assistant["repository_ready_capabilities"]) == {
     "mail.status.read",
     "mail.draft.prepare",
     "mail.correspondence.read",
 }
-assert assistant["pending_capabilities"] == ["mail.correspondence.read"]
-assert assistant["pending_live_capabilities"] == ["mail.correspondence.read"]
+assert assistant["pending_capabilities"] == []
+assert assistant["pending_live_capabilities"] == []
 assert assistant["provider_pending_capabilities"] == ["mail.correspondence.read.production_native"]
 for forbidden in {
     "messages.send",
@@ -76,12 +80,14 @@ assert identity["correlation_policy"]["cross_channel_inference_enabled"] is Fals
 
 readiness = json.loads(paths["readiness"].read_text(encoding="utf-8"))
 assert readiness["generated_from"] == "repository_and_fresh_edge1_operator_evidence"
-assert readiness["fresh_edge1_runtime_verified"] is False
+assert readiness["fresh_edge1_runtime_verified"] is True
 assert readiness["channels"]["mail"]["edge1_runtime"] == "runtime_ready"
 assert readiness["channels"]["mail"]["private_ai_adapter"] == "runtime_ready"
+assert readiness["channels"]["mail"]["live_acceptance"] == "runtime_ready"
+assert readiness["channels"]["mail"]["production_authorization"] == "blocked"
 assert readiness["channels"]["sms_mms"]["edge1_runtime"] == "runtime_ready"
 assert readiness["channels"]["sms_mms"]["private_ai_adapter"] == "runtime_ready"
-assert readiness["channels"]["sms_mms"]["security_quarantine"] == "degraded"
+assert readiness["channels"]["sms_mms"]["security_quarantine"] == "security_ready"
 assert readiness["channels"]["sms_mms"]["production_authorization"] == "blocked"
 assert readiness["channels"]["private_ai"]["edge1_runtime"] == "runtime_ready"
 assert readiness["channels"]["private_ai"]["live_acceptance"] == "runtime_ready"
@@ -153,31 +159,44 @@ mms = paths["mms_quarantine"].read_text(encoding="utf-8")
 for token in ("quarantined_pending_scan", "scanned_clean_held", "quarantined_malicious", "quarantined_scan_error", "release_authorized"):
     assert token in mms, token
 
+validation_record = paths["validation_record"].read_text(encoding="utf-8")
+for token in (
+    "fresh_edge1_runtime_verified=true",
+    "dedicated HMAC client",
+    "prepared_not_sent",
+    "scanned_clean_held",
+    "quarantined_malicious",
+):
+    assert token in validation_record, token
+
 handoff = paths["handoff"].read_text(encoding="utf-8")
-for token in ("PR #384", "PR #385", "PR #386", "PR #387", "PR #389", "PR #400", "fresh_edge1_runtime_verified", "mail.correspondence.read"):
+for token in (
+    "fresh_edge1_runtime_verified=true",
+    "0.3.5-alpha.1",
+    "mail.correspondence.read",
+    "production_provider_ready=false",
+    "bigbird-edge1-connector.service",
+):
     assert token in handoff, token
 
 live_acceptance = paths["live_acceptance"].read_text(encoding="utf-8")
 for token in (
-    "Messaging Gateway",
-    "0.4.2",
-    "0.3.4-alpha.3",
-    "messages.conversation.read",
-    "messages.draft.prepare",
+    "scanned_clean_held",
+    "quarantined_malicious",
+    "ready_local_native",
+    "wwcx-private-ai",
+    "0.3.5-alpha.1",
+    "mail.correspondence.read",
     "prepared_not_sent",
-    "release_authorized: false",
-    "wwcx-communications-workspace.service` is installed, enabled, active, and running",
     "127.0.0.1:8095",
-    "canonical snapshot/feed is attached",
-    "clamscan",
+    "HTTP 405",
+    "production_provider_ready=false",
 ):
     assert token in live_acceptance, token
 
 print("Unified Communications completion validation passed")
-print("Fresh Messaging Gateway and BigBird read/draft runtime acceptance remains reconciled")
-print("Fresh Mail status/draft live adapter acceptance remains reconciled")
-print("Phase 28 adds repository-functional local RFC822 -> store -> API -> BigBird mail.correspondence.read")
-print("Mail correspondence remains pending live Edge1 acceptance and production-native provider connection")
-print("MMS trusted scanner/private storage still require authenticated Edge1 live acceptance")
-print("Global fresh_edge1_runtime_verified remains false")
-print("No live communications or generic execution authority is accepted by this completion state")
+print("Fresh Messaging, MMS quarantine, Mail local-native, and BigBird Mail acceptance reconciled")
+print("Accepted Mail path: local RFC822 -> private store -> authenticated API -> BigBird read/prepared draft")
+print("Provider-native Mail remains separate and production_provider_ready=false")
+print("Global fresh_edge1_runtime_verified is true for the approved safe scope")
+print("No live communications, quarantine release, carrier mutation, or generic execution authority is accepted")
