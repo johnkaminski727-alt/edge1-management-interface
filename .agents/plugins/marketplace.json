@@ -1,0 +1,20 @@
+{
+  "name": "wwcx-internal",
+  "interface": {
+    "displayName": "Christmas Island Worldwide Internal"
+  },
+  "plugins": [
+    {
+      "name": "edge1-operator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/edge1-operator"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
