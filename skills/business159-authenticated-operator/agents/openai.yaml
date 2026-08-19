@@ -1,0 +1,12 @@
+interface:
+  display_name: Business159 Authenticated Operator
+  short_description: Execute verified shared-host operations safely
+  default_prompt: Inspect Business159, make the smallest authorized change, verify it, and preserve rollback evidence.
+dependencies:
+  tools:
+  - type: mcp
+    value: business159-live-shell
+    description: Authenticated bounded Business159 account-level operator tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true
