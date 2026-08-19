@@ -1,0 +1,12 @@
+interface:
+  display_name: Business159 Operator Router
+  short_description: Route Business159 questions to live bounded tools
+  default_prompt: Check Business159's current health using the live bounded operator.
+dependencies:
+  tools:
+  - type: mcp
+    value: business159-live-shell
+    description: Bounded WW.CX Business159 shared-host operator tools
+policy:
+  products: [chatgpt, codex, api, atlas]
+  allow_implicit_invocation: true
