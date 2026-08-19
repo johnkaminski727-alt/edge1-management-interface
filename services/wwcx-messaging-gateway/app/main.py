@@ -10,11 +10,15 @@ from .persistence import PostgresEventStore
 from .providers import ProviderWebhookRequest, build_provider_registry
 from .store import InMemoryEventStore
 from .telegraph_office import build_router
+from .webhook_receipts import InMemoryWebhookReceiptLedger, PostgresWebhookReceiptLedger
 
-app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.4")
+app = FastAPI(title="WW.CX Messaging Gateway", version="0.4.5")
 
 database_url = os.getenv("DATABASE_URL")
 store = PostgresEventStore(database_url) if database_url else InMemoryEventStore()
+webhook_receipts = (
+    PostgresWebhookReceiptLedger(database_url) if database_url else InMemoryWebhookReceiptLedger()
+)
 
 
 def simulator_token() -> str:
@@ -86,7 +90,11 @@ def management_status(
 ) -> dict[str, object]:
     require_token(x_wwcx_management_token, "WWCX_MANAGEMENT_READ_TOKEN", "development-read-only")
     control = store.get_control_state()
-    capabilities = ["messages.status.read", "messages.conversation.read"]
+    capabilities = [
+        "messages.status.read",
+        "messages.conversation.read",
+        "messages.webhooks.receipts.read",
+    ]
     if callable(getattr(store, "outbound_queue_status", None)):
         capabilities.append("messages.outbound.queue.read")
     if callable(getattr(store, "compliance_status", None)):
@@ -98,6 +106,11 @@ def management_status(
         "event_count": store.count(),
         "capabilities": capabilities,
         "providers": sorted(providers),
+        "webhook_receipts": {
+            "durable": bool(database_url),
+            "records_verified_callbacks_only": True,
+            "unverified_request_persistence": False,
+        },
         "outbound_worker": {
             "enabled": os.getenv("WWCX_OUTBOUND_WORKER_ENABLED", "false").lower() == "true",
             "continuous_mode": False,
@@ -130,6 +143,21 @@ def management_outbound_queue(
     return {
         "contract": "wwcx.messages-outbound-queue-read.v1",
         **queue_status(),
+        "mutation_authorized": False,
+    }
+
+
+@app.get("/v1/management/webhooks/receipts")
+def management_webhook_receipts(
+    limit: int = 25,
+    x_wwcx_management_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    require_token(x_wwcx_management_token, "WWCX_MANAGEMENT_READ_TOKEN", "development-read-only")
+    return {
+        "contract": "wwcx.messages-webhook-receipts-read.v1",
+        **webhook_receipts.status(limit),
+        "raw_body_retained": False,
+        "unverified_requests_persisted": False,
         "mutation_authorized": False,
     }
 
@@ -246,14 +274,12 @@ def simulator_event_count() -> dict[str, int]:
 
 @app.post("/v1/webhooks/{provider_name}", status_code=status.HTTP_202_ACCEPTED)
 async def receive_provider_webhook(provider_name: str, request: Request) -> dict[str, object]:
-    """Provider-neutral inbound webhook dispatch.
+    """Provider-neutral verified inbound webhook dispatch.
 
-    This is the intended integration point for real carrier adapters: look
-    up the named MessagingProvider, hand it a generic request context (raw
-    body + headers, nothing WWCX-specific assumed), and let the provider
-    verify and normalize the callback in whatever way its own API requires
-    -- exactly the path a Telnyx or Bandwidth adapter would follow. Only
-    "simulator" is registered today.
+    Only a request that passes the selected provider's authenticity/freshness
+    verifier and normalization boundary is added to the receipt ledger. The
+    ledger stores a SHA-256 body digest rather than the raw callback body and
+    records accepted versus duplicate processing for replay evidence.
     """
     provider = providers.get(provider_name)
     if provider is None:
@@ -273,10 +299,13 @@ async def receive_provider_webhook(provider_name: str, request: Request) -> dict
     if store.get_control_state()["paused"]:
         raise HTTPException(status_code=503, detail="messaging intake is paused")
 
+    receipt_id = webhook_receipts.record_verified(provider_name, message, body)
     accepted = store.put_if_absent(message)
+    webhook_receipts.mark_processed(receipt_id, "accepted" if accepted else "duplicate")
     return {
         "accepted": accepted,
         "duplicate": not accepted,
         "event_id": str(message.event_id),
         "provider": provider_name,
+        "receipt_id": str(receipt_id),
     }
