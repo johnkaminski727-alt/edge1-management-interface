@@ -42,6 +42,50 @@ reason=Edge1 tunnel service unit unreadable
 
 That failure led to a separate production security-boundary finding described below. The tunnel remained inactive/disabled; the Operator and Big Bird tunnel remained active.
 
+## Business159 / WW.CX public deployment
+
+The Business159 website deployment path is **LIVE / ACCEPTED** as of 2026-08-19.
+
+Verified live host/principal and document-root invariant:
+
+```text
+host=business159.web-hosting.com
+principal=wwcxjywl
+/home/wwcxjywl/public_html owner=wwcxjywl group=nobody mode=0750
+```
+
+The original whole-document-root deployment model was rejected after a dry run showed that `rsync --delete` would remove host-only operational/runtime content including `ops/`, `.well-known/`, and unrelated admin/runtime files. No production apply occurred under that unsafe model.
+
+The accepted deployment model now scopes changes to immutable-release ownership, fails closed on managed drift and unmanaged collisions, preserves host-only content, uses checksum comparison for managed updates, and forbids whole-document-root `--delete`.
+
+Website hardening PRs #81, #82, and #83 are merged. Final accepted public release:
+
+```text
+commit=01ee93cf0337006c5d44031a5f9eb1a83e1d0100
+release=/home/wwcxjywl/releases/ww-cx-website/20260819T201010Z
+backup=/home/wwcxjywl/shared/ww-cx-website/backups/public-html-20260819T201010Z.tar.gz
+healthcheck=https://ww.cx/ -> HTTP 200
+```
+
+PR #83 also completed a one-time fail-closed migration cleanup for the legacy public `.release-commit`: the marker `a3b4ab0e2717e704b56d85aac5051e45ebe09da7` was removed only after exact retained-release provenance was verified at `/home/wwcxjywl/releases/ww-cx-website/20260819T185948Z`.
+
+Post-apply acceptance verified:
+
+- public `.release-commit` absent;
+- `shared/current` points to the `20260819T201010Z` immutable release;
+- release marker equals `01ee93cf0337006c5d44031a5f9eb1a83e1d0100`;
+- document-root owner/group/mode unchanged;
+- host-only `ops/` digest unchanged;
+- host-only `.well-known/` digest unchanged;
+- host-side admin backup count unchanged at 18;
+- managed `admin/edge1-security-login.php` matches the immutable release;
+- dedicated website checkout clean and synchronized with `origin/main`;
+- `https://ww.cx/` returned HTTP/2 200.
+
+Do not revert Business159 to whole-tree `rsync --delete`.
+
+The source-controlled bounded `business159-live-shell` MCP and eight Business159/cross-host Skills are not yet attached/installed in this ChatGPT runtime. MCP-level connection/read-only/staged-filesystem acceptance and formal Skill packaging remain separate work; do not claim those surfaces live until tested through an approved connector/runtime.
+
 ## P0 security finding — global systemd unit-directory ownership
 
 Read-only production inspection resolved the Edge1 tunnel unit through systemd and verified the unit itself is correct:
@@ -174,15 +218,17 @@ No live calls or DTMF transmission without separate explicit authorization.
 
 ## Current continuation order
 
-1. Keep the accepted public front door unchanged.
+1. Keep the accepted Edge1 public front door and accepted Business159 release-owned deployment model unchanged.
 2. Complete CI/review/merge for `agent/edge1-systemd-boundary-hardening-20260819`.
 3. Do not activate the Secure MCP Tunnel while `/etc/systemd/system` remains service-account-owned.
 4. Present the exact dry-run/live remediation plan and obtain explicit approval before changing production owner/mode.
 5. After approved repair, verify directory entries and service states are unchanged and rerun the hardened tunnel compatibility validator.
 6. Capture/classify the five remaining security-inventory records metadata-only and record the exact evidence directory.
 7. Rerun the executable Control Surfaces inventory and corrected Asterisk audit.
-8. Stop again at the attended tunnel-activation boundary for explicit approval.
-9. Leave DTMF provider work pending until an external response arrives.
+8. Continue Business159 custom-MCP attachment/read-only/staged-filesystem acceptance when an approved connector runtime is available; do not enable raw shell merely for acceptance.
+9. Formally validate/package the source-controlled Business159/cross-host Skills in a supported Skill Creator environment; source presence alone is not installation.
+10. Stop again at the attended Edge1 tunnel-activation boundary for explicit approval.
+11. Leave DTMF provider work pending until an external response arrives.
 
 ## Safety boundary
 
