@@ -8,6 +8,8 @@ EXPECTED_BAD_OWNER=${EDGE1_EXPECTED_BAD_UNIT_DIR_OWNER:-bigbird-time:bigbird-tim
 EXPECTED_BAD_MODE=${EDGE1_EXPECTED_BAD_UNIT_DIR_MODE:-750}
 DESIRED_OWNER=root:root
 DESIRED_MODE=755
+TUNNEL_UNIT=$TARGET/edge1-secure-mcp-tunnel.service
+EXPECTED_TUNNEL_UNIT_SHA=a79a7ae19b2fb639c34a895c36b3ef3055a83b2342e037ddf60546cdda4d77dd
 EVIDENCE_ROOT=${EDGE1_SYSTEMD_BOUNDARY_EVIDENCE_ROOT:-/var/lib/wwcx-deployment-evidence/systemd-unit-dir-boundary}
 MODE=${1:-}
 
@@ -34,6 +36,19 @@ echo "current_mode=$mode"
 echo "desired_owner=$DESIRED_OWNER"
 echo "desired_mode=$DESIRED_MODE"
 
+# The parent repair must never hide or normalize drift in the unit that exposed
+# the problem. Require the exact reviewed tunnel unit before touching metadata.
+[ -f "$TUNNEL_UNIT" ] || fail "reviewed tunnel unit missing: $TUNNEL_UNIT"
+unit_owner=$(stat -c '%U:%G' "$TUNNEL_UNIT")
+unit_mode=$(stat -c '%a' "$TUNNEL_UNIT")
+unit_sha=$(sha256sum "$TUNNEL_UNIT" | awk '{print $1}')
+echo "tunnel_unit_owner=$unit_owner"
+echo "tunnel_unit_mode=$unit_mode"
+echo "tunnel_unit_sha256=$unit_sha"
+[ "$unit_owner" = "root:root" ] || fail "unexpected tunnel unit owner: $unit_owner"
+[ "$unit_mode" = "644" ] || fail "unexpected tunnel unit mode: $unit_mode"
+[ "$unit_sha" = "$EXPECTED_TUNNEL_UNIT_SHA" ] || fail "unexpected tunnel unit content hash"
+
 if [ "$owner" = "$DESIRED_OWNER" ] && [ "$mode" = "$DESIRED_MODE" ]; then
     echo "status=already_safe"
     echo "EDGE1_SYSTEMD_UNIT_DIR_REPAIR=PASS"
@@ -58,7 +73,10 @@ esac
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$STAMP"
-if [ ! -d "$EVIDENCE_ROOT" ]; then
+if [ -d "$EVIDENCE_ROOT" ]; then
+    evidence_owner=$(stat -c '%U:%G' "$EVIDENCE_ROOT")
+    [ "$evidence_owner" = "root:root" ] || fail "unexpected evidence root owner: $evidence_owner"
+else
     install -d -o root -g root -m 0700 "$EVIDENCE_ROOT"
 fi
 install -d -o root -g root -m 0700 "$EVIDENCE_DIR"
@@ -70,6 +88,10 @@ install -d -o root -g root -m 0700 "$EVIDENCE_DIR"
     stat -c 'before_owner=%U:%G' "$TARGET"
     stat -c 'before_mode=%a' "$TARGET"
     stat -c 'before_inode=%i' "$TARGET"
+    echo "tunnel_unit=$TUNNEL_UNIT"
+    echo "tunnel_unit_owner=$unit_owner"
+    echo "tunnel_unit_mode=$unit_mode"
+    echo "tunnel_unit_sha256=$unit_sha"
 } >"$EVIDENCE_DIR/before.txt"
 
 if command -v namei >/dev/null 2>&1; then
@@ -117,11 +139,21 @@ mode_after=$(stat -c '%a' "$TARGET")
 [ "$owner_after" = "$DESIRED_OWNER" ] || fail "post-change owner verification failed: $owner_after"
 [ "$mode_after" = "$DESIRED_MODE" ] || fail "post-change mode verification failed: $mode_after"
 
+unit_owner_after=$(stat -c '%U:%G' "$TUNNEL_UNIT")
+unit_mode_after=$(stat -c '%a' "$TUNNEL_UNIT")
+unit_sha_after=$(sha256sum "$TUNNEL_UNIT" | awk '{print $1}')
+[ "$unit_owner_after" = "$unit_owner" ] || fail "tunnel unit owner changed unexpectedly"
+[ "$unit_mode_after" = "$unit_mode" ] || fail "tunnel unit mode changed unexpectedly"
+[ "$unit_sha_after" = "$unit_sha" ] || fail "tunnel unit content changed unexpectedly"
+
 {
     echo "completed_at_utc=$(date -u +%Y%m%dT%H%M%SZ)"
     echo "after_owner=$owner_after"
     echo "after_mode=$mode_after"
     stat -c 'after_inode=%i' "$TARGET"
+    echo "tunnel_unit_owner_after=$unit_owner_after"
+    echo "tunnel_unit_mode_after=$unit_mode_after"
+    echo "tunnel_unit_sha256_after=$unit_sha_after"
 } >"$EVIDENCE_DIR/after.txt"
 
 if command -v namei >/dev/null 2>&1; then
@@ -152,13 +184,8 @@ done
 cmp -s "$EVIDENCE_DIR/services-before.txt" "$EVIDENCE_DIR/services-after.txt" || \
     fail "service active/enabled state changed unexpectedly"
 
-if [ -f "$TARGET/edge1-secure-mcp-tunnel.service" ]; then
-    test -r "$TARGET/edge1-secure-mcp-tunnel.service" || fail "root can no longer read tunnel unit"
-    if id edge1-operator >/dev/null 2>&1; then
-        runuser -u edge1-operator -- test -r "$TARGET/edge1-secure-mcp-tunnel.service" || \
-            fail "edge1-operator still cannot read the world-readable tunnel unit after safe directory restoration"
-    fi
-fi
+runuser -u edge1-operator -- test -r "$TUNNEL_UNIT" || \
+    fail "edge1-operator still cannot read the world-readable tunnel unit after safe directory restoration"
 
 sha256sum "$EVIDENCE_DIR"/*.txt "$EVIDENCE_DIR"/*.tsv >"$EVIDENCE_DIR/SHA256SUMS"
 
