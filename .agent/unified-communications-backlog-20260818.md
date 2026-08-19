@@ -1,10 +1,12 @@
 # Unified Communications — Remaining Backlog
 
-Date: 2026-08-18, Phase 28 closeout
+Date: 2026-08-19, safe-scope completion approval recorded
 
-This backlog contains only live/external work that remains after PR #427 delivered the functional local-native Mail correspondence software path. Repository functionality, live Edge1 acceptance, provider readiness, authentication-policy approval, and production authorization remain separate evidence layers.
+This backlog contains only live/external work that remains after PR #427 delivered the functional local-native Mail correspondence software path and the user explicitly approved the remaining safe-scope deployment/authentication-policy work on 2026-08-19. Repository functionality, live Edge1 acceptance, provider-production readiness, and production traffic authorization remain separate evidence layers.
 
-## Completed repository/software work
+Approval record: `docs/communications/unified-communications-safe-scope-approval-20260819.md`.
+
+## Completed repository/software and approval work
 
 - [x] Unified Communications convergence and readiness contracts.
 - [x] Durable Messaging PostgreSQL implementation and prior live acceptance.
@@ -25,6 +27,7 @@ This backlog contains only live/external work that remains after PR #427 deliver
 - [x] Add end-to-end local functional validation: RFC822 -> store -> API -> BigBird read + prepared-not-sent draft.
 - [x] Pass exact-head repository CI on `88253f0c3c2839b2192cc1d9f723c92a79b293be`.
 - [x] Merge Phase 28 implementation PR #427 as `e7d7fda638a4f69d68bf54cdebdbee9070143384`.
+- [x] Obtain explicit approval for the remaining safe-scope Edge1 deployment and `wwcx-private-ai` authentication-policy change.
 
 Exact-head implementation CI:
 
@@ -34,11 +37,11 @@ Exact-head implementation CI:
 
 ## MMS live security runtime
 
-Blocked by the absence of an authenticated Edge1 execution path in this session, not by missing repository implementation.
+Repository work and approval are complete. Live execution remains pending until an authenticated Edge1 execution connector is callable in the active session.
 
 - [ ] Authenticate to Edge1 and verify host/principal/current `main`.
 - [ ] Reinspect Messaging service identity, memory/swap, disk, scanner/signature packages, listeners and private-root candidates.
-- [ ] Confirm/install a resource-safe local trusted scanner under established operator policy.
+- [ ] Confirm/install a resource-safe local trusted scanner under established operator policy. Package installation is approved for this bounded purpose.
 - [ ] Create/verify `/var/lib/wwcx-messaging-gateway/private-mms-quarantine` outside web roots with directories <=0700 and files <=0600 under the actual service identity.
 - [ ] Run clean -> `scanned_clean_held`.
 - [ ] Run EICAR -> `quarantined_malicious`.
@@ -52,7 +55,7 @@ Quarantine release remains unauthorized throughout.
 
 ## Mail live local-native acceptance
 
-The software path is functional and merged. Live Edge1 deployment remains unperformed because no authenticated execution connector is exposed.
+The software path is functional and merged, and bounded deployment/service restart/private-storage work is approved. Live Edge1 execution remains pending until the connector is callable.
 
 - [ ] Verify live outbound Mail gateway service identity and current preparation-only runtime configuration.
 - [ ] Create `/var/lib/wwcx-mail-room` under the reviewed service/intake ownership model with directory permissions no broader than 0700.
@@ -66,26 +69,27 @@ The software path is functional and merged. Live Edge1 deployment remains unperf
 
 ## BigBird live Mail registration
 
-PR #427 deliberately left the deployed/base HMAC allowed-client policy unchanged. Adding `wwcx-private-ai` to the live allowed-client set is an **authentication-policy change** and requires separate explicit approval.
+The authentication-policy approval gate is **cleared** by the user's explicit 2026-08-19 approval. Live execution/evidence is still pending.
 
-- [ ] Obtain explicit approval for the dedicated `wwcx-private-ai` HMAC client registration.
-- [ ] Reuse the existing secret location/mechanism; never display or copy secret values into repository/evidence.
+- [x] Obtain explicit approval for the dedicated `wwcx-private-ai` HMAC client registration.
+- [ ] Reuse the existing secret location/mechanism without displaying, copying, rotating, or committing secret values.
+- [ ] Add only exact client ID `wwcx-private-ai` to the deployed Mail HMAC allowed-client policy.
 - [ ] Register only the least-privileged Mail status/correspondence/draft capabilities.
 - [ ] Verify `wwcx-website-admin` remains rejected from correspondence endpoints.
 - [ ] Validate missing-scope rejection, unsigned rejection, replay rejection and no-send/no-generic-execution boundaries.
 - [ ] Record live acceptance and rollback.
 
-Do not silently reuse the website-admin identity for BigBird merely to avoid the approval boundary.
+Do not reuse the website-admin identity for BigBird.
 
 ## Production-native Mail source
 
-This is separate from local software functionality.
+This remains separate from local software/live-safe-scope completion.
 
-- [ ] Identify/authorize an existing native mailbox/MTA/provider source with stable message IDs, thread IDs and real bodies if one exists.
-- [ ] Preserve immutable `production_native` provenance.
+- [ ] Read-only discover an already-existing native mailbox/MTA/provider source with stable message IDs, thread IDs and real bodies if available without new credentials/provider activation.
+- [ ] Preserve immutable `production_native` provenance if such an already-authorized source is connected.
 - [ ] Perform bounded read-only acceptance before claiming provider-production correspondence readiness.
 
-Current provider inventory does not prove the canonical provider-side mailboxes/source are provisioned. No provider credentials, routing, DNS or live mail changes are authorized by this backlog.
+Current provider inventory does not prove the canonical provider-side mailboxes/source are provisioned. No new provider credentials, routing, DNS or live mail changes are implied by the safe-scope approval.
 
 ## Voice/SIP health freshness
 
@@ -96,18 +100,17 @@ Current provider inventory does not prove the canonical provider-side mailboxes/
 
 - [ ] Set SMS/MMS `security_quarantine=security_ready` only after live scanner/private-root acceptance.
 - [ ] Promote local Mail correspondence to live accepted only after Edge1 deployment tests.
-- [ ] Promote provider-production Mail correspondence only after a production-native source is proven.
 - [ ] Set `fresh_edge1_runtime_verified=true` only after intended safe-scope runtime requirements are genuinely complete or explicitly resolved with evidence.
 
-## Separately controlled production work
+## Still separately controlled and not required for this completion
 
-- provider credentials/configuration;
 - live SMS/MMS routing/transmission;
 - live mail routing/transmission;
 - SIP/carrier/emergency routing or dialplan mutation;
 - production call origination;
-- DNS/firewall/certificate/authentication-policy changes;
+- DNS/firewall/certificate/public-listener changes outside the reviewed private design;
 - number porting or STIR/SHAKEN;
+- credential disclosure or rotation;
 - quarantine release;
 - destructive/irreversible operations;
 - provider financial/contractual/legal/regulatory actions.
@@ -122,6 +125,7 @@ Current provider inventory does not prove the canonical provider-side mailboxes/
 - `config/communications/unified-communications.json`;
 - `docs/communications/unified-communications-phase27-runtime-acceptance-20260818.md`;
 - `docs/communications/unified-communications-phase28-live-acceptance-20260818.md`;
+- `docs/communications/unified-communications-safe-scope-approval-20260819.md`;
 - `docs/handoff/unified-communications-phase28-20260818.md`.
 
-No unchecked item above should be represented as complete without evidence for that specific layer.
+No unchecked live item above should be represented as complete without actual Edge1 evidence.
