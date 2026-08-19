@@ -14,6 +14,16 @@ class SendResult:
     accepted: bool
 
 
+class ProviderSafeRetryError(RuntimeError):
+    """Provider adapter guarantees the message was not accepted/submitted.
+
+    Only this explicit exception authorizes the worker to place a claimed job
+    back into the retry queue. Any other exception is treated as an uncertain
+    provider outcome and must remain claimed for reconciliation rather than
+    risking a duplicate live message.
+    """
+
+
 @dataclass(frozen=True)
 class ProviderWebhookRequest:
     """Generic inbound webhook request passed to a MessagingProvider.
@@ -66,31 +76,22 @@ class MessagingProvider(ABC):
 
     @abstractmethod
     def send(self, message: NormalizedMessage) -> SendResult:
-        """Submit one outbound message assigned to this provider."""
+        """Submit one outbound message assigned to this provider.
+
+        Raise ProviderSafeRetryError only when the adapter can prove the
+        provider did not accept or submit the message. Other exceptions are
+        treated as outcome-uncertain and are not automatically retried.
+        """
         raise NotImplementedError
 
 
 class SimulatorProvider(MessagingProvider):
     """Reference MessagingProvider implementation used for local/dev testing.
 
-    This is the first concrete implementation of the abstraction above --
-    previously the ABC existed but nothing used it; the simulator intake
-    endpoint (/v1/simulator/messages) accepted NormalizedMessage bodies
-    directly, bypassing verify_webhook/normalize_webhook entirely.
-
-    A real carrier adapter (Telnyx, Bandwidth, etc.) implements this same
-    interface with its own header-based signature verification and its own
-    payload parsing. Nothing about the webhook dispatch endpoint or the
-    event store needs to change to add one -- only a new MessagingProvider
-    subclass and a registry entry.
-
-    Deliberate limitation of this reference implementation: it verifies a
-    single shared static token, not a real cryptographic signature, and it
-    only parses a single JSON object (matching NormalizedMessage), not an
-    array or other provider-specific shape. A real adapter's
-    verify_webhook/normalize_webhook will look substantially different;
-    only the generic request-context boundary (ProviderWebhookRequest) is
-    the actual shared contract.
+    A real carrier adapter implements this interface with its own signature
+    verification, payload normalization, and send semantics. The simulator
+    deliberately uses a static development token and never represents a real
+    carrier security model.
     """
 
     name = "simulator"
@@ -99,11 +100,6 @@ class SimulatorProvider(MessagingProvider):
         self._token_provider = token_provider
 
     def verify_webhook(self, request: ProviderWebhookRequest) -> bool:
-        # The simulator has no cryptographic signature scheme; it reuses the
-        # existing shared simulator token, read from its own header name
-        # (X-WWCX-Signature). A real provider would read its own header(s)
-        # here instead -- this is exactly the point of the refactor: the
-        # shared route no longer knows or assumes this header name.
         return request.headers.get("x-wwcx-signature") == self._token_provider()
 
     def normalize_webhook(self, request: ProviderWebhookRequest) -> NormalizedMessage:
@@ -124,12 +120,5 @@ class SimulatorProvider(MessagingProvider):
 
 
 def build_provider_registry(token_provider: Callable[[], str]) -> dict[str, MessagingProvider]:
-    """Build the provider name -> adapter registry used by the webhook dispatch route.
-
-    Only the simulator is registered today. Adding a real provider is:
-    implement MessagingProvider, add one entry here, and configure its
-    credentials -- no changes needed elsewhere. Every adapter must preserve
-    the provider-identity and inbound/outbound direction invariants documented
-    on MessagingProvider.
-    """
+    """Build the provider name -> adapter registry used by the gateway."""
     return {"simulator": SimulatorProvider(token_provider)}

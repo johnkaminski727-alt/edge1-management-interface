@@ -4,7 +4,7 @@ from app.models import Channel, Direction, NormalizedMessage
 from app.outbound_policy import OutboundPolicy
 from app.outbound_worker import parse_provider_allowlist, run_once
 from app.persistence import ClaimedOutboundJob
-from app.providers import SendResult
+from app.providers import ProviderSafeRetryError, SendResult
 
 
 JOB_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -91,15 +91,17 @@ class FakeStore:
 
 
 class FakeProvider:
-    def __init__(self, *, accepted: bool = True, raises: bool = False) -> None:
+    def __init__(self, *, accepted: bool = True, error: str | None = None) -> None:
         self.accepted = accepted
-        self.raises = raises
+        self.error = error
         self.calls = 0
 
     def send(self, message: NormalizedMessage) -> SendResult:
         self.calls += 1
-        if self.raises:
-            raise RuntimeError("provider unavailable")
+        if self.error == "safe_retry":
+            raise ProviderSafeRetryError("definitely not submitted")
+        if self.error == "unknown":
+            raise RuntimeError("connection lost after submit boundary")
         return SendResult(provider_message_id=f"fake-{message.event_id}", accepted=self.accepted)
 
 
@@ -212,9 +214,9 @@ def test_run_once_blocks_rate_limited_message() -> None:
     assert provider.calls == 0
 
 
-def test_run_once_requeues_provider_exception_after_reservation() -> None:
+def test_run_once_requeues_only_explicit_safe_retry_error() -> None:
     store = FakeStore(outbound_message())
-    provider = FakeProvider(raises=True)
+    provider = FakeProvider(error="safe_retry")
     limiter = FakeRateLimiter()
     result = run(
         store,
@@ -225,7 +227,21 @@ def test_run_once_requeues_provider_exception_after_reservation() -> None:
         max_attempts=3,
     )
     assert result["status"] == "pending"
-    assert result["reason"] == "provider_error"
+    assert result["reason"] == "provider_safe_retry"
     assert limiter.calls == 1
     assert store.retried is not None
     assert store.retried[2:] == (17, 3)
+
+
+def test_run_once_leaves_uncertain_provider_exception_claimed() -> None:
+    store = FakeStore(outbound_message())
+    provider = FakeProvider(error="unknown")
+    limiter = FakeRateLimiter()
+    result = run(store, {"simulator": provider}, {"simulator"}, limiter=limiter)
+    assert result["status"] == "reconcile_required"
+    assert result["reason"] == "provider_outcome_unknown"
+    assert result["provider_error_type"] == "RuntimeError"
+    assert limiter.calls == 1
+    assert store.retried is None
+    assert store.completed is None
+    assert store.blocked is None
