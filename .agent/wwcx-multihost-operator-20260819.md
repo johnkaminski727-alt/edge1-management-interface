@@ -1,6 +1,6 @@
 # WW.CX Multi-Host Operator — 2026-08-19 Handoff
 
-Status: repository implementation prepared; live connector acceptance pending.
+Status: repository implementation and exact-head CI validated; live connector acceptance pending.
 
 ## Discovery
 
@@ -13,6 +13,8 @@ Status: repository implementation prepared; live connector acceptance pending.
 
 ## Implemented on branch `agent/wwcx-multihost-operator-20260819`
 
+PR: #451 — Build bounded Business159 and WW.CX multi-host operators.
+
 - `tools/mcp/business159-live-shell/` bounded shared-host MCP package.
 - 16 named parameterless Business159 read-only status tools.
 - Guarded connectivity/inspection tools.
@@ -23,9 +25,18 @@ Status: repository implementation prepared; live connector acceptance pending.
 - CI workflow and static contract validator.
 - Architecture documentation.
 
+Validation at head before this handoff-only update:
+
+- `Business159 Operator Connector`: success.
+- `Edge1 Operator Validation`: success.
+- `Validate repository`: success.
+
+The handoff update itself is documentation-only and should receive the same PR checks before merge.
+
 ## Separate `ww-cx-website` branch
 
 Branch: `agent/business159-deployer-safety-20260819`.
+PR: #80 — Harden Business159 deployment and rollback verification.
 
 Prepared hardening:
 
@@ -38,16 +49,19 @@ Prepared hardening:
 - rollback exact synchronization and document-root metadata verification;
 - updated deployment tests/docs.
 
-## Validation still required
+Validation at PR #80 head `4a1f7eecba4a25d4b27162c714004c00057e6aa0`:
 
-1. Open PRs for both branches.
-2. Require repository CI to pass at the exact final heads.
-3. Install/attach `business159-live-shell` through the approved MCP connector mechanism.
-4. Run `business159_connection_test`, then the 16 read-only tools against the real account.
-5. Verify discovered hostname/principal/path assumptions and adjust environment configuration rather than hardcoding divergent live facts.
-6. Run an explicitly safe disposable staged-filesystem smoke test through stage -> diff -> approve -> apply -> verify -> rollback -> verify rollback.
-7. Do not enable raw shell merely for acceptance.
-8. Do not mark the Business159 operator live until the connector and live tests succeed.
+- `Validate Business159 deployer`: success.
+
+## Remaining live acceptance gates
+
+1. Install/attach `business159-live-shell` through the approved MCP connector mechanism.
+2. Run `business159_connection_test`, then the 16 read-only tools against the real account.
+3. Verify discovered hostname/principal/path assumptions and adjust environment configuration rather than hardcoding divergent live facts.
+4. Run an explicitly safe disposable staged-filesystem smoke test through stage -> diff -> approve -> apply -> verify -> rollback -> verify rollback.
+5. Do not enable raw shell merely for acceptance.
+6. Do not mark the Business159 operator live until the connector and live tests succeed.
+7. A direct `edge1.*` connector also remains absent from this ChatGPT session; no fresh live Edge1 read-only acceptance is claimed here.
 
 ## Security stop conditions
 
