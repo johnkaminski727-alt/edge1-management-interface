@@ -23,6 +23,13 @@ jobs:
         run: |
           sh -n deploy/edge1-operator/install-systemd-service.sh
           sh -n deploy/edge1-security-auth/preflight.sh
+          sh -n deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
+          sh -n tools/alerting/asterisk_warning_followup_audit.sh
+
+      - name: Validate Edge1 operational safety gates
+        run: |
+          python3 tests/validate_edge1_tunnel_doctor_compat.py
+          python3 tests/validate_alerting_warning_followup.py
 
       - name: Compile Edge1 Operator modules
         run: python3 -m compileall -q server tests
