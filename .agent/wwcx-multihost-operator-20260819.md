@@ -141,7 +141,9 @@ Validated packages:
 - `wwcx-cross-host-operator`
 - `wwcx-release-operator`
 
-Packaging success is not installation. These Skills must not be described as installed/active until uploaded or otherwise installed into a supported ChatGPT Skill runtime, and MCP-dependent Skills will still require their declared connector dependencies to be available.
+Packaging success alone is not installation. However, user-provided ChatGPT UI evidence on 2026-08-19 now verifies that **`business159-authenticated-operator` has been installed and is being invoked by ChatGPT in at least one supported runtime**. In that runtime, Skill invocation and dependency inspection succeeded, but the declared `business159-live-shell` MCP dependency was unavailable. The attempted Business159 staged smoke test therefore stopped at the connector preflight without running host commands or changing files.
+
+Do not generalize that evidence to the other seven Skills until each is independently observed installed/active, and do not describe the Business159 MCP operator itself as live until `business159-live-shell` is attached and its live acceptance tests pass.
 
 ## Security stop conditions
 
