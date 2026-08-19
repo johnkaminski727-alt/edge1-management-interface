@@ -58,7 +58,7 @@ The original whole-document-root deployment model was rejected after a dry run s
 
 The accepted deployment model now scopes changes to immutable-release ownership, fails closed on managed drift and unmanaged collisions, preserves host-only content, uses checksum comparison for managed updates, and forbids whole-document-root `--delete`.
 
-Website hardening PRs #81, #82, and #83 are merged. Final accepted public release:
+Website hardening PRs #81, #82, and #83 are merged. PR #84 removed the temporary `sh -x` trace retained during managed-sync debugging; both Business159 validation jobs passed and deployment behavior is unchanged. Final accepted public release:
 
 ```text
 commit=01ee93cf0337006c5d44031a5f9eb1a83e1d0100
@@ -84,7 +84,9 @@ Post-apply acceptance verified:
 
 Do not revert Business159 to whole-tree `rsync --delete`.
 
-The source-controlled bounded `business159-live-shell` MCP and eight Business159/cross-host Skills are not yet attached/installed in this ChatGPT runtime. MCP-level connection/read-only/staged-filesystem acceptance and formal Skill packaging remain separate work; do not claim those surfaces live until tested through an approved connector/runtime.
+The source-controlled bounded `business159-live-shell` MCP is not yet attached in this ChatGPT runtime. MCP-level connection/read-only/staged-filesystem acceptance remains separate work; do not claim that custom MCP surface live until tested through an approved connector/runtime.
+
+The eight Business159/cross-host Skills have now been formally validated and packaged with one upload-ready `skill.zip` per Skill. Each source bundle contains the required `SKILL.md` and `agents/openai.yaml`; Skill frontmatter validation passed and OpenAI metadata YAML parsed with the required interface/dependencies/policy sections. Packaging success is not installation: do not claim the Skills active until uploaded/installed in a supported ChatGPT runtime, and MCP-dependent Skills still require their declared connector dependencies.
 
 ## P0 security finding — global systemd unit-directory ownership
 
@@ -226,7 +228,7 @@ No live calls or DTMF transmission without separate explicit authorization.
 6. Capture/classify the five remaining security-inventory records metadata-only and record the exact evidence directory.
 7. Rerun the executable Control Surfaces inventory and corrected Asterisk audit.
 8. Continue Business159 custom-MCP attachment/read-only/staged-filesystem acceptance when an approved connector runtime is available; do not enable raw shell merely for acceptance.
-9. Formally validate/package the source-controlled Business159/cross-host Skills in a supported Skill Creator environment; source presence alone is not installation.
+9. Upload/install the already validated Business159/cross-host Skill packages in a supported Skill runtime when desired; packaging is complete, installation is not.
 10. Stop again at the attended Edge1 tunnel-activation boundary for explicit approval.
 11. Leave DTMF provider work pending until an external response arrives.
 

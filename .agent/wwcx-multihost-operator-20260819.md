@@ -63,7 +63,8 @@ Website PRs merged during the acceptance sequence:
 
 - #81 — exact dry-run synchronization behavior;
 - #82 — release-owned synchronization preserving host-only files;
-- #83 — proof-based cleanup of legacy public `.release-commit` metadata.
+- #83 — proof-based cleanup of legacy public `.release-commit` metadata;
+- #84 — remove temporary `sh -x` CI trace after managed-sync debugging; validation behavior unchanged.
 
 ### Accepted production release sequence
 
@@ -127,7 +128,20 @@ The website deployment path is therefore **LIVE / ACCEPTED** under the release-o
 
 ## Skill/package continuation
 
-The eight Business159/cross-host Skills are source-controlled in the repository, but source presence is not the same as installed ChatGPT Skills. Formal packaging/validation remains a separate continuation item using the Skill Creator workflow. Do not claim them installed until that workflow succeeds in a supported environment.
+The eight Business159/cross-host Skills are source-controlled and were formally validated/packaged on 2026-08-19 using the Skill Creator validation rules. Each bundle contains the required `SKILL.md` and `agents/openai.yaml`, the frontmatter validator passed, the OpenAI metadata YAML parsed with the required interface/dependencies/policy sections, and one upload-ready `skill.zip` was produced per Skill.
+
+Validated packages:
+
+- `business159-authenticated-operator`
+- `business159-filesystem-operator`
+- `business159-operator-router`
+- `business159-shell-operator`
+- `business159-web-operator`
+- `shared-host-security-auditor`
+- `wwcx-cross-host-operator`
+- `wwcx-release-operator`
+
+Packaging success is not installation. These Skills must not be described as installed/active until uploaded or otherwise installed into a supported ChatGPT Skill runtime, and MCP-dependent Skills will still require their declared connector dependencies to be available.
 
 ## Security stop conditions
 
