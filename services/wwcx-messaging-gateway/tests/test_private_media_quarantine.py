@@ -60,7 +60,11 @@ def test_valid_blob_ingestion_is_private_and_deterministic(tmp_path):
     assert record["web_served"] is False
     assert record["release_authorized"] is False
     assert "provider.invalid" not in json.dumps(record)
-    for path in (store.root, *store._dirs.values()):
+    private_directories = (
+        store.root,
+        *(path for path in store.root.rglob("*") if path.is_dir()),
+    )
+    for path in private_directories:
         assert os.stat(path).st_mode & 0o077 == 0
     blob = store.verify_blob(result["attachment_id"])
     assert os.stat(blob).st_mode & 0o077 == 0
