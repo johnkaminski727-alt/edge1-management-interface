@@ -13,7 +13,7 @@ Server-side Operator, non-secret Secure MCP Tunnel staging, and local tunnel cre
 - [x] Provision tunnel ID and runtime API key locally on Edge1 without exposing values in Git/chat/evidence.
 - [x] Verify tunnel credential file ownership/mode/readability without displaying values.
 - [x] Run the staged raw tunnel launcher doctor and capture the exact result without activating the service.
-- [ ] Run `deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh` and require `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS`.
+- [ ] Run `deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh` on Edge1 and require `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS`.
 - [ ] Start `edge1-secure-mcp-tunnel.service` attended, without persistence, only after the compatibility gate passes and the activation boundary is explicitly approved.
 - [ ] Verify Big Bird tunnel remains healthy and unchanged.
 - [ ] Verify Edge1 MCP remains bearer-protected and loopback-only on `127.0.0.1:8102`.
@@ -35,6 +35,8 @@ sha256=937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100
 ```
 
 Raw doctor passed every prerequisite except `oauth_metadata`, which returned HTTP 404 and exit code 2. Exact installed upstream source unconditionally fails non-2xx OAuth metadata for every HTTP MCP target, while later upstream source explicitly treats all-404 OAuth metadata discovery as optional for plain/non-OAuth MCP servers. Edge1 intentionally uses its existing loopback bearer boundary plus tunnel `extra_headers` / `discovery_extra_headers`; do not add synthetic OAuth endpoints merely to satisfy the old doctor, and do not replace the shared tunnel binary solely for this result while Big Bird uses it.
+
+The compatibility validator is pinned to the exact reviewed tunnel-client version and SHA before invoking doctor; an unreviewed replacement fails closed even if its raw doctor would pass.
 
 Compatibility record:
 
@@ -68,7 +70,8 @@ The read-only service/configuration investigation is complete. No listener, fire
 - [x] Verify boot persistence: Asterisk is active and SysV `S01asterisk` startup links are present in runlevels 2-5; systemd-sysv reports enabled.
 - [x] Verify TCP `8089` is loopback-only and completes a local TLS 1.3 handshake using the Edge1 certificate.
 - [x] Disposition the live findings as expected/contained; zero failures require production mutation.
-- [ ] Remove the audit script's false warning caused by capturing the systemd-sysv informational stderr together with `is-enabled` stdout, then validate through CI.
+- [x] Correct the audit script so systemd-sysv informational stderr cannot create a false enablement warning; static safety validation passes in PR #450 CI.
+- [ ] Rerun the corrected read-only audit on Edge1 and retain the final warning/failure summary.
 
 The offline CAP-CP/EBS laboratory remains isolated. Connecting a CAP source, accepting `Actual` alerts, delivery adapters, calls/pages, tones, or public compatibility claims requires separate written authority/conformance evidence.
 
@@ -77,7 +80,8 @@ The offline CAP-CP/EBS laboratory remains isolated. Connecting a CAP source, acc
 - [x] Re-test bounded summary/listeners/Asterisk/Kamailio/FreePBX diagnostics from the approved Edge1 operator path.
 - [x] Reconcile the native diagnostic degradation: constrained native CLI access falls back to successful passive evidence while higher-level telephony health remains healthy.
 - [x] Determine that no permission widening or hardening reduction is justified merely to make those native cards green.
-- [ ] Fix repository mode on `scripts/control-surfaces-live-inventory.sh` from `0644` to executable and rerun it through the interpreter/executable path.
+- [x] Correct Git executable mode on `scripts/control-surfaces-live-inventory.sh`; the dedicated inventory workflow passes in PR #450 CI.
+- [ ] Fast-forward the clean Edge1 checkout after PR #450 merges and rerun the executable read-only inventory.
 - [ ] Re-verify public/private route isolation after any future Control Surfaces behavior change.
 - [ ] Keep any temporary/private FreePBX session broker blocked until authentication, expiry, revocation, CSRF, audit, redirects/cookies/WebSockets/CSP/X-Frame-Options, listener equivalence, and rollback are proven.
 
