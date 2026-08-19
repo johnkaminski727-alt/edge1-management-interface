@@ -1,51 +1,83 @@
 # Edge1 Operator Completion Status
 
-Last reconciled: 2026-08-18
+Last reconciled: 2026-08-19
 
 ## Purpose
 
-Track the transition from repository architecture work to a permanently available, private, authenticated ChatGPT Edge1 operator.
+Track the transition from the verified live Edge1 server-side Operator to a permanently available private authenticated ChatGPT Edge1 operator.
 
-## Repository work completed
+## Repository and server-side foundation — complete
 
-- Architecture definition.
-- Authority and risk boundaries.
-- Loopback HMAC/replay-protected Operations API and server-side allowlist.
-- Fixed non-mutating Control Surfaces diagnostics.
-- Read-only Control Surfaces live-inventory runner with safety-contract tests and CI.
-- Named, parameterless MCP read-only tool contract.
-- Fixed Operations API client restricted to loopback and a compile-time action set.
-- Runtime mappings from named MCP tools to fixed read-only Operations API actions.
-- `tools/list` / `tools/call` internal dispatch path.
-- Removal of the legacy MCP-visible generic `edge1.exec` contract and generic `run_bounded(command)` scaffold.
-- Focused source validation for bounded-tool behavior.
+The following are complete and must not be rebuilt merely because the ChatGPT attachment remains pending:
 
-## Fresh production state verified 2026-08-18
+- architecture and authority/risk boundaries;
+- loopback HMAC/replay-protected Operations API and fixed server-side allowlist;
+- fixed non-mutating Control Surfaces diagnostics;
+- read-only Control Surfaces live-inventory runner with safety tests and CI;
+- named parameterless MCP read-only tool contract;
+- fixed Operations API client restricted to loopback and compile-time actions;
+- runtime mappings from MCP tools to fixed read-only Operations API actions;
+- internal `tools/list` / `tools/call` dispatch;
+- removal of MCP-visible generic `edge1.exec` and generic arbitrary-command execution scaffolding;
+- focused bounded-tool validation.
 
-The live Edge1 operator service is no longer historical-only evidence:
+Fresh production verification on 2026-08-18 established:
 
-- `edge1-operator-mcp.service` is loaded, enabled, active and running.
-- Service principal: `edge1-operator`.
-- Working runtime is hardened with `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, and `ProtectHome=true`.
-- MCP listener: `127.0.0.1:8102` only.
-- Operations API listener: `127.0.0.1:8097` only.
-- MCP bearer token metadata verified owner `edge1-operator`, mode `0600`; value not exposed.
-- Unauthenticated MCP request returned HTTP 401.
-- Authenticated MCP initialize and tool-list requests returned HTTP 200.
-- Fresh tool discovery returned 16 named parameterless read-only tools.
-- `edge1.identity` returned `edge1.ww.cx`, principal `edge1-operator`, status ready.
-- `edge1.health` returned operator status ok and Operations API health ok with 27 actions, loopback true and `mutations_enabled=false`.
-- `edge1.apache_status` returned a successful bounded read-only Apache status action.
+- `edge1-operator-mcp.service` loaded, enabled, active, running;
+- service principal `edge1-operator`;
+- MCP listener `127.0.0.1:8102` only;
+- Operations API listener `127.0.0.1:8097` only;
+- hardened service settings retained (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome=true`);
+- bearer token metadata restricted; token value not exposed;
+- unauthenticated MCP request -> HTTP 401;
+- authenticated initialize/tools/list -> HTTP 200;
+- 16 named parameterless read-only tools discovered;
+- `edge1.identity`, `edge1.health`, and `edge1.apache_status` succeeded;
+- Operations API reported loopback true and `mutations_enabled=false`.
 
-This establishes the production server-side MCP boundary as **verified live**.
+The production server-side MCP boundary is therefore **verified live**.
 
-## Current execution-path status
+## Public Edge1 state — updated 2026-08-19
 
-The remaining incomplete portion is the private ChatGPT-side transport/attachment.
+The public front-door work is now LIVE / ACCEPTED.
 
-OpenAI's current ChatGPT guidance says local/private-network MCP servers are not connected directly; private/on-premises servers should use **Secure MCP Tunnel** so the MCP server does not need to be exposed to the public internet.
+Canonical ordinary public destination:
 
-Therefore the intended transport is now explicitly:
+```text
+https://ww.cx/time/
+```
+
+Raw/default HTTP root and exact named Edge1 HTTPS root behavior were accepted with HTTP 302 while operational/non-root routes, PBX/SIP behavior, Apache listeners, and chronyd NTP/NTS listeners remained preserved.
+
+Protected rollback evidence:
+
+```text
+/var/backups/wwcx-edge1-front-door-approved-20260819T052836Z
+```
+
+Acceptance record:
+
+`docs/control-surfaces/edge1-front-door-live-acceptance-20260819.md`
+
+HTTP 302 remains intentional; 308 promotion is separate optional work.
+
+## Secure MCP Tunnel — non-secret staging complete
+
+Host-side non-secret staging was accepted on 2026-08-18:
+
+- compatible existing official `tunnel-client` retained unchanged;
+- Big Bird tunnel remained active/unchanged;
+- Edge1 tunnel config, launcher, and unit staged in a separate namespace;
+- `edge1-secure-mcp-tunnel.service` intentionally disabled/inactive;
+- tunnel ID and runtime API key absent;
+- no second tunnel process started;
+- no public listener, firewall/DNS change, Apache proxy, MCP auth change, or Operator restart performed.
+
+OpenAI guidance was rechecked on 2026-08-19 and still states that local/private-network MCP servers are not connected directly; private/on-premises MCP should use Secure MCP Tunnel rather than exposing the MCP service publicly.
+
+## Remaining completion gate — ChatGPT private attachment
+
+The remaining path is:
 
 ```text
 ChatGPT custom MCP app
@@ -57,29 +89,33 @@ Edge1 private host
 127.0.0.1:8102 edge1-operator-mcp
 ```
 
-No Apache public MCP proxy, WAN MCP listener, or firewall opening is part of the completion plan.
+Remaining tasks:
 
-## Remaining completion tasks
+1. authorized workspace/account operator enables the applicable developer/custom-app capability;
+2. create/select the Secure MCP Tunnel and provision its tunnel ID/runtime API key locally on Edge1 without exposing secret values;
+3. run tunnel doctor;
+4. start the tunnel attended without enabling persistence;
+5. scan tools from ChatGPT and verify exactly the expected 16 named parameterless read-only tools;
+6. prove ChatGPT-side `edge1.identity`, `edge1.health`, and approved diagnostics;
+7. verify durable Edge1 audit evidence and Big Bird/Operator listener equivalence;
+8. test service stop/disable plus account-side revocation path;
+9. enable persistence only after attended acceptance passes;
+10. record final closeout.
 
-- Enable the applicable ChatGPT developer/custom-app capability using the authorized account/workspace UI.
-- Enroll Secure MCP Tunnel for the Edge1 loopback MCP service without disclosing enrollment/token material in chat or Git.
-- Scan/discover the 16 MCP tools from ChatGPT and verify the contract.
-- Prove ChatGPT-side `edge1.identity` and `edge1.health` calls.
-- Prove approved diagnostics and audit/evidence behavior through the permanent connector.
-- Record tunnel rollback/revocation procedure and complete final closeout.
+Account sign-in, developer-mode enablement, private activation links, tunnel enrollment values, runtime API keys, and equivalent credential material remain explicit human boundaries and must not be pasted into Git or chat.
 
-Account sign-in, developer-mode enablement, private activation links, tunnel enrollment secrets, and equivalent credential material remain explicit human boundaries.
+No direct `edge1.*` MCP connector is exposed to the current ChatGPT session, so the private attachment gate is not yet complete.
 
-## Other Control Surfaces state
+## Remaining diagnostic reconciliation
 
-The public Edge1 web exposure-reduction work is accepted and repository-reconciled: ordinary root traffic redirects to `https://creekco.ca/time/`, WAN FreePBX Administration/UCP access is denied, and approved private WireGuard/Tailscale paths remain available. The WW.CX Operations Center Control Surfaces page is deployed and authenticated-browser verified.
+Native Asterisk/Kamailio/FreePBX diagnostic cards have previously reported degraded/unavailable states while higher-level telephony health was healthy. Reconcile these from fresh read-only evidence without weakening service hardening or widening account permissions.
 
-Asterisk/Kamailio/FreePBX native CLI diagnostic cards currently report degraded/unavailable states through the Operations API while the higher-level telephony broker reports healthy. This is being reconciled without weakening service hardening or widening account permissions.
+The existing `tools/alerting/asterisk_warning_followup_audit.sh` should also be run to resolve the recorded PJSIP transport visibility, boot-persistence, and TCP 8089 questions before any related configuration decision.
 
-## Archive state
+## Completion condition
 
-Repository documentation is now a current sanitized checkpoint. The operator workstream remains **active / incomplete only at the ChatGPT private-transport attachment and final diagnostic reconciliation gates**.
+The permanent Operator is complete only when the verified loopback MCP service is reachable through the approved Secure MCP Tunnel/private ChatGPT transport, ChatGPT discovers the exact reviewed bounded tools, identity/health and approved diagnostics succeed with durable audit evidence, rollback/revocation is proven, and no secret or new public management exposure has been introduced.
 
 ## Operating rule
 
-Routine engineering work continues without repeated approval requests under the standing authorization. Credentials, secret material, irreversible/destructive changes, legal/commercial commitments, privileged network/security changes, and other explicit stop conditions remain gated.
+Routine repository work and read-only inspection continue under standing authorization. Credentials/secret material, irreversible/destructive changes, privileged network/security changes, live carrier/call/message behavior, and other explicit stop conditions remain gated.
