@@ -162,7 +162,7 @@ for token in ("quarantined_pending_scan", "scanned_clean_held", "quarantined_mal
 validation_record = paths["validation_record"].read_text(encoding="utf-8")
 for token in (
     "fresh_edge1_runtime_verified=true",
-    "mail_authenticated_acceptance",
+    "dedicated HMAC client",
     "prepared_not_sent",
     "scanned_clean_held",
     "quarantined_malicious",
