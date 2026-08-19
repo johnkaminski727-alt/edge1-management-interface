@@ -8,9 +8,4 @@ dependencies:
     value: edge1
     description: Live bounded Edge1 Operator tools supplied by the Edge1 Operator app
 policy:
-  products:
-  - chatgpt
-  - codex
-  - api
-  - atlas
   allow_implicit_invocation: true
