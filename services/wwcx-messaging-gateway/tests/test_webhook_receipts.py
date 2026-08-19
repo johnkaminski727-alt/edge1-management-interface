@@ -65,7 +65,7 @@ def test_provider_webhook_records_accepted_and_duplicate_receipts() -> None:
     ]
     assert {receipt["processing_status"] for receipt in matching} == {"accepted", "duplicate"}
     assert data["raw_body_retained"] is False
-    assert data["unverified_requests_persisted"] is False
+    assert data["unverified_request_rows_persisted"] is False
 
 
 def test_unverified_webhook_does_not_create_receipt() -> None:
