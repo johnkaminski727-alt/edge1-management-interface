@@ -21,11 +21,9 @@ fail() {
 [ "$(hostname -f)" = "$EXPECTED_HOST" ] || fail "wrong host: $(hostname -f)"
 [ "$TARGET" = "/etc/systemd/system" ] || fail "unexpected target: $TARGET"
 [ -d "$TARGET" ] || fail "target directory missing: $TARGET"
-command -v stat >/dev/null 2>&1 || fail "stat unavailable"
-command -v chown >/dev/null 2>&1 || fail "chown unavailable"
-command -v chmod >/dev/null 2>&1 || fail "chmod unavailable"
-command -v install >/dev/null 2>&1 || fail "install unavailable"
-command -v systemctl >/dev/null 2>&1 || fail "systemctl unavailable"
+for command_name in stat chown chmod install systemctl find sort cmp sha256sum runuser; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "$command_name unavailable"
+done
 
 owner=$(stat -c '%U:%G' "$TARGET")
 mode=$(stat -c '%a' "$TARGET")
@@ -60,7 +58,10 @@ esac
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_DIR="$EVIDENCE_ROOT/$STAMP"
-install -d -o root -g root -m 0700 "$EVIDENCE_ROOT" "$EVIDENCE_DIR"
+if [ ! -d "$EVIDENCE_ROOT" ]; then
+    install -d -o root -g root -m 0700 "$EVIDENCE_ROOT"
+fi
+install -d -o root -g root -m 0700 "$EVIDENCE_DIR"
 
 {
     echo "captured_at_utc=$STAMP"
@@ -71,7 +72,11 @@ install -d -o root -g root -m 0700 "$EVIDENCE_ROOT" "$EVIDENCE_DIR"
     stat -c 'before_inode=%i' "$TARGET"
 } >"$EVIDENCE_DIR/before.txt"
 
-namei -l "$TARGET" >"$EVIDENCE_DIR/namei-before.txt" 2>&1 || true
+if command -v namei >/dev/null 2>&1; then
+    namei -l "$TARGET" >"$EVIDENCE_DIR/namei-before.txt" 2>&1 || true
+else
+    echo "namei_unavailable=true" >"$EVIDENCE_DIR/namei-before.txt"
+fi
 find "$TARGET" -mindepth 1 -maxdepth 1 -printf '%f\t%y\t%u:%g\t%m\n' \
     | LC_ALL=C sort >"$EVIDENCE_DIR/entries-before.tsv"
 
@@ -119,7 +124,11 @@ mode_after=$(stat -c '%a' "$TARGET")
     stat -c 'after_inode=%i' "$TARGET"
 } >"$EVIDENCE_DIR/after.txt"
 
-namei -l "$TARGET" >"$EVIDENCE_DIR/namei-after.txt" 2>&1 || true
+if command -v namei >/dev/null 2>&1; then
+    namei -l "$TARGET" >"$EVIDENCE_DIR/namei-after.txt" 2>&1 || true
+else
+    echo "namei_unavailable=true" >"$EVIDENCE_DIR/namei-after.txt"
+fi
 find "$TARGET" -mindepth 1 -maxdepth 1 -printf '%f\t%y\t%u:%g\t%m\n' \
     | LC_ALL=C sort >"$EVIDENCE_DIR/entries-after.tsv"
 
