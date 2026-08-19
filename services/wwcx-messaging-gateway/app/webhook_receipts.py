@@ -1,21 +1,30 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Lock
 from uuid import UUID, uuid4
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from .models import NormalizedMessage
 
 
-_ALLOWED_PROCESSING_STATES = {"verified", "accepted", "duplicate"}
+_ALLOWED_PROCESSING_STATES = {"verified", "processing", "accepted", "duplicate", "failed"}
 
 
 def _body_sha256(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
+
+
+@dataclass(frozen=True)
+class ClaimedWebhookReceipt:
+    receipt_id: UUID
+    message: NormalizedMessage
+    attempt_count: int
 
 
 class InMemoryWebhookReceiptLedger:
@@ -35,6 +44,8 @@ class InMemoryWebhookReceiptLedger:
             "body_sha256": _body_sha256(body),
             "verification_status": "verified",
             "processing_status": "verified",
+            "normalized_payload": message.model_dump(mode="json", by_alias=True),
+            "attempt_count": 0,
             "received_at": datetime.now(timezone.utc),
             "processed_at": None,
         }
@@ -49,8 +60,8 @@ class InMemoryWebhookReceiptLedger:
             record = self._receipts.get(receipt_id)
             if record is None:
                 raise RuntimeError("webhook receipt not found")
-            if record["processing_status"] != "verified":
-                raise RuntimeError("webhook receipt is already processed")
+            if record["processing_status"] not in {"verified", "processing"}:
+                raise RuntimeError("webhook receipt is already terminal")
             record["processing_status"] = processing_status
             record["processed_at"] = datetime.now(timezone.utc)
 
@@ -63,7 +74,7 @@ class InMemoryWebhookReceiptLedger:
         for record in records:
             counts[str(record["processing_status"])] += 1
         recent = [self._sanitize(record) for record in records[:bounded_limit]]
-        return {"durable": False, "counts": counts, "recent_receipts": recent}
+        return {"durable": False, "recoverable": False, "counts": counts, "recent_receipts": recent}
 
     @staticmethod
     def _sanitize(record: dict[str, object]) -> dict[str, object]:
@@ -75,18 +86,18 @@ class InMemoryWebhookReceiptLedger:
             "body_sha256": str(record["body_sha256"]),
             "verification_status": str(record["verification_status"]),
             "processing_status": str(record["processing_status"]),
+            "attempt_count": int(record["attempt_count"]),
             "received_at": record["received_at"].isoformat(),
             "processed_at": record["processed_at"].isoformat() if record["processed_at"] else None,
         }
 
 
 class PostgresWebhookReceiptLedger:
-    """Durable audit ledger for verified, normalized provider webhook attempts.
+    """Durable verified webhook receipt and recovery queue.
 
-    Unverified requests are intentionally not persisted here. A future public
-    endpoint must not turn invalid unauthenticated traffic into an unbounded
-    database-write primitive. Provider-specific verification remains responsible
-    for signature authenticity and freshness/replay-window checks.
+    Unverified requests are intentionally not persisted. Verified normalized
+    payloads are retained so a database/application failure after receipt
+    creation cannot erase the inbound message before idempotent processing.
     """
 
     def __init__(self, database_url: str) -> None:
@@ -94,13 +105,14 @@ class PostgresWebhookReceiptLedger:
 
     def record_verified(self, provider: str, message: NormalizedMessage, body: bytes) -> UUID:
         receipt_id = uuid4()
+        payload = message.model_dump(mode="json", by_alias=True)
         with psycopg.connect(self.database_url) as connection:
             connection.execute(
                 """
                 INSERT INTO messaging_webhook_receipts
                     (id, provider, provider_event_id, message_event_id, body_sha256,
-                     verification_status, processing_status)
-                VALUES (%s, %s, %s, %s, %s, 'verified', 'verified')
+                     verification_status, processing_status, normalized_payload)
+                VALUES (%s, %s, %s, %s, %s, 'verified', 'verified', %s)
                 """,
                 (
                     receipt_id,
@@ -108,9 +120,43 @@ class PostgresWebhookReceiptLedger:
                     message.provider_event_id,
                     message.event_id,
                     _body_sha256(body),
+                    Jsonb(payload),
                 ),
             )
         return receipt_id
+
+    def claim_verified(self) -> ClaimedWebhookReceipt | None:
+        with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
+            with connection.transaction():
+                row = connection.execute(
+                    """
+                    SELECT id, normalized_payload, attempt_count
+                    FROM messaging_webhook_receipts
+                    WHERE processing_status = 'verified'
+                      AND normalized_payload IS NOT NULL
+                      AND available_at <= now()
+                    ORDER BY available_at, received_at, id
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT 1
+                    """
+                ).fetchone()
+                if row is None:
+                    return None
+                attempt_count = int(row["attempt_count"]) + 1
+                connection.execute(
+                    """
+                    UPDATE messaging_webhook_receipts
+                    SET processing_status = 'processing', attempt_count = %s,
+                        locked_at = now(), last_error = NULL
+                    WHERE id = %s
+                    """,
+                    (attempt_count, row["id"]),
+                )
+        return ClaimedWebhookReceipt(
+            receipt_id=row["id"],
+            message=NormalizedMessage.model_validate(row["normalized_payload"]),
+            attempt_count=attempt_count,
+        )
 
     def mark_processed(self, receipt_id: UUID, processing_status: str) -> None:
         if processing_status not in {"accepted", "duplicate"}:
@@ -119,14 +165,46 @@ class PostgresWebhookReceiptLedger:
             row = connection.execute(
                 """
                 UPDATE messaging_webhook_receipts
-                SET processing_status = %s, processed_at = now()
-                WHERE id = %s AND processing_status = 'verified'
+                SET processing_status = %s, processed_at = now(), locked_at = NULL,
+                    last_error = NULL
+                WHERE id = %s AND processing_status IN ('verified', 'processing')
                 RETURNING id
                 """,
                 (processing_status, receipt_id),
             ).fetchone()
             if row is None:
-                raise RuntimeError("webhook receipt not found or already processed")
+                raise RuntimeError("webhook receipt not found or already terminal")
+
+    def retry_processing(
+        self,
+        receipt_id: UUID,
+        error: str,
+        *,
+        delay_seconds: int = 30,
+        max_attempts: int = 5,
+    ) -> str:
+        delay_seconds = max(1, min(int(delay_seconds), 86400))
+        max_attempts = max(1, min(int(max_attempts), 100))
+        with psycopg.connect(self.database_url) as connection:
+            row = connection.execute(
+                """
+                UPDATE messaging_webhook_receipts
+                SET processing_status = CASE WHEN attempt_count >= %s THEN 'failed' ELSE 'verified' END,
+                    available_at = CASE
+                        WHEN attempt_count >= %s THEN available_at
+                        ELSE now() + (%s * interval '1 second')
+                    END,
+                    processed_at = CASE WHEN attempt_count >= %s THEN now() ELSE NULL END,
+                    locked_at = NULL,
+                    last_error = %s
+                WHERE id = %s AND processing_status = 'processing'
+                RETURNING processing_status
+                """,
+                (max_attempts, max_attempts, delay_seconds, max_attempts, error[:1000], receipt_id),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("webhook receipt is not processing")
+        return str(row[0])
 
     def status(self, limit: int = 25) -> dict[str, object]:
         bounded_limit = min(max(int(limit), 1), 100)
@@ -142,7 +220,8 @@ class PostgresWebhookReceiptLedger:
             recent_rows = connection.execute(
                 """
                 SELECT id, provider, provider_event_id, message_event_id, body_sha256,
-                       verification_status, processing_status, received_at, processed_at
+                       verification_status, processing_status, attempt_count,
+                       received_at, processed_at, last_error
                 FROM messaging_webhook_receipts
                 ORDER BY received_at DESC, id DESC
                 LIMIT %s
@@ -161,9 +240,11 @@ class PostgresWebhookReceiptLedger:
                 "body_sha256": str(row["body_sha256"]),
                 "verification_status": str(row["verification_status"]),
                 "processing_status": str(row["processing_status"]),
+                "attempt_count": int(row["attempt_count"]),
                 "received_at": row["received_at"].isoformat(),
                 "processed_at": row["processed_at"].isoformat() if row["processed_at"] else None,
+                "last_error": str(row["last_error"])[:1000] if row["last_error"] else None,
             }
             for row in recent_rows
         ]
-        return {"durable": True, "counts": counts, "recent_receipts": recent}
+        return {"durable": True, "recoverable": True, "counts": counts, "recent_receipts": recent}
