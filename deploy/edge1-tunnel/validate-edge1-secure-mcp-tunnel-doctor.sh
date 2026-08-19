@@ -31,6 +31,12 @@ CLIENT_VERSION=$($TUNNEL_CLIENT --version 2>&1 | sed -n '1p')
 echo "tunnel_client_version=$CLIENT_VERSION"
 echo "tunnel_client_sha256=$CLIENT_SHA"
 
+# Fail closed before invoking doctor. A future tunnel-client replacement must be
+# reviewed and deliberately re-pinned here even if its raw doctor would pass.
+[ "$CLIENT_SHA" = "$EXPECTED_CLIENT_SHA" ] || fail "unreviewed tunnel-client binary"
+printf '%s\n' "$CLIENT_VERSION" | grep -Fq "$EXPECTED_CLIENT_VERSION" || \
+    fail "unreviewed tunnel-client version"
+
 # The Edge1 transport deliberately uses a static bearer header for both normal
 # MCP traffic and discovery/probe traffic. This avoids adding a second OAuth
 # authority to the already-authenticated loopback Operator service.
@@ -58,11 +64,7 @@ fi
 # tunnel-client 0.0.10 at 105e17a has a known doctor-only false negative:
 # every HTTP target is required to expose OAuth PRMD. Later upstream behavior
 # treats all-404 PRMD discovery as optional for plain/non-OAuth MCP servers.
-# Never apply this compatibility rule to a different binary or to any other
-# failed check.
-[ "$CLIENT_SHA" = "$EXPECTED_CLIENT_SHA" ] || fail "raw doctor failed on an unreviewed tunnel-client binary"
-printf '%s\n' "$CLIENT_VERSION" | grep -Fq "$EXPECTED_CLIENT_VERSION" || \
-    fail "raw doctor failed on an unreviewed tunnel-client version"
+# Never apply this compatibility rule to any other failed check.
 [ "$DOCTOR_RC" -eq 2 ] || fail "unexpected raw doctor exit code $DOCTOR_RC"
 
 FAILED_CHECKS=$(sed -n 's/^FAILED_CHECKS[[:space:]]*//p' "$TMP" | tail -n 1)
