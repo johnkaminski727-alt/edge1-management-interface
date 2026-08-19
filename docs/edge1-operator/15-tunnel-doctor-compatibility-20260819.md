@@ -59,7 +59,7 @@ deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
 The validator is deliberately fail-closed. It accepts the old-doctor result only when all of the following are true:
 
 1. it runs as `edge1-operator`;
-2. the exact reviewed tunnel-client version and SHA-256 are present;
+2. the exact reviewed tunnel-client version and SHA-256 are present before doctor is invoked;
 3. the Edge1 tunnel config still targets only `http://127.0.0.1:8102/mcp`;
 4. the config still supplies the same bearer environment reference for both runtime and discovery headers;
 5. raw doctor exits exactly `2`;
@@ -68,7 +68,9 @@ The validator is deliberately fail-closed. It accepts the old-doctor result only
 8. unauthenticated MCP remains HTTP 401;
 9. both path-specific and root OAuth metadata candidates remain HTTP 404 when probed locally with the existing bearer credential, without exposing the credential value.
 
-If raw doctor starts passing after a future reviewed tunnel-client update, the compatibility override is not needed and the validator accepts the raw pass. Any different binary, failed check, status, target, header configuration, or authentication behavior fails closed.
+If the pinned reviewed build begins returning raw doctor success, the compatibility override is not needed and the validator accepts that raw pass. A different tunnel-client version or SHA fails closed before doctor is invoked, even if that different binary would return success. Any future tunnel-client upgrade therefore requires a separate review and deliberate update of the version/SHA pin in this validator.
+
+Any different failed check, status, target, header configuration, or authentication behavior also fails closed.
 
 ## Next boundary
 
