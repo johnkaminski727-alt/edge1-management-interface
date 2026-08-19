@@ -5,18 +5,28 @@ on:
     paths:
       - 'server/control_surface_diagnostics.py'
       - 'config/edge1-operations-allowlist.json'
+      - 'deploy/control-surfaces/**'
+      - 'deploy/front-door/**'
       - 'tests/test_control_surface_diagnostics.py'
       - 'tests/test_control_surfaces_allowlist.py'
+      - 'tests/test_control_surfaces_apache_policy.py'
+      - 'tests/test_edge1_front_door_apache_policy.py'
       - 'docs/control-surfaces/**'
+      - '.agent/front-door.md'
       - '.github/workflows/control-surfaces.yml'
   push:
     branches: [main]
     paths:
       - 'server/control_surface_diagnostics.py'
       - 'config/edge1-operations-allowlist.json'
+      - 'deploy/control-surfaces/**'
+      - 'deploy/front-door/**'
       - 'tests/test_control_surface_diagnostics.py'
       - 'tests/test_control_surfaces_allowlist.py'
+      - 'tests/test_control_surfaces_apache_policy.py'
+      - 'tests/test_edge1_front_door_apache_policy.py'
       - 'docs/control-surfaces/**'
+      - '.agent/front-door.md'
       - '.github/workflows/control-surfaces.yml'
 
 permissions:
@@ -30,8 +40,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile diagnostics
         run: python3 -m py_compile server/control_surface_diagnostics.py
+      - name: Check Apache deployment shell syntax
+        run: |
+          sh -n deploy/control-surfaces/install-edge1-control-surfaces-apache.sh
+          sh -n deploy/front-door/install-edge1-default-http-front-door.sh
       - name: Run Control Surfaces safety tests
-        run: python3 -m unittest tests.test_control_surface_diagnostics tests.test_control_surfaces_allowlist -v
+        run: python3 -m unittest tests.test_control_surface_diagnostics tests.test_control_surfaces_allowlist tests.test_control_surfaces_apache_policy tests.test_edge1_front_door_apache_policy -v
       - name: Validate operations allowlist JSON
         run: python3 -m json.tool config/edge1-operations-allowlist.json >/dev/null
       - name: Assert read-only defaults
@@ -52,4 +66,4 @@ jobs:
               assert action['mutating'] is False, name
               assert action['argv'][:2] == ['python3', 'server/control_surface_diagnostics.py'], name
           PY
-          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server/control_surface_diagnostics.py config/edge1-operations-allowlist.json docs/control-surfaces tests/test_control_surface_diagnostics.py tests/test_control_surfaces_allowlist.py
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server/control_surface_diagnostics.py config/edge1-operations-allowlist.json deploy/control-surfaces deploy/front-door docs/control-surfaces tests/test_control_surface_diagnostics.py tests/test_control_surfaces_allowlist.py tests/test_control_surfaces_apache_policy.py tests/test_edge1_front_door_apache_policy.py

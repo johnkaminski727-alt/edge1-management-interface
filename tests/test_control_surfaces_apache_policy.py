@@ -10,7 +10,8 @@ class ControlSurfacesApachePolicyTests(unittest.TestCase):
     def test_public_root_redirect_is_narrow(self):
         self.assertIn(r"RewriteCond %{HTTP_HOST} ^edge1\.ww\.cx$ [NC]", POLICY)
         self.assertIn(r"RewriteCond %{REQUEST_URI} ^/(?:index\.html)?$ [NC]", POLICY)
-        self.assertIn("https://creekco.ca/time/", POLICY)
+        self.assertIn("https://ww.cx/time/", POLICY)
+        self.assertNotIn("https://creekco.ca/time/", POLICY)
 
     def test_freepbx_surfaces_are_private(self):
         self.assertIn('<LocationMatch "^/(?:admin|ucp)(?:/|$)">', POLICY)
