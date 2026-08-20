@@ -4,12 +4,15 @@ import importlib.util
 import json
 import os
 import pathlib
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).parents[1]
 SERVER = ROOT / "server"
+if str(SERVER) not in sys.path:
+    sys.path.insert(0, str(SERVER))
 
 
 def load_module(name: str, path: pathlib.Path):
