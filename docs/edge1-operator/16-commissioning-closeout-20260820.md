@@ -6,7 +6,7 @@ Non-secret commissioning evidence for the already accepted/persistent Secure MCP
 
 ## Live authoritative verification
 
-Verified through the live Edge1 Operator MCP:
+Verified through the live Edge1 Operator MCP before deployment of this closeout:
 
 - identity: `edge1.ww.cx`, principal `edge1-operator`, service ready;
 - health: Operations API loopback-only, status OK, `mutations_enabled=false`;
@@ -21,7 +21,7 @@ Verified through the live Edge1 Operator MCP:
 - snapshot network probes identify the exact cause as `Cannot open netlink socket: Address family not supported by protocol`;
 - `edge1.asterisk_status`: native fixed CLI probes remain privilege-gated on the deployed revision; passive fallback succeeds.
 
-Meaningful read-only audit event IDs from final verification:
+Meaningful read-only audit event IDs:
 
 - snapshot: `31d8011e-373c-4b1c-add3-7a010495d1c8`;
 - Asterisk diagnostics: `b0f79426-15c6-421a-af76-ec79ffb95b57`;
@@ -49,11 +49,14 @@ No live branch switch/reset was performed. The focused repository work is in PR 
 
 - add only `AF_NETLINK` to the Operations API address-family sandbox;
 - keep capability bounding/ambient sets empty and mutations disabled;
-- lock the public MCP contract to exactly the intended 16 Edge1 tools;
+- lock the public MCP discovery contract to exactly the intended 16 Edge1 tools;
+- enforce the same 16-tool allowlist at `tools/call`, so hand-crafted calls cannot reach internal `agent.turn.*` adapter capabilities;
 - add standard read-only/non-destructive/closed-world/idempotent MCP annotations;
-- exclude `agent.turn.status`, `agent.turn.handoff`, generic exec, and write surfaces;
+- exclude generic exec and write surfaces from the public app;
 - update the preserved-artifact classifier for the actual static/generated/unresolved set and reviewed compatibility symlink;
-- add regression tests and update tunnel/completion runbooks.
+- add regression tests, CI gates, a bounded deployment helper, and updated tunnel/completion documentation.
+
+The adapter may retain `agent.turn.status` and `agent.turn.handoff` for explicitly internal workflows. The public Edge1 Operator entrypoint rejects those names as `unknown_tool` before adapter invocation. This preserves internal protocol evolution without expanding the app contract.
 
 ## Asterisk control-socket evidence
 
@@ -79,83 +82,101 @@ wwadmin direct socket write/connect permission test:
   no
 ```
 
-This proves the deployed Operations API principal does not currently have native Asterisk control-socket authority.
-
-Adding `wwadmin` to group `asterisk` was deliberately rejected as the preferred repair. The Asterisk control socket is a general CLI control channel; group membership would allow the Operations API process itself to issue arbitrary Asterisk CLI commands if its local code path were broadened or compromised. That is wider authority than the public read-only MCP contract permits.
+Adding `wwadmin` to group `asterisk` was deliberately rejected. The control socket is a general Asterisk CLI channel, so direct group access would grant broader authority than the public read-only MCP contract requires.
 
 ## Bounded Asterisk native diagnostic design
 
-PR #466 now prepares an intermediary mechanism that does **not** grant Asterisk group membership, sudo authority, shell authority, a new network listener, or caller-controlled CLI strings to `wwadmin`.
+PR #466 prepares an intermediary mechanism that does **not** grant Asterisk group membership, sudo authority, shell authority, a new network listener, or caller-controlled CLI strings to `wwadmin`.
 
 Producer: `server/asterisk_readonly_snapshot.py`
 
-- accepts no command-line parameters;
+- accepts no caller parameters;
 - contains exactly the seven reviewed read-only Asterisk CLI commands already used by Control Surfaces;
-- runs under a dedicated systemd oneshot as `User=asterisk`, so socket access comes from the socket owner identity rather than delegated privilege;
-- uses `Group=bigbird-audit` only for snapshot file sharing to the existing Operations API principal;
-- runs with `NoNewPrivileges=true`, empty capability sets, and `RestrictAddressFamilies=AF_UNIX`;
+- runs as `User=asterisk` under a hardened systemd oneshot;
+- uses `Group=bigbird-audit` only for snapshot sharing to the existing Operations API principal;
+- uses `NoNewPrivileges=true`, empty capability sets, and `RestrictAddressFamilies=AF_UNIX`;
 - writes only `/run/edge1-asterisk-diagnostics/status.json` atomically;
-- requires the runtime directory to be the exact non-symlink path created by systemd;
-- writes mode `0640` and sanitizes command output before storage.
+- rejects symlink path indirection;
+- writes sanitized mode-`0640` output.
 
 Consumer: `server/asterisk_operator_diagnostics.py`
 
-- accepts no external target, command, host, port, or shell input;
-- accepts the native snapshot only when it is a regular file owned by `asterisk:bigbird-audit`, mode `0640`;
-- validates the exact snapshot contract and exact seven command IDs;
-- requires every native check to have succeeded;
+- accepts no target, command, host, port, or shell input;
+- accepts only a regular `asterisk:bigbird-audit 0640` snapshot;
+- validates the exact contract, exact seven command IDs, success state, and freshness;
 - rejects future-dated or older-than-90-second snapshots;
-- otherwise falls back to the existing direct/passive Control Surfaces path, preserving passive fallback.
+- otherwise preserves the existing direct/passive fallback.
 
 Systemd assets:
 
 - `deploy/systemd/edge1-asterisk-readonly-snapshot.service`;
 - `deploy/systemd/edge1-asterisk-readonly-snapshot.timer`.
 
-The Operations API allowlist remains fixed/read-only and now routes only `asterisk.diagnostics` through the bounded snapshot consumer. `config.digest` covers both helper scripts and both systemd assets.
+The Operations API allowlist remains fixed/read-only and routes only `asterisk.diagnostics` through the bounded snapshot consumer. `config.digest` covers the Asterisk helper assets and the public MCP protocol/entrypoint boundary.
+
+## Security-boundary classifier
+
+The fail-closed residual classifier now understands the actual preserved set:
+
+- `network-sensor/data/network-sensor.json` — generated JSON; validate safe file/JSON structure, not stale historical size/hash;
+- `network-sensor/index.html` — repository-static; require exact match to `src/web/network-sensor/index.html`;
+- `operations-center/snmp.html` — explicitly preserved unresolved artifact; do not overwrite to manufacture Git provenance;
+- `snmp/operations-snmp.json` — generated JSON; validate safe file/JSON structure, not stale historical size/hash;
+- `security-correlation.json` — reviewed compatibility symlink with exact contained-target validation.
+
+Unexpected paths, malformed generated JSON, unsafe file types/modes, static-source mismatch, or symlink drift fail closed.
 
 ## Validation performed
 
-Direct local execution during review:
+Direct review validation passed for the new Asterisk producer/consumer, fixed seven-command contract, fresh/stale snapshot behavior, systemd unit verification, public contract/sandbox logic, and residual classifier behavior.
 
-- new Python producer/consumer compile checks: passed;
-- fixed seven-command contract test: passed;
-- fresh bounded snapshot acceptance: passed;
-- stale snapshot rejection: passed;
-- systemd unit syntax/verification: passed;
-- public contract/sandbox reconstructed tests: passed;
-- residual-classifier reconstructed behavior tests: passed.
+Repository CI was expanded to exercise:
 
-Repository CI was also expanded so merge validation explicitly exercises:
-
-- exact 16-tool public Edge1 Operator contract and standard annotations;
+- exact 16-tool public discovery contract and standard annotations;
+- direct-call rejection of `agent.turn.*` through the public app entrypoint;
+- `AF_NETLINK` with empty capability sets and no `CAP_NET_ADMIN`;
+- exact bounded Asterisk allowlist routing and helper safety tests;
 - residual security-boundary classifier regressions;
-- `AF_NETLINK` presence with empty capability sets and no `CAP_NET_ADMIN`;
-- exact bounded Asterisk allowlist routing;
-- Asterisk producer/consumer safety tests;
-- systemd unit verification.
+- deployment-helper shell syntax.
 
-Local/reconstructed checks are review evidence, not a substitute for repository CI or post-deployment host validation.
+CI and local checks are merge evidence, not substitutes for post-deployment host validation.
+
+## Bounded deployment helper
+
+`deploy/edge1-operator/install-commissioning-closeout.sh` is the reviewed deployment path after merge and deliberate live Git reconciliation.
+
+It:
+
+- requires `edge1.ww.cx`, clean `main`, and an exact reviewed revision argument for `--apply`;
+- requires the observed Asterisk socket boundary and refuses if `wwadmin` gains `asterisk` group membership;
+- validates the Operations API sandbox, helper units, public protocol, local loopback health, and local unauthenticated MCP HTTP `401` before mutation;
+- records protected evidence and backups under `/var/lib/wwcx-deployment-evidence/edge1-operator-commissioning-closeout/`;
+- installs only the reviewed Operations API unit and Asterisk snapshot service/timer;
+- starts/enables only the new snapshot timer;
+- restarts only the directly affected `edge1-operations-api.service` and `edge1-operator-mcp.service`;
+- does not restart `edge1-secure-mcp-tunnel.service` or Big Bird;
+- verifies loopback-only listeners, disabled Operations API mutations, fresh bounded Asterisk native diagnostics, tunnel persistence, and Big Bird tunnel health;
+- automatically invokes its recorded unit rollback if a post-mutation validation fails.
+
+Repository revision rollback remains separate: create a safety branch before any live fast-forward and do not use force push/history rewriting.
 
 ## Deployment/publication status
 
-The closeout branch is **not deployed** by this record. Therefore:
-
-- `edge1.network_state` remains expected to fail on the current live revision;
-- `edge1.asterisk_status` remains expected to report native CLI limitation on the current live revision;
-- repository annotations/contract hardening are not yet authoritative production evidence.
-
-After reviewed merge and deliberate live revision reconciliation, deployment must back up the affected units/configuration, install the reviewed Operations API unit plus Asterisk snapshot service/timer, reload systemd, start/enable only the snapshot timer, restart only `edge1-operations-api.service`, and then verify through ChatGPT. Do not restart Big Bird or the Secure MCP Tunnel for this change.
+The closeout branch is **not deployed** by this record. Therefore the current live revision is still expected to show the known network runtime error and limited native Asterisk CLI diagnostics.
 
 Required post-deploy proofs include:
 
+- `edge1.identity` and `edge1.health` remain clean;
 - `edge1.network_state` succeeds;
 - `edge1.asterisk_status` reports useful native diagnostics with `native_cli_status=ok` and source `asterisk-owned-fixed-snapshot`;
-- the snapshot file remains `asterisk:bigbird-audit 0640` and fresh;
+- the snapshot remains `asterisk:bigbird-audit 0640` and fresh;
 - Operations API remains loopback-only with `mutations_enabled=false`;
+- local MCP remains loopback-only and bearer-protected;
 - `wwadmin` remains outside group `asterisk`;
 - exactly 16 Edge1 Operator tools remain exposed with truthful standard annotations;
-- Big Bird and the Secure MCP Tunnel remain healthy.
+- direct calls to internal `agent.turn.*` remain rejected by the public app;
+- Big Bird and the Secure MCP Tunnel remain healthy;
+- final protected evidence records the exact tested revision and meaningful audit IDs without secret values.
 
 Publication verdict at this stage: **NOT READY FOR WORKSPACE PUBLICATION**.
 
