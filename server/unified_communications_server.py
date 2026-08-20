@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVER_ROOT = REPO_ROOT / "server"
 WEB_ROOT = REPO_ROOT / "src" / "web" / "communications"
+SHELL_ROOT = REPO_ROOT / "src" / "web" / "operator-shell"
+NAVIGATION_PATH = REPO_ROOT / "config" / "edge1_operator" / "navigation_registry.json"
 READINESS_PATH = REPO_ROOT / "config" / "communications" / "readiness-matrix-v1.json"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
@@ -54,15 +55,7 @@ class SnapshotStore:
                 raise CommunicationsWorkspaceError(f"invalid canonical event on line {line_number}: {exc}") from exc
         return core.sort_events(events)
 
-    def query(
-        self,
-        *,
-        text: str = "",
-        channel: str = "all",
-        conversation_id: str = "",
-        state: str = "",
-        limit: int = 100,
-    ) -> list[dict[str, Any]]:
+    def query(self, *, text: str = "", channel: str = "all", conversation_id: str = "", state: str = "", limit: int = 100) -> list[dict[str, Any]]:
         events = self.events()
         if channel and channel != "all":
             if channel not in core.CHANNELS:
@@ -100,13 +93,7 @@ class CommunicationsApplication:
             state=query.get("state", [""])[0],
             limit=limit,
         )
-        return {
-            "contract": "wwcx.communications-workspace-read.v1",
-            "events": events,
-            "count": len(events),
-            "content_is_untrusted": True,
-            "mutation_authorized": False,
-        }
+        return {"contract": "wwcx.communications-workspace-read.v1", "events": events, "count": len(events), "content_is_untrusted": True, "mutation_authorized": False}
 
     def event(self, event_id: str) -> dict[str, Any] | None:
         for item in self.store.events():
@@ -130,10 +117,7 @@ class CommunicationsHandler(BaseHTTPRequestHandler):
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Cache-Control", "no-store")
-        self.send_header(
-            "Content-Security-Policy",
-            "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
-        )
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'")
 
     def _send(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
@@ -146,9 +130,10 @@ class CommunicationsHandler(BaseHTTPRequestHandler):
     def _json(self, status: int, payload: dict[str, Any]) -> None:
         self._send(status, json.dumps(payload, indent=2, sort_keys=True).encode("utf-8"), "application/json; charset=utf-8")
 
-    def _asset(self, name: str, content_type: str) -> None:
-        path = (WEB_ROOT / name).resolve()
-        if WEB_ROOT.resolve() not in path.parents or not path.is_file():
+    def _asset_from(self, root: Path, name: str, content_type: str) -> None:
+        root = root.resolve()
+        path = (root / name).resolve()
+        if root not in path.parents or not path.is_file():
             self._json(HTTPStatus.NOT_FOUND, {"error": "asset_not_found"})
             return
         self._send(HTTPStatus.OK, path.read_bytes(), content_type)
@@ -157,13 +142,22 @@ class CommunicationsHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             if parsed.path in {"/communications", "/communications/"}:
-                self._asset("index.html", "text/html; charset=utf-8")
+                self._asset_from(WEB_ROOT, "index.html", "text/html; charset=utf-8")
                 return
             if parsed.path == "/communications/app.js":
-                self._asset("app.js", "text/javascript; charset=utf-8")
+                self._asset_from(WEB_ROOT, "app.js", "text/javascript; charset=utf-8")
                 return
             if parsed.path == "/communications/styles.css":
-                self._asset("styles.css", "text/css; charset=utf-8")
+                self._asset_from(WEB_ROOT, "styles.css", "text/css; charset=utf-8")
+                return
+            if parsed.path == "/communications/operator-shell/shell.js":
+                self._asset_from(SHELL_ROOT, "shell.js", "text/javascript; charset=utf-8")
+                return
+            if parsed.path == "/communications/operator-shell/shell.css":
+                self._asset_from(SHELL_ROOT, "shell.css", "text/css; charset=utf-8")
+                return
+            if parsed.path == "/communications/operator-shell/navigation.json":
+                self._send(HTTPStatus.OK, NAVIGATION_PATH.read_bytes(), "application/json; charset=utf-8")
                 return
             if parsed.path == "/communications/healthz":
                 self._json(HTTPStatus.OK, {"status": "ok", "service": "wwcx-communications-workspace", "mode": "read_only"})
@@ -184,10 +178,7 @@ class CommunicationsHandler(BaseHTTPRequestHandler):
                 if item is None:
                     self._json(HTTPStatus.NOT_FOUND, {"error": "event_not_found"})
                     return
-                self._json(
-                    HTTPStatus.OK,
-                    {"contract": "wwcx.communications-workspace-read.v1", "event": item, "mutation_authorized": False},
-                )
+                self._json(HTTPStatus.OK, {"contract": "wwcx.communications-workspace-read.v1", "event": item, "mutation_authorized": False})
                 return
             self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
         except CommunicationsWorkspaceError as exc:

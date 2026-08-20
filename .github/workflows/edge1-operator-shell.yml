@@ -1,0 +1,49 @@
+name: Edge1 Operator Shell
+
+on:
+  pull_request:
+    paths:
+      - 'config/edge1_operator/**'
+      - 'src/web/operator-shell/**'
+      - 'src/web/operations-center/index.html'
+      - 'src/web/communications/index.html'
+      - 'src/web/edge1-ops/security/index.html'
+      - 'tools/edge1_operator/**'
+      - 'tests/test_edge1_operator_navigation_registry.py'
+      - 'tests/test_edge1_operator_shell.py'
+      - 'tests/test_edge1_operator_shell_integration.py'
+      - '.github/workflows/edge1-operator-shell.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/edge1_operator/**'
+      - 'src/web/operator-shell/**'
+      - 'src/web/operations-center/index.html'
+      - 'src/web/communications/index.html'
+      - 'src/web/edge1-ops/security/index.html'
+      - 'tools/edge1_operator/**'
+      - 'tests/test_edge1_operator_navigation_registry.py'
+      - 'tests/test_edge1_operator_shell.py'
+      - 'tests/test_edge1_operator_shell_integration.py'
+      - '.github/workflows/edge1-operator-shell.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate registry JSON and safety gates
+        run: |
+          python3 -m json.tool config/edge1_operator/navigation_registry.json >/dev/null
+          python3 tools/edge1_operator/validate_navigation_registry.py
+      - name: Run operator shell tests
+        run: python3 -m unittest -v tests.test_edge1_operator_navigation_registry tests.test_edge1_operator_shell tests.test_edge1_operator_shell_integration
+      - name: Preserve Security Console nonce and browser boundary
+        run: python3 tests/validate_security_operator_console.py
+      - name: Reject common secret material in shell changes
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' config/edge1_operator src/web/operator-shell tools/edge1_operator tests/test_edge1_operator_navigation_registry.py tests/test_edge1_operator_shell.py tests/test_edge1_operator_shell_integration.py
