@@ -316,7 +316,11 @@ async def receive_provider_webhook(provider_name: str, request: Request) -> dict
 
     if not provider.verify_webhook(webhook_request):
         webhook_audit.record(provider_name, "verification_failed")
-        raise HTTPException(status_code=401, detail="webhook verification failed")
+        raise HTTPException(
+            status_code=401,
+            detail="webhook verification failed",
+            headers=provider.webhook_auth_failure_headers() or None,
+        )
 
     try:
         message = provider.normalize_webhook(webhook_request)
