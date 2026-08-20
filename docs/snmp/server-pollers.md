@@ -89,7 +89,7 @@ Each sync:
 8. atomically replaces the Edge1 import file only after validation succeeds;
 9. leaves the previous known-good import file untouched when fetch or validation fails.
 
-The service runs with systemd hardening, no capabilities, a strict writable path limited to `/var/lib/edge1-snmp/server-pollers`, and no access grant from `wwadmin` to Business159 SSH material.
+The service runs with systemd hardening and only `CAP_CHOWN`, which is required solely to hand the validated mode-`0600` import file to `wwadmin`. Its writable path is limited to `/var/lib/edge1-snmp/server-pollers`, and `wwadmin` receives no access to Business159 SSH material.
 
 `edge1-snmp-poller.service` declares the sync as `Wants=` plus `After=`. Therefore every ordinary five-minute SNMP poller start attempts a fresh authenticated sync first, but a Business159 outage does not prevent local Edge1/SNMP polling from proceeding with the last known-good copied data.
 
