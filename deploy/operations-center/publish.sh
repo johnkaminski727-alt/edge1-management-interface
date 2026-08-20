@@ -24,12 +24,14 @@ if [ ! -f "$SNMP_SOURCE" ]; then
 fi
 
 # The full SNMP console is served only through the authenticated Edge1 operator
-# adapter. Never publish that source into the public /edge1-status tree.
-sed 's#/edge1-status/operations-center/snmp.html#/edge1-ops/snmp/#g' "$SOURCE" > "$TMP_INDEX"
+# adapter. Keep the public Operations Center link on the handoff page so an
+# unauthenticated browser is sent through the WW.CX identity bridge instead of
+# directly to a protected route that can only return authentication_required.
+cp "$SOURCE" "$TMP_INDEX"
 cat > "$TMP_SNMP" <<'EOF'
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>SNMP Operations | WW.CX Edge1</title></head>
-<body><main><h1>SNMP Operations</h1><p>This operator console requires an authenticated Edge1 session.</p><p><a href="/edge1-ops/snmp/">Open authenticated SNMP Operations</a></p></main></body></html>
+<body><main><h1>SNMP Operations</h1><p>This operator console requires an authenticated Edge1 session.</p><p><a href="https://ww.cx/admin/edge1-security-login.php">Sign in through WW.CX to continue</a></p><p>After Edge1 sign-in, open SNMP Operations from the Edge1 Security Console.</p></main></body></html>
 EOF
 
 sudo install -d -m 0700 "$BACKUP_DIR"
