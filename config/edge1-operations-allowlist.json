@@ -24,7 +24,7 @@
     "asterisk.diagnostics": {"argv": ["python3", "server/asterisk_operator_diagnostics.py"], "mutating": false, "timeout_seconds": 120},
     "kamailio.diagnostics": {"argv": ["python3", "server/control_surface_diagnostics.py", "kamailio"], "mutating": false, "timeout_seconds": 90},
     "freepbx.diagnostics": {"argv": ["python3", "server/control_surface_diagnostics.py", "freepbx"], "mutating": false, "timeout_seconds": 90},
-    "config.digest": {"argv": ["sha256sum", "config/edge1-operations-allowlist.json", "deploy/edge1-operations-api.service", "deploy/edge1-operator/edge1-operator-mcp.service", "server/asterisk_readonly_snapshot.py", "server/asterisk_operator_diagnostics.py", "deploy/systemd/edge1-asterisk-readonly-snapshot.service", "deploy/systemd/edge1-asterisk-readonly-snapshot.timer"], "mutating": false, "timeout_seconds": 30},
+    "config.digest": {"argv": ["sha256sum", "config/edge1-operations-allowlist.json", "deploy/edge1-operations-api.service", "deploy/edge1-operator/edge1-operator-mcp.service", "server/edge1_operator_mcp_protocol.py", "server/edge1_operator_entrypoint.py", "server/asterisk_readonly_snapshot.py", "server/asterisk_operator_diagnostics.py", "deploy/systemd/edge1-asterisk-readonly-snapshot.service", "deploy/systemd/edge1-asterisk-readonly-snapshot.timer"], "mutating": false, "timeout_seconds": 30},
     "security.validate_config": {"argv": ["bash", "tools/security/validate-suricata.sh"], "mutating": false, "timeout_seconds": 300},
     "security.logs.rotate": {"argv": ["bash", "tools/security/rotate-suricata-logs.sh"], "mutating": true, "timeout_seconds": 120},
     "security.rules.reload": {"argv": ["bash", "tools/security/reload-suricata-rules.sh"], "mutating": true, "timeout_seconds": 120}
