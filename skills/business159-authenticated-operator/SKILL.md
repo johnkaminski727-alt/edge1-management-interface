@@ -22,6 +22,10 @@ Verify the Business159 host/principal with `business159_connection_test`, inspec
 - File change: `business159_fs_*` staged lifecycle.
 - Raw shell: `business159_exec` only for an explicitly authorized gap that narrower tools cannot handle.
 
+## Attended command handoff
+
+If the bounded connector cannot perform an authorized action and a human must paste a command manually, follow `docs/operator-pastebox-convention.md`: visibly title the box with the Business159 server/workstation destination, include `SERVER`/expected `USER`/`ACTION`/`SCOPE` inside the box, use one host per box, assert the expected host/principal when practical, identify the command as operator-run, and explicitly tell the operator where to deposit the resulting output.
+
 Understand PHP, document roots, redirects/`.htaccess`, Git, cron, account logs, deployment metadata, public/private boundaries, and the existing WW.CX deployment scripts.
 
 Never claim systemd/root/firewall/kernel control. Never request or expose credentials. Stop before DNS, certificate issuance/replacement, authentication-policy changes, billing/legal actions, destructive deletion, shared-history rewrite, or production calling/messaging changes unless separately and explicitly authorized.
