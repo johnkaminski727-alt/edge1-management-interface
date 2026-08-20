@@ -291,10 +291,14 @@ class BandwidthProvider(MessagingProvider):
         except (httpx.ReadTimeout, httpx.WriteTimeout, httpx.ReadError, httpx.WriteError, httpx.RemoteProtocolError) as exc:
             raise ProviderOutcomeUnknownError("Bandwidth submission outcome is uncertain") from exc
 
+        if response.status_code == 429 or response.status_code >= 500:
+            raise ProviderSafeRetryError(
+                f"Bandwidth confirmed outbound message was not sent (HTTP {response.status_code})"
+            )
         if 400 <= response.status_code < 500:
             raise ProviderRejectedError(f"Bandwidth rejected outbound request with HTTP {response.status_code}")
         if response.status_code < 200 or response.status_code >= 300:
-            raise ProviderOutcomeUnknownError(f"Bandwidth returned HTTP {response.status_code} after submission")
+            raise ProviderOutcomeUnknownError(f"Bandwidth returned unexpected HTTP {response.status_code}")
 
         try:
             result = response.json()
