@@ -14,7 +14,8 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, store
+from app.bandwidth_provider import BANDWIDTH_BASIC_CHALLENGE, BandwidthProvider
+from app.main import app, providers, store
 from app.models import NormalizedMessage
 from app.providers import ProviderWebhookRequest, SimulatorProvider
 
@@ -56,6 +57,20 @@ def test_wrong_signature_is_rejected() -> None:
         headers={"X-WWCX-Signature": "not-the-token"},
     )
     assert response.status_code == 401
+
+
+def test_provider_auth_failure_can_return_basic_challenge() -> None:
+    providers["bandwidth"] = BandwidthProvider(lambda: "callback-user", lambda: "callback-pass")
+    try:
+        response = client.post(
+            "/v1/webhooks/bandwidth",
+            content=b"[]",
+            headers={"Content-Type": "application/json"},
+        )
+        assert response.status_code == 401
+        assert response.headers["www-authenticate"] == BANDWIDTH_BASIC_CHALLENGE
+    finally:
+        providers.pop("bandwidth", None)
 
 
 def test_valid_simulator_webhook_is_accepted_and_idempotent() -> None:
