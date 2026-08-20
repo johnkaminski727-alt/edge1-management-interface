@@ -1,0 +1,34 @@
+{
+  "name": "wwcx-business159-authenticated-operator",
+  "version": "0.1.0",
+  "description": "Package the Business159 authenticated operator workflow with its bounded tunnel-backed MCP app.",
+  "author": {
+    "name": "Christmas Island Worldwide"
+  },
+  "homepage": "https://ww.cx/",
+  "repository": "https://github.com/johnkaminski727-alt/edge1-management-interface",
+  "keywords": [
+    "business159",
+    "wwcx",
+    "operations",
+    "shared-host",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Business159 Authenticated Operator",
+    "shortDescription": "Authenticated bounded Business159 operations",
+    "longDescription": "Operate the WW.CX Business159 shared-host account through the existing Secure MCP Tunnel with verified host/principal checks, bounded diagnostics, deployment controls, staged file changes, verification, and rollback discipline.",
+    "developerName": "Christmas Island Worldwide",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://ww.cx/",
+    "defaultPrompt": [
+      "Inspect Business159, verify the authenticated host and principal, and report current bounded operational status."
+    ]
+  }
+}
