@@ -176,7 +176,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(payload["scopes"],["edge1.security.read","edge1.security.validate"])
         self.assertNotIn("subject",payload)
     def test_console_requires_session_and_uses_nonce_csp(self):
-        self.assertEqual(self.request("GET","/edge1-ops/security/").status,401)
+        self.assertEqual(self.request("GET","/edge1-ops/security/").status,302)
         session,csrf,_=self.exchange()
         response=self.request("GET","/edge1-ops/security/",headers={"Cookie":session+"; "+csrf})
         self.assertEqual(response.status,200)
