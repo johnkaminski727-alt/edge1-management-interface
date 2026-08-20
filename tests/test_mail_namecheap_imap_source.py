@@ -250,7 +250,10 @@ def test_namecheap_imap_isolates_rejected_messages_and_continues(tmp_path):
         {"uid": "103", "reason": "invalid_message_id"},
     ]
     assert store.status()["record_count"] == 2
-    assert store.read_message("<provider-root@example.test>")["source_scope"] if False else True
+    assert (
+        store.read_message("<provider-root@example.test>")["provenance"]["scope"]
+        == "production_native"
+    )
     _assert_read_only_calls(session)
 
 
