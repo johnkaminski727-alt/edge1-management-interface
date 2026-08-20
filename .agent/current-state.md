@@ -8,17 +8,13 @@ This file is the concise cross-workstream continuation point. Historical details
 
 ## Repository / runtime reconciliation
 
-Repository `main` has advanced normally through Business159 work and is currently `234d00194cf7ef4abb6bdd466c7d9a6f1996fd99`.
-
-The accepted Edge1 Operator and Operations API production runtime remains intentionally pinned to immutable detached worktrees at:
+Repository `main` continues to advance normally through accepted operations work. The accepted Edge1 Operator and Operations API production runtime remains intentionally pinned to immutable detached worktrees at:
 
 ```text
 d326d4546abefa695a293266342a5c1075f010e2
 ```
 
-Live Operator `edge1.git_state` reports that detached runtime revision. The host snapshot independently reports the shared engineering checkout clean on `main` at `234d00194cf7ef4abb6bdd466c7d9a6f1996fd99`, matching `origin/main`.
-
-Do not treat this intentional immutable-runtime/main separation as Git drift.
+Live Operator `edge1.git_state` reports that detached runtime revision. The shared engineering checkout is a separate maintained checkout and may trail newly merged documentation/operations commits until the next deliberate fast-forward. Do not treat the intentional immutable-runtime/main separation as Git drift.
 
 ## Public Edge1 front door
 
@@ -104,7 +100,7 @@ The old tunnel-client OAuth-metadata doctor compatibility finding is historical 
 
 Fresh live service inspection shows Apache, Asterisk, Kamailio, Edge1 Operator, Operations API, Edge1 Secure MCP Tunnel, Big Bird gateway/tunnel, telephony, messaging, timekeeping, network sensor, and related core services active.
 
-Two known Big Bird connector lifecycle units remain failed and are intentionally not disturbed by unrelated work:
+Two known Big Bird connector lifecycle units remained failed at the last live snapshot and were intentionally not disturbed by the Business159 closeout itself:
 
 - `bigbird-edge1-connector-maintenance.service`;
 - `bigbird-edge1-connector.service`.
@@ -137,7 +133,9 @@ The source-controlled fail-closed classifier for the residual artifact set is me
 
 DNS, firewall, certificates, authentication policy, listeners, and production traffic remain separately gated.
 
-## Business159 / WW.CX public deployment
+## Business159 / WW.CX public deployment and authenticated operator
+
+Status: **LIVE / ACCEPTED / PERSISTENT / ARCHIVE READY** for the Business159 Secure MCP Tunnel and workspace packaging.
 
 The Business159 website deployment path remains **LIVE / ACCEPTED** under the release-owned synchronization model. Do not revert to whole-document-root `rsync --delete`.
 
@@ -149,7 +147,28 @@ release=/home/wwcxjywl/releases/ww-cx-website/20260819T201010Z
 backup=/home/wwcxjywl/shared/ww-cx-website/backups/public-html-20260819T201010Z.tar.gz
 ```
 
-The Business159 persistent tunnel/plugin work has advanced in repository `main`. Fresh Edge1 service inspection shows `business159-secure-mcp-tunnel.service` active. Treat connector-level Business159 read-only/staged-filesystem acceptance as separate until verified through the dedicated Business159 app/runtime; do not infer raw-shell or deployment authority from service activity.
+Authoritative Business159 tunnel closeout:
+
+- `docs/business159-operator/2026-08-20-persistent-tunnel-closeout.md`.
+
+Accepted tunnel/runtime state from the attended final verification:
+
+- `business159-secure-mcp-tunnel.service` active and enabled;
+- controlled restart succeeded;
+- `Restart=on-failure` retained;
+- `NODE_OPTIONS=--jitless` retained with `MemoryDenyWriteExecute=yes`;
+- health binding loopback-only;
+- `healthz=live`;
+- `readyz=ready`;
+- repository verifier passed;
+- Edge1 Operator, Edge1 Secure MCP Tunnel, and Big Bird tunnel siblings remained active/enabled;
+- final marker `BUSINESS159_PERSISTENT_TUNNEL=PASS`.
+
+Workspace packaging reached the accepted administrative state: custom app enabled, 26 actions discovered, repo-scoped Business159 plugin installed by default, required app recognized, and the obsolete standalone Business159 skill removed to avoid shadowing.
+
+The final direct connector invocation was not separately retained in the archive. The operator explicitly directed closeout to proceed on the assumption that ChatGPT-side acceptance works. Do not later rewrite this as independently captured connector evidence.
+
+The staged-filesystem smoke sequence was **not performed**. It is deferred and non-blocking for this archive closeout by operator direction. No filesystem-mutation acceptance is claimed. Deployment apply and raw shell remain separately gated and are not implied by this closeout.
 
 ## Asterisk / alerting
 
@@ -172,12 +191,12 @@ No live calls or DTMF transmission without separate explicit authorization.
 
 ## Current continuation order
 
-1. Keep the accepted Edge1 public front door, Operator publication/runtime boundary, and Business159 release-owned deployment model unchanged.
+1. Keep the accepted Edge1 public front door, Operator publication/runtime boundary, Business159 release-owned deployment model, and Business159 persistent tunnel unchanged.
 2. Reconcile and retain the five residual security-boundary inventory classifications plus exact evidence directory if still missing.
 3. Retain a final Control Surfaces executable-inventory manifest/summary and corrected Asterisk audit record if not already captured elsewhere.
-4. Continue Business159 connector-level read-only/staged-filesystem acceptance through the dedicated Business159 runtime; keep raw shell and deployment apply disabled unless separately authorized.
-5. Attribute remaining `unknown-needs-attribution` listeners through read-only provenance work before considering any exposure change.
-6. Leave DTMF provider work pending until a substantive external response arrives.
+4. Attribute remaining `unknown-needs-attribution` listeners through read-only provenance work before considering any exposure change.
+5. Leave DTMF provider work pending until a substantive external response arrives.
+6. Reopen Business159 staged-filesystem acceptance only if that mutation capability needs separate proof; treat it as a new bounded acceptance activity, not unfinished archive filing.
 
 ## Safety boundary
 
