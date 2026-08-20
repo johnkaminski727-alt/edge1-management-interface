@@ -6,6 +6,8 @@ The production shared-hosting inventory completed on 2026-07-21 and verified 13 
 
 The repository discovery registry is intentionally disabled and marked `discovery_only`. It records verified routes without inventing labels, sections, ordering, or authorization metadata.
 
+This discovery registry remains separate from the Edge1 Operator Shell. The canonical Edge1 shell registry is `config/edge1_operator/navigation_registry.json`; its architecture and acceptance rules are documented in `docs/operations/edge1-operator-shell.md`. Issue #59 remains provenance for this CX Admin discovery work and must not be treated as authorization metadata for Edge1 navigation.
+
 ## Verified routes
 
 - `/admin/bigbird-ai-chat.php`
