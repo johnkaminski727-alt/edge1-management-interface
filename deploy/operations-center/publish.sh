@@ -6,7 +6,7 @@ SOURCE="$ROOT/src/web/operations-center/index.html"
 SHELL_ROOT="$ROOT/src/web/operator-shell"
 REGISTRY="$ROOT/config/edge1_operator/navigation_registry.json"
 DEST_ROOT="/var/www/edge1-status"
-DEST="$DEST_ROOT/index.html"
+DEST="/var/www/edge1-status/index.html"
 DEST_SHELL="$DEST_ROOT/operator-shell"
 MODE="${1:-}"
 
