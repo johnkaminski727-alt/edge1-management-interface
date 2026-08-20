@@ -4,11 +4,15 @@ on:
   pull_request:
     paths:
       - 'server/control_surface_diagnostics.py'
+      - 'server/asterisk_readonly_snapshot.py'
+      - 'server/asterisk_operator_diagnostics.py'
       - 'config/edge1-operations-allowlist.json'
       - 'deploy/control-surfaces/**'
       - 'deploy/front-door/**'
+      - 'deploy/systemd/edge1-asterisk-readonly-snapshot.*'
       - 'tests/test_control_surface_diagnostics.py'
       - 'tests/test_control_surfaces_allowlist.py'
+      - 'tests/test_asterisk_operator_diagnostics.py'
       - 'tests/test_control_surfaces_apache_policy.py'
       - 'tests/test_edge1_front_door_apache_policy.py'
       - 'docs/control-surfaces/**'
@@ -18,11 +22,15 @@ on:
     branches: [main]
     paths:
       - 'server/control_surface_diagnostics.py'
+      - 'server/asterisk_readonly_snapshot.py'
+      - 'server/asterisk_operator_diagnostics.py'
       - 'config/edge1-operations-allowlist.json'
       - 'deploy/control-surfaces/**'
       - 'deploy/front-door/**'
+      - 'deploy/systemd/edge1-asterisk-readonly-snapshot.*'
       - 'tests/test_control_surface_diagnostics.py'
       - 'tests/test_control_surfaces_allowlist.py'
+      - 'tests/test_asterisk_operator_diagnostics.py'
       - 'tests/test_control_surfaces_apache_policy.py'
       - 'tests/test_edge1_front_door_apache_policy.py'
       - 'docs/control-surfaces/**'
@@ -39,13 +47,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Compile diagnostics
-        run: python3 -m py_compile server/control_surface_diagnostics.py
+        run: |
+          python3 -m py_compile server/control_surface_diagnostics.py
+          python3 -m py_compile server/asterisk_readonly_snapshot.py
+          python3 -m py_compile server/asterisk_operator_diagnostics.py
       - name: Check Apache deployment shell syntax
         run: |
           sh -n deploy/control-surfaces/install-edge1-control-surfaces-apache.sh
           sh -n deploy/front-door/install-edge1-default-http-front-door.sh
+      - name: Verify Asterisk helper systemd units
+        run: systemd-analyze verify deploy/systemd/edge1-asterisk-readonly-snapshot.service deploy/systemd/edge1-asterisk-readonly-snapshot.timer
       - name: Run Control Surfaces safety tests
-        run: python3 -m unittest tests.test_control_surface_diagnostics tests.test_control_surfaces_allowlist tests.test_control_surfaces_apache_policy tests.test_edge1_front_door_apache_policy -v
+        run: python3 -m unittest tests.test_control_surface_diagnostics tests.test_control_surfaces_allowlist tests.test_asterisk_operator_diagnostics tests.test_control_surfaces_apache_policy tests.test_edge1_front_door_apache_policy -v
       - name: Validate operations allowlist JSON
         run: python3 -m json.tool config/edge1-operations-allowlist.json >/dev/null
       - name: Assert read-only defaults
@@ -54,16 +67,16 @@ jobs:
           import json
           from pathlib import Path
           data = json.loads(Path('config/edge1-operations-allowlist.json').read_text())
-          names = [
-              'control_surfaces.summary',
-              'control_surfaces.listeners',
-              'asterisk.diagnostics',
-              'kamailio.diagnostics',
-              'freepbx.diagnostics',
-          ]
-          for name in names:
+          expected = {
+              'control_surfaces.summary': ['python3', 'server/control_surface_diagnostics.py', 'summary'],
+              'control_surfaces.listeners': ['python3', 'server/control_surface_diagnostics.py', 'listeners'],
+              'asterisk.diagnostics': ['python3', 'server/asterisk_operator_diagnostics.py'],
+              'kamailio.diagnostics': ['python3', 'server/control_surface_diagnostics.py', 'kamailio'],
+              'freepbx.diagnostics': ['python3', 'server/control_surface_diagnostics.py', 'freepbx'],
+          }
+          for name, argv in expected.items():
               action = data['actions'][name]
               assert action['mutating'] is False, name
-              assert action['argv'][:2] == ['python3', 'server/control_surface_diagnostics.py'], name
+              assert action['argv'] == argv, name
           PY
-          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server/control_surface_diagnostics.py config/edge1-operations-allowlist.json deploy/control-surfaces deploy/front-door docs/control-surfaces tests/test_control_surface_diagnostics.py tests/test_control_surfaces_allowlist.py tests/test_control_surfaces_apache_policy.py tests/test_edge1_front_door_apache_policy.py
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server/control_surface_diagnostics.py server/asterisk_readonly_snapshot.py server/asterisk_operator_diagnostics.py config/edge1-operations-allowlist.json deploy/control-surfaces deploy/front-door deploy/systemd/edge1-asterisk-readonly-snapshot.service deploy/systemd/edge1-asterisk-readonly-snapshot.timer docs/control-surfaces tests/test_control_surface_diagnostics.py tests/test_control_surfaces_allowlist.py tests/test_asterisk_operator_diagnostics.py tests/test_control_surfaces_apache_policy.py tests/test_edge1_front_door_apache_policy.py
