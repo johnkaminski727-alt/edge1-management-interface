@@ -23,7 +23,7 @@ fail() {
 [ "$(hostname -f)" = "$EXPECTED_HOST" ] || fail "wrong host: $(hostname -f)"
 [ "$TARGET" = "/etc/systemd/system" ] || fail "unexpected target: $TARGET"
 [ -d "$TARGET" ] || fail "target directory missing: $TARGET"
-for command_name in stat chown chmod install systemctl find sort cmp sha256sum runuser; do
+for command_name in stat chown chmod install systemctl find sort cmp sha256sum awk runuser; do
     command -v "$command_name" >/dev/null 2>&1 || fail "$command_name unavailable"
 done
 
@@ -48,6 +48,30 @@ echo "tunnel_unit_sha256=$unit_sha"
 [ "$unit_owner" = "root:root" ] || fail "unexpected tunnel unit owner: $unit_owner"
 [ "$unit_mode" = "644" ] || fail "unexpected tunnel unit mode: $unit_mode"
 [ "$unit_sha" = "$EXPECTED_TUNNEL_UNIT_SHA" ] || fail "unexpected tunnel unit content hash"
+
+# This is a preactivation-only repair. Pin the exact accepted service state so
+# directory metadata cannot be changed after tunnel activation or during other
+# service drift without a fresh review.
+secure_active=$(systemctl is-active edge1-secure-mcp-tunnel.service 2>/dev/null || true)
+secure_enabled=$(systemctl is-enabled edge1-secure-mcp-tunnel.service 2>/dev/null || true)
+operator_active=$(systemctl is-active edge1-operator-mcp.service 2>/dev/null || true)
+operator_enabled=$(systemctl is-enabled edge1-operator-mcp.service 2>/dev/null || true)
+bigbird_active=$(systemctl is-active bigbird-ai-tunnel.service 2>/dev/null || true)
+bigbird_enabled=$(systemctl is-enabled bigbird-ai-tunnel.service 2>/dev/null || true)
+
+echo "secure_tunnel_active=$secure_active"
+echo "secure_tunnel_enabled=$secure_enabled"
+echo "operator_active=$operator_active"
+echo "operator_enabled=$operator_enabled"
+echo "bigbird_tunnel_active=$bigbird_active"
+echo "bigbird_tunnel_enabled=$bigbird_enabled"
+
+[ "$secure_active" = "inactive" ] || fail "unexpected secure tunnel active state: $secure_active"
+[ "$secure_enabled" = "disabled" ] || fail "unexpected secure tunnel enablement: $secure_enabled"
+[ "$operator_active" = "active" ] || fail "unexpected Edge1 Operator active state: $operator_active"
+[ "$operator_enabled" = "enabled" ] || fail "unexpected Edge1 Operator enablement: $operator_enabled"
+[ "$bigbird_active" = "active" ] || fail "unexpected Big Bird tunnel active state: $bigbird_active"
+[ "$bigbird_enabled" = "enabled" ] || fail "unexpected Big Bird tunnel enablement: $bigbird_enabled"
 
 if [ "$owner" = "$DESIRED_OWNER" ] && [ "$mode" = "$DESIRED_MODE" ]; then
     echo "status=already_safe"
