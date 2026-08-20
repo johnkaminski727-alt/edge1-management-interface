@@ -7,6 +7,7 @@ SERVICE=business159-secure-mcp-tunnel.service
 SERVICE_USER=business159-operator
 ETC_DIR=/etc/business159-tunnel
 SSH_DIR=/etc/business159-operator
+POLICY_FILE=$SSH_DIR/runtime-policy
 STATE_DIR=/var/lib/business159-operator
 LIBEXEC_DIR=/usr/local/libexec/business159-tunnel
 UNIT=/etc/systemd/system/$SERVICE
@@ -52,6 +53,46 @@ if id "$SERVICE_USER" >/dev/null 2>&1; then
     case "$shell" in /usr/sbin/nologin|/sbin/nologin) ;; *) echo "existing $SERVICE_USER has interactive shell: $shell" >&2; exit 10 ;; esac
 fi
 
+validate_runtime_policy() {
+    [ ! -e "$POLICY_FILE" ] && return 0
+    [ ! -L "$POLICY_FILE" ] && [ -f "$POLICY_FILE" ] || { echo "runtime policy must be a regular non-symlink file: $POLICY_FILE" >&2; exit 17; }
+    id "$SERVICE_USER" >/dev/null 2>&1 || { echo "runtime policy exists but $SERVICE_USER account is missing" >&2; exit 18; }
+    owner=$(stat -c '%U:%G' "$POLICY_FILE")
+    mode=$(stat -c '%a' "$POLICY_FILE")
+    [ "$owner" = root:$SERVICE_USER ] && [ "$mode" = 640 ] || { echo "unsafe owner/mode for $POLICY_FILE: $owner $mode" >&2; exit 19; }
+    python3 - "$POLICY_FILE" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+entries = {}
+for raw in path.read_text(encoding='utf-8').splitlines():
+    line = raw.strip()
+    if not line:
+        continue
+    if '=' not in line:
+        raise SystemExit(f'invalid runtime policy line: {line!r}')
+    key, value = line.split('=', 1)
+    if key in entries:
+        raise SystemExit(f'duplicate runtime policy key: {key}')
+    entries[key] = value
+required = {
+    'BUSINESS159_ALLOW_DEPLOY',
+    'BUSINESS159_ALLOW_FILESYSTEM',
+    'BUSINESS159_ENABLE_RAW_SHELL',
+}
+if set(entries) != required:
+    raise SystemExit('runtime policy must contain exactly the three approved Business159 mutation gates')
+if entries['BUSINESS159_ALLOW_DEPLOY'] != '0':
+    raise SystemExit('runtime policy may not enable Business159 deployment apply')
+if entries['BUSINESS159_ENABLE_RAW_SHELL'] != '0':
+    raise SystemExit('runtime policy may not enable Business159 raw shell')
+if entries['BUSINESS159_ALLOW_FILESYSTEM'] not in {'0', '1'}:
+    raise SystemExit('runtime policy filesystem gate must be 0 or 1')
+PY
+}
+
+validate_runtime_policy
+
 (
     cd "$MCP_ROOT"
     "$NODE_BIN" -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')])" >/dev/null 2>&1
@@ -83,6 +124,7 @@ install -o root -g "$SERVICE_USER" -m 0640 "$ROOT/deploy/business159-tunnel/tunn
 install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/business159-secure-mcp-tunnel.sh" "$LIBEXEC_DIR/business159-secure-mcp-tunnel.sh"
 install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/business159-live-shell.sh" "$LIBEXEC_DIR/business159-live-shell.sh"
 install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/ssh" "$LIBEXEC_DIR/ssh"
+install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/set-business159-filesystem-smoke-mode.sh" "$LIBEXEC_DIR/set-business159-filesystem-smoke-mode.sh"
 install -o root -g root -m 0644 "$ROOT/deploy/business159-tunnel/business159-secure-mcp-tunnel.service" "$UNIT"
 systemctl daemon-reload
 systemd-analyze verify "$UNIT"
@@ -93,6 +135,7 @@ for f in "$ETC_DIR/runtime-api-key" "$ETC_DIR/tunnel-id" "$SSH_DIR/ssh_config" "
         [ "$owner" = root:$SERVICE_USER ] && [ "$mode" = 640 ] || { echo "existing $(basename "$f") has unexpected owner/mode: $owner $mode" >&2; exit 15; }
     }
 done
+validate_runtime_policy
 
 if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null || systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
     echo "refusing: staging must not activate or enable Business159 tunnel" >&2; exit 16
