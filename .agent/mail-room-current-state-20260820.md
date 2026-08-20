@@ -1,57 +1,174 @@
-# Mail Room verified repository state — 2026-08-20
-
-## Why this file exists
-
-`.agent/mail-room-current-state-20260818.md` (and its companion `-backlog-`/`-handoff-`/`-validation-` files from the same date) were never refreshed after Phase 27/28 landed. Reading only those files gives a false picture: they describe the system as of PR #369 (`50f5ef62`), but `main` has since merged roughly 30+ additional Mail Room commits. This file supersedes them for current-state purposes; the 20260818 files remain as historical record and should not be treated as authoritative for anything past `50f5ef62`.
+# Mail Room verified state — 2026-08-20
 
 ## Authoritative checkpoint
 
 Repository: `johnkaminski727-alt/edge1-management-interface`
 
-Verified at inspection time: `main` = `c4a4b71de9393c1c47792e50e424c72488ce2be1` (PR #486, merged 2026-08-20T15:51Z). Working tree clean except an unrelated pre-existing case-collision artifact between `skills/wwcx-engineering-agent/SKILL.md` and `skill.md` on case-insensitive filesystems (not touched, not a Mail Room concern — worth a separate repo-hygiene fix at some point: two filenames differing only by case cannot both check out correctly on Windows/macOS).
+Use `main` at or after `942ab5b957ad89075ef27ff977b3c39e3ee8dca9` (PR #490) for the state described here.
 
-CI at this commit is green: "Validate repository", "WW.CX Messaging Gateway", and "Edge1 Operator Validation" workflows all report `success`.
+This file supersedes the 20260818 Mail Room state and the earlier version of this 20260820 file. Historical files remain useful evidence but are not current resume points.
 
-## What changed since the 20260818 checkpoint (PR #369 → HEAD)
+## Current interpretation
 
-A local-functional correspondence path was added on top of the PR #369 foundation:
+The WW.CX Mail Room is no longer missing a local correspondence path or a provider-native source implementation.
 
-- `server/mail_correspondence_store.py` — private SQLite correspondence store. Immutable per-record provenance (`source`, `source_authoritative`, `source_scope`); scope is one of `synthetic`, `local_native`, `production_native`, `legacy_unscoped`. Only `local_native`/`production_native` + `authoritative=true` records are readable by the AI adapter (`READABLE_AUTHORITATIVE_SCOPES`). File is created `0600`; a read-only open rejects any file with group/world bits set (`st_mode & 0o077`).
-- `server/mail_local_rfc822_source.py` + `tools/mail_local_intake.py` — safe fallback native source. Parses local RFC822 bytes only (no network), requires a text/plain body, canonical `Message-ID`/`In-Reply-To`/`References`, and a timezone-bearing `Date`. Ingests as `source_scope=local_native`, `source_authoritative=true`. The intake CLI hard-constrains the target database to `/var/lib/wwcx-mail-room` (`ddfebe96 "Constrain local mail intake to private root"`) and always reports `send_authorized: false`, `mutation_authorized: false`, `network_activity: false`.
-- `server/mail_ai_adapter.py` — bounded Private AI capabilities: `mail.status.read`, `mail.correspondence.read`, `mail.draft.prepare`. Correspondence reads are **disabled by default** and only become available when *all* of the following hold:
-  1. `WWCX_MAIL_CORRESPONDENCE_READ_ENABLED=true` is set in the adapter's environment (default `false`);
-  2. a database file exists at the configured path (default `/var/lib/wwcx-mail-room/correspondence.sqlite3`, overridable via `WWCX_MAIL_CORRESPONDENCE_DB` but still constrained under `/var/lib/wwcx-mail-room`);
-  3. that database contains at least one record with an authoritative `local_native` or `production_native` source.
-  Absent any of these, `correspondence_read_state()` reports `blocked_configuration_disabled`, `blocked_store_unavailable`, or `blocked_no_authoritative_records` rather than failing hard — this is fail-closed by design, not an error condition.
-- `server/outbound_mail_gateway_server.py` / `server/outbound_mail_runtime_application.py` — the loopback HTTP admin API (port `8104`, `127.0.0.1`-only) now exposes authenticated correspondence-read endpoints (`/outbound-mail/api/v1/correspondence/status|message/{id}|thread/{id}`) gated to a single dedicated client id (`wwcx-private-ai`) distinct from the existing `wwcx-website-admin` HMAC client — the two client identities cannot borrow each other's authority (`validate_mail_correspondence_client_isolation.py`).
-- `integrations/bigbird_mail/` — a loopback `MailGatewayClient` (HMAC-signed, hard-pinned to `http://127.0.0.1:8104`) plus BigBird tool wrappers. `integrations/bigbird-mail/tool-manifest.json` declares `mail.status.read`, `mail.correspondence.read`, `mail.draft.prepare` as the only tools, explicitly forbids `mail.send`, `mail.route.modify`, `generic.execute`, `quarantine.release`, and ships with **`default_enabled: false`** — BigBird does not get Mail Room tool access unless a separate BigBird-side config change turns it on.
+Verified layers now are:
 
-None of this changes the production-activation posture below — it is entirely new *local, prepare-only, read-gated* capability layered on the existing fail-closed foundation.
+1. **Local Mail Room runtime** — live-accepted on Edge1 on 2026-08-19.
+2. **Current Edge1 service/listener presence** — re-verified read-only on 2026-08-20.
+3. **Namecheap provider inventory** — physical mailboxes and Catch-All reconciled read-only from provider support evidence.
+4. **Namecheap provider-native IMAP source** — implemented, tested, merged, but deliberately unactivated.
+5. **Current public DNS provider** — fresh Cloudflare + Google resolver consensus on 2026-08-20 still points `ww.cx` MX to Namecheap Private Email.
 
-## Why the mailbox looked "not usable" — verified finding
+Production mail sending, live provider login/ingestion, automatic replies, DNS changes, and provider mutation remain separately gated.
 
-There is no code defect. Every Mail Room-focused test/validator in the repo passes (see Evidence). The perceived non-functionality has two independent, non-bug causes:
+## Live Edge1 evidence
 
-1. **Documentation drift** (fixed by this file): the `.agent` state files an operator or agent would read first were 2+ days stale and undersold what already exists — most importantly, that a working local correspondence read/draft path exists at all.
-2. **Un-activated by design, on two separate axes**, neither of which is a defect:
-   - *Production axis* (unchanged since PR #369): inbound routing, outbound provider delivery, live sender allow-list, and automatic replies are all still `enabled: false` / `*_authorized: false` in committed configuration. This requires the privileged external actions in `docs/messaging-operations/mail-room-production-activation-checklist-20260818.md` (provider inventory, DNS/SPF/DKIM/DMARC, scanner runtime, credentials) — none of which this session can or should perform.
-   - *Local-functional axis* (new): even the read-only local correspondence path ships **off** by default (`WWCX_MAIL_CORRESPONDENCE_READ_ENABLED` unset) and **empty** (no RFC822 message has been ingested via `tools/mail_local_intake.py` into `/var/lib/wwcx-mail-room/correspondence.sqlite3` as far as this session can verify — see Blocked verification below). Turning this on is a bounded, reversible, non-production operator action (env var + running the intake CLI against real local mail files), not a code change — but it still requires action on the actual Edge1 host, which this session cannot reach.
+### 2026-08-19 accepted local-functional Mail Room
 
-## Blocked verification — no live Edge1 host access in this session
+`docs/communications/unified-communications-live-acceptance-20260819.md` records a successful live acceptance on Edge1:
 
-This session (Claude Code / "Fen") has git/GitHub access to this repository but **no connection to the Edge1 Operator MCP surface** (`edge1.health`, `edge1.messaging_status`, `edge1.services`, etc. — see `docs/edge1-operator/tool-contract.md`) that Gus/ChatGPT normally uses to inspect the live host. Everything above was verified against the repository (source, config, CI results, `git log`) and against local execution of the mail test suite; nothing above is a claim about the live Edge1 host's actual running state, because this session has no channel to observe it.
+- `wwcx-outbound-mail-gateway.service` running as `wwcx-mail-gateway:wwcx-mail-gateway`;
+- loopback listener `127.0.0.1:8104`;
+- runtime entry point `server/outbound_mail_gateway_runtime_server.py`;
+- `/var/lib/wwcx-mail-room` mode `0700`;
+- `/var/lib/wwcx-mail-room/correspondence.sqlite3` mode `0600`, owned by `wwcx-mail-gateway`;
+- two authoritative `local_native` RFC822 fixtures persisted into one explicit thread;
+- dedicated `wwcx-private-ai` correspondence status returned `ready_local_native`;
+- message and thread reads passed;
+- prompt-like content remained untrusted;
+- nonce replay failed closed;
+- BigBird Mail status/read/thread/prepared-draft integration passed;
+- drafts remained `prepared_not_sent`;
+- provider selected `none`, `production_provider_ready=false`, external delivery false, send endpoint disabled.
 
-Concretely blocked without that access:
-- Whether `wwcx-outbound-mail-gateway.service` (`deploy/messaging/wwcx-outbound-mail-gateway.service`) is installed and running on Edge1.
-- Whether `WWCX_MAIL_CORRESPONDENCE_READ_ENABLED` is set in that service's environment.
-- Whether `/var/lib/wwcx-mail-room/correspondence.sqlite3` exists on Edge1 and whether any messages have been ingested into it.
-- General host/service health, logs, and listener state.
+This disproves the earlier assumption that the correspondence store was merely theoretical or necessarily empty.
 
-**Smallest concrete next action**: have an agent/session with Edge1 Operator MCP access (Gus, or a Fen session with that connector attached) run `edge1.messaging_status` (and `edge1.services` if needed) and report back the outbound-mail-gateway service state, whether the correspondence env var is set, and whether the correspondence DB/file exists. That single read-only call resolves the remaining uncertainty in this file without any privileged or irreversible action.
+### 2026-08-20 fresh bounded checks
 
-## Evidence (this session, 2026-08-20)
+A Gus/ChatGPT session with the Edge1 Operator connector subsequently verified:
 
-- `git log --oneline -25` on `main`, `git log 50f5ef62..HEAD --stat` for mail-touching paths — confirms 30+ merged Mail Room commits after the 20260818 checkpoint.
-- `gh run list --branch main --json ...` — "Validate repository", "WW.CX Messaging Gateway", "Edge1 Operator Validation" all `success` at `c4a4b71d`.
-- Local run of `tests/validate_outbound_mail_gateway.py` (52 tests OK), `tests/validate_mail_ai_adapter.py`, `tests/validate_mail_correspondence_client_isolation.py`, `tests/test_mail_threading.py`, `tests/test_mail_quarantine.py`, `tests/test_mail_threat_decision.py`, `tests/test_mail_config_consistency.py`, `tests/test_outbound_mail_admin_assets.py` — all pass.
-- `tests/validate_mail_correspondence_store.py`, `tests/validate_mail_correspondence_functional.py`, and `tests/validate_outbound_mail_runtime_correspondence.py` fail *in this Windows session only*: SQLite file-handle cleanup and POSIX `chmod`/permission-bit checks behave differently on NTFS/Windows than on the Linux hosts CI and Edge1 run on (e.g. `path.chmod(0o644)` does not reliably clear group/world bits on Windows, tripping the store's `st_mode & 0o077` guard; SQLite keeps a Windows file handle open past `TemporaryDirectory` cleanup). These are confirmed environment artifacts, not repository defects — the same tests are part of the green "WW.CX Messaging Gateway" CI run on Linux at this commit.
+- `edge1.messaging_status` -> `status=ok`;
+- `wwcx-outbound-mail-gateway.service` -> loaded, active, running;
+- `postfix@-.service` -> active, running;
+- `wwcx-messaging-gateway.service` -> active, running;
+- `127.0.0.1:8104` remains a loopback-only listener;
+- BigBird remains healthy and advertises the bounded Mail tools `mail.status.read`, `mail.correspondence.read`, and `mail.draft.prepare`.
+
+The bounded Operator surface does **not** expose arbitrary live systemd environment/drop-in contents or correspondence-database contents, so it has not independently re-read the current value of `WWCX_MAIL_CORRESPONDENCE_READ_ENABLED` or counted the current DB rows. Do not infer those details from service health alone. The strongest host evidence remains the 2026-08-19 accepted `ready_local_native` result plus the 2026-08-20 active service/listener state.
+
+## Runtime-path clarification
+
+The committed base unit `deploy/messaging/wwcx-outbound-mail-gateway.service` describes the disabled foundation and starts `outbound_mail_gateway_server.py`.
+
+The accepted live runtime used `outbound_mail_gateway_runtime_server.py`. This is not an unexplained mismatch: the repository contains `deploy/messaging/install-outbound-mail-disabled-runtime-migration.sh`, which installs a reversible systemd drop-in overriding the runtime entry point while preserving the fail-closed provider/delivery state.
+
+Do not replace that migration/drop-in model casually.
+
+## Provider-native Namecheap source — merged but not activated
+
+### PR #488 — initial read-only source
+
+Merged as `5783f9d4c3a48e62af8a766bb8bac2c99dbedc0a`.
+
+Added:
+
+- `server/mail_namecheap_imap_source.py`;
+- `tests/test_mail_namecheap_imap_source.py`;
+- `.github/workflows/mail-namecheap-imap-source.yml`;
+- `docs/messaging/namecheap-private-email-imap-source-20260820.md`.
+
+The source:
+
+- hard-pins `mail.privateemail.com:993`;
+- uses verified TLS;
+- requires a full mailbox address as username;
+- accepts a credential only through runtime injection and does not persist/return it;
+- selects only `INBOX` read-only;
+- uses `UID SEARCH` and `UID FETCH ... (BODY.PEEK[])`;
+- implements no STORE/MOVE/COPY/DELETE/EXPUNGE/APPEND/SMTP operation;
+- reuses the existing strict RFC822 normalizer;
+- persists accepted records as source `namecheap-private-email-imap`, scope `production_native`, authoritative `true`;
+- preserves `content_is_untrusted=true`, `send_authorized=false`, `mutation_authorized=false`;
+- is not registered, scheduled, deployed, or live-enabled merely because the source exists.
+
+### PR #489 — fail-closed per-message hardening
+
+Merged as `9a0f1d51e3bd458c6ca1a6bee80d78f4f047de67`.
+
+Hardening includes:
+
+- numeric UID ordering before bounded tail selection;
+- malformed/unsupported provider messages held out and reported by UID;
+- safe neighboring messages continue rather than the entire inbox pass aborting;
+- strict parsing is not weakened;
+- `failed_count` and `complete` make partial ingestion explicit;
+- source/session failures still abort the pass.
+
+Exact-head provider-source tests passed, including idempotency, read-only command restrictions, bounded UID behavior, HTML-only rejection isolation, missing-Message-ID isolation, invalid configuration, and login failure.
+
+## Verified Namecheap provider state
+
+### Provider-admin inventory — 2026-08-02
+
+Namecheap Private Email support ticket `NC-JDV-2953` established read-only provider-visible facts for `ww.cx`:
+
+- Pro subscription active through 2026-11-14;
+- three mailbox slots total;
+- active physical mailboxes: `blank@ww.cx`, `domaincontact@ww.cx`;
+- no aliases on either physical mailbox;
+- one unused mailbox slot;
+- Catch-All enabled to `blank@ww.cx`;
+- mailbox-level auto-forward/filter rules were not inspectable by support and remain unverified.
+
+Physical provider mailboxes are transport plumbing. They do not replace WW.CX logical identities such as `john-inbox@ww.cx` and `maildesk@ww.cx`.
+
+### Fresh public DNS — 2026-08-20 22:53 UTC
+
+PR #490 triggered the existing read-only `mail-domain-inventory` workflow. Cloudflare and Google resolvers agreed:
+
+- MX: `10 mx1.privateemail.com`, `20 mx2.privateemail.com`;
+- SPF: `v=spf1 include:spf.privateemail.com ~all`;
+- authoritative nameservers: Dyn (`ns1194`, `ns2150`, `ns3190`, `ns4142.dns.dyn.com`);
+- no published DMARC record;
+- provider inference: `namecheap_private_email`, confidence `high`.
+
+Google Workspace onboarding mail seen on 2026-08-16 still instructed the administrator to verify the domain before custom-domain Gmail use. No later activation notice was found in the connected Gmail account. The fresh MX evidence therefore establishes that Namecheap Private Email remains the current public inbound provider.
+
+PR #490 merged as `942ab5b957ad89075ef27ff977b3c39e3ee8dca9` and updated `config/messaging/mail-provider-inventory.json` plus its validator. All exact-head Mail Room, DNS, Edge1 Operator, and repository-wide validation passed before merge.
+
+## Identity and Catch-All limitation
+
+Namecheap Catch-All to `blank@ww.cx` can receive otherwise-unprovisioned `@ww.cx` local parts, but an IMAP-fetched RFC822 message does not universally prove the SMTP envelope recipient. `To`/`Cc` may omit Bcc or differ from the original Catch-All local part.
+
+Before provider-native Mail is treated as identity-complete, one separately authorized read-only canary must inspect real Namecheap-delivered headers for reliable original-recipient evidence (`Delivered-To`, `X-Original-To`, or equivalent). If no reliable provider header exists, identity-sensitive automation must fail closed rather than guess.
+
+## Current activation posture
+
+Still deliberately disabled/unproven:
+
+- live IMAP login and provider-native ingestion;
+- any scheduled Namecheap mailbox polling service;
+- mailbox-level forwarding/filter verification;
+- provider mailbox/alias provisioning or changes;
+- live external inbound acceptance canary;
+- live outbound provider delivery and sender allow-list;
+- automatic replies;
+- production DNS changes;
+- final Mail inbound/outbound scanner-runtime activation;
+- quarantine release/deletion authority.
+
+No mailbox credentials have been requested, displayed, stored, or used by PRs #488–#490.
+
+## Smallest next activation step
+
+The provider-native engineering bridge now exists. The next step crosses a protected live-access boundary:
+
+1. choose the physical mailbox for the first canary (likely `blank@ww.cx` because Catch-All currently targets it, but do not assume without an explicit activation decision);
+2. identify an approved secret location without exposing the credential;
+3. explicitly authorize one bounded **read-only** Namecheap IMAP canary;
+4. fetch only a small bounded tail with the merged source;
+5. verify TLS, UIDVALIDITY/UID behavior, provider headers/original-recipient evidence, duplicate handling, `production_native` provenance, and Mail Room read behavior;
+6. do not send, mark Seen, move, delete, alter provider configuration, or enable automatic replies.
+
+Until that specific live canary is authorized, the correct state is **provider-native source implemented and validated, activation pending**.
