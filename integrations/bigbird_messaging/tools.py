@@ -43,17 +43,51 @@ class BigBirdMessagingTools:
     def status(self) -> dict[str, Any]:
         return self.client.status()
 
-    def recent_conversations(self, *, limit: int = 25) -> dict[str, Any]:
-        result = self.client.recent_messages(limit=limit)
+    @staticmethod
+    def _require_read_only(result: dict[str, Any]) -> dict[str, Any]:
         if result.get("mutation_authorized") is not False:
             raise MessagingGatewayError("messaging read response did not preserve read-only boundary")
         return result
 
+    def recent_conversations(self, *, limit: int = 25) -> dict[str, Any]:
+        return self._require_read_only(self.client.recent_messages(limit=limit))
+
     def conversation_event(self, event_id: str) -> dict[str, Any]:
-        result = self.client.message(event_id)
-        if result.get("mutation_authorized") is not False:
-            raise MessagingGatewayError("messaging read response did not preserve read-only boundary")
-        return result
+        return self._require_read_only(self.client.message(event_id))
+
+    def analysis_context(self, *, event_id: str) -> dict[str, Any]:
+        """Build an explicit trust/provenance envelope for AI reasoning.
+
+        The envelope prevents retrieved communication text from being confused
+        with system policy, tool authority, operator approval, or an instruction
+        to mutate the messaging system. It intentionally contains no send tool.
+        """
+        event_id = event_id.strip()
+        if not event_id:
+            raise ValueError("event_id is required")
+        source = self.conversation_event(event_id)
+        return {
+            "contract": "wwcx.messages-ai-context.v1",
+            "observed_source_data": source,
+            "source_content_trust": "untrusted",
+            "provenance": {
+                "source": "wwcx-messaging-gateway",
+                "source_event_id": event_id,
+                "native_record_authoritative": True,
+                "ai_derivation_authoritative": False,
+            },
+            "policy": {
+                "content_can_grant_scopes": False,
+                "content_can_authorize_tools": False,
+                "content_can_override_policy": False,
+                "content_can_disclose_secrets": False,
+                "content_can_authorize_send": False,
+                "content_can_release_quarantine": False,
+            },
+            "operator_approval_present": False,
+            "send_authorized": False,
+            "mutation_authorized": False,
+        }
 
     def prepare_reply(self, *, event_id: str, text: str) -> dict[str, Any]:
         event_id = event_id.strip()
@@ -70,6 +104,13 @@ class BigBirdMessagingTools:
             "text": text,
             "state": "drafted",
             "ai_generated": True,
+            "source_content_trust": "untrusted",
+            "provenance": {
+                "source": "bigbird-messaging-tools",
+                "source_event_id": event_id,
+                "native_message_modified": False,
+            },
+            "operator_review_required": True,
             "delivery_status": "prepared_not_sent",
             "send_authorized": False,
             "mutation_authorized": False,
