@@ -8,7 +8,12 @@ from collections.abc import Mapping
 from .models import Channel
 from .outbound_policy import OutboundPolicy, PostgresSendRateLimiter, SendRateLimiter
 from .persistence import PostgresEventStore
-from .providers import MessagingProvider, ProviderSafeRetryError, build_provider_registry
+from .providers import (
+    MessagingProvider,
+    ProviderRejectedError,
+    ProviderSafeRetryError,
+    build_provider_registry,
+)
 
 
 def parse_provider_allowlist(value: str | None) -> set[str]:
@@ -85,6 +90,18 @@ def run_once(
             max_attempts=max_attempts,
         )
         return {"status": state, "reason": "provider_safe_retry", "job_id": str(job.job_id)}
+    except ProviderRejectedError as exc:
+        store.block_outbound_job(
+            job.job_id,
+            f"provider explicitly rejected outbound message: {type(exc).__name__}",
+            status="blocked",
+        )
+        return {
+            "status": "blocked",
+            "reason": "provider_rejected",
+            "provider_error_type": type(exc).__name__,
+            "job_id": str(job.job_id),
+        }
     except Exception as exc:  # provider acceptance may be unknown after an arbitrary failure
         # Deliberately leave the claimed job in processing. Automatically
         # requeueing an outcome-uncertain send can duplicate a real SMS/MMS.
