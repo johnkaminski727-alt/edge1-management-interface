@@ -17,4 +17,8 @@ For Operations Center freshness, compare Edge1 producer evidence with `business1
 
 When one side is unavailable, diagnose the reachable side and clearly identify the missing evidence. Do not compensate for a connector outage with unrestricted shell or stale memory.
 
+## Attended cross-host handoff
+
+When human-pasted commands are necessary, follow `docs/operator-pastebox-convention.md`. Never combine commands for Edge1 and Business159 in one ambiguous paste box. Give each host its own numbered box with a visible `SERVER: <host> — <action>` title and an in-box `SERVER`/expected `USER`/`ACTION`/`SCOPE` banner. State the execution order and, after each box, explicitly say where its resulting output must be deposited before moving to the next host.
+
 Keep mutations host-specific: Edge1 changes use the Edge1 authenticated/filesystem workflows; Business159 changes use Business159 deploy/staged-filesystem workflows. DNS, firewall, certificates, authentication, public exposure, and production traffic remain separately gated.
