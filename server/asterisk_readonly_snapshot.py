@@ -108,10 +108,11 @@ def build_snapshot() -> dict:
 
 def write_snapshot(snapshot: dict, path: Path = SNAPSHOT_PATH) -> None:
     parent = path.parent
-    expected_parent = SNAPSHOT_PATH.parent
-    if parent.resolve(strict=True) != expected_parent.resolve(strict=True):
+    if parent.is_symlink():
+        raise RuntimeError("Asterisk diagnostic snapshot directory must not be a symlink")
+    if parent.resolve(strict=True) != SNAPSHOT_PATH.parent:
         raise RuntimeError("Asterisk diagnostic snapshot parent path drift")
-    if path.exists() and path.is_symlink():
+    if path.is_symlink():
         raise RuntimeError("Asterisk diagnostic snapshot path must not be a symlink")
 
     temporary_name = None
