@@ -56,13 +56,22 @@ class MessagingProvider(ABC):
 
     @abstractmethod
     def verify_webhook(self, request: ProviderWebhookRequest) -> bool:
-        """Return True only for authentic callbacks inside the provider replay window.
+        """Return True only for authentic callbacks under provider rules.
 
-        Authentication, signature verification, timestamp freshness, and replay-
-        window enforcement are adapter obligations. The shared route deliberately
-        does not invent provider-specific header or timing rules.
+        Authentication, signature verification, timestamp freshness, replay-window
+        enforcement, or HTTP challenge semantics are adapter obligations. The shared
+        route deliberately does not invent provider-specific header or timing rules.
         """
         raise NotImplementedError
+
+    def webhook_auth_failure_headers(self) -> dict[str, str]:
+        """Return provider-specific headers for a 401 authentication challenge.
+
+        Most providers need no challenge header. Providers such as Bandwidth that
+        authenticate callbacks with HTTP Basic Auth can override this without making
+        the shared webhook route carrier-specific.
+        """
+        return {}
 
     @abstractmethod
     def normalize_webhook(self, request: ProviderWebhookRequest) -> NormalizedMessage:
