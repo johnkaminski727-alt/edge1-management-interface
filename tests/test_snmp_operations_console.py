@@ -9,6 +9,9 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
     def setUpClass(cls):
         cls.source = Path("src/web/operations-center/snmp.html").read_text(encoding="utf-8")
         cls.publisher = Path("deploy/operations-center/publish.sh").read_text(encoding="utf-8")
+        cls.apache_noindex = Path(
+            "deploy/apache/edge1-status-operations-center-no-index.conf"
+        ).read_text(encoding="utf-8")
 
     def test_same_origin_authenticated_adapter_is_used(self):
         self.assertIn("/edge1-ops/api/v1/snmp", self.source)
@@ -36,6 +39,14 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
     def test_back_link_returns_to_published_operations_center(self):
         self.assertIn('href="/edge1-status/">Back to Operations Center</a>', self.source)
         self.assertNotIn('href="/edge1-status/operations-center/">Back to Operations Center</a>', self.source)
+
+    def test_public_snmp_handoff_directory_disables_autoindex(self):
+        self.assertIn(
+            '<Directory "/var/www/edge1-status/operations-center">',
+            self.apache_noindex,
+        )
+        self.assertIn("Options -Indexes", self.apache_noindex)
+        self.assertNotIn("Options Indexes", self.apache_noindex)
 
     def test_dangerous_controls_are_absent(self):
         self.assertIn("SNMP SET: <strong>Disabled by policy</strong>", self.source)
