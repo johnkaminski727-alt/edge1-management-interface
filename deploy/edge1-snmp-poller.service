@@ -1,0 +1,24 @@
+[Unit]
+Description=WW.CX Edge1 SNMP polling, host telemetry, alerting and retention cycle
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/usr/local/libexec/edge1-snmp
+Environment=EDGE1_SNMP_DB=/var/lib/edge1-snmp/snmp.sqlite3
+Environment=EDGE1_SNMP_CONFIG=/etc/edge1-snmp/config.json
+Environment=EDGE1_SNMP_PROFILE_DIR=/etc/edge1-snmp/profiles
+Environment=EDGE1_SNMP_STATUS_OUTPUT=/var/www/edge1-status/snmp/operations-snmp.json
+ExecStart=/usr/bin/python3 /usr/local/libexec/edge1-snmp/edge1_snmp_cycle.py
+ExecStart=/usr/bin/python3 /usr/local/libexec/edge1-snmp/edge1_snmp_server_pollers.py poll-local --poller-id edge1 --display-name "Edge1 Server" --observer-host edge1.ww.cx --disk-path / --import-path /var/lib/edge1-snmp/server-pollers/business159-measurements.jsonl --retention-days 30
+ExecStartPost=/usr/bin/python3 /usr/local/libexec/edge1-snmp/operations_snmp_exporter.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/usr/local/libexec/edge1-snmp /etc/edge1-snmp
+ReadWritePaths=/var/lib/edge1-snmp /var/www/edge1-status/snmp
+UMask=0077

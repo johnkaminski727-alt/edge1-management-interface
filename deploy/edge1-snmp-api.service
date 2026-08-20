@@ -1,0 +1,30 @@
+[Unit]
+Description=WW.CX Edge1 SNMP Control API
+Requires=edge1-snmp-ai-identity.service
+After=network-online.target edge1-snmp-ai-identity.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/usr/local/libexec/edge1-snmp
+Environment=EDGE1_SNMP_DB=/var/lib/edge1-snmp/snmp.sqlite3
+Environment=EDGE1_SNMP_CONFIG=/etc/edge1-snmp/config.json
+Environment=EDGE1_SNMP_PROFILE_DIR=/etc/edge1-snmp/profiles
+Environment=EDGE1_SNMP_API_SECRET_FILE=/etc/edge1-snmp/api.secret
+LoadCredential=bb_relay_key_id:/run/edge1-snmp-ai-identity/bb_relay_key_id
+LoadCredential=bb_relay_secret:/run/edge1-snmp-ai-identity/bb_relay_secret
+ExecStart=/usr/bin/python3 /usr/local/libexec/edge1-snmp/edge1_snmp_api.py --host 127.0.0.1 --port 8112
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/usr/local/libexec/edge1-snmp /etc/edge1-snmp
+ReadWritePaths=/var/lib/edge1-snmp
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

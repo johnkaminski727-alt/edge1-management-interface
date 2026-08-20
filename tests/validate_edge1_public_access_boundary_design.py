@@ -74,7 +74,30 @@ class Edge1PublicAccessBoundaryDesignTests(unittest.TestCase):
         self.assertIn("security-correlation.json", self.domain_register)
         self.assertIn("network-defense/data/network-defense.json", self.domain_register)
         self.assertIn('DEST="/var/www/edge1-status/index.html"', self.publisher)
-        self.assertIn('install -m 0644 "$SOURCE" "$DEST"', self.publisher)
+        # Keep the Operations Center link on the public handoff. The handoff
+        # enters the authenticated SNMP route first so Edge1 can establish the
+        # bounded return state before redirecting an unauthenticated browser to
+        # the existing WW.CX identity bridge.
+        self.assertIn('cp "$SOURCE" "$TMP_INDEX"', self.publisher)
+        self.assertNotIn(
+            'sed \'s#/edge1-status/operations-center/snmp.html#/edge1-ops/snmp/#g\'',
+            self.publisher,
+        )
+        self.assertIn(
+            'href="/edge1-ops/snmp/">Open authenticated SNMP Operations</a>',
+            self.publisher,
+        )
+        self.assertNotIn(
+            'href="https://ww.cx/admin/edge1-security-login.php">Sign in through WW.CX to continue</a>',
+            self.publisher,
+        )
+        self.assertIn('bounded "snmp" return state', self.publisher)
+        self.assertIn("existing WW.CX identity bridge", self.publisher)
+        self.assertIn("return you here after authentication", self.publisher)
+        self.assertIn('install -m 0644 "$TMP_INDEX" "$DEST"', self.publisher)
+        self.assertIn('install -m 0644 "$TMP_SNMP" "$SNMP_DEST"', self.publisher)
+        self.assertIn('This operator console requires an authenticated Edge1 session.', self.publisher)
+        self.assertNotIn('install -m 0644 "$SNMP_SOURCE" "$SNMP_DEST"', self.publisher)
 
     def test_operations_page_consumes_mixed_detailed_feeds(self) -> None:
         for feed in (

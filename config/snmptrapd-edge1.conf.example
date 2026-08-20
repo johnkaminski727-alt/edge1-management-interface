@@ -1,0 +1,9 @@
+# WW.CX Edge1 SNMP trap receiver template.
+# Do not store SNMPv3 passphrases in the repository. Provision users in the
+# Net-SNMP persistent secret store on Edge1, then reference only the username.
+#
+# authUser log,execute,net <provisioned-snmpv3-username> priv
+# traphandle default /usr/bin/python3 /opt/edge1-management-interface/tools/edge1_snmp_trap_ingest.py
+#
+# Bind/address and firewall scope are intentionally not specified here. They
+# must be derived from the authenticated Edge1 inspection and trusted networks.

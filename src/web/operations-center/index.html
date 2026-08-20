@@ -32,6 +32,7 @@
 <a class="card module-card" href="/edge1-status/security/"><h3>Security Operations</h3><small>IDS health, alerts and validation.</small></a>
 <a class="card module-card" href="/edge1-status/security/correlation.html"><h3>Security Correlation</h3><small>Read-only cross-source investigative context.</small></a>
 <a class="card module-card" href="/edge1-status/network-defense/"><h3>Network &amp; DNS Defense</h3><small>Defense posture and staged DNS policy readiness.</small></a>
+<a class="card module-card" href="/edge1-status/operations-center/snmp.html"><h3>SNMP Operations</h3><small>Managed devices, interfaces, events, alerts, MIBs and AI evidence.</small></a>
 <a class="card module-card" href="/edge1-status/bitcoin/"><h3>Bitcoin Operations</h3><small>Wallet and Bitcoin telemetry.</small></a>
 <a class="card module-card" href="/edge1-status/mining/"><h3>Mining Operations</h3><small>Mining telemetry and health.</small></a>
 </div>
@@ -61,7 +62,7 @@ const activeIncidents=Array.isArray(incidents.active_incidents)?incidents.active
 renderCards("incidents",activeIncidents.length?activeIncidents.map(item=>card(item.component||"Incident",`${item.severity||"unknown"}: ${item.detail||""}`,"warning")):[card("Incidents","No active incidents")]);
 const timers=Array.isArray(automation.timers)?automation.timers:[];
 renderCards("automation",timers.length?timers.map(item=>card(item.name||"Timer",item.state||"unknown",item.state==="active"?"good":"warning")):[card("Automation","Unavailable","warning")]);
-renderCards("daily-summary",[card("Overall",summary.overall||"unknown",summary.overall==="healthy"?"good":"warning"),card("Security Alerts",summary.security?.alerts||0),card("Bitcoin",summary.bitcoin?.synchronized?"Synchronized":"Warning",summary.bitcoin?.synchronized?"good":"warning"),card("Mining",summary.mining?.mode||"unknown",summary.mining?.warnings?.length?"warning":"good")]);
+renderCards("daily-summary",[card("Overall",summary.overall||"unknown",summary.overall==="healthy"?"good":"warning"),card("Security Alerts",summary.security?.alerts||0),card("Bitcoin",summary.bitcoin?.synchronized?"Synchronized":"Warning",summary.bitcoin?.synchronized?"good":"warning"),card("Mining",mining.miner?.hashrate_display||"unknown",summary.mining?.warnings?.length?"warning":"good")]);
 renderCards("freshness",[card("Security Data",age(security.generated_at)),card("Bitcoin Data",age(wallet.generated_at)),card("Mining Data",age(mining.generated_at)),card("Incident History",age(incidentHistory.generated_at))]);
 const events=Array.isArray(timeline.events)?timeline.events:[];
 renderCards("timeline",events.length?events.slice(0,5).map(item=>card(item.title||"Operation",item.detail||item.state||"unknown",item.severity==="warning"?"warning":"good",item.recommendation||"")):[card("Timeline","No events")]);
