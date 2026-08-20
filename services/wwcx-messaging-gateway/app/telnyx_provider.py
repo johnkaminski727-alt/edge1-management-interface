@@ -5,11 +5,13 @@ import json
 import time
 from datetime import datetime, timezone
 from typing import Callable, Mapping
+from urllib.parse import urlparse
 
 import httpx
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from .media_quarantine import ingest_media_blob
 from .models import Channel, DeliveryStatus, DeliveryStatusEvent, Direction, MediaItem, NormalizedMessage
 from .providers import (
     MessagingProvider,
@@ -20,11 +22,17 @@ from .providers import (
     ProviderWebhookRequest,
     SendResult,
 )
+from .quarantine_storage import PrivateQuarantineStore, QuarantineStorageError
 
 TELNYX_API_BASE = "https://api.telnyx.com/v2"
+TELNYX_MEDIA_HOST = "media.telnyx.com"
 TELNYX_SIGNATURE_HEADER = "telnyx-signature-ed25519"
 TELNYX_TIMESTAMP_HEADER = "telnyx-timestamp"
 TELNYX_REPLAY_WINDOW_SECONDS = 300
+
+
+class TelnyxMediaAcquisitionError(RuntimeError):
+    """Inbound Telnyx media could not be acquired safely into quarantine."""
 
 
 def _header(headers: Mapping[str, str], name: str) -> str | None:
@@ -112,12 +120,24 @@ def _media_items(payload: Mapping[str, object]) -> list[MediaItem]:
     return items
 
 
+def _validate_media_url(value: str) -> None:
+    parsed = urlparse(value)
+    if parsed.scheme != "https" or parsed.hostname != TELNYX_MEDIA_HOST:
+        raise TelnyxMediaAcquisitionError("Telnyx media URL host is not allowlisted")
+    if parsed.username or parsed.password or parsed.fragment:
+        raise TelnyxMediaAcquisitionError("Telnyx media URL contains disallowed components")
+    if parsed.port not in {None, 443}:
+        raise TelnyxMediaAcquisitionError("Telnyx media URL uses a disallowed port")
+    if not parsed.path.startswith("/") or len(parsed.path) > 2048:
+        raise TelnyxMediaAcquisitionError("Telnyx media URL path is invalid")
+
+
 class TelnyxProvider(MessagingProvider):
     """Credential-injected Telnyx SMS/MMS adapter.
 
     Source availability does not register or activate the adapter. The caller must
-    explicitly provide a webhook public key and, for outbound submission, an API-key
-    provider. No secret values are persisted by this class.
+    explicitly provide a webhook public key and, for outbound submission or inbound
+    MMS acquisition, an API-key provider. No secret values are persisted by this class.
     """
 
     name = "telnyx"
@@ -136,6 +156,14 @@ class TelnyxProvider(MessagingProvider):
         self._client_factory = client_factory or (
             lambda: httpx.Client(base_url=TELNYX_API_BASE, timeout=httpx.Timeout(10.0), follow_redirects=False)
         )
+
+    def _api_key(self) -> str:
+        if self._api_key_provider is None:
+            raise ProviderConfigurationError("Telnyx API key is not configured")
+        api_key = self._api_key_provider().strip()
+        if not api_key:
+            raise ProviderConfigurationError("Telnyx API key is empty")
+        return api_key
 
     def verify_webhook(self, request: ProviderWebhookRequest) -> bool:
         signature_text = _header(request.headers, TELNYX_SIGNATURE_HEADER)
@@ -176,6 +204,54 @@ class TelnyxProvider(MessagingProvider):
             media=media,
             occurred_at=_occurred_at(data),
         )
+
+    def acquire_media(self, item: MediaItem, store: PrivateQuarantineStore) -> dict[str, object]:
+        """Download one authenticated Telnyx MMS attachment directly into quarantine.
+
+        Only the documented `media.telnyx.com` origin is accepted. Redirects remain
+        disabled, the API key is sent only to that exact origin, the expected SHA-256
+        from the verified webhook is mandatory, and the quarantine store enforces its
+        configured byte limit while streaming. A successful download remains held.
+        """
+        _validate_media_url(item.url)
+        if not item.sha256:
+            raise TelnyxMediaAcquisitionError("Telnyx media SHA-256 is required before acquisition")
+        api_key = self._api_key()
+        try:
+            with self._client_factory() as client:
+                with client.stream(
+                    "GET",
+                    item.url,
+                    headers={"Authorization": f"Bearer {api_key}", "Accept": "application/octet-stream"},
+                ) as response:
+                    if response.status_code != 200:
+                        raise TelnyxMediaAcquisitionError(
+                            f"Telnyx media download returned HTTP {response.status_code}"
+                        )
+                    raw_length = response.headers.get("content-length")
+                    if raw_length is not None:
+                        try:
+                            length = int(raw_length)
+                        except ValueError as exc:
+                            raise TelnyxMediaAcquisitionError("Telnyx media content length is invalid") from exc
+                        if length < 0 or length > store.max_bytes:
+                            raise TelnyxMediaAcquisitionError("Telnyx media exceeds quarantine size limit")
+                    response_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    expected_type = (item.content_type or "").strip().lower()
+                    if expected_type and response_type and response_type != expected_type:
+                        raise TelnyxMediaAcquisitionError("Telnyx media content type does not match webhook metadata")
+                    result = ingest_media_blob(item, response.iter_bytes(), store)
+        except TelnyxMediaAcquisitionError:
+            raise
+        except (httpx.HTTPError, QuarantineStorageError) as exc:
+            raise TelnyxMediaAcquisitionError("Telnyx media acquisition failed closed") from exc
+        return {
+            **result,
+            "provider": self.name,
+            "provider_reference_exposed": False,
+            "release_authorized": False,
+            "web_served": False,
+        }
 
     def normalize_delivery_webhook(self, request: ProviderWebhookRequest) -> DeliveryStatusEvent:
         data, payload = _event(request)
@@ -223,11 +299,7 @@ class TelnyxProvider(MessagingProvider):
             raise ValueError("outbound provider identity does not match Telnyx adapter")
         if message.direction != Direction.OUTBOUND:
             raise ValueError("Telnyx send accepts outbound messages only")
-        if self._api_key_provider is None:
-            raise ProviderConfigurationError("Telnyx outbound API key is not configured")
-        api_key = self._api_key_provider().strip()
-        if not api_key:
-            raise ProviderConfigurationError("Telnyx outbound API key is empty")
+        api_key = self._api_key()
 
         body: dict[str, object] = {"from": message.sender, "to": message.recipients, "text": message.text}
         if message.media:
