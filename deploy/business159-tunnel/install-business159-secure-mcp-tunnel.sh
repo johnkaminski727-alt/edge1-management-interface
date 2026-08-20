@@ -12,12 +12,13 @@ LIBEXEC_DIR=/usr/local/libexec/business159-tunnel
 UNIT=/etc/systemd/system/$SERVICE
 BINARY=/usr/local/bin/tunnel-client
 MCP_ROOT=$ROOT/tools/mcp/business159-live-shell
+NODE_BIN=${BUSINESS159_NODE_BIN:-/usr/bin/node}
 
 [ "$(id -u)" -eq 0 ] || { echo "run with sudo/root" >&2; exit 1; }
 [ -x "$BINARY" ] || { echo "official tunnel-client binary unavailable at $BINARY" >&2; exit 2; }
-[ -x /usr/bin/node ] || { echo "Node runtime unavailable at /usr/bin/node" >&2; exit 3; }
-node_major=$(/usr/bin/node -p 'process.versions.node.split(".")[0]')
-[ "$node_major" -ge 20 ] || { echo "Node >=20 required" >&2; exit 4; }
+[ -x "$NODE_BIN" ] || { echo "Node runtime unavailable at $NODE_BIN" >&2; exit 3; }
+node_major=$($NODE_BIN -p 'process.versions.node.split(".")[0]')
+[ "$node_major" -ge 20 ] || { echo "Node >=20 required at $NODE_BIN" >&2; exit 4; }
 [ -r "$MCP_ROOT/package.json" ] && [ -r "$MCP_ROOT/src/index.js" ] || { echo "business159-live-shell source unavailable" >&2; exit 5; }
 
 VERSION_LINE=$($BINARY --version 2>/dev/null || true)
@@ -53,8 +54,8 @@ fi
 
 (
     cd "$MCP_ROOT"
-    /usr/bin/node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')])" >/dev/null 2>&1
-) || { echo "business159-live-shell Node dependencies are not installed" >&2; exit 11; }
+    "$NODE_BIN" -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')])" >/dev/null 2>&1
+) || { echo "business159-live-shell Node dependencies are not installed for $NODE_BIN" >&2; exit 11; }
 
 for sibling in edge1-secure-mcp-tunnel.service edge1-operator-mcp.service bigbird-ai-tunnel.service; do
     printf '%s active=' "$sibling"
