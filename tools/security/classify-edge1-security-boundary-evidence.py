@@ -31,19 +31,13 @@ DEFAULT_EVIDENCE_ROOT = Path(
 )
 
 REVIEWED_RESIDUAL_RULES = {
-    "network-sensor/data/network-sensor.json": {
-        "classification": "generated_json",
-    },
+    "network-sensor/data/network-sensor.json": {"classification": "generated_json"},
     "network-sensor/index.html": {
         "classification": "repository_static",
         "repository_source": "src/web/network-sensor/index.html",
     },
-    "operations-center/snmp.html": {
-        "classification": "preserved_unresolved",
-    },
-    "snmp/operations-snmp.json": {
-        "classification": "generated_json",
-    },
+    "operations-center/snmp.html": {"classification": "preserved_unresolved"},
+    "snmp/operations-snmp.json": {"classification": "generated_json"},
 }
 COMPATIBILITY_LINK_RELATIVE = "security-correlation.json"
 COMPATIBILITY_TARGET_RELATIVE = "security/correlation/data/security-correlation.json"
@@ -68,15 +62,17 @@ def file_mode(info: os.stat_result) -> str:
 def accepted_result(value: Any) -> bool:
     return isinstance(value, dict) and all(
         (
-            value.get("contract")
-            == "wwcx.edge1-security-boundary-live-inventory-result.v1",
+            value.get("contract") == "wwcx.edge1-security-boundary-live-inventory-result.v1",
             value.get("read_only_host_inventory") is True,
             value.get("live_configuration_changed") is False,
             value.get("source_tree_mutated") is False,
             value.get("credentials_collected") is False,
             value.get("cookie_values_recorded") is False,
             value.get("traffic_controls_changed") is False,
+            value.get("inventory_records") == 164,
+            value.get("mapped_records") == 160,
             value.get("unknown_preserved") == 4,
+            value.get("missing_known") == 0,
             value.get("filesystem_anomalies") == 1,
             value.get("apache_config_test_passed") is True,
             value.get("staging_ready") is False,
@@ -97,7 +93,18 @@ def candidate_evidence_dirs(evidence_root: Path) -> list[Path]:
     return matches
 
 
-def _safe_regular(path: Path, label: str) -> os.stat_result:
+def _is_contained(root: Path, path: Path) -> bool:
+    root_resolved = root.resolve(strict=True)
+    path_resolved = path.resolve(strict=True)
+    try:
+        return os.path.commonpath([str(root_resolved), str(path_resolved)]) == str(root_resolved)
+    except ValueError:
+        return False
+
+
+def _safe_regular(root: Path, path: Path, label: str) -> os.stat_result:
+    if not _is_contained(root, path):
+        raise ValueError(f"{label}: path escapes reviewed root")
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode):
         raise ValueError(f"{label}: live object is not a regular file")
@@ -139,6 +146,8 @@ def classify(
         selected = candidates[-1]
     else:
         selected = evidence_dir
+        if not _is_contained(evidence_root, selected):
+            raise ValueError("explicit evidence directory escapes protected evidence root")
         result = load_json(selected / "result.json")
         if not accepted_result(result):
             raise ValueError("explicit evidence directory does not match the accepted aggregate")
@@ -151,8 +160,9 @@ def classify(
         "public-filesystem-anomalies.json",
     )
     for name in required:
-        if not (selected / name).is_file():
-            raise ValueError(f"selected evidence is missing {name}")
+        path = selected / name
+        if not path.is_file() or not _is_contained(selected, path):
+            raise ValueError(f"selected evidence is missing or escapes root: {name}")
 
     reconciliation = load_json(selected / "reconciliation.json")
     inventory = load_json(selected / "public-filesystem-inventory.json")
@@ -166,7 +176,7 @@ def classify(
     classified: list[dict[str, Any]] = []
     for relative, rule in REVIEWED_RESIDUAL_RULES.items():
         live_path = status_root / relative
-        info = _safe_regular(live_path, relative)
+        info = _safe_regular(status_root, live_path, relative)
         kind = rule["classification"]
         item: dict[str, Any] = {
             "source_relative": relative,
@@ -180,7 +190,7 @@ def classify(
         if kind == "repository_static":
             repository_source = rule["repository_source"]
             source_path = repo_root / repository_source
-            _safe_regular(source_path, f"{relative} repository source")
+            _safe_regular(repo_root, source_path, f"{relative} repository source")
             source_hash = sha256(source_path)
             if item["sha256"] != source_hash or info.st_size != source_path.stat().st_size:
                 raise ValueError(f"{relative}: live content does not match repository source")
@@ -195,12 +205,7 @@ def classify(
             value = load_json(live_path)
             if not isinstance(value, (dict, list)):
                 raise ValueError(f"{relative}: generated JSON root is not an object or array")
-            item.update(
-                {
-                    "json_valid": True,
-                    "historical_size_hash_enforced": False,
-                }
-            )
+            item.update({"json_valid": True, "historical_size_hash_enforced": False})
         elif kind == "preserved_unresolved":
             item.update(
                 {
@@ -227,14 +232,9 @@ def classify(
         raise ValueError("compatibility symlink target drift")
 
     resolved = (expected_link.parent / raw_target).resolve(strict=True)
-    root_resolved = status_root.resolve(strict=True)
-    try:
-        contained = os.path.commonpath([str(root_resolved), str(resolved)]) == str(root_resolved)
-    except ValueError:
-        contained = False
-    if not contained:
+    if not _is_contained(status_root, resolved):
         raise ValueError("compatibility symlink resolves outside the status root")
-    target_info = _safe_regular(resolved, "compatibility symlink target")
+    target_info = _safe_regular(status_root, resolved, "compatibility symlink target")
     target_json = load_json(resolved)
     if not isinstance(target_json, (dict, list)):
         raise ValueError("compatibility symlink target JSON root is not an object or array")
