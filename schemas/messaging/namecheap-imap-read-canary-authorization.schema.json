@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/namecheap-imap-read-canary-authorization.schema.json",
+  "title": "WW.CX Namecheap Private Email read-only IMAP canary authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "provider_read_canary_authorized",
+    "expected_host_sha256",
+    "expected_port",
+    "expected_username_sha256",
+    "mailbox",
+    "max_messages",
+    "expires_at",
+    "message_body_fetch_authorized",
+    "mailbox_mutation_authorized",
+    "store_write_authorized",
+    "mail_send_authorized"
+  ],
+  "properties": {
+    "contract": {"const": "wwcx.namecheap-imap-read-canary-authorization.v1"},
+    "provider_read_canary_authorized": {"const": true},
+    "expected_host_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_port": {"const": 993},
+    "expected_username_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mailbox": {"const": "INBOX"},
+    "max_messages": {"type": "integer", "minimum": 1, "maximum": 5},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "message_body_fetch_authorized": {"const": false},
+    "mailbox_mutation_authorized": {"const": false},
+    "store_write_authorized": {"const": false},
+    "mail_send_authorized": {"const": false}
+  }
+}
