@@ -73,8 +73,8 @@ The Bandwidth adapter covers:
 - Bandwidth's ten-recipient outbound limit enforced before submission;
 - provider message ID capture;
 - explicit permanent-rejection handling;
-- safe pre-submit connection retry classification;
-- conservative outcome-uncertain handling for timeouts/server ambiguity.
+- safe retry for Bandwidth-confirmed no-send `429` and `5xx` HTTP responses;
+- conservative outcome-uncertain handling for transport/read/write ambiguity where provider acceptance cannot be proven either way.
 
 Both adapters are tested with provider-specific authentication, inbound normalization, delivery callbacks, outbound request formation, rejection handling, safe-retry behavior and outcome-uncertain failure behavior.
 
