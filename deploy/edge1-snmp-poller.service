@@ -1,7 +1,7 @@
 [Unit]
 Description=WW.CX Edge1 SNMP polling, host telemetry, alerting and retention cycle
-After=network-online.target
-Wants=network-online.target
+After=network-online.target edge1-snmp-business159-sync.service
+Wants=network-online.target edge1-snmp-business159-sync.service
 
 [Service]
 Type=oneshot
