@@ -4,21 +4,27 @@ on:
   pull_request:
     paths:
       - 'tools/mcp/business159-live-shell/**'
+      - 'deploy/business159-tunnel/**'
+      - 'docs/business159-operator/**'
       - 'skills/business159-*/**'
       - 'skills/shared-host-security-auditor/**'
       - 'skills/wwcx-cross-host-operator/**'
       - 'skills/wwcx-release-operator/**'
       - 'tests/validate_business159_operator.py'
+      - 'tests/test_business159_secure_mcp_tunnel_assets.py'
       - '.github/workflows/business159-operator.yml'
   push:
     branches: [main]
     paths:
       - 'tools/mcp/business159-live-shell/**'
+      - 'deploy/business159-tunnel/**'
+      - 'docs/business159-operator/**'
       - 'skills/business159-*/**'
       - 'skills/shared-host-security-auditor/**'
       - 'skills/wwcx-cross-host-operator/**'
       - 'skills/wwcx-release-operator/**'
       - 'tests/validate_business159_operator.py'
+      - 'tests/test_business159_secure_mcp_tunnel_assets.py'
       - '.github/workflows/business159-operator.yml'
 
 permissions:
@@ -47,6 +53,10 @@ jobs:
         run: node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')]).then(() => console.error('imports ok'))"
       - name: Validate bounded operator contract
         run: python3 tests/validate_business159_operator.py
+      - name: Validate persistent tunnel assets
+        run: |
+          python3 tests/test_business159_secure_mcp_tunnel_assets.py
+          for f in deploy/business159-tunnel/*.sh deploy/business159-tunnel/ssh; do sh -n "$f"; done
       - name: Validate Skill packages statically
         run: |
           python3 - <<'PY'

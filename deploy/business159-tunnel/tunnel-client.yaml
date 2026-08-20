@@ -1,0 +1,15 @@
+config_version: 1
+
+control_plane:
+  base_url: https://api.openai.com
+  api_key: file:/etc/business159-tunnel/runtime-api-key
+
+health:
+  listen_addr: 127.0.0.1:0
+  url_file: /run/business159-secure-mcp-tunnel/health-url
+
+admin_ui:
+  open_browser: false
+
+process:
+  pid_file: /run/business159-secure-mcp-tunnel/tunnel-client.pid

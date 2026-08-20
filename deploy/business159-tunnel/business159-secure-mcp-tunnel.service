@@ -1,0 +1,30 @@
+[Unit]
+Description=WW.CX Business159 Secure MCP Tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=business159-operator
+Group=business159-operator
+ExecStart=/usr/local/libexec/business159-tunnel/business159-secure-mcp-tunnel.sh run
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=business159-secure-mcp-tunnel
+RuntimeDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/business159-tunnel /etc/business159-operator /usr/local/bin/tunnel-client /usr/local/libexec/business159-tunnel /opt/edge1-management-interface/tools/mcp/business159-live-shell
+ReadWritePaths=/run/business159-secure-mcp-tunnel /var/lib/business159-operator
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

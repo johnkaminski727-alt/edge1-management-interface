@@ -1,0 +1,3 @@
+#!/bin/sh
+set -eu
+exec /usr/bin/ssh -F /etc/business159-operator/ssh_config -o UserKnownHostsFile=/etc/business159-operator/known_hosts "$@"
