@@ -21,9 +21,12 @@ from .edge1_snmp_ui_client import Edge1SnmpUiClient
 
 CONSOLE_READ_SCOPE = "edge1.security.read"
 
-# Short-lived host-only interactive return state. The value is an allowlisted
-# destination identifier only; it contains no credentials or arbitrary URL.
+# Short-lived host-only interactive return state. The cookie remains as a
+# backward-compatible fallback, while the WW.CX bridge also carries the same
+# bounded destination identifier explicitly across the assertion handoff.
+# Neither mechanism accepts an arbitrary URL.
 INTERACTIVE_LOGIN_URL = "https://ww.cx/admin/edge1-security-login.php"
+INTERACTIVE_DESTINATION_FIELD = "edge1_destination"
 INTERACTIVE_RETURN_COOKIE_NAME = "__Secure-wwcx_edge1_ops_return"
 INTERACTIVE_RETURN_COOKIE_PATH = "/edge1-ops/session/exchange"
 INTERACTIVE_RETURN_MAX_AGE = 900
@@ -113,10 +116,12 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
         )
 
     def _interactive_login_redirect(self, token: str) -> HttpResponse:
+        if token not in {"security", "snmp"}:
+            raise ValueError("interactive_return_invalid")
         return HttpResponse(
             302,
             self._base_headers() + (
-                ("Location", INTERACTIVE_LOGIN_URL),
+                ("Location", f"{INTERACTIVE_LOGIN_URL}?{INTERACTIVE_DESTINATION_FIELD}={token}"),
                 ("Set-Cookie", self._interactive_return_cookie(token)),
                 ("Content-Length", "0"),
             ),
@@ -239,13 +244,26 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
             form_text = request.body.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise ValueError("form_encoding_invalid") from exc
-        form = parse_qs(form_text, strict_parsing=True, max_num_fields=4)
-        if set(form) != {"assertion", "request_id"} or any(len(values) != 1 for values in form.values()):
+        form = parse_qs(form_text, strict_parsing=True, max_num_fields=5)
+        required_fields = {"assertion", "request_id"}
+        optional_fields = {INTERACTIVE_DESTINATION_FIELD}
+        if (
+            not required_fields.issubset(form)
+            or set(form) - required_fields - optional_fields
+            or any(len(values) != 1 for values in form.values())
+        ):
             raise ValueError("form_invalid")
         assertion = form["assertion"][0]
         request_id = form["request_id"][0]
         if not valid_event_id(request_id):
             raise ValueError("request_id_invalid")
+        explicit_destination = form.get(INTERACTIVE_DESTINATION_FIELD, [""])[0]
+        if explicit_destination and explicit_destination not in {"snmp", "security"}:
+            raise ValueError("interactive_destination_invalid")
+        return_cookie = self._cookies(request).get(INTERACTIVE_RETURN_COOKIE_NAME, "")
+        selected_destination = explicit_destination or return_cookie
+        redirect_target = self._interactive_return_target(selected_destination)
+        destination_marker = selected_destination if selected_destination in {"snmp", "security"} else "fallback"
         session_token, context = self.gateway.exchange_assertion(assertion, request_id)
         csrf_token = secrets.token_urlsafe(32)
         self.gateway.store.set_csrf(
@@ -253,14 +271,13 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
             hash_secret(csrf_token),
             context.expires_at,
         )
-        return_token = self._cookies(request).get(INTERACTIVE_RETURN_COOKIE_NAME, "")
-        redirect_target = self._interactive_return_target(return_token)
         headers = self._base_headers() + (
             ("Location", redirect_target),
+            ("X-WWCX-Interactive-Destination", destination_marker),
             ("Set-Cookie", self._session_cookie(session_token)),
             ("Set-Cookie", self._csrf_cookie(csrf_token)),
         )
-        if return_token:
+        if return_cookie:
             headers += (("Set-Cookie", self._clear_interactive_return_cookie()),)
         return HttpResponse(303, headers, b"")
 
