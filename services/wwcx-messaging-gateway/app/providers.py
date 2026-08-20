@@ -24,6 +24,23 @@ class ProviderSafeRetryError(RuntimeError):
     """
 
 
+class ProviderRejectedError(RuntimeError):
+    """Provider explicitly rejected the request before accepting the message.
+
+    This is intentionally distinct from ProviderSafeRetryError: permanent
+    request/configuration rejections should be blocked for operator review,
+    not retried automatically.
+    """
+
+
+class ProviderConfigurationError(ProviderRejectedError):
+    """Required provider configuration is absent or invalid."""
+
+
+class ProviderOutcomeUnknownError(RuntimeError):
+    """Submission may have reached the provider; reconciliation is required."""
+
+
 @dataclass(frozen=True)
 class ProviderWebhookRequest:
     """Generic inbound webhook request passed to a MessagingProvider."""
@@ -62,8 +79,9 @@ class MessagingProvider(ABC):
         """Submit one outbound message assigned to this provider.
 
         Raise ProviderSafeRetryError only when the adapter can prove the
-        provider did not accept or submit the message. Other exceptions are
-        treated as outcome-uncertain and are not automatically retried.
+        provider did not accept or submit the message. Raise ProviderRejectedError
+        for permanent pre-acceptance rejection. Other exceptions are treated as
+        outcome-uncertain and are not automatically retried.
         """
         raise NotImplementedError
 
@@ -103,5 +121,10 @@ class SimulatorProvider(MessagingProvider):
 
 
 def build_provider_registry(token_provider: Callable[[], str]) -> dict[str, MessagingProvider]:
-    """Build the provider name -> adapter registry used by the gateway."""
+    """Build the active provider registry.
+
+    Real-carrier adapters are deliberately not registered here merely because
+    their source exists. Registration is a separate activation boundary that
+    requires reviewed provider configuration and explicit production approval.
+    """
     return {"simulator": SimulatorProvider(token_provider)}

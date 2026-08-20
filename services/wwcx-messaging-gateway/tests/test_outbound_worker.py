@@ -4,7 +4,7 @@ from app.models import Channel, Direction, NormalizedMessage
 from app.outbound_policy import OutboundPolicy
 from app.outbound_worker import parse_provider_allowlist, run_once
 from app.persistence import ClaimedOutboundJob
-from app.providers import ProviderSafeRetryError, SendResult
+from app.providers import ProviderRejectedError, ProviderSafeRetryError, SendResult
 
 
 JOB_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -100,6 +100,8 @@ class FakeProvider:
         self.calls += 1
         if self.error == "safe_retry":
             raise ProviderSafeRetryError("definitely not submitted")
+        if self.error == "rejected":
+            raise ProviderRejectedError("provider explicitly rejected request")
         if self.error == "unknown":
             raise RuntimeError("connection lost after submit boundary")
         return SendResult(provider_message_id=f"fake-{message.event_id}", accepted=self.accepted)
@@ -231,6 +233,20 @@ def test_run_once_requeues_only_explicit_safe_retry_error() -> None:
     assert limiter.calls == 1
     assert store.retried is not None
     assert store.retried[2:] == (17, 3)
+
+
+def test_run_once_blocks_explicit_provider_rejection_without_retry() -> None:
+    store = FakeStore(outbound_message())
+    provider = FakeProvider(error="rejected")
+    limiter = FakeRateLimiter()
+    result = run(store, {"simulator": provider}, {"simulator"}, limiter=limiter)
+    assert result["status"] == "blocked"
+    assert result["reason"] == "provider_rejected"
+    assert result["provider_error_type"] == "ProviderRejectedError"
+    assert limiter.calls == 1
+    assert store.blocked is not None
+    assert store.retried is None
+    assert store.completed is None
 
 
 def test_run_once_leaves_uncertain_provider_exception_claimed() -> None:
