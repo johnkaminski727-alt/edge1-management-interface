@@ -9,6 +9,7 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
     def setUpClass(cls):
         cls.source = Path("src/web/operations-center/snmp.html").read_text(encoding="utf-8")
         cls.publisher = Path("deploy/operations-center/publish.sh").read_text(encoding="utf-8")
+        cls.security_console = Path("src/web/edge1-ops/security/index.html").read_text(encoding="utf-8")
         cls.apache_noindex = Path(
             "deploy/apache/edge1-status-operations-center-no-index.conf"
         ).read_text(encoding="utf-8")
@@ -54,10 +55,19 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
         self.assertNotIn("subprocess", self.source)
         self.assertNotIn("/bin/sh", self.source)
 
-    def test_public_publisher_does_not_publish_full_console(self):
+    def test_public_publisher_routes_unauthenticated_users_through_identity_bridge(self):
         self.assertNotIn('install -m 0644 "$SNMP_SOURCE" "$SNMP_DEST"', self.publisher)
-        self.assertIn("Open authenticated SNMP Operations", self.publisher)
-        self.assertIn("/edge1-ops/snmp/", self.publisher)
+        self.assertIn('cp "$SOURCE" "$TMP_INDEX"', self.publisher)
+        self.assertNotIn(
+            "sed 's#/edge1-status/operations-center/snmp.html#/edge1-ops/snmp/#g'",
+            self.publisher,
+        )
+        self.assertIn("https://ww.cx/admin/edge1-security-login.php", self.publisher)
+        self.assertIn("Sign in through WW.CX to continue", self.publisher)
+
+    def test_security_console_links_to_snmp_after_identity_exchange(self):
+        self.assertIn('href="/edge1-ops/snmp/">Open SNMP Operations</a>', self.security_console)
+        self.assertIn("https://ww.cx/admin/edge1-security-login.php", self.security_console)
 
     def test_topology_uses_backend_schema_and_evidence(self):
         self.assertIn("local_device_id", self.source)
