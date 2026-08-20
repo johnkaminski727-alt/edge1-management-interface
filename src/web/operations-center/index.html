@@ -3,17 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090f15">
 <title>WW.CX Edge1 Operations Center</title>
+<link rel="stylesheet" href="./operator-shell/shell.css">
 <style>
-:root{color-scheme:dark;font-family:system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#32905b;--warn:#c28a22}*{box-sizing:border-box}body{max-width:1200px;margin:auto;padding:30px;background:var(--bg);color:#eee}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}.good{border-color:var(--good)}.warning{border-color:var(--warn)}.label,small{color:var(--muted)}.label{font-size:.85rem}.value{font-size:1.35rem;font-weight:700;overflow-wrap:anywhere}a{color:#fff;text-decoration:none}.ops-nav{display:flex;gap:14px;flex-wrap:wrap}.module-card h3{margin-top:0}.muted{color:var(--muted)}@media(max-width:700px){body{padding:16px}}
+:root{color-scheme:dark;font-family:system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#48c783;--warn:#e0aa47;--neutral:#526270}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eee}.ops-page{max-width:1200px;margin:auto;padding:24px 30px 48px}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}.card.good{border-color:var(--good)}.card.warning{border-color:var(--warn)}.card.neutral{border-color:var(--neutral)}.label,small{color:var(--muted)}.label{font-size:.85rem}.value{font-size:1.35rem;font-weight:700;overflow-wrap:anywhere}a{color:#fff;text-decoration:none}.ops-nav{display:flex;gap:14px;flex-wrap:wrap}.module-card h3{margin-top:0}.muted{color:var(--muted)}.safety-banner{border-left:4px solid var(--warn);background:#121b22;padding:12px 14px;margin-bottom:18px}.safety-banner strong{display:block;margin-bottom:4px}@media(max-width:700px){.ops-page{padding:16px}}
 </style>
+<script src="./operator-shell/shell.js" defer data-registry="./operator-shell/navigation.json" data-module="operations-center"></script>
 </head>
 <body>
+<a href="#operations-workspace" style="position:absolute;left:-9999px">Skip to operations</a>
+<div id="wwcx-operator-shell"></div>
+<main class="ops-page" id="operations-workspace">
 <section class="panel">
 <h1>WW.CX Edge1 Operations Center</h1>
 <nav class="ops-nav" aria-label="Operations sections"><a href="#health">Health</a><a href="#communications">Communications</a><a href="#network">Network</a><a href="#operations">Operations modules</a><a href="#reports">Reports</a></nav>
 <p>Read-only infrastructure operations visibility.</p>
 </section>
+<section class="safety-banner" aria-label="Operator safety state"><strong>Safety boundary</strong>Navigation does not grant authorization. Mutations and production communications traffic remain unauthorized. Unknown or unavailable telemetry is never shown as healthy.</section>
 <section class="panel"><h2>Overall Operations Health</h2><div id="health" class="grid">Loading...</div></section>
 <section class="panel"><h2>Current Conditions</h2><div id="overview" class="grid">Loading...</div></section>
 <section class="panel"><h2>Data Freshness</h2><div id="freshness" class="grid">Loading...</div></section>
@@ -36,36 +43,43 @@
 <a class="card module-card" href="/edge1-status/mining/"><h3>Mining Operations</h3><small>Mining telemetry and health.</small></a>
 </div>
 </section>
+</main>
 <script>
 "use strict";
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-const card=(title,value,state="good",detail="")=>`<div class="card ${state}"><div class="label">${esc(title)}</div><div class="value">${esc(value)}</div>${detail?`<small>${esc(detail)}</small>`:""}</div>`;
+const card=(title,value,state="neutral",detail="")=>`<div class="card ${state}"><div class="label">${esc(title)}</div><div class="value">${esc(value)}</div>${detail?`<small>${esc(detail)}</small>`:""}</div>`;
 const age=ts=>{if(!ts)return "unknown";const d=new Date(ts);if(Number.isNaN(d.getTime()))return "unknown";const seconds=Math.max(0,Math.floor((Date.now()-d.getTime())/1000));if(seconds<60)return `${seconds} seconds ago`;if(seconds<3600)return `${Math.floor(seconds/60)} minutes ago`;return `${Math.floor(seconds/3600)} hours ago`};
 async function safeJson(file){try{const response=await fetch(`./${file}`,{cache:"no-store"});if(!response.ok)return {};const value=await response.json();return value&&typeof value==="object"&&!Array.isArray(value)?value:{}}catch(error){console.warn("Status unavailable:",file,error);return {}}}
 function renderCards(id,cards){document.getElementById(id).innerHTML=cards.join("")||card("Status","Unavailable","warning")}
+const binaryState=(condition,yes,no)=>condition===true?[yes,"good"]:condition===false?[no,"warning"]:["Unknown","warning"];
 async function load(){
 const [security,wallet,mining,health,timeline,summary,automation,correlation,report,version,inventory,network,telephony,messaging,carrier,incidents,incidentHistory]=await Promise.all([
 "security-operations.json","bitcoin-wallet.json","bitcoin-mining.json","operations-health.json","operations-timeline.json","daily-summary.json","operations-automation.json","operations-correlation.json","reports/index.json","operations-version.json","operations-inventory.json","operations-network.json","operations-telephony.json","operations-messaging.json","operations-carrier.json","operations-incidents.json","operations-incident-history.json"
 ].map(safeJson));
 const checks=Array.isArray(health.checks)?health.checks:[];
-renderCards("health",[card("Overall Status",health.overall==="healthy"?"Operational":"Attention Required",health.overall==="healthy"?"good":"warning"),...checks.map(item=>card(item.name||"Check",item.detail||item.state||"unknown",item.state==="healthy"?"good":"warning",item.recommendation||item.reason_code||""))]);
+const overall=health.overall==="healthy"?["Operational","good"]:health.overall?["Attention Required","warning"]:["Unknown","warning"];
+renderCards("health",[card("Overall Status",overall[0],overall[1]),...checks.map(item=>card(item.name||"Check",item.detail||item.state||"unknown",item.state==="healthy"?"good":"warning",item.recommendation||item.reason_code||""))]);
 const conditions=Array.isArray(correlation.conditions)?correlation.conditions:[];
 const changes=Array.isArray(correlation.recent_changes)?correlation.recent_changes:[];
-renderCards("incident-context",[...conditions.map(item=>card(item.component||"Condition",`${item.reason_code||"condition"}: ${item.detail||""}`,"warning")),...changes.slice(0,3).map(item=>card("Change",`${item.hash||""}: ${item.message||""}`))]);
-renderCards("reports",[report.latest?card("Latest Report",report.latest):card("Reports","No reports available","warning")]);
-renderCards("communications",[card("Telephony",telephony.available?"Operational":"Unavailable",telephony.available?"good":"warning"),card("Messaging",messaging.available?"Gateway Online":"Unavailable",messaging.available?"good":"warning"),card("Carrier",carrier.telephony?.overall_status||"Unknown",carrier.telephony?.overall_status==="healthy"?"good":"warning")]);
-renderCards("inventory",[card("Host",inventory.host||"Unknown"),card("Kernel",inventory.kernel||"Unknown"),card("Modules",Array.isArray(inventory.modules)?inventory.modules.join(", "):"Unknown")]);
-renderCards("release",[card("Branch",version.branch||"Unknown"),card("Commit",version.commit||"Unknown"),card("Repository",version.dirty?"Changes detected":"Clean",version.dirty?"warning":"good")]);
-renderCards("network",[card("Interfaces",Array.isArray(network.interfaces)?network.interfaces.join(", "):"Unknown"),card("WireGuard",network.wireguard_available?"Available":"Unavailable",network.wireguard_available?"good":"warning"),card("DNS Visibility",network.resolver?"Available":"Limited",network.resolver?"good":"warning")]);
+renderCards("incident-context",[...conditions.map(item=>card(item.component||"Condition",`${item.reason_code||"condition"}: ${item.detail||""}`,"warning")),...changes.slice(0,3).map(item=>card("Change",`${item.hash||""}: ${item.message||""}`,"neutral"))]);
+renderCards("reports",[report.latest?card("Latest Report",report.latest,"neutral"):card("Reports","No reports available","warning")]);
+const telephonyState=binaryState(telephony.available,"Operational","Unavailable");
+const messagingState=binaryState(messaging.available,"Gateway Online","Unavailable");
+const carrierStatus=carrier.telephony?.overall_status;
+renderCards("communications",[card("Telephony",telephonyState[0],telephonyState[1]),card("Messaging",messagingState[0],messagingState[1]),card("Carrier",carrierStatus||"Unknown",carrierStatus==="healthy"?"good":"warning")]);
+renderCards("inventory",[card("Host",inventory.host||"Unknown",inventory.host?"neutral":"warning"),card("Kernel",inventory.kernel||"Unknown",inventory.kernel?"neutral":"warning"),card("Modules",Array.isArray(inventory.modules)&&inventory.modules.length?inventory.modules.join(", "):"Unknown",Array.isArray(inventory.modules)&&inventory.modules.length?"neutral":"warning")]);
+renderCards("release",[card("Branch",version.branch||"Unknown",version.branch?"neutral":"warning"),card("Commit",version.commit||"Unknown",version.commit?"neutral":"warning"),card("Repository",version.dirty===false?"Clean":version.dirty===true?"Changes detected":"Unknown",version.dirty===false?"good":"warning")]);
+renderCards("network",[card("Interfaces",Array.isArray(network.interfaces)&&network.interfaces.length?network.interfaces.join(", "):"Unknown",Array.isArray(network.interfaces)&&network.interfaces.length?"neutral":"warning"),card("WireGuard",network.wireguard_available===true?"Available":network.wireguard_available===false?"Unavailable":"Unknown",network.wireguard_available===true?"good":"warning"),card("DNS Visibility",network.resolver?"Available":"Unknown",network.resolver?"good":"warning")]);
 const activeIncidents=Array.isArray(incidents.active_incidents)?incidents.active_incidents:[];
-renderCards("incidents",activeIncidents.length?activeIncidents.map(item=>card(item.component||"Incident",`${item.severity||"unknown"}: ${item.detail||""}`,"warning")):[card("Incidents","No active incidents")]);
+renderCards("incidents",activeIncidents.length?activeIncidents.map(item=>card(item.component||"Incident",`${item.severity||"unknown"}: ${item.detail||""}`,"warning")):[card("Incidents",incidents.active_incidents?"No active incidents":"Unknown",incidents.active_incidents?"good":"warning")]);
 const timers=Array.isArray(automation.timers)?automation.timers:[];
 renderCards("automation",timers.length?timers.map(item=>card(item.name||"Timer",item.state||"unknown",item.state==="active"?"good":"warning")):[card("Automation","Unavailable","warning")]);
-renderCards("daily-summary",[card("Overall",summary.overall||"unknown",summary.overall==="healthy"?"good":"warning"),card("Security Alerts",summary.security?.alerts||0),card("Bitcoin",summary.bitcoin?.synchronized?"Synchronized":"Warning",summary.bitcoin?.synchronized?"good":"warning"),card("Mining",summary.mining?.mode||"unknown",summary.mining?.warnings?.length?"warning":"good")]);
-renderCards("freshness",[card("Security Data",age(security.generated_at)),card("Bitcoin Data",age(wallet.generated_at)),card("Mining Data",age(mining.generated_at)),card("Incident History",age(incidentHistory.generated_at))]);
+renderCards("daily-summary",[card("Overall",summary.overall||"unknown",summary.overall==="healthy"?"good":"warning"),card("Security Alerts",summary.security?.alerts??"unknown",summary.security&&Number.isFinite(summary.security.alerts)?"neutral":"warning"),card("Bitcoin",summary.bitcoin?.synchronized===true?"Synchronized":summary.bitcoin?.synchronized===false?"Warning":"Unknown",summary.bitcoin?.synchronized===true?"good":"warning"),card("Mining",summary.mining?.mode||"unknown",summary.mining?.mode&&!summary.mining?.warnings?.length?"good":"warning")]);
+renderCards("freshness",[card("Security Data",age(security.generated_at),security.generated_at?"neutral":"warning"),card("Bitcoin Data",age(wallet.generated_at),wallet.generated_at?"neutral":"warning"),card("Mining Data",age(mining.generated_at),mining.generated_at?"neutral":"warning"),card("Incident History",age(incidentHistory.generated_at),incidentHistory.generated_at?"neutral":"warning")]);
 const events=Array.isArray(timeline.events)?timeline.events:[];
-renderCards("timeline",events.length?events.slice(0,5).map(item=>card(item.title||"Operation",item.detail||item.state||"unknown",item.severity==="warning"?"warning":"good",item.recommendation||"")):[card("Timeline","No events")]);
-renderCards("overview",[card("Security",security.health?.status==="healthy"?"Healthy":"Warning",security.health?.status==="healthy"?"good":"warning"),card("Suricata",security.engine?.version||"unknown"),card("Security Alerts",security.recent_alerts?.length||0),card("Bitcoin Wallet",wallet.wallet?.synchronized?"Synchronized":"Offline",wallet.wallet?.synchronized?"good":"warning"),card("Bitcoin Backend",wallet.service?.state||"unknown"),card("Mining",mining.miner?.hashrate_display||"unknown",mining.warnings?.length?"warning":"good")]);
+renderCards("timeline",events.length?events.slice(0,5).map(item=>card(item.title||"Operation",item.detail||item.state||"unknown",item.severity==="warning"?"warning":"neutral",item.recommendation||"")):[card("Timeline",timeline.events?"No events":"Unavailable",timeline.events?"neutral":"warning")]);
+const securityHealth=security.health?.status;
+renderCards("overview",[card("Security",securityHealth==="healthy"?"Healthy":securityHealth?"Warning":"Unknown",securityHealth==="healthy"?"good":"warning"),card("Suricata",security.engine?.version||"unknown",security.engine?.version?"neutral":"warning"),card("Security Alerts",Array.isArray(security.recent_alerts)?security.recent_alerts.length:"unknown",Array.isArray(security.recent_alerts)?"neutral":"warning"),card("Bitcoin Wallet",wallet.wallet?.synchronized===true?"Synchronized":wallet.wallet?.synchronized===false?"Offline":"Unknown",wallet.wallet?.synchronized===true?"good":"warning"),card("Bitcoin Backend",wallet.service?.state||"unknown",wallet.service?.state?"neutral":"warning"),card("Mining",mining.miner?.hashrate_display||"unknown",mining.miner?.hashrate_display&&!mining.warnings?.length?"good":"warning")]);
 }
 load().catch(error=>{console.error(error);renderCards("overview",[card("Status","Unavailable","warning")])});
 setInterval(()=>load().catch(console.error),60000);

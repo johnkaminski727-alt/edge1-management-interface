@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#16213d">
+  <meta name="theme-color" content="#090f15">
   <title>Communications | WW.CX Operations</title>
+  <link rel="stylesheet" href="./operator-shell/shell.css">
   <link rel="stylesheet" href="./styles.css">
+  <script src="./operator-shell/shell.js" defer data-registry="./operator-shell/navigation.json" data-module="communications-workspace"></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#workspace">Skip to communications</a>
+  <div id="wwcx-operator-shell"></div>
   <main class="app-shell" id="workspace">
     <header class="topbar"><div><p class="eyebrow">WW.CX Operations</p><h1>Communications</h1><p class="subtitle">One operator timeline across channel metadata, with specialist tools still one click away.</p></div><div class="mode-pill"><span aria-hidden="true"></span>Read-only workspace</div></header>
-    <nav class="module-nav" aria-label="Operations modules"><a href="../">Private Library</a><a href="../outbound-mail/">Mail Room</a><a href="./" aria-current="page">Communications</a><a href="../messaging-operations.html">SMS &amp; MMS</a><a href="../telephony/">Voice &amp; SIP</a><a href="../comms-relay/">News &amp; Relay</a></nav>
-    <section class="notice" aria-label="Safety status"><strong>Read and prepare first.</strong><span>This workspace does not authorize a phone call, SMS/MMS delivery, email send, provider change, quarantine release, or routing change.</span></section>
+    <section class="notice" aria-label="Safety status"><strong>Read and prepare first.</strong><span>This workspace does not authorize a phone call, SMS/MMS delivery, email send, provider change, quarantine release, or routing change. Operator-shell navigation does not grant additional authority.</span></section>
     <section class="workspace-grid">
       <aside class="queue-panel" aria-label="Communication queues"><p class="eyebrow">Workspace</p><div class="queue-list" role="list"><button class="queue active" data-state="" type="button">All activity</button><button class="queue" data-state="observed" type="button">Inbox</button><button class="queue" data-state="drafted" type="button">Drafts</button><button class="queue" data-state="submitted" type="button">Sent / submitted</button><button class="queue" data-state="quarantined" type="button">Quarantine</button><button class="queue" data-state="failed" type="button">Needs attention</button></div><div class="specialist-links"><p class="eyebrow">Specialist tools</p><a href="../outbound-mail/">Mail Room</a><a href="../messaging-operations.html">Messaging Operations</a><a href="../telephony/">Voice &amp; SIP</a><a href="../comms-relay/">News / Relay</a></div></aside>
       <section class="activity-panel" aria-labelledby="activity-heading"><div class="panel-heading"><div><p class="eyebrow">Conversation activity</p><h2 id="activity-heading">Timeline</h2></div><span id="result-count" class="count-pill">0 events</span></div><form class="search-row" id="search-form" role="search"><label class="search-box">Search safe metadata<input id="search-input" type="search" autocomplete="off" placeholder="Contact, number, case, subject, provider ID…"></label><button type="submit">Search</button></form><div class="channel-filters" id="channel-filters" aria-label="Channel filters"><button type="button" data-channel="all" class="active">All</button><button type="button" data-channel="email">Mail</button><button type="button" data-channel="sms">SMS</button><button type="button" data-channel="mms">MMS</button><button type="button" data-channel="voice">Voice</button><button type="button" data-channel="sip">SIP</button><button type="button" data-channel="nntp">News</button><button type="button" data-channel="relay">Relay</button></div><div id="workspace-status" class="workspace-status" role="status">Loading communications metadata…</div><ol id="timeline" class="timeline" aria-live="polite"></ol></section>
