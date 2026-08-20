@@ -42,6 +42,13 @@ class BigBirdEdge1ConnectorTests(unittest.TestCase):
         self.assertIn("numbering.health", self.config["enabled_tools"])
         self.assertIn("repository.fetch", self.config["disabled_tools"])
 
+    def test_connector_classifies_every_operations_api_action(self):
+        actions = set(json.loads(Path("config/edge1-operations-allowlist.json").read_text())["actions"])
+        enabled = set(self.config["enabled_tools"])
+        disabled = set(self.config["disabled_tools"])
+        self.assertFalse(enabled & disabled)
+        self.assertEqual(actions, enabled | disabled)
+
     def test_security_actions_follow_operations_api_mutation_policy(self):
         actions = json.loads(Path("config/edge1-operations-allowlist.json").read_text())["actions"]
         self.assertFalse(actions["security.validate_config"]["mutating"])
@@ -61,6 +68,14 @@ class BigBirdEdge1ConnectorTests(unittest.TestCase):
     def test_systemd_service_runs_refresh(self):
         service = Path("deploy/bigbird-edge1-connector.service").read_text(encoding="utf-8")
         self.assertIn("server/bigbird_edge1_connector.py refresh", service)
+
+    def test_maintenance_service_can_persist_connector_state(self):
+        service = Path("deploy/bigbird-edge1-connector-maintenance.service").read_text(encoding="utf-8")
+        self.assertIn("server/bigbird_edge1_connector.py refresh", service)
+        self.assertIn("ProtectSystem=strict", service)
+        self.assertIn("ReadWritePaths=/var/lib/bigbird-edge1-connector", service)
+        self.assertIn("CapabilityBoundingSet=", service)
+        self.assertIn("UMask=0077", service)
 
     def test_validate_accepts_safe_configuration(self):
         result = CONNECTOR.validate()
