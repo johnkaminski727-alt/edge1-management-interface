@@ -91,14 +91,13 @@ class FakeIMAP:
 
 def _assert_read_only_calls(session: FakeIMAP) -> None:
     assert session.readonly is True
-    commands = [call[1] for call in session.calls if call[0] == "uid"]
+    uid_calls = [call for call in session.calls if call[0] == "uid"]
+    commands = [call[1] for call in uid_calls]
     assert commands
     assert set(commands) <= {"SEARCH", "FETCH"}
-    assert all(
-        "BODY.PEEK[]" in call
-        for call in session.calls
-        if call[0] == "uid" and call[1] == "FETCH"
-    )
+    fetch_calls = [call for call in uid_calls if call[1] == "FETCH"]
+    assert fetch_calls
+    assert all(call[-1] == "(BODY.PEEK[])" for call in fetch_calls)
     forbidden = {"STORE", "MOVE", "COPY", "DELETE", "EXPUNGE", "APPEND"}
     assert forbidden.isdisjoint(commands)
 
@@ -188,6 +187,7 @@ def test_namecheap_imap_bounded_tail_fetch(tmp_path):
     assert result["selected_count"] == 2
     fetched = [call[2] for call in session.calls if call[:2] == ("uid", "FETCH")]
     assert fetched == [b"2", b"3"]
+    _assert_read_only_calls(session)
 
 
 def test_namecheap_imap_fails_closed_on_bad_configuration(tmp_path):
