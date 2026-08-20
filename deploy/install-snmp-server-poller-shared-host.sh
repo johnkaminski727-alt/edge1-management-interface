@@ -54,7 +54,7 @@ fi
 WWCX_SNMP_SERVER_POLLER_OUTPUT="$OUTPUT" \
 WWCX_SNMP_SERVER_POLLER_ID="$POLLER_ID" \
 WWCX_SNMP_SERVER_POLLER_PYTHON="$PYTHON_BIN" \
-"$REPO_ROOT/deploy/snmp-server-poller-shared-host-smoke-test.sh"
+sh "$REPO_ROOT/deploy/snmp-server-poller-shared-host-smoke-test.sh"
 
 echo "Shared-host SNMP server poller installed and verified."
 echo "Private measurements: $OUTPUT"
