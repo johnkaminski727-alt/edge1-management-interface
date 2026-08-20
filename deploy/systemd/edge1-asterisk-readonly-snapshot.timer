@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh bounded Asterisk read-only diagnostic snapshot
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=15s
+AccuracySec=2s
+RandomizedDelaySec=0
+Unit=edge1-asterisk-readonly-snapshot.service
+
+[Install]
+WantedBy=timers.target
