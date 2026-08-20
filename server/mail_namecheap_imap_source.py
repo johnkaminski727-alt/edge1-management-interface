@@ -13,7 +13,8 @@ Security properties:
 - messages are fetched with BODY.PEEK[] so they are not marked Seen;
 - no STORE, MOVE, COPY, DELETE, EXPUNGE, APPEND, or SMTP operation exists here;
 - provider mail is persisted as authoritative ``production_native`` correspondence;
-- duplicate RFC Message-ID values are skipped idempotently rather than rewritten.
+- duplicate RFC Message-ID values are skipped idempotently rather than rewritten;
+- malformed/unsupported messages fail closed individually without blocking safe peers.
 """
 
 from __future__ import annotations
@@ -123,7 +124,7 @@ def _search_uids(session: IMAPSession) -> list[bytes]:
     uids = first.split()
     if any(not _UID_RE.fullmatch(uid) for uid in uids):
         raise NamecheapIMAPSourceError("IMAP UID SEARCH returned an invalid UID")
-    return uids
+    return sorted(uids, key=lambda value: int(value))
 
 
 def _fetch_raw(session: IMAPSession, uid: bytes) -> bytes:
@@ -143,11 +144,11 @@ def _fetch_raw(session: IMAPSession, uid: bytes) -> bytes:
 def _message_id(raw: bytes) -> str:
     try:
         message = BytesParser(policy=policy.default).parsebytes(raw, headersonly=True)
-        value = message.get("Message-ID")
-        return MailCorrespondenceStore._message_id(value, "Message-ID")
-    except (CorrespondenceStoreError, Exception) as exc:
-        if isinstance(exc, NamecheapIMAPSourceError):
-            raise
+    except Exception as exc:
+        raise NamecheapIMAPSourceError("provider message headers cannot be parsed") from exc
+    try:
+        return MailCorrespondenceStore._message_id(message.get("Message-ID"), "Message-ID")
+    except CorrespondenceStoreError as exc:
         raise NamecheapIMAPSourceError("provider message lacks a canonical Message-ID") from exc
 
 
@@ -174,8 +175,9 @@ def ingest_namecheap_private_email(
 ) -> dict[str, object]:
     """Read a bounded tail of INBOX and persist new authoritative correspondence.
 
-    This function intentionally performs no mailbox mutation. The returned metadata is
-    operational evidence only and never contains the supplied password.
+    Provider/session failures abort the pass. Message-specific RFC822 failures are held
+    out of the store, reported by UID, and do not weaken validation for other messages.
+    The function performs no mailbox mutation and never returns the supplied password.
     """
 
     config.validate()
@@ -188,9 +190,10 @@ def ingest_namecheap_private_email(
     if not isinstance(password, str) or not password:
         raise NamecheapIMAPSourceError("mailbox credential is unavailable")
 
-    session = session_factory()
+    session: IMAPSession | None = None
     logged_in = False
     try:
+        session = session_factory()
         status, _ = session.login(config.username, password)
         _ok(status, "LOGIN")
         logged_in = True
@@ -202,10 +205,16 @@ def ingest_namecheap_private_email(
 
         ingested: list[dict[str, object]] = []
         skipped: list[dict[str, object]] = []
+        failed: list[dict[str, object]] = []
         for uid in selected:
-            raw = _fetch_raw(session, uid)
-            message_id = _message_id(raw)
             uid_text = uid.decode("ascii")
+            raw = _fetch_raw(session, uid)
+            try:
+                message_id = _message_id(raw)
+            except NamecheapIMAPSourceError:
+                failed.append({"uid": uid_text, "reason": "invalid_message_id"})
+                continue
+
             if _already_ingested(store, message_id):
                 skipped.append(
                     {
@@ -215,12 +224,19 @@ def ingest_namecheap_private_email(
                     }
                 )
                 continue
+
             try:
                 record = normalize_rfc822(raw, store, direction="inbound")
-            except LocalMailSourceError as exc:
-                raise NamecheapIMAPSourceError(
-                    f"provider message {uid_text} failed RFC822 normalization"
-                ) from exc
+            except LocalMailSourceError:
+                failed.append(
+                    {
+                        "uid": uid_text,
+                        "message_id": message_id,
+                        "reason": "normalization_rejected",
+                    }
+                )
+                continue
+
             ingested.append(
                 {
                     "uid": uid_text,
@@ -244,8 +260,11 @@ def ingest_namecheap_private_email(
             "selected_count": len(selected),
             "ingested_count": len(ingested),
             "skipped_count": len(skipped),
+            "failed_count": len(failed),
+            "complete": not failed,
             "ingested": ingested,
             "skipped": skipped,
+            "failed": failed,
             "mailbox_read_only": True,
             "network_activity": True,
             "send_authorized": False,
@@ -256,7 +275,7 @@ def ingest_namecheap_private_email(
         raise NamecheapIMAPSourceError("provider IMAP read failed") from exc
     finally:
         password = ""
-        if logged_in:
+        if session is not None and logged_in:
             try:
                 session.logout()
             except Exception:
