@@ -77,6 +77,12 @@
       drawer.append(link);
     }
     mount.append(drawer);
+    const closeDrawer = () => {
+      if (drawer.hidden) return;
+      drawer.hidden = true;
+      mobile.setAttribute("aria-expanded", "false");
+      mobile.focus();
+    };
     mobile.addEventListener("click", () => {
       drawer.hidden = !drawer.hidden;
       mobile.setAttribute("aria-expanded", String(!drawer.hidden));
@@ -131,7 +137,8 @@
     palette.addEventListener("click", (event) => { if (event.target === palette) close(); });
     document.addEventListener("keydown", (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); open(); return; }
-      if (event.key === "Escape" && !palette.hidden) close();
+      if (event.key === "Escape" && !palette.hidden) { close(); return; }
+      if (event.key === "Escape" && !drawer.hidden) closeDrawer();
     });
     remember(activeId);
   }
@@ -147,7 +154,9 @@
       document.documentElement.classList.add("wwcx-shell-active");
       mount.className = "wwcx-operator-shell";
       const bar = make("div", "wwcx-shell-bar");
-      bar.append(make("div", "wwcx-shell-brand", "WW.CX Edge1 Operator"), make("span", "wwcx-shell-spacer"), make("span", "wwcx-shell-safety", "Navigation unavailable · safety state unknown"));
+      const escape = make("a", "wwcx-shell-action", "Operations Center");
+      escape.href = "/edge1-status/";
+      bar.append(make("div", "wwcx-shell-brand", "WW.CX Edge1 Operator"), escape, make("span", "wwcx-shell-spacer"), make("span", "wwcx-shell-safety", "Navigation unavailable · safety state unknown"));
       mount.replaceChildren(bar);
     });
 })();
