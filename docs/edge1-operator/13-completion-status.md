@@ -4,78 +4,130 @@ Last reconciled: 2026-08-20
 
 ## Current state
 
-The Secure MCP Tunnel activation itself is **LIVE / ACCEPTED / PERSISTENT**. Do not repeat initial staging or activation unless live evidence shows regression.
+The Edge1 Secure MCP Tunnel and Edge1 Operator MCP commissioning are **LIVE / ACCEPTED / PERSISTENT**.
 
-Verified live through the Edge1 Operator MCP on 2026-08-20:
+Engineering publication verdict: **READY FOR WORKSPACE PUBLICATION**.
 
-- host identity: `edge1.ww.cx`, principal `edge1-operator`, service ready;
-- `edge1-secure-mcp-tunnel.service` active and enabled;
-- `edge1-operator-mcp.service` active;
-- `bigbird-ai-tunnel.service` active and Big Bird health OK;
-- local Edge1 MCP remains loopback-only and bearer-protected; unauthenticated access is rejected;
-- Operations API remains loopback-only with `mutations_enabled=false`;
-- ChatGPT reaches Edge1 end-to-end through the Secure MCP Tunnel;
-- the currently discovered app surface is exactly the intended 16 named Edge1 tools;
-- no generic execution tool is exposed.
+Actual workspace publication remains a separate administrative/product action and must not broaden the accepted tool, authentication, or runtime boundaries.
 
-The tunnel transport is commissioned. Workspace-wide publication remains a separate gate.
+## Accepted revision
 
-## 2026-08-20 commissioning closeout
+Merged and deployed revision:
 
-A focused repository branch, `edge1/operator-mcp-commissioning-closeout-20260820`, was created from remote `main` at `408bf253d308da1f310f82c9147c4184ec16d8cc` without moving the live Edge1 checkout.
+`d326d4546abefa695a293266342a5c1075f010e2`
 
-The closeout branch addresses these bounded issues:
+Primary engineering checkout:
 
-1. **Network diagnostics sandbox** — `edge1.network_state` and inventory probes fail because `ip` cannot open an AF_NETLINK socket inside `edge1-operations-api.service`. The proposed unit change adds only `AF_NETLINK` to `RestrictAddressFamilies`; the fixed action allowlist, empty capability sets, loopback binding, and `mutations_enabled=false` remain unchanged.
-2. **Public MCP contract** — the repository protocol had accumulated newer `agent.turn.*` protocol tools. The public Edge1 Operator contract is now explicitly locked to the intended 16 tools only.
-3. **Standard MCP annotations** — each public Edge1 tool is annotated read-only, non-destructive, closed-world/local, and idempotent where factually correct. The custom `access=read` marker is retained as supplemental metadata.
-4. **Security-boundary residual classifier** — classification now matches the actual preserved records: repository-static `network-sensor/index.html`; generated JSON `network-sensor/data/network-sensor.json` and `snmp/operations-snmp.json`; explicitly preserved unresolved `operations-center/snmp.html`; and the reviewed `security-correlation.json` compatibility symlink. Dynamic JSON is not compared with stale historical size/hash snapshots, and the unresolved HTML is not overwritten to manufacture provenance.
+- `/opt/edge1-management-interface`
+- clean `main`
+- accepted revision above
 
-Regression tests protect the exact 16-tool surface, annotations, netlink-without-CAP_NET_ADMIN sandbox, and fail-closed residual classifications.
+Immutable Operations API runtime:
 
-## Repository/live provenance reconciliation
+- `/opt/edge1-operations-api-runtimes/d326d4546abe`
+- detached clean worktree at the same accepted revision
 
-Three revisions are intentionally distinguished:
+Final detailed evidence is recorded in:
 
-- current remote `main` observed during closeout: `408bf253d308da1f310f82c9147c4184ec16d8cc`;
-- live `/opt/edge1-management-interface` snapshot: clean `main` at `f3a20fb60783412758ab322a2f1a43defb2684c7`;
-- `edge1.git_state` runtime-reported revision: `7496da7550ee46ef81142081b0a63fced7894e90`.
+`docs/edge1-operator/17-post-deployment-acceptance-20260820.md`
 
-Do not treat those as interchangeable. The live `/opt` checkout was not switched, reset, or overwritten during this closeout. Before deployment, identify the MCP runtime/package provenance for `7496da7...` and deploy the reviewed closeout revision deliberately rather than by branch guessing.
+## Accepted live behavior
 
-## Asterisk diagnostic limitation
+Verified through the live Edge1 Operator MCP after deployment and immutable-runtime repin:
 
-Asterisk itself remains healthy by service/passive evidence and the earlier direct host warning audit (Warnings: 0, Failures: 0). The MCP-side fixed native CLI probes still cannot connect to the Asterisk control socket under the Operations API principal.
+- identity ready on `edge1.ww.cx` as principal `edge1-operator`;
+- Operations API healthy, loopback-only, 27 fixed actions, `mutations_enabled=false`;
+- Secure MCP Tunnel active and persistent;
+- Edge1 Operator MCP active;
+- exactly 16 public Edge1 tools are exposed;
+- all public tools use read-only, non-destructive, closed-world/local, idempotent MCP annotations;
+- public call dispatch rejects internal `agent.turn.*` capabilities;
+- no generic execution or write MCP tool is exposed;
+- `edge1.network_state` succeeds for addresses, routes and listener classification;
+- Asterisk native diagnostics succeed through the bounded `asterisk`-owned snapshot mechanism;
+- Asterisk snapshot remains `asterisk:bigbird-audit 0640`, fresh and no-parameter;
+- `wwadmin` is not granted Asterisk control-socket authority;
+- Big Bird remains healthy and read-only;
+- telephony, messaging and time-authority checks are healthy;
+- repository/runtime provenance is reconciled to the accepted revision;
+- expanded configuration digest covers the Operator public contract and Asterisk helper boundary.
 
-Do not grant unrestricted Asterisk CLI or shell access. Preserve passive fallback. A native fix must be limited to a reviewed read-only helper/socket-group/sudo allowlist mechanism after live socket ownership/mode evidence is captured. Until that bounded mechanism is deployed and verified through ChatGPT, native Asterisk CLI diagnostics remain an explicitly accepted commissioning limitation, not evidence of Asterisk failure.
+## Commissioning design decisions
 
-## Rollback
+### Network diagnostics
 
-Stop the accepted tunnel without changing other Edge1 services:
+The Operations API sandbox permits `AF_NETLINK` only as the additional address family required by fixed read-only `ip -json` probes. Capability bounding and ambient capability sets remain empty; `CAP_NET_ADMIN` is not granted.
+
+### Public MCP contract
+
+The externally published contract is exactly these 16 tools:
+
+1. `edge1.identity`
+2. `edge1.health`
+3. `edge1.snapshot`
+4. `edge1.inventory`
+5. `edge1.services`
+6. `edge1.network_state`
+7. `edge1.disk_state`
+8. `edge1.bigbird_status`
+9. `edge1.operations_status`
+10. `edge1.apache_status`
+11. `edge1.asterisk_status`
+12. `edge1.telephony_status`
+13. `edge1.messaging_status`
+14. `edge1.time_authority_status`
+15. `edge1.git_state`
+16. `edge1.config_digest`
+
+Internal `agent.turn.status` and `agent.turn.handoff` may remain inside lower-level adapter code for explicitly internal workflows but are excluded at both public discovery and public call dispatch.
+
+### Asterisk diagnostics
+
+Direct `wwadmin` access to `/var/run/asterisk/asterisk.ctl` was deliberately rejected because the socket is a general CLI control channel. The accepted mechanism instead runs exactly seven fixed read-only Asterisk CLI probes as the existing `asterisk` account and publishes a sanitized bounded snapshot for read-only consumption by the Operations API through the existing `bigbird-audit` group.
+
+No sudoers rule, shell authority, arbitrary Asterisk command, new listener, or `wwadmin` membership in group `asterisk` is introduced.
+
+### Immutable Operations API runtime
+
+Production Operations API execution remains pinned to a clean detached worktree rather than the shared engineering checkout. This preserves the established runtime-isolation design while keeping both the immutable runtime and shared checkout on the same reviewed revision.
+
+## Known pre-existing conditions not changed by this closeout
+
+These Big Bird connector lifecycle units remain failed and were already failed before commissioning closeout:
+
+- `bigbird-edge1-connector-maintenance.service`;
+- `bigbird-edge1-connector.service`.
+
+Big Bird gateway/tunnel/service/worker health is otherwise good, and these failures were intentionally not disturbed as part of the Edge1 Operator commissioning scope.
+
+## Evidence and rollback
+
+Commissioning deployment evidence:
+
+`/var/lib/wwcx-deployment-evidence/edge1-operator-commissioning-closeout/20260820T045156Z`
+
+Immutable runtime acceptance evidence:
+
+`/var/lib/wwcx-deployment-evidence/operations-api-runtime/20260820T045417Z`
+
+Immutable runtime rollback:
+
+`/var/lib/wwcx-deployment-evidence/operations-api-runtime/20260820T045417Z/rollback.sh`
+
+Pre-deployment safety branch:
+
+`safety/edge1-operator-pre-closeout-20260820T045153Z`
+
+Tunnel emergency stop:
 
 ```sh
 systemctl stop edge1-secure-mcp-tunnel.service
 ```
 
-Disable persistence and stop it:
+Disable tunnel persistence only for an intentional tunnel rollback:
 
 ```sh
 systemctl disable --now edge1-secure-mcp-tunnel.service
 ```
 
-Rollback must not remove or replace the shared tunnel-client, restart/reconfigure Big Bird, expose the local MCP publicly, or alter firewall, DNS, Apache, SSH, SIP, SNMP, certificates, accounts, or authentication.
-
-## Publication gate
-
-Do **not** publish the Edge1 Operator app workspace-wide until all of these are true on the deployed reviewed revision:
-
-- all intended 16 tools work, or any remaining bounded limitation is explicitly accepted;
-- standard MCP annotations accurately represent every exposed tool;
-- `tools/list` exposes exactly the 16 intended tools and no `agent.turn.*`, generic exec, or write surface;
-- `edge1.network_state` succeeds after the AF_NETLINK sandbox fix;
-- Asterisk native read-only diagnostics either succeed through a narrowly scoped mechanism or the limitation is explicitly accepted for publication;
-- repository/unit tests and live acceptance checks pass;
-- tunnel remains active+enabled, loopback-only local MCP remains bearer-protected, Operations API remains loopback-only with mutations disabled, and Big Bird remains healthy;
-- final evidence records the tested revision and meaningful audit event IDs without secret values.
-
-Until those deployment/live-validation gates pass, the correct publication verdict is **NOT READY FOR WORKSPACE PUBLICATION**, even though the Secure MCP Tunnel itself is accepted and persistent.
+Do not alter the shared tunnel-client, Big Bird, firewall, DNS, SSH, Apache, certificates, SIP, SNMP, accounts or authentication as part of routine Operator rollback.
