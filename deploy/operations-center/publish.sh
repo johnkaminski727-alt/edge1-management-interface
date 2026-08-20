@@ -24,14 +24,16 @@ if [ ! -f "$SNMP_SOURCE" ]; then
 fi
 
 # The full SNMP console is served only through the authenticated Edge1 operator
-# adapter. Keep the public Operations Center link on the handoff page so an
-# unauthenticated browser is sent through the WW.CX identity bridge instead of
-# directly to a protected route that can only return authentication_required.
+# adapter. Keep the public Operations Center link on the handoff page, and have
+# that handoff enter /edge1-ops/snmp/ first. The adapter can then establish the
+# bounded "snmp" return state before redirecting an unauthenticated browser to
+# the existing WW.CX identity bridge. After assertion exchange, the same browser
+# returns directly to SNMP Operations rather than the generic Security Console.
 cp "$SOURCE" "$TMP_INDEX"
 cat > "$TMP_SNMP" <<'EOF'
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>SNMP Operations | WW.CX Edge1</title></head>
-<body><main><h1>SNMP Operations</h1><p>This operator console requires an authenticated Edge1 session.</p><p><a href="https://ww.cx/admin/edge1-security-login.php">Sign in through WW.CX to continue</a></p><p>After Edge1 sign-in, open SNMP Operations from the Edge1 Security Console.</p></main></body></html>
+<body><main><h1>SNMP Operations</h1><p>This operator console requires an authenticated Edge1 session.</p><p><a href="/edge1-ops/snmp/">Open authenticated SNMP Operations</a></p><p>If you are not already signed in, Edge1 will send you through the WW.CX identity bridge and return you here after authentication.</p></main></body></html>
 EOF
 
 sudo install -d -m 0700 "$BACKUP_DIR"
