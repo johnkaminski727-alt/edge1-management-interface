@@ -1,128 +1,81 @@
 # Edge1 Operator Completion Status
 
-Last reconciled: 2026-08-19
+Last reconciled: 2026-08-20
 
-## Purpose
+## Current state
 
-Track the transition from the verified live Edge1 server-side Operator to a permanently available private authenticated ChatGPT Edge1 operator.
+The Secure MCP Tunnel activation itself is **LIVE / ACCEPTED / PERSISTENT**. Do not repeat initial staging or activation unless live evidence shows regression.
 
-## Repository and server-side foundation — complete
+Verified live through the Edge1 Operator MCP on 2026-08-20:
 
-The following are complete and must not be rebuilt merely because the ChatGPT attachment remains pending:
+- host identity: `edge1.ww.cx`, principal `edge1-operator`, service ready;
+- `edge1-secure-mcp-tunnel.service` active and enabled;
+- `edge1-operator-mcp.service` active;
+- `bigbird-ai-tunnel.service` active and Big Bird health OK;
+- local Edge1 MCP remains loopback-only and bearer-protected; unauthenticated access is rejected;
+- Operations API remains loopback-only with `mutations_enabled=false`;
+- ChatGPT reaches Edge1 end-to-end through the Secure MCP Tunnel;
+- the currently discovered app surface is exactly the intended 16 named Edge1 tools;
+- no generic execution tool is exposed.
 
-- architecture and authority/risk boundaries;
-- loopback HMAC/replay-protected Operations API and fixed server-side allowlist;
-- fixed non-mutating Control Surfaces diagnostics;
-- read-only Control Surfaces live-inventory runner with safety tests and CI;
-- named parameterless MCP read-only tool contract;
-- fixed Operations API client restricted to loopback and compile-time actions;
-- runtime mappings from MCP tools to fixed read-only Operations API actions;
-- internal `tools/list` / `tools/call` dispatch;
-- removal of MCP-visible generic `edge1.exec` and generic arbitrary-command execution scaffolding;
-- focused bounded-tool validation.
+The tunnel transport is commissioned. Workspace-wide publication remains a separate gate.
 
-Fresh production verification established:
+## 2026-08-20 commissioning closeout
 
-- `edge1-operator-mcp.service` loaded, enabled, active, running;
-- service principal `edge1-operator`;
-- MCP listener `127.0.0.1:8102` only;
-- Operations API listener `127.0.0.1:8097` only;
-- hardened service settings retained (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome=true`);
-- bearer token metadata restricted; token value not exposed;
-- unauthenticated MCP request -> HTTP 401;
-- authenticated MCP initialize/tools/list -> HTTP 200;
-- 16 named parameterless read-only tools discovered;
-- `edge1.identity`, `edge1.health`, and `edge1.apache_status` succeeded;
-- Operations API reported loopback true and `mutations_enabled=false`.
+A focused repository branch, `edge1/operator-mcp-commissioning-closeout-20260820`, was created from remote `main` at `408bf253d308da1f310f82c9147c4184ec16d8cc` without moving the live Edge1 checkout.
 
-The production server-side MCP boundary is therefore **verified live**.
+The closeout branch addresses these bounded issues:
 
-## Public Edge1 state — LIVE / ACCEPTED
+1. **Network diagnostics sandbox** — `edge1.network_state` and inventory probes fail because `ip` cannot open an AF_NETLINK socket inside `edge1-operations-api.service`. The proposed unit change adds only `AF_NETLINK` to `RestrictAddressFamilies`; the fixed action allowlist, empty capability sets, loopback binding, and `mutations_enabled=false` remain unchanged.
+2. **Public MCP contract** — the repository protocol had accumulated newer `agent.turn.*` protocol tools. The public Edge1 Operator contract is now explicitly locked to the intended 16 tools only.
+3. **Standard MCP annotations** — each public Edge1 tool is annotated read-only, non-destructive, closed-world/local, and idempotent where factually correct. The custom `access=read` marker is retained as supplemental metadata.
+4. **Security-boundary residual classifier** — classification now matches the actual preserved records: repository-static `network-sensor/index.html`; generated JSON `network-sensor/data/network-sensor.json` and `snmp/operations-snmp.json`; explicitly preserved unresolved `operations-center/snmp.html`; and the reviewed `security-correlation.json` compatibility symlink. Dynamic JSON is not compared with stale historical size/hash snapshots, and the unresolved HTML is not overwritten to manufacture provenance.
 
-The 2026-08-19 public front-door work is accepted and independent of the private MCP transport. Canonical ordinary public destination is `https://ww.cx/time/`; operational/non-root routes, PBX/SIP behavior, Apache listeners, chronyd listeners, and raw HTTPS handling were preserved. The private Operator must not be exposed through the public front door.
+Regression tests protect the exact 16-tool surface, annotations, netlink-without-CAP_NET_ADMIN sandbox, and fail-closed residual classifications.
 
-Protected rollback evidence remains under:
+## Repository/live provenance reconciliation
 
-```text
-/var/backups/wwcx-edge1-front-door-approved-20260819T052836Z
+Three revisions are intentionally distinguished:
+
+- current remote `main` observed during closeout: `408bf253d308da1f310f82c9147c4184ec16d8cc`;
+- live `/opt/edge1-management-interface` snapshot: clean `main` at `f3a20fb60783412758ab322a2f1a43defb2684c7`;
+- `edge1.git_state` runtime-reported revision: `7496da7550ee46ef81142081b0a63fced7894e90`.
+
+Do not treat those as interchangeable. The live `/opt` checkout was not switched, reset, or overwritten during this closeout. Before deployment, identify the MCP runtime/package provenance for `7496da7...` and deploy the reviewed closeout revision deliberately rather than by branch guessing.
+
+## Asterisk diagnostic limitation
+
+Asterisk itself remains healthy by service/passive evidence and the earlier direct host warning audit (Warnings: 0, Failures: 0). The MCP-side fixed native CLI probes still cannot connect to the Asterisk control socket under the Operations API principal.
+
+Do not grant unrestricted Asterisk CLI or shell access. Preserve passive fallback. A native fix must be limited to a reviewed read-only helper/socket-group/sudo allowlist mechanism after live socket ownership/mode evidence is captured. Until that bounded mechanism is deployed and verified through ChatGPT, native Asterisk CLI diagnostics remain an explicitly accepted commissioning limitation, not evidence of Asterisk failure.
+
+## Rollback
+
+Stop the accepted tunnel without changing other Edge1 services:
+
+```sh
+systemctl stop edge1-secure-mcp-tunnel.service
 ```
 
-## Secure MCP Tunnel state
+Disable persistence and stop it:
 
-Non-secret host staging was accepted on 2026-08-18. By 2026-08-19 the authorized account-side tunnel selection and local credential provisioning were also complete without recording secret values:
-
-- existing official `tunnel-client` retained unchanged;
-- Big Bird tunnel remained active/unchanged;
-- Edge1 tunnel config, launcher, and unit remain isolated in the Edge1 namespace;
-- `/etc/edge1-tunnel/tunnel-id` and `/etc/edge1-tunnel/runtime-api-key` exist with restricted `root:edge1-operator` mode `0640` metadata;
-- `edge1-secure-mcp-tunnel.service` remains disabled/inactive;
-- no second persistent tunnel process has been accepted yet;
-- no public listener, firewall/DNS change, Apache proxy, MCP auth change, or Operator restart was introduced.
-
-The installed shared tunnel-client is pinned to:
-
-```text
-0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144
-sha256=937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100
+```sh
+systemctl disable --now edge1-secure-mcp-tunnel.service
 ```
 
-Its raw `doctor` has one reviewed old-build false negative: exit code `2`, with `oauth_metadata` as the sole failed check because the Edge1 bearer-authenticated MCP server intentionally does not publish OAuth protected-resource metadata. Do not add synthetic OAuth endpoints or replace the shared tunnel-client merely to make this old doctor green.
+Rollback must not remove or replace the shared tunnel-client, restart/reconfigure Big Bird, expose the local MCP publicly, or alter firewall, DNS, Apache, SSH, SIP, SNMP, certificates, accounts, or authentication.
 
-The required preactivation gate is now:
+## Publication gate
 
-```text
-deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
-```
+Do **not** publish the Edge1 Operator app workspace-wide until all of these are true on the deployed reviewed revision:
 
-That validator is fail-closed and must report:
+- all intended 16 tools work, or any remaining bounded limitation is explicitly accepted;
+- standard MCP annotations accurately represent every exposed tool;
+- `tools/list` exposes exactly the 16 intended tools and no `agent.turn.*`, generic exec, or write surface;
+- `edge1.network_state` succeeds after the AF_NETLINK sandbox fix;
+- Asterisk native read-only diagnostics either succeed through a narrowly scoped mechanism or the limitation is explicitly accepted for publication;
+- repository/unit tests and live acceptance checks pass;
+- tunnel remains active+enabled, loopback-only local MCP remains bearer-protected, Operations API remains loopback-only with mutations disabled, and Big Bird remains healthy;
+- final evidence records the tested revision and meaningful audit event IDs without secret values.
 
-```text
-EDGE1_TUNNEL_COMPAT_DOCTOR=PASS
-```
-
-before attended activation is considered. It verifies the exact reviewed binary and installed asset hashes/metadata, unauthenticated MCP 401, authenticated GET `/mcp` 405, OAuth metadata candidates 404, and the exact reviewed raw-doctor result. Unexpected raw-doctor success from the pinned old build is drift and requires re-review.
-
-`deploy/edge1-tunnel/install-edge1-secure-mcp-tunnel.sh --apply` is staging-only and must refuse when the tunnel is active or enabled; it must not stop or disable an accepted tunnel on a later rerun.
-
-See:
-
-- `docs/edge1-operator/14-secure-mcp-tunnel.md`
-- `docs/edge1-operator/15-tunnel-doctor-compatibility-20260819.md`
-
-## Remaining completion gate — private ChatGPT attachment
-
-Remaining tasks:
-
-1. confirm the applicable developer/custom-app capability in the authorized ChatGPT workspace/account;
-2. merge the reviewed preactivation hardening and fast-forward the clean Edge1 checkout;
-3. run the compatibility validator and require `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS`;
-4. obtain explicit approval for attended tunnel activation;
-5. start `edge1-secure-mcp-tunnel.service` attended without enabling persistence;
-6. verify the tunnel's dynamic loopback `/healthz` and `/readyz`, Big Bird health, and unchanged Edge1 listener boundary;
-7. scan tools from ChatGPT and verify exactly the expected 16 named parameterless read-only tools;
-8. prove ChatGPT-side `edge1.identity`, `edge1.health`, and approved diagnostics with durable audit evidence;
-9. test attended stop plus documented account-side revocation path;
-10. enable persistence only after attended acceptance passes;
-11. record final closeout.
-
-Account sign-in, private activation links, credential values, and account-side revocation remain explicit human boundaries and must not be pasted into Git or chat.
-
-No direct `edge1.*` MCP connector is exposed to the current ChatGPT session, so private attachment is not complete.
-
-## Other remaining read-only reconciliation
-
-Before or independently of tunnel activation, safe read-only work remains:
-
-- classify the four preserved unknown artifacts and one filesystem anomaly from the accepted security-boundary inventory using metadata/hash/path relationships only;
-- rerun the executable Control Surfaces live inventory and retain its manifest/summary;
-- rerun the corrected Asterisk warning audit and retain its final warning/failure summary.
-
-None of those read-only tasks authorizes listener, firewall, authentication, SIP, carrier, or alert-delivery changes.
-
-## Completion condition
-
-The permanent Operator is complete only when the verified loopback MCP service is reachable through the approved Secure MCP Tunnel/private ChatGPT transport, ChatGPT discovers the exact reviewed bounded tools, identity/health and approved diagnostics succeed with durable audit evidence, rollback/revocation is proven, and no secret or new public management exposure has been introduced.
-
-## Operating rule
-
-Routine repository work and read-only inspection continue under standing authorization. Credentials/secret material, irreversible/destructive changes, privileged network/security changes, live carrier/call/message behavior, and other explicit stop conditions remain gated.
+Until those deployment/live-validation gates pass, the correct publication verdict is **NOT READY FOR WORKSPACE PUBLICATION**, even though the Secure MCP Tunnel itself is accepted and persistent.
