@@ -36,15 +36,15 @@ edge1_snmp_server_pollers.py poll-local \
   --disk-path /
 ```
 
-The existing `edge1-snmp-poller.timer` remains the schedule authority and runs every five minutes. No additional daemon or timer is required.
+The existing `edge1-snmp-poller.timer` remains the schedule authority and runs every five minutes. No additional poller timer is required.
 
-The same command also checks this optional import location:
+The same command imports the authenticated Business159 copy from:
 
 ```text
 /var/lib/edge1-snmp/server-pollers/business159-measurements.jsonl
 ```
 
-Absence is a normal state. Do not populate that path through an unauthenticated or public transfer mechanism.
+Absence remains a normal state. The path must never be populated through an unauthenticated or public transfer mechanism.
 
 ## Shared-host collection
 
@@ -63,17 +63,45 @@ The installer:
 5. installs one idempotent five-minute user crontab line;
 6. validates the resulting schema and secret-free field set.
 
-This mirrors the accepted Time Authority shared-host pattern. Measurements remain private on the shared host until an authenticated transfer path to Edge1 is explicitly enabled.
+This mirrors the accepted Time Authority shared-host pattern.
+
+## Authenticated Business159 -> Edge1 sync
+
+`edge1-snmp-business159-sync.service` is a short root-only oneshot used as a dependency of the normal Edge1 poller cycle. It does **not** introduce a new timer or network listener.
+
+The sync calls the existing reviewed strict SSH wrapper:
+
+```text
+/usr/local/libexec/business159-tunnel/ssh
+```
+
+That wrapper uses the isolated Business159 operator SSH configuration and known-hosts database. The SNMP sync does not contain or copy an SSH key, password, token, community string, or other credential.
+
+Each sync:
+
+1. connects non-interactively with `BatchMode=yes` and strict host-key verification;
+2. reads only the private Business159 measurements path;
+3. transfers at most the most recent 576 records (48 hours at five-minute cadence);
+4. limits the copied payload to 2 MiB;
+5. validates every JSONL record with the existing `edge1_snmp_server_pollers.validate_snapshot()` validator;
+6. additionally requires exact poller id `business159-shared-host`, exact observer host `business159.web-hosting.com`, and source type `host-native`;
+7. rejects secret-like markers before acceptance;
+8. atomically replaces the Edge1 import file only after validation succeeds;
+9. leaves the previous known-good import file untouched when fetch or validation fails.
+
+The service runs with systemd hardening, no capabilities, a strict writable path limited to `/var/lib/edge1-snmp/server-pollers`, and no access grant from `wwadmin` to Business159 SSH material.
+
+`edge1-snmp-poller.service` declares the sync as `Wants=` plus `After=`. Therefore every ordinary five-minute SNMP poller start attempts a fresh authenticated sync first, but a Business159 outage does not prevent local Edge1/SNMP polling from proceeding with the last known-good copied data.
 
 ## Central import
 
-Once an authenticated copy path exists, copy the shared-host JSONL to:
+After a successful sync, the normal Edge1 poller cycle imports:
 
 ```text
 /var/lib/edge1-snmp/server-pollers/business159-measurements.jsonl
 ```
 
-The Edge1 poller cycle imports records idempotently. A unique key on poller/timestamp/metric/source prevents duplicate metrics when the same copied file is seen repeatedly.
+Records are imported idempotently. A unique key on poller/timestamp/metric/source prevents duplicate metrics when the same copied file is seen repeatedly.
 
 Do not make the JSONL file public merely to simplify transport.
 
@@ -87,9 +115,11 @@ python3 tests/validate_snmp_server_pollers.py
 
 Live Edge1 checks after deployment should confirm:
 
-- `edge1-snmp-poller.service` succeeds;
-- the `edge1` row exists in `server_pollers`;
-- recent `server_metrics` samples exist;
+- `edge1-snmp-business159-sync.service` succeeds and exits;
+- the copied file is owned by `wwadmin:wwadmin`, mode `0600`;
+- `edge1-snmp-poller.service` succeeds after the sync;
+- both `edge1` and `business159-shared-host` rows exist in `server_pollers`;
+- recent `server_metrics` samples exist for both pollers;
 - the SNMP `devices` count is still the genuine SNMP inventory count;
 - no UDP 161/162 listeners appeared;
 - existing SNMP API and BigBird listeners remain loopback-only.
