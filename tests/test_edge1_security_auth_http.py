@@ -164,6 +164,35 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(response.status,403)
         response=self.request("POST","/edge1-ops/session/exchange",headers={"Origin":"https://evil.example","Content-Type":"application/x-www-form-urlencoded"},body=body)
         self.assertEqual(response.status,403)
+    def test_exchange_allows_null_origin_only_for_same_site_top_level_navigation(self):
+        body=urlencode({"assertion":"valid-assertion","request_id":"b159-0123456789abcdef0123456789abcdef"}).encode()
+        headers={
+            "Origin":"null",
+            "Sec-Fetch-Site":"same-site",
+            "Sec-Fetch-Mode":"navigate",
+            "Sec-Fetch-Dest":"document",
+            "Content-Type":"application/x-www-form-urlencoded",
+        }
+        response=self.request("POST","/edge1-ops/session/exchange",headers=headers,body=body)
+        self.assertEqual(response.status,303)
+    def test_exchange_rejects_null_origin_without_exact_fetch_metadata(self):
+        body=urlencode({"assertion":"valid-assertion","request_id":"b159-0123456789abcdef0123456789abcdef"}).encode()
+        base={"Origin":"null","Content-Type":"application/x-www-form-urlencoded"}
+        self.assertEqual(self.request("POST","/edge1-ops/session/exchange",headers=base,body=body).status,403)
+        for name,value in (
+            ("Sec-Fetch-Site","cross-site"),
+            ("Sec-Fetch-Mode","cors"),
+            ("Sec-Fetch-Dest","empty"),
+        ):
+            headers={
+                "Origin":"null",
+                "Sec-Fetch-Site":"same-site",
+                "Sec-Fetch-Mode":"navigate",
+                "Sec-Fetch-Dest":"document",
+                "Content-Type":"application/x-www-form-urlencoded",
+            }
+            headers[name]=value
+            self.assertEqual(self.request("POST","/edge1-ops/session/exchange",headers=headers,body=body).status,403)
     def test_exchange_session_and_cookie_policy(self):
         session,csrf,response=self.exchange()
         text="\n".join(v for k,v in response.headers if k=="Set-Cookie")
