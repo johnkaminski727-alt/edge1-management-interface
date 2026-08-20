@@ -19,7 +19,7 @@ Verified through the live Edge1 Operator MCP:
 - disk: bounded filesystem probe succeeds;
 - `edge1.network_state`: bounded runtime error remains on the deployed revision;
 - snapshot network probes identify the exact cause as `Cannot open netlink socket: Address family not supported by protocol`;
-- `edge1.asterisk_status`: native fixed CLI probes remain privilege-gated; passive fallback succeeds.
+- `edge1.asterisk_status`: native fixed CLI probes remain privilege-gated on the deployed revision; passive fallback succeeds.
 
 Meaningful read-only audit event IDs from final verification:
 
@@ -39,7 +39,7 @@ Meaningful read-only audit event IDs from final verification:
 
 Observed during closeout:
 
-- remote `main` base: `408bf253d308da1f310f82c9147c4184ec16d8cc`;
+- remote `main` base at branch creation: `408bf253d308da1f310f82c9147c4184ec16d8cc`;
 - live `/opt/edge1-management-interface`: clean `main` at `f3a20fb60783412758ab322a2f1a43defb2684c7`;
 - MCP runtime `edge1.git_state`: detached `7496da7550ee46ef81142081b0a63fced7894e90`.
 
@@ -55,25 +55,111 @@ No live branch switch/reset was performed. The focused repository work is in PR 
 - update the preserved-artifact classifier for the actual static/generated/unresolved set and reviewed compatibility symlink;
 - add regression tests and update tunnel/completion runbooks.
 
-Direct reconstructed-source validation performed during review:
+## Asterisk control-socket evidence
 
-- public contract/sandbox tests: 3 passed;
-- residual-classifier behavior tests: 5 passed;
-- Python compile checks for reconstructed changed Python logic: passed.
+Attended host-side inspection supplied during closeout established:
 
-These local checks are review evidence, not a substitute for repository CI or post-deployment host validation.
+```text
+/var/run/asterisk/asterisk.ctl
+  type=socket
+  owner=asterisk
+  group=asterisk
+  mode=0664
 
-## Asterisk limitation
+/run/asterisk
+  owner=asterisk
+  group=asterisk
+  mode=0775
 
-The available MCP tools do not expose the ownership/mode of `/var/run/asterisk/asterisk.ctl`. Without that evidence, no group, sudoers, socket-permission, or helper change was made. This preserves least privilege. The minimum acceptable native mechanism remains a narrowly scoped read-only mechanism selected only after live socket metadata is inspected; passive fallback remains mandatory.
+wwadmin groups:
+  wwadmin, sudo, users, bigbird-audit
+  not asterisk
+
+wwadmin direct socket write/connect permission test:
+  no
+```
+
+This proves the deployed Operations API principal does not currently have native Asterisk control-socket authority.
+
+Adding `wwadmin` to group `asterisk` was deliberately rejected as the preferred repair. The Asterisk control socket is a general CLI control channel; group membership would allow the Operations API process itself to issue arbitrary Asterisk CLI commands if its local code path were broadened or compromised. That is wider authority than the public read-only MCP contract permits.
+
+## Bounded Asterisk native diagnostic design
+
+PR #466 now prepares an intermediary mechanism that does **not** grant Asterisk group membership, sudo authority, shell authority, a new network listener, or caller-controlled CLI strings to `wwadmin`.
+
+Producer: `server/asterisk_readonly_snapshot.py`
+
+- accepts no command-line parameters;
+- contains exactly the seven reviewed read-only Asterisk CLI commands already used by Control Surfaces;
+- runs under a dedicated systemd oneshot as `User=asterisk`, so socket access comes from the socket owner identity rather than delegated privilege;
+- uses `Group=bigbird-audit` only for snapshot file sharing to the existing Operations API principal;
+- runs with `NoNewPrivileges=true`, empty capability sets, and `RestrictAddressFamilies=AF_UNIX`;
+- writes only `/run/edge1-asterisk-diagnostics/status.json` atomically;
+- requires the runtime directory to be the exact non-symlink path created by systemd;
+- writes mode `0640` and sanitizes command output before storage.
+
+Consumer: `server/asterisk_operator_diagnostics.py`
+
+- accepts no external target, command, host, port, or shell input;
+- accepts the native snapshot only when it is a regular file owned by `asterisk:bigbird-audit`, mode `0640`;
+- validates the exact snapshot contract and exact seven command IDs;
+- requires every native check to have succeeded;
+- rejects future-dated or older-than-90-second snapshots;
+- otherwise falls back to the existing direct/passive Control Surfaces path, preserving passive fallback.
+
+Systemd assets:
+
+- `deploy/systemd/edge1-asterisk-readonly-snapshot.service`;
+- `deploy/systemd/edge1-asterisk-readonly-snapshot.timer`.
+
+The Operations API allowlist remains fixed/read-only and now routes only `asterisk.diagnostics` through the bounded snapshot consumer. `config.digest` covers both helper scripts and both systemd assets.
+
+## Validation performed
+
+Direct local execution during review:
+
+- new Python producer/consumer compile checks: passed;
+- fixed seven-command contract test: passed;
+- fresh bounded snapshot acceptance: passed;
+- stale snapshot rejection: passed;
+- systemd unit syntax/verification: passed;
+- public contract/sandbox reconstructed tests: passed;
+- residual-classifier reconstructed behavior tests: passed.
+
+Repository CI was also expanded so merge validation explicitly exercises:
+
+- exact 16-tool public Edge1 Operator contract and standard annotations;
+- residual security-boundary classifier regressions;
+- `AF_NETLINK` presence with empty capability sets and no `CAP_NET_ADMIN`;
+- exact bounded Asterisk allowlist routing;
+- Asterisk producer/consumer safety tests;
+- systemd unit verification.
+
+Local/reconstructed checks are review evidence, not a substitute for repository CI or post-deployment host validation.
 
 ## Deployment/publication status
 
-The closeout branch is **not deployed** by this record. Therefore `edge1.network_state` remains expected to fail on the current live revision and the repository annotations/contract hardening are not yet authoritative production evidence.
+The closeout branch is **not deployed** by this record. Therefore:
+
+- `edge1.network_state` remains expected to fail on the current live revision;
+- `edge1.asterisk_status` remains expected to report native CLI limitation on the current live revision;
+- repository annotations/contract hardening are not yet authoritative production evidence.
+
+After reviewed merge and deliberate live revision reconciliation, deployment must back up the affected units/configuration, install the reviewed Operations API unit plus Asterisk snapshot service/timer, reload systemd, start/enable only the snapshot timer, restart only `edge1-operations-api.service`, and then verify through ChatGPT. Do not restart Big Bird or the Secure MCP Tunnel for this change.
+
+Required post-deploy proofs include:
+
+- `edge1.network_state` succeeds;
+- `edge1.asterisk_status` reports useful native diagnostics with `native_cli_status=ok` and source `asterisk-owned-fixed-snapshot`;
+- the snapshot file remains `asterisk:bigbird-audit 0640` and fresh;
+- Operations API remains loopback-only with `mutations_enabled=false`;
+- `wwadmin` remains outside group `asterisk`;
+- exactly 16 Edge1 Operator tools remain exposed with truthful standard annotations;
+- Big Bird and the Secure MCP Tunnel remain healthy.
 
 Publication verdict at this stage: **NOT READY FOR WORKSPACE PUBLICATION**.
 
-The tunnel itself remains accepted and persistent; publication is blocked only on reviewed merge/deployment, post-deploy live validation, and resolution or explicit acceptance of the bounded Asterisk native-diagnostics limitation.
+The tunnel itself remains accepted and persistent; publication remains blocked on reviewed merge/deployment and post-deploy live validation.
 
 ## Tunnel rollback
 
