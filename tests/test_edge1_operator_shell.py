@@ -21,7 +21,7 @@ class Edge1OperatorShellTests(unittest.TestCase):
         self.assertNotIn("PATCH", script)
         self.assertNotIn("DELETE", script)
 
-    def test_shell_fails_closed_on_safety_contract(self):
+    def test_shell_fails_closed_on_safety_contract_and_keeps_escape(self):
         script = SCRIPT.read_text(encoding="utf-8")
         for marker in (
             "navigation_grants_authorization !== false",
@@ -32,6 +32,7 @@ class Edge1OperatorShellTests(unittest.TestCase):
         ):
             self.assertIn(marker, script)
         self.assertIn("Navigation unavailable · safety state unknown", script)
+        self.assertIn('escape.href = "/edge1-status/"', script)
 
     def test_registry_has_no_external_browser_urls(self):
         data = json.loads(REGISTRY.read_text(encoding="utf-8"))
@@ -45,9 +46,11 @@ class Edge1OperatorShellTests(unittest.TestCase):
         style = STYLE.read_text(encoding="utf-8")
         script = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("@media(max-width:900px)", style)
+        self.assertIn("focus-visible", style)
         self.assertIn('aria-expanded', script)
         self.assertIn('aria-modal', script)
         self.assertIn('aria-current', script)
+        self.assertIn('event.key === "Escape" && !drawer.hidden', script)
 
 
 if __name__ == "__main__":
