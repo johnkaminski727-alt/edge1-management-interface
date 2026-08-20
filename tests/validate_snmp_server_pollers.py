@@ -117,6 +117,8 @@ class ServerPollerTests(unittest.TestCase):
         self.assertIn("business159-measurements.jsonl", service)
         self.assertIn("*/5 * * * *", installer)
         self.assertIn("business159.web-hosting.com", installer)
+        self.assertIn('sh "$REPO_ROOT/deploy/snmp-server-poller-shared-host-smoke-test.sh"', installer)
+        self.assertNotIn('\n"$REPO_ROOT/deploy/snmp-server-poller-shared-host-smoke-test.sh"\n', installer)
         for forbidden in ("socket", "snmpd", "snmptrapd", "udp:161", "subprocess", "urlopen"):
             self.assertNotIn(forbidden, source)
 
