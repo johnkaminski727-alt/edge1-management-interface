@@ -36,6 +36,7 @@ assert 'CapabilityBoundingSet=' in unit
 assert 'AmbientCapabilities=' in unit
 assert 'ProtectSystem=strict' in unit
 assert 'Environment=BUSINESS159_NODE_BIN=/opt/node-v24.18.0-linux-x64/bin/node' in unit
+assert 'Environment=NODE_OPTIONS=--jitless' in unit
 assert '/opt/node-v24.18.0-linux-x64' in unit
 
 assert 'systemctl enable' not in installer
