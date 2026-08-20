@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Classify the accepted Edge1 security-boundary inventory residuals read-only.
+"""Classify accepted Edge1 security-boundary residuals read-only and fail-closed.
 
-The tool opens only the already-collected protected inventory JSON plus the five
-live filesystem objects needed to prove metadata/hash/path relationships. It
-never writes files, changes permissions, invokes services, or follows arbitrary
-symlinks.
+The historical protected inventory establishes which residual paths were preserved.
+Classification then applies a path-specific current rule:
+
+* repository_static: live content must exactly match the reviewed repository source;
+* generated_json: live content must be a safe regular file containing valid JSON;
+* preserved_unresolved: the exact reviewed path may remain preserved without invented
+  repository provenance, but must remain a safe regular file;
+* reviewed_compatibility_symlink: the exact link and contained target are validated.
+
+Dynamic/generated artifacts are deliberately not compared with historical size/hash
+snapshots. The tool never mutates files, invokes services, or executes commands.
 """
 from __future__ import annotations
 
@@ -23,11 +30,14 @@ DEFAULT_EVIDENCE_ROOT = Path(
     "/var/lib/wwcx-deployment-evidence/edge1-security-boundary-live-inventory"
 )
 
-REVIEWED_UNKNOWN_NAMES = {
-    "bitcoin-mining-history.json",
-    "mining-operations.json",
-    "operations-changes.json",
-    "operations-trends.json",
+REVIEWED_RESIDUAL_RULES = {
+    "network-sensor/data/network-sensor.json": {"classification": "generated_json"},
+    "network-sensor/index.html": {
+        "classification": "repository_static",
+        "repository_source": "src/web/network-sensor/index.html",
+    },
+    "operations-center/snmp.html": {"classification": "preserved_unresolved"},
+    "snmp/operations-snmp.json": {"classification": "generated_json"},
 }
 COMPATIBILITY_LINK_RELATIVE = "security-correlation.json"
 COMPATIBILITY_TARGET_RELATIVE = "security/correlation/data/security-correlation.json"
@@ -52,8 +62,7 @@ def file_mode(info: os.stat_result) -> str:
 def accepted_result(value: Any) -> bool:
     return isinstance(value, dict) and all(
         (
-            value.get("contract")
-            == "wwcx.edge1-security-boundary-live-inventory-result.v1",
+            value.get("contract") == "wwcx.edge1-security-boundary-live-inventory-result.v1",
             value.get("read_only_host_inventory") is True,
             value.get("live_configuration_changed") is False,
             value.get("source_tree_mutated") is False,
@@ -84,15 +93,43 @@ def candidate_evidence_dirs(evidence_root: Path) -> list[Path]:
     return matches
 
 
-def exact_manifest_map(repo_root: Path) -> dict[str, dict[str, Any]]:
-    manifest = load_json(
-        repo_root / "config/security/edge1-restricted-artifact-migration-manifest.json"
-    )
-    return {
-        item["source_relative"]: item
-        for item in manifest.get("known_exact_artifacts", [])
+def _is_contained(root: Path, path: Path) -> bool:
+    root_resolved = root.resolve(strict=True)
+    path_resolved = path.resolve(strict=True)
+    try:
+        return os.path.commonpath([str(root_resolved), str(path_resolved)]) == str(root_resolved)
+    except ValueError:
+        return False
+
+
+def _safe_regular(root: Path, path: Path, label: str) -> os.stat_result:
+    if not _is_contained(root, path):
+        raise ValueError(f"{label}: path escapes reviewed root")
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode):
+        raise ValueError(f"{label}: live object is not a regular file")
+    if stat.S_IMODE(info.st_mode) & 0o002:
+        raise ValueError(f"{label}: live object is world-writable")
+    return info
+
+
+def _historical_unknown_map(reconciliation: Any) -> dict[str, dict[str, Any]]:
+    unknowns = reconciliation.get("unknown_preserved") if isinstance(reconciliation, dict) else None
+    if not isinstance(unknowns, list) or len(unknowns) != 4:
+        raise ValueError("expected exactly four preserved unknown records")
+    unknown_map = {
+        item.get("source_relative"): item
+        for item in unknowns
         if isinstance(item, dict) and isinstance(item.get("source_relative"), str)
     }
+    if set(unknown_map) != set(REVIEWED_RESIDUAL_RULES):
+        raise ValueError("preserved unknown set does not match the reviewed four-artifact set")
+    for name, record in unknown_map.items():
+        if record.get("action") != "preserve_review":
+            raise ValueError(f"{name}: unexpected historical evidence action")
+        if record.get("reason") != "not_in_repository_declared_manifest":
+            raise ValueError(f"{name}: unexpected historical evidence reason")
+    return unknown_map
 
 
 def classify(
@@ -109,6 +146,8 @@ def classify(
         selected = candidates[-1]
     else:
         selected = evidence_dir
+        if not _is_contained(evidence_root, selected):
+            raise ValueError("explicit evidence directory escapes protected evidence root")
         result = load_json(selected / "result.json")
         if not accepted_result(result):
             raise ValueError("explicit evidence directory does not match the accepted aggregate")
@@ -121,149 +160,103 @@ def classify(
         "public-filesystem-anomalies.json",
     )
     for name in required:
-        if not (selected / name).is_file():
-            raise ValueError(f"selected evidence is missing {name}")
+        path = selected / name
+        if not path.is_file() or not _is_contained(selected, path):
+            raise ValueError(f"selected evidence is missing or escapes root: {name}")
 
     reconciliation = load_json(selected / "reconciliation.json")
     inventory = load_json(selected / "public-filesystem-inventory.json")
     anomalies = load_json(selected / "public-filesystem-anomalies.json")
-
-    unknowns = reconciliation.get("unknown_preserved")
-    if not isinstance(unknowns, list) or len(unknowns) != 4:
-        raise ValueError("expected exactly four preserved unknown records")
-    if not isinstance(anomalies, list) or len(anomalies) != 1:
-        raise ValueError("expected exactly one filesystem anomaly")
+    _historical_unknown_map(reconciliation)
     if not isinstance(inventory, list):
         raise ValueError("public filesystem inventory is not a list")
+    if not isinstance(anomalies, list) or len(anomalies) != 1:
+        raise ValueError("expected exactly one filesystem anomaly")
 
-    unknown_map = {
-        item.get("source_relative"): item
-        for item in unknowns
-        if isinstance(item, dict) and isinstance(item.get("source_relative"), str)
-    }
-    if set(unknown_map) != REVIEWED_UNKNOWN_NAMES:
-        raise ValueError(
-            "preserved unknown set does not match the reviewed four-artifact set"
-        )
+    classified: list[dict[str, Any]] = []
+    for relative, rule in REVIEWED_RESIDUAL_RULES.items():
+        live_path = status_root / relative
+        info = _safe_regular(status_root, live_path, relative)
+        kind = rule["classification"]
+        item: dict[str, Any] = {
+            "source_relative": relative,
+            "classification": kind,
+            "mode": file_mode(info),
+            "bytes": info.st_size,
+            "sha256": sha256(live_path),
+            "historical_action": "preserve_review",
+        }
 
-    manifest = exact_manifest_map(repo_root)
-    classified_unknowns: list[dict[str, Any]] = []
-
-    for name in sorted(REVIEWED_UNKNOWN_NAMES):
-        record = unknown_map[name]
-        if record.get("action") != "preserve_review":
-            raise ValueError(f"{name}: unexpected historical evidence action")
-        if record.get("reason") != "not_in_repository_declared_manifest":
-            raise ValueError(f"{name}: unexpected historical evidence reason")
-
-        live_path = status_root / name
-        info = live_path.lstat()
-        if not stat.S_ISREG(info.st_mode):
-            raise ValueError(f"{name}: live object is not a regular file")
-
-        live_mode = file_mode(info)
-        live_hash = sha256(live_path)
-        if live_mode != record.get("mode"):
-            raise ValueError(f"{name}: live mode drift")
-        if info.st_size != record.get("bytes"):
-            raise ValueError(f"{name}: live byte-count drift")
-        if live_hash != record.get("sha256"):
-            raise ValueError(f"{name}: live SHA-256 drift")
-
-        definition = manifest.get(name)
-        if not isinstance(definition, dict):
-            raise ValueError(f"{name}: current manifest lacks an exact classification")
-        repository_source = definition.get("repository_source")
-        if not isinstance(repository_source, str) or not repository_source:
-            raise ValueError(f"{name}: current manifest lacks repository provenance")
-        if not (repo_root / repository_source).is_file():
-            raise ValueError(f"{name}: repository provenance source is missing")
-
-        classified_unknowns.append(
-            {
-                "source_relative": name,
-                "classification": definition.get("classification"),
-                "target_relative": definition.get("target_relative"),
-                "repository_source": repository_source,
-                "mode": live_mode,
-                "bytes": info.st_size,
-                "sha256": live_hash,
-                "live_matches_protected_inventory": True,
-                "historical_action": "preserve_review",
-                "current_manifest_mapping": "known_exact_artifact",
-            }
-        )
+        if kind == "repository_static":
+            repository_source = rule["repository_source"]
+            source_path = repo_root / repository_source
+            _safe_regular(repo_root, source_path, f"{relative} repository source")
+            source_hash = sha256(source_path)
+            if item["sha256"] != source_hash or info.st_size != source_path.stat().st_size:
+                raise ValueError(f"{relative}: live content does not match repository source")
+            item.update(
+                {
+                    "repository_source": repository_source,
+                    "repository_source_sha256": source_hash,
+                    "live_matches_repository_source": True,
+                }
+            )
+        elif kind == "generated_json":
+            value = load_json(live_path)
+            if not isinstance(value, (dict, list)):
+                raise ValueError(f"{relative}: generated JSON root is not an object or array")
+            item.update({"json_valid": True, "historical_size_hash_enforced": False})
+        elif kind == "preserved_unresolved":
+            item.update(
+                {
+                    "repository_provenance": "unresolved_preserved",
+                    "historical_size_hash_enforced": False,
+                    "overwrite_authorized": False,
+                }
+            )
+        else:
+            raise ValueError(f"{relative}: unsupported classification rule")
+        classified.append(item)
 
     anomaly = anomalies[0]
     if not isinstance(anomaly, dict):
         raise ValueError("filesystem anomaly record is not an object")
-
     expected_link = status_root / COMPATIBILITY_LINK_RELATIVE
-    if anomaly.get("path") != str(expected_link):
-        raise ValueError("filesystem anomaly path is not the reviewed compatibility link")
-    if anomaly.get("type") != "symlink":
-        raise ValueError("filesystem anomaly is not the reviewed symlink type")
-
+    if anomaly.get("path") != str(expected_link) or anomaly.get("type") != "symlink":
+        raise ValueError("filesystem anomaly is not the reviewed compatibility symlink")
     link_info = expected_link.lstat()
     if not stat.S_ISLNK(link_info.st_mode):
         raise ValueError("compatibility path is no longer a symlink")
-
     raw_target = os.readlink(expected_link)
     if raw_target != COMPATIBILITY_TARGET_RELATIVE:
         raise ValueError("compatibility symlink target drift")
 
     resolved = (expected_link.parent / raw_target).resolve(strict=True)
-    root_resolved = status_root.resolve(strict=True)
-    try:
-        contained = os.path.commonpath([str(root_resolved), str(resolved)]) == str(
-            root_resolved
-        )
-    except ValueError:
-        contained = False
-    if not contained:
+    if not _is_contained(status_root, resolved):
         raise ValueError("compatibility symlink resolves outside the status root")
-
-    target_info = resolved.lstat()
-    if not stat.S_ISREG(target_info.st_mode):
-        raise ValueError("compatibility symlink target is not a regular file")
-
-    target_record = next(
-        (
-            item
-            for item in inventory
-            if isinstance(item, dict) and item.get("path") == str(resolved)
-        ),
-        None,
-    )
-    if target_record is None:
-        raise ValueError("compatibility target lacks a protected inventory record")
-
-    target_mode = file_mode(target_info)
-    target_hash = sha256(resolved)
-    if target_record.get("mode") != target_mode:
-        raise ValueError("compatibility target mode differs from protected inventory")
-    if target_record.get("bytes") != target_info.st_size:
-        raise ValueError("compatibility target size differs from protected inventory")
-    if target_record.get("sha256") != target_hash:
-        raise ValueError("compatibility target SHA-256 differs from protected inventory")
+    target_info = _safe_regular(status_root, resolved, "compatibility symlink target")
+    target_json = load_json(resolved)
+    if not isinstance(target_json, (dict, list)):
+        raise ValueError("compatibility symlink target JSON root is not an object or array")
 
     return {
-        "contract": "wwcx.edge1-security-boundary-residual-classification.v1",
+        "contract": "wwcx.edge1-security-boundary-residual-classification.v2",
         "selected_evidence_dir": str(selected),
         "accepted_inventory_candidate_count": len(candidates),
-        "classified_unknown_records": classified_unknowns,
+        "classified_unknown_records": classified,
         "classified_filesystem_anomaly": {
             "path": str(expected_link),
             "classification": "reviewed_compatibility_symlink",
             "raw_target": raw_target,
             "resolved_target": str(resolved),
             "contained_within_status_root": True,
-            "target_mode": target_mode,
+            "target_mode": file_mode(target_info),
             "target_bytes": target_info.st_size,
-            "target_sha256": target_hash,
-            "target_matches_protected_inventory": True,
+            "target_sha256": sha256(resolved),
+            "target_json_valid": True,
+            "historical_size_hash_enforced": False,
         },
-        "classified_unknown_count": len(classified_unknowns),
+        "classified_unknown_count": len(classified),
         "classified_filesystem_anomaly_count": 1,
         "file_contents_printed": False,
         "live_files_mutated": False,
@@ -281,7 +274,6 @@ def main() -> int:
     parser.add_argument("--evidence-root", type=Path, default=DEFAULT_EVIDENCE_ROOT)
     parser.add_argument("--evidence-dir", type=Path)
     args = parser.parse_args()
-
     try:
         result = classify(
             repo_root=args.repo_root,
@@ -293,14 +285,10 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         print("EDGE1_SECURITY_FIVE_RECORDS=FAIL", file=sys.stderr)
         return 1
-
     print(json.dumps(result, indent=2, sort_keys=True))
     print(f"selected_evidence_dir={result['selected_evidence_dir']}")
     print(f"classified_unknown_records={result['classified_unknown_count']}")
-    print(
-        "classified_filesystem_anomalies="
-        f"{result['classified_filesystem_anomaly_count']}"
-    )
+    print(f"classified_filesystem_anomalies={result['classified_filesystem_anomaly_count']}")
     print("file_contents_printed=false")
     print("live_files_mutated=false")
     print("EDGE1_SECURITY_FIVE_RECORDS=PASS")

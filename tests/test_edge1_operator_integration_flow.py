@@ -7,7 +7,7 @@ from server.edge1_operator_runtime import execution_id
 from server.edge1_operator_transport import Edge1OperatorTransport, TransportRequest
 
 
-EXPECTED_TOOLS = {
+PUBLIC_EDGE1_TOOLS = {
     "edge1.apache_status",
     "edge1.asterisk_status",
     "edge1.bigbird_status",
@@ -24,6 +24,9 @@ EXPECTED_TOOLS = {
     "edge1.snapshot",
     "edge1.telephony_status",
     "edge1.time_authority_status",
+}
+
+INTERNAL_ADAPTER_TOOLS = PUBLIC_EDGE1_TOOLS | {
     "agent.turn.status",
     "agent.turn.handoff",
 }
@@ -37,10 +40,10 @@ class Runtime:
         return {"status": "ok"}
 
 
-def test_adapter_lists_and_calls_runtime_tools():
+def test_adapter_retains_internal_tools_and_calls_runtime_tools():
     adapter = MCPAdapter(Runtime())
 
-    assert set(adapter.list_tools()) == EXPECTED_TOOLS
+    assert set(adapter.list_tools()) == INTERNAL_ADAPTER_TOOLS
 
     identity = adapter.call_tool("edge1.identity")
     assert identity.status == "ok"
@@ -79,12 +82,14 @@ def test_dispatcher_and_transport_execute_request_path():
     }
 
 
-def test_build_operator_registers_protocol_methods_without_opening_shell():
+def test_build_operator_exposes_exact_public_contract_and_blocks_internal_turn_calls():
     operator, _runtime = build_operator(runtime=Runtime())
     listed = operator.handle(TransportRequest(method="tools/list", payload={}))
     names = {tool["name"] for tool in listed.result["tools"]}
-    assert names == EXPECTED_TOOLS
+    assert names == PUBLIC_EDGE1_TOOLS
     assert "edge1.exec" not in names
+    assert "agent.turn.status" not in names
+    assert "agent.turn.handoff" not in names
 
     called = operator.handle(
         TransportRequest(
@@ -93,6 +98,33 @@ def test_build_operator_registers_protocol_methods_without_opening_shell():
         )
     )
     assert called.result["status"] == "ok"
+
+    for name, arguments in (
+        ("agent.turn.status", {"task_id": "t", "conversation_id": "c"}),
+        (
+            "agent.turn.handoff",
+            {
+                "task_id": "t",
+                "conversation_id": "c",
+                "requesting_agent": "fen",
+                "to_agent": "gus",
+                "expected_epoch": 0,
+                "idempotency_key": "k",
+            },
+        ),
+    ):
+        blocked = operator.handle(
+            TransportRequest(
+                method="tools/call",
+                payload={"name": name, "arguments": arguments},
+            )
+        )
+        assert blocked.ok is True
+        assert blocked.result == {
+            "tool": name,
+            "status": "error",
+            "payload": {"message": "unknown_tool"},
+        }
 
 
 def test_dispatcher_rejects_unknown_tool():

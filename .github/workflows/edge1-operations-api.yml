@@ -10,6 +10,7 @@ on:
       - "integrations/bigbird-edge1-operations/**"
       - "schemas/edge1-operations-postgresql.sql"
       - "tests/test_edge1_operations_api.py"
+      - "tests/test_edge1_operator_public_contract.py"
       - "docs/edge1-operations-api.md"
       - ".github/workflows/edge1-operations-api.yml"
   push:
@@ -28,7 +29,9 @@ jobs:
       - name: Compile API
         run: python3 -m py_compile server/edge1_operations_api.py
       - name: Run safety tests
-        run: python3 -m unittest tests.test_edge1_operations_api -v
+        run: |
+          python3 -m unittest tests.test_edge1_operations_api -v
+          python3 -m unittest tests.test_edge1_operator_public_contract -v
       - name: Validate JSON
         run: |
           python3 -m json.tool config/edge1-operations-allowlist.json >/dev/null
@@ -38,5 +41,9 @@ jobs:
       - name: Assert safe defaults
         run: |
           grep -F 'EDGE1_OPS_MUTATIONS_ENABLED=false' deploy/edge1-operations-api.service
-          grep -F '127.0.0.1' deploy/edge1-operations-api.service
+          grep -F 'EDGE1_OPS_HOST=127.0.0.1' deploy/edge1-operations-api.service
+          grep -F 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK' deploy/edge1-operations-api.service
+          grep -Fx 'CapabilityBoundingSet=' deploy/edge1-operations-api.service
+          grep -Fx 'AmbientCapabilities=' deploy/edge1-operations-api.service
+          ! grep -F 'CAP_NET_ADMIN' deploy/edge1-operations-api.service
           ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' server config deploy integrations/bigbird-edge1-operations docs/edge1-operations-api.md

@@ -22,6 +22,7 @@ jobs:
       - name: Validate installer and authentication preflight shell syntax
         run: |
           sh -n deploy/edge1-operator/install-systemd-service.sh
+          sh -n deploy/edge1-operator/install-commissioning-closeout.sh
           sh -n deploy/edge1-security-auth/preflight.sh
           sh -n deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh
           sh -n tools/alerting/asterisk_warning_followup_audit.sh
@@ -36,6 +37,13 @@ jobs:
 
       - name: Validate Edge1 Operator import path
         run: python3 -c "from server.edge1_operator_entrypoint import build_operator; assert callable(build_operator)"
+
+      - name: Test public Operator contract and commissioning classifiers
+        env:
+          PYTHONWARNINGS: error::ResourceWarning
+        run: |
+          python3 -m unittest -v tests.test_edge1_operator_public_contract
+          python3 -m unittest -v tests.test_edge1_security_boundary_evidence_classifier
 
       - name: Validate Security Console policies
         run: |
