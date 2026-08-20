@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import json
-import re
 import unittest
 from pathlib import Path
 
@@ -23,6 +22,8 @@ class OperatorShellIntegrationTests(unittest.TestCase):
         self.assertIn('./operator-shell/shell.css', text)
         self.assertIn('./operator-shell/shell.js', text)
         self.assertIn('data-module="operations-center"', text)
+        self.assertIn('class="skip-link"', text)
+        self.assertIn('.skip-link:focus', text)
         self.assertIn('const card=(title,value,state="neutral"', text)
         self.assertNotIn('const card=(title,value,state="good"', text)
 
@@ -43,16 +44,17 @@ class OperatorShellIntegrationTests(unittest.TestCase):
         self.assertIn('Refusing non-loopback bind', server)
         self.assertNotIn('WWCXCommunicationsWorkspace/1.1', server)
 
-    def test_security_inline_navigation_matches_accepted_registry(self):
+    def test_security_uses_canonical_registry_with_safe_fallback(self):
         text = (ROOT / 'src/web/edge1-ops/security/index.html').read_text(encoding='utf-8')
-        block = re.search(r'const acceptedNavigation=\[(.*?)\];', text, re.S)
-        self.assertIsNotNone(block)
-        routes = set(re.findall(r'"(/edge1-status/[^"\]]*|/edge1-status/)"', block.group(1)))
-        self.assertEqual(routes, self.accepted)
+        self.assertIn('const NAVIGATION_URL="/edge1-status/operator-shell/navigation.json"', text)
+        self.assertIn('availability==="accepted_live"', text)
+        self.assertIn('item.browser_route.startsWith("/")', text)
+        self.assertIn('navigationSafe(registry)', text)
+        self.assertIn('acceptedNavigation=[["Operations Center","/edge1-status/"', text)
         self.assertEqual(text.count('<style>'), 1)
         self.assertEqual(text.count('<script>'), 1)
-        self.assertNotIn('/admin/ai/', block.group(1))
-        self.assertNotIn('/communications/', block.group(1))
+        self.assertNotIn('/admin/ai/', text)
+        self.assertNotIn('/communications/', text)
         self.assertNotIn('Store Admin', text)
 
 
