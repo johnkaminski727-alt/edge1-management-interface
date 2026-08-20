@@ -1,0 +1,29 @@
+[Unit]
+Description=WW.CX authenticated Business159 SNMP server-poller telemetry sync
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/business159-operator/ssh_config
+ConditionPathExists=/etc/business159-operator/known_hosts
+ConditionPathExists=/usr/local/libexec/business159-tunnel/ssh
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/libexec/edge1-snmp/sync-business159-snmp-server-poller.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/etc/business159-operator /usr/local/libexec/business159-tunnel /usr/local/libexec/edge1-snmp
+ReadWritePaths=/var/lib/edge1-snmp/server-pollers
+UMask=0077
