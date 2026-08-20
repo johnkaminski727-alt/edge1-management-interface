@@ -37,6 +37,13 @@ jobs:
       - name: Validate Edge1 Operator import path
         run: python3 -c "from server.edge1_operator_entrypoint import build_operator; assert callable(build_operator)"
 
+      - name: Test public Operator contract and commissioning classifiers
+        env:
+          PYTHONWARNINGS: error::ResourceWarning
+        run: |
+          python3 -m unittest -v tests.test_edge1_operator_public_contract
+          python3 -m unittest -v tests.test_edge1_security_boundary_evidence_classifier
+
       - name: Validate Security Console policies
         run: |
           python3 -m json.tool config/security/edge1-security-auth-gateway.json >/dev/null
