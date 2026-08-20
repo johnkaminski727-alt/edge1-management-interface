@@ -10,6 +10,14 @@ WW.CX operates two deliberately different privilege domains:
 
 The operator architecture prefers live bounded tools over raw shell, and composition over duplicating policy logic.
 
+## Attended operator paste boxes
+
+When a live authenticated connector cannot execute the required action and ChatGPT hands commands to a human operator, `docs/operator-pastebox-convention.md` is mandatory for WW.CX host/workstation command blocks.
+
+Every attended paste box must have a visible destination title and an in-box `SERVER`/`USER`/`ACTION`/`SCOPE` banner. Use one host per box, assert the expected hostname before host mutation when possible, make clear that the command is operator-run rather than already executed, and explicitly state where the resulting output must be deposited. For cross-host work, use separate numbered boxes in execution order rather than one ambiguous mixed-host block.
+
+This is a human-factors safety control so an otherwise correct command cannot be pasted into the wrong server merely because its destination was implicit.
+
 ## Edge1 contract
 
 The ordinary Edge1 status surface remains the accepted 16 zero-argument `edge1.*` tools. Separate `agent.turn.status` and `agent.turn.handoff` tools belong to coordination state and are not part of ordinary host-status routing. The existing Edge1 filesystem controller remains restricted to its approved documentation path; this multi-host work does not broaden it.

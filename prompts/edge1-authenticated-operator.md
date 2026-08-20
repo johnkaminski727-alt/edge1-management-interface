@@ -16,6 +16,20 @@ If the production Operator MCP tools are not attached to the current ChatGPT ses
 
 `tools/mcp/edge1-live-shell` is an attended escalation/fallback sidecar, not the default ChatGPT Operator. Do not attach or advertise it as the normal production MCP surface. If an explicitly authorized task genuinely requires that sidecar, run `edge1_connection_test` first, verify hostname and principal, prefer `edge1_inspect`, and keep `EDGE1_ALLOW_RESTARTS=0` and `EDGE1_ENABLE_RAW_SHELL=0` unless the attended task specifically requires and authorizes the corresponding capability.
 
+## Attended paste-box handoff
+
+When no authenticated execution path is available and the human operator must paste commands into Edge1, follow `docs/operator-pastebox-convention.md`.
+
+For every attended Edge1 command block:
+
+- put a visible `SERVER: edge1.ww.cx — <action>` heading immediately above the paste box;
+- begin the box with a comment banner containing `SERVER`, expected `USER`, `ACTION`, and bounded `SCOPE`;
+- keep one server per paste box and assert `hostname -f` before mutation;
+- identify the block as operator-run / not yet executed by the assistant;
+- after the box, explicitly state where the resulting output must be deposited, normally back into the current ChatGPT conversation, and give stable start/end markers when practical.
+
+Treat this as a human-factors safety control, not optional formatting.
+
 ## Operating rules
 
 Inspect current state before changing it. For any authorized change, choose the smallest reversible action, preserve unrelated work, capture pre-change state, perform the bounded change, and verify both process and functional health. A successful command exit without functional verification is not completion.

@@ -1,6 +1,6 @@
-# Edge1 systemd unit-directory trust boundary — 2026-08-19
+# Edge1 systemd unit-directory trust boundary — 2026-08-19/20
 
-Status: repository defect identified and corrected; live production remediation prepared but not yet applied because it changes privileged filesystem ownership/mode.
+Status: **LIVE / REPAIRED / VERIFIED**. Repository defect corrected and production parent-directory metadata restored to the root-controlled systemd trust boundary on 2026-08-20 after explicit approval.
 
 ## Discovery
 
@@ -20,15 +20,15 @@ unit mode=0644 owner=root:root
 unit sha256=a79a7ae19b2fb639c34a895c36b3ef3055a83b2342e037ddf60546cdda4d77dd
 ```
 
-The unit itself exactly matches the reviewed staged unit. The traversal failure is on its parent directory:
+The unit itself exactly matched the reviewed staged unit. The traversal failure was on its parent directory:
 
 ```text
 /etc/systemd/system mode=0750 owner=bigbird-time group=bigbird-time
 ```
 
-Because the directory owner has write permission, the `bigbird-time` Unix principal has filesystem authority to create/remove entries in the global systemd unit directory outside the protections of an individual service sandbox. That ownership is not an acceptable global systemd trust boundary.
+Because the directory owner had write permission, the `bigbird-time` Unix principal had filesystem authority to create/remove entries in the global systemd unit directory outside the protections of an individual service sandbox. That ownership was not an acceptable global systemd trust boundary.
 
-The currently reviewed Time Authority service units themselves use `NoNewPrivileges=true` and `ProtectSystem=strict`, which reduces the immediate write surface of those particular service processes. It does not make service-account ownership of `/etc/systemd/system` an acceptable design.
+The reviewed Time Authority service units themselves use `NoNewPrivileges=true` and `ProtectSystem=strict`, which reduced the immediate write surface of those particular service processes. It did not make service-account ownership of `/etc/systemd/system` an acceptable design.
 
 ## Root cause
 
@@ -53,7 +53,7 @@ The corrected installer now:
 
 CI validation rejects the original joined `install -d ... "$DATA_DIR" "$UNIT_DIR"` regression and requires the fail-closed owner/mode checks.
 
-## Prepared live remediation
+## Accepted live remediation
 
 Repository tool:
 
@@ -61,23 +61,41 @@ Repository tool:
 deploy/repair-edge1-systemd-unit-dir-boundary.sh
 ```
 
-Default invocation is dry-run only. `--apply` is intentionally separate and must not be run without explicit production security-change approval.
+A fail-closed dry run completed first and matched the exact reviewed preconditions. The human operator then provided explicit approval limited to changing only `/etc/systemd/system` ownership/mode from `bigbird-time:bigbird-time 0750` to `root:root 0755`, with protected evidence/rollback capture and no service lifecycle, DNS, firewall, certificate, listener, authentication, SIP/carrier, or production-traffic changes.
 
-The remediation is fail-closed:
+The approved `--apply` completed successfully at 2026-08-20T01:18:19Z. Protected evidence:
 
-- target must be exactly `/etc/systemd/system` on `edge1.ww.cx`;
-- current metadata must be exactly the observed `bigbird-time:bigbird-time` mode `0750`, unless it is already the desired safe state;
-- desired state is `root:root` mode `0755`;
-- evidence captures before/after parent metadata, immediate directory-entry metadata, and relevant service active/enabled state;
-- unit-directory entries must remain byte-for-byte identical as a metadata listing;
-- relevant service active/enabled states must remain unchanged;
-- no unit file content, symlink, service lifecycle, listener, firewall, DNS, certificate, SIP/carrier, or tunnel state is changed;
-- an emergency metadata-only rollback script is retained in protected evidence.
+```text
+/var/lib/wwcx-deployment-evidence/systemd-unit-dir-boundary/20260820T011819Z
+```
 
-Changing the live parent-directory owner/mode is a privileged security-boundary change and remains explicitly approval-gated.
+Verified post-apply state:
+
+```text
+/etc/systemd/system owner=root:root mode=0755
+/etc/systemd/system/edge1-secure-mcp-tunnel.service owner=root:root mode=0644
+edge1-secure-mcp-tunnel.service sha256=a79a7ae19b2fb639c34a895c36b3ef3055a83b2342e037ddf60546cdda4d77dd
+edge1_operator_tunnel_unit_readable=yes
+edge1-secure-mcp-tunnel active=inactive enabled=disabled
+edge1-operator-mcp active=active enabled=enabled
+bigbird-ai-tunnel active=active enabled=enabled
+```
+
+The remediation reported:
+
+```text
+live_configuration_changed=directory_metadata_only
+service_state_changed=false
+unit_contents_changed=false
+EDGE1_SYSTEMD_UNIT_DIR_REPAIR=PASS
+```
+
+The wrapper independently re-verified the desired directory metadata, unchanged tunnel-unit SHA, `edge1-operator` readability, and unchanged relevant service states, then exited `apply_wrapper_rc=0`. No service start/stop/restart/reload/enable/disable command was run and no tunnel activation was requested.
+
+The retained remediation evidence includes the guarded metadata-only rollback path. Do not roll back to the prior service-account-owned state except as an explicitly reviewed emergency action.
 
 ## Tunnel impact
 
-Do not weaken the Secure MCP validator to work around this condition. Once the global systemd directory is restored to the root-controlled state, the existing world-readable `edge1-secure-mcp-tunnel.service` can be traversed/read by `edge1-operator`, allowing the validator's reviewed hash/metadata check to proceed normally.
+The filesystem trust-boundary blocker is resolved. Do not weaken the Secure MCP validator. The next permitted step is a **read-only rerun** of `deploy/edge1-tunnel/validate-edge1-secure-mcp-tunnel-doctor.sh`; only a full `EDGE1_TUNNEL_COMPAT_DOCTOR=PASS` may advance to the separate attended tunnel-activation approval boundary.
 
-The Edge1 tunnel remains disabled/inactive. `edge1-operator-mcp.service` and `bigbird-ai-tunnel.service` remained active throughout discovery. No tunnel start/enable/reload command was run.
+The Edge1 tunnel remains disabled/inactive. `edge1-operator-mcp.service` and `bigbird-ai-tunnel.service` remain active/enabled. Tunnel start/enable remains separately approval-gated.
