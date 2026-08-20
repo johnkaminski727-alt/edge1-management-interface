@@ -31,22 +31,41 @@ The currently accepted Edge1 runtime remains private and loopback-only. No real 
 
 ## Carrier adapter state
 
-`app/telnyx_provider.py` is the first real-carrier reference implementation. It provides:
+The repository contains two real-carrier adapter implementations, **Telnyx and Bandwidth**, behind the same provider-neutral boundary. Both remain deliberately unregistered and credential-free in the active runtime.
+
+`app/telnyx_provider.py` provides:
 
 - Ed25519 webhook verification using Telnyx signature and timestamp headers;
 - five-minute replay-window enforcement;
 - inbound SMS/MMS normalization;
 - terminal delivery-status normalization;
 - credential-injected outbound submission;
+- authenticated Telnyx MMS acquisition into private quarantine;
 - explicit separation between permanent provider rejection, proven safe retry, and outcome-uncertain submission.
 
-The Telnyx adapter is deliberately **not registered** by `build_provider_registry()`. The simulator remains the only active provider. Adding source code does not activate Telnyx, install credentials, expose a webhook, assign a telephone number, or authorize traffic.
+`app/bandwidth_provider.py` provides:
 
-Commercial carrier selection and activation remain separate approval decisions. Current pricing, regulatory requirements, number availability and contractual terms must be revalidated before any purchase or activation.
+- Messaging-V2 callback HTTP Basic verification;
+- provider-specific `WWW-Authenticate` challenge support without hard-coding Bandwidth into the shared route;
+- Bandwidth JSON-array callback normalization;
+- inbound SMS/MMS normalization;
+- terminal `message-delivered` / `message-failed` DLR normalization;
+- allowlisted Bandwidth MMS media-reference validation;
+- credential-injected Messaging-V2 outbound submission;
+- Bandwidth's ten-recipient outbound limit enforced before submission;
+- the same fail-closed rejection, safe-retry, and outcome-uncertain semantics used by the carrier-neutral worker.
+
+`build_provider_registry()` still registers only the simulator. Adding adapter source does not activate either carrier, install credentials, expose a webhook, assign a telephone number, or authorize traffic.
+
+The dual-carrier policy is explicit-provider routing rather than blind failover. A sender/telephone number must remain associated with its configured carrier. A failed or outcome-uncertain submission must not be retransmitted automatically through the other carrier because the sender may not be authorized there and the first carrier may already have accepted the message.
+
+Commercial carrier activation remains a separate approval decision. Current pricing, regulatory requirements, number availability and contractual terms must be revalidated before any purchase or activation.
 
 ## MMS private quarantine
 
 MMS provider references are untrusted. The private quarantine store uses content-addressed paths derived from SHA-256 rather than provider-controlled filenames or URLs, enforces private filesystem permissions and bounded size limits, and verifies stored bytes against the expected digest. Scan adapters operate on verified private blobs. Scanner failure, timeout, absence, unknown verdict, metadata corruption or digest failure all hold the attachment.
+
+Telnyx authenticated media acquisition can populate that store when verified provider metadata includes an expected digest. Bandwidth callback media references currently arrive without an authoritative digest in this adapter and therefore remain held by the existing fail-closed quarantine policy until a separately verified acquisition/digest path is implemented.
 
 A clean scan produces `scanned_clean_held`; it does not authorize release. The ordinary AI/read surface does not expose provider media URLs.
 
