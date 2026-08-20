@@ -4,43 +4,56 @@ Last reconciled: 2026-08-20
 
 ## Current state
 
-The Edge1 Secure MCP Tunnel and Edge1 Operator MCP commissioning are **LIVE / ACCEPTED / PERSISTENT**.
+The Edge1 Secure MCP Tunnel, Edge1 Operator MCP commissioning, and ChatGPT workspace publication are **LIVE / ACCEPTED / PERSISTENT**.
 
-Engineering publication verdict: **READY FOR WORKSPACE PUBLICATION**.
+Engineering publication verdict: **WORKSPACE PUBLISHED / ACCEPTED**.
 
-Actual workspace publication remains a separate administrative/product action and must not broaden the accepted tool, authentication, or runtime boundaries.
+The Christmas Island Worldwide workspace has the custom `Edge1 Operator` app enabled. All 16 actions are enabled and the workspace approval policy is intentionally permissive (`Allow all`) by operator preference. This workspace policy does not broaden the server-side authority: the live MCP server still exposes only the reviewed bounded tool surface and the Operations API still reports `mutations_enabled=false`.
 
-## Accepted revision
+## Accepted runtime revision
 
-Merged and deployed revision:
+Accepted production code revision:
 
 `d326d4546abefa695a293266342a5c1075f010e2`
 
-Primary engineering checkout:
+Primary engineering repository `main` may contain later documentation or unrelated reviewed changes; production Edge1 Operator execution remains pinned to the accepted immutable runtime below until a separately reviewed runtime upgrade is performed.
 
-- `/opt/edge1-management-interface`
-- clean `main`
-- accepted revision above
+Immutable Edge1 Operator MCP runtime:
+
+- `/opt/edge1-operator-mcp-runtimes/d326d4546abe`
+- detached clean worktree at the accepted production revision
+
+Dedicated persistent turn-state root:
+
+- `/var/lib/edge1-operator-mcp/turn-state`
+- created through systemd `StateDirectory=edge1-operator-mcp`
+- owned by `edge1-operator`
+- runtime directory mode `0700`
+- `ProtectSystem=strict` remains enabled
 
 Immutable Operations API runtime:
 
 - `/opt/edge1-operations-api-runtimes/d326d4546abe`
-- detached clean worktree at the same accepted revision
+- detached clean worktree at the same accepted production revision
 
-Final detailed evidence is recorded in:
+Detailed pre-publication engineering evidence is recorded in:
 
 `docs/edge1-operator/17-post-deployment-acceptance-20260820.md`
 
+Workspace publication closeout is recorded in:
+
+`docs/edge1-operator/18-workspace-publication-acceptance-20260820.md`
+
 ## Accepted live behavior
 
-Verified through the live Edge1 Operator MCP after deployment and immutable-runtime repin:
+Verified through the live Edge1 Operator MCP after workspace publication:
 
 - identity ready on `edge1.ww.cx` as principal `edge1-operator`;
 - Operations API healthy, loopback-only, 27 fixed actions, `mutations_enabled=false`;
 - Secure MCP Tunnel active and persistent;
-- Edge1 Operator MCP active;
+- Edge1 Operator MCP active from the immutable runtime;
 - exactly 16 public Edge1 tools are exposed;
-- all public tools use read-only, non-destructive, closed-world/local, idempotent MCP annotations;
+- all public tools use read-only, non-destructive, closed-world/local, idempotent MCP annotations at the live server boundary;
 - public call dispatch rejects internal `agent.turn.*` capabilities;
 - no generic execution or write MCP tool is exposed;
 - `edge1.network_state` succeeds for addresses, routes and listener classification;
@@ -48,9 +61,8 @@ Verified through the live Edge1 Operator MCP after deployment and immutable-runt
 - Asterisk snapshot remains `asterisk:bigbird-audit 0640`, fresh and no-parameter;
 - `wwadmin` is not granted Asterisk control-socket authority;
 - Big Bird remains healthy and read-only;
-- telephony, messaging and time-authority checks are healthy;
-- repository/runtime provenance is reconciled to the accepted revision;
-- expanded configuration digest covers the Operator public contract and Asterisk helper boundary.
+- workspace use was accepted from a fresh ChatGPT conversation without approval prompts under the operator-selected permissive app policy;
+- the dedicated turn-state root prevents the MCP process from attempting writes under the read-only `/opt/edge1-management-interface` tree.
 
 ## Commissioning design decisions
 
@@ -81,15 +93,27 @@ The externally published contract is exactly these 16 tools:
 
 Internal `agent.turn.status` and `agent.turn.handoff` may remain inside lower-level adapter code for explicitly internal workflows but are excluded at both public discovery and public call dispatch.
 
+### Workspace permissions
+
+The workspace app is intentionally configured with all actions enabled and permissive approval behavior. Treat that as a ChatGPT product-layer usability choice, not as the Edge1 security boundary. The authoritative enforcement boundary remains the authenticated MCP service, the exact public allowlist, the loopback-only Operations API, fixed action definitions, and `mutations_enabled=false`.
+
+### Persistent turn state
+
+`TurnStateStore` supports `EDGE1_OPERATOR_TURN_STATE_ROOT`. Production sets this to `/var/lib/edge1-operator-mcp/turn-state` through the systemd unit and provisions the parent with `StateDirectory=edge1-operator-mcp`. This preserves durable SQLite state without weakening `ProtectSystem=strict` or granting write access to the immutable code/runtime tree.
+
 ### Asterisk diagnostics
 
 Direct `wwadmin` access to `/var/run/asterisk/asterisk.ctl` was deliberately rejected because the socket is a general CLI control channel. The accepted mechanism instead runs exactly seven fixed read-only Asterisk CLI probes as the existing `asterisk` account and publishes a sanitized bounded snapshot for read-only consumption by the Operations API through the existing `bigbird-audit` group.
 
 No sudoers rule, shell authority, arbitrary Asterisk command, new listener, or `wwadmin` membership in group `asterisk` is introduced.
 
-### Immutable Operations API runtime
+### Immutable runtimes
 
-Production Operations API execution remains pinned to a clean detached worktree rather than the shared engineering checkout. This preserves the established runtime-isolation design while keeping both the immutable runtime and shared checkout on the same reviewed revision.
+Production Operations API and Edge1 Operator MCP execution remain pinned to clean detached worktrees rather than the shared engineering checkout. This preserves the runtime-isolation design while allowing `main` to advance independently for documentation and separately reviewed work.
+
+## Known non-blocking follow-up
+
+Listener classification currently includes a set of `unknown-needs-attribution` listeners. These are inventory/provenance cleanup items, not publication or service-health failures. They should be reconciled through the existing control-surface attribution process without changing firewall, DNS, SIP, SSH, or service exposure merely to make the count disappear.
 
 ## Known pre-existing conditions not changed by this closeout
 
@@ -106,13 +130,13 @@ Commissioning deployment evidence:
 
 `/var/lib/wwcx-deployment-evidence/edge1-operator-commissioning-closeout/20260820T045156Z`
 
-Immutable runtime acceptance evidence:
+Immutable Operations API runtime acceptance evidence:
 
 `/var/lib/wwcx-deployment-evidence/operations-api-runtime/20260820T045417Z`
 
-Immutable runtime rollback:
+Workspace publication host activation evidence:
 
-`/var/lib/wwcx-deployment-evidence/operations-api-runtime/20260820T045417Z/rollback.sh`
+`/var/lib/wwcx-deployment-evidence/edge1-operator-workspace-publication/20260820T070314Z`
 
 Pre-deployment safety branch:
 

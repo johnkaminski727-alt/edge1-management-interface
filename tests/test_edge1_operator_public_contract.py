@@ -11,6 +11,7 @@ from server.edge1_operator_transport import TransportRequest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ROOT / "server/edge1_operator_mcp_protocol.py"
 SERVICE_PATH = ROOT / "deploy/edge1-operations-api.service"
+MCP_SERVICE_PATH = ROOT / "deploy/edge1-operator/edge1-operator-mcp.service"
 SPEC = importlib.util.spec_from_file_location("edge1_operator_mcp_protocol", PROTOCOL_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -113,6 +114,19 @@ class Edge1OperatorPublicContractTests(unittest.TestCase):
         self.assertIn("AmbientCapabilities=\n", text)
         self.assertNotIn("CAP_NET_ADMIN", text)
         self.assertIn("Environment=EDGE1_OPS_MUTATIONS_ENABLED=false", text)
+
+    def test_mcp_service_uses_dedicated_persistent_turn_state_without_weakening_sandbox(self):
+        text = MCP_SERVICE_PATH.read_text(encoding="utf-8")
+        self.assertIn("StateDirectory=edge1-operator-mcp\n", text)
+        self.assertIn("StateDirectoryMode=0700\n", text)
+        self.assertIn(
+            "Environment=EDGE1_OPERATOR_TURN_STATE_ROOT=/var/lib/edge1-operator-mcp/turn-state\n",
+            text,
+        )
+        self.assertIn("ProtectSystem=strict\n", text)
+        self.assertIn("ReadOnlyPaths=/opt/edge1-management-interface\n", text)
+        self.assertIn("UMask=0077\n", text)
+        self.assertNotIn("ReadWritePaths=/opt/edge1-management-interface", text)
 
 
 if __name__ == "__main__":

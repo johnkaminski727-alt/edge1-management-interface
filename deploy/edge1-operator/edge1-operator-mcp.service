@@ -8,6 +8,9 @@ Type=simple
 User=edge1-operator
 WorkingDirectory=/opt/edge1-management-interface
 EnvironmentFile=/etc/edge1-operator/edge1-operator.env
+Environment=EDGE1_OPERATOR_TURN_STATE_ROOT=/var/lib/edge1-operator-mcp/turn-state
+StateDirectory=edge1-operator-mcp
+StateDirectoryMode=0700
 ExecStart=/usr/bin/python3 -m server.edge1_operator_http --host 127.0.0.1 --port 8102
 Restart=always
 RestartSec=5
@@ -17,6 +20,7 @@ ProtectSystem=strict
 ProtectHome=true
 ReadOnlyPaths=/opt/edge1-management-interface
 ReadOnlyPaths=/etc/edge1-operator
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target
