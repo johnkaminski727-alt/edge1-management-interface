@@ -5,11 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = ROOT / 'deploy/business159-tunnel'
 
 required = [
-    'tunnel-client.yaml',
-    'business159-live-shell.sh',
-    'ssh',
-    'business159-secure-mcp-tunnel.sh',
-    'business159-secure-mcp-tunnel.service',
+    'tunnel-client.yaml', 'business159-live-shell.sh', 'ssh',
+    'business159-secure-mcp-tunnel.sh', 'business159-secure-mcp-tunnel.service',
     'install-business159-secure-mcp-tunnel.sh',
     'validate-business159-secure-mcp-tunnel.sh',
     'verify-business159-secure-mcp-tunnel.sh',
@@ -18,6 +15,7 @@ for name in required:
     assert (DEPLOY / name).is_file(), f'missing asset: {name}'
 
 config = (DEPLOY / 'tunnel-client.yaml').read_text(encoding='utf-8')
+runtime = (DEPLOY / 'business159-secure-mcp-tunnel.sh').read_text(encoding='utf-8')
 unit = (DEPLOY / 'business159-secure-mcp-tunnel.service').read_text(encoding='utf-8')
 installer = (DEPLOY / 'install-business159-secure-mcp-tunnel.sh').read_text(encoding='utf-8')
 validator = (DEPLOY / 'validate-business159-secure-mcp-tunnel.sh').read_text(encoding='utf-8')
@@ -26,9 +24,9 @@ runbook = (ROOT / 'docs/business159-operator/persistent-secure-mcp-tunnel.md').r
 
 assert 'api_key: file:/etc/business159-tunnel/runtime-api-key' in config
 assert 'listen_addr: 127.0.0.1:0' in config
-assert 'commands:' in config and 'channel: main' in config
-assert 'business159-live-shell.sh' in config
-assert 'server_urls:' not in config
+assert 'server_urls:' not in config and 'commands:' not in config
+assert '--mcp.command "$MCP_COMMAND"' in runtime
+assert 'business159-live-shell.sh' in runtime
 
 assert 'User=business159-operator' in unit
 assert 'Restart=on-failure' in unit
