@@ -1,0 +1,26 @@
+[Unit]
+Description=WW.CX bounded Asterisk read-only diagnostic snapshot
+After=asterisk.service
+
+[Service]
+Type=oneshot
+User=asterisk
+Group=bigbird-audit
+WorkingDirectory=/opt/edge1-management-interface
+RuntimeDirectory=edge1-asterisk-diagnostics
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/asterisk_readonly_snapshot.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/edge1-management-interface /var/run/asterisk/asterisk.ctl
+ReadWritePaths=/run/edge1-asterisk-diagnostics
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
