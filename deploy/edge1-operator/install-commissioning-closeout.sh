@@ -1,5 +1,7 @@
 #!/bin/sh
 set -eu
+LC_ALL=C
+export LC_ALL
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 MODE=${1:-}
@@ -19,6 +21,22 @@ fail() {
   exit 1
 }
 
+rollback_on_exit() {
+  code=$?
+  trap - 0 1 2 15
+  if [ "$code" -ne 0 ] && [ "$MUTATION_STARTED" -eq 1 ] && [ -x "$EVIDENCE_DIR/rollback.sh" ]; then
+    printf 'Validation failed after mutation; running recorded rollback.\n' >&2
+    if "$EVIDENCE_DIR/rollback.sh" > "$EVIDENCE_DIR/rollback-output.txt" 2>&1; then
+      printf 'rolled_back=true\noriginal_exit_code=%s\n' "$code" > "$EVIDENCE_DIR/rollback-result.txt"
+    else
+      printf 'rolled_back=failed\noriginal_exit_code=%s\n' "$code" > "$EVIDENCE_DIR/rollback-result.txt"
+      printf 'Automatic rollback reported an error; inspect %s.\n' "$EVIDENCE_DIR" >&2
+    fi
+  fi
+  exit "$code"
+}
+trap rollback_on_exit 0 1 2 15
+
 [ "$(id -u)" -eq 0 ] || fail "run with sudo/root"
 [ -d "$ROOT/.git" ] || fail "repository not found: $ROOT"
 [ "$MODE" = "" ] || [ "$MODE" = "--apply" ] || fail "usage: $0 [--apply EXPECTED_REVISION]"
@@ -26,7 +44,7 @@ if [ "$MODE" = "--apply" ]; then
   [ -n "$EXPECTED_REVISION" ] || fail "--apply requires the exact reviewed Git revision"
 fi
 
-for command in git python3 systemctl systemd-analyze install stat getent id runuser curl ss sha256sum; do
+for command in git python3 systemctl systemd-analyze install stat getent id runuser curl ss sha256sum cp rm grep tr seq sleep hostname date; do
   command -v "$command" >/dev/null 2>&1 || fail "required command unavailable: $command"
 done
 
@@ -53,6 +71,7 @@ for source in \
   "$ROOT/deploy/edge1-operations-api.service" \
   "$ROOT/server/asterisk_readonly_snapshot.py" \
   "$ROOT/server/asterisk_operator_diagnostics.py" \
+  "$ROOT/server/edge1_operator_mcp_protocol.py" \
   "$ROOT/deploy/systemd/edge1-asterisk-readonly-snapshot.service" \
   "$ROOT/deploy/systemd/edge1-asterisk-readonly-snapshot.timer"; do
   [ -f "$source" ] || fail "required reviewed asset missing: $source"
@@ -60,7 +79,8 @@ done
 
 python3 -m py_compile \
   "$ROOT/server/asterisk_readonly_snapshot.py" \
-  "$ROOT/server/asterisk_operator_diagnostics.py"
+  "$ROOT/server/asterisk_operator_diagnostics.py" \
+  "$ROOT/server/edge1_operator_mcp_protocol.py"
 python3 -m json.tool "$ROOT/config/edge1-operations-allowlist.json" >/dev/null
 systemd-analyze verify \
   "$ROOT/deploy/edge1-operations-api.service" \
@@ -88,6 +108,8 @@ systemctl is-active --quiet bigbird-ai-tunnel.service || fail "Big Bird tunnel i
 curl -fsS http://127.0.0.1:8097/healthz >/dev/null || fail "Operations API health preflight failed"
 ss -lnt | grep -F '127.0.0.1:8097' >/dev/null || fail "Operations API loopback listener missing"
 ! ss -lnt | grep -E '0\.0\.0\.0:8097|\[::\]:8097' >/dev/null || fail "Operations API has a public wildcard listener"
+MCP_HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8102/mcp 2>/dev/null || true)
+[ "$MCP_HTTP_CODE" = "401" ] || fail "local unauthenticated MCP boundary drift: HTTP $MCP_HTTP_CODE"
 
 if [ "$MODE" = "" ]; then
   printf 'Dry run passed for revision %s.\n' "$CURRENT_REVISION"
@@ -95,16 +117,22 @@ if [ "$MODE" = "" ]; then
   exit 0
 fi
 
+SNAPSHOT_TIMER_ENABLED_BEFORE=$(systemctl is-enabled edge1-asterisk-readonly-snapshot.timer 2>/dev/null || true)
+SNAPSHOT_TIMER_ACTIVE_BEFORE=$(systemctl is-active edge1-asterisk-readonly-snapshot.timer 2>/dev/null || true)
+
 install -d -o root -g root -m 0700 "$BACKUP_DIR"
 printf '%s\n' "$CURRENT_REVISION" > "$EVIDENCE_DIR/revision.txt"
 printf '%s\n' "$SOCKET_META" > "$EVIDENCE_DIR/asterisk-control-socket-metadata.txt"
 id wwadmin > "$EVIDENCE_DIR/wwadmin-groups-before.txt"
 systemctl is-active edge1-operations-api.service edge1-operator-mcp.service edge1-secure-mcp-tunnel.service bigbird-ai-tunnel.service > "$EVIDENCE_DIR/service-active-before.txt" 2>&1 || true
 systemctl is-enabled edge1-secure-mcp-tunnel.service > "$EVIDENCE_DIR/tunnel-enabled-before.txt" 2>&1 || true
+printf '%s\n' "$SNAPSHOT_TIMER_ENABLED_BEFORE" > "$EVIDENCE_DIR/snapshot-timer-enabled-before.txt"
+printf '%s\n' "$SNAPSHOT_TIMER_ACTIVE_BEFORE" > "$EVIDENCE_DIR/snapshot-timer-active-before.txt"
 sha256sum \
   "$ROOT/deploy/edge1-operations-api.service" \
   "$ROOT/server/asterisk_readonly_snapshot.py" \
   "$ROOT/server/asterisk_operator_diagnostics.py" \
+  "$ROOT/server/edge1_operator_mcp_protocol.py" \
   "$ROOT/deploy/systemd/edge1-asterisk-readonly-snapshot.service" \
   "$ROOT/deploy/systemd/edge1-asterisk-readonly-snapshot.timer" \
   > "$EVIDENCE_DIR/reviewed-assets.sha256"
@@ -142,7 +170,17 @@ restore "$OPS_UNIT" edge1-operations-api.service
 restore "$SNAPSHOT_SERVICE" edge1-asterisk-readonly-snapshot.service
 restore "$SNAPSHOT_TIMER" edge1-asterisk-readonly-snapshot.timer
 systemctl daemon-reload
+case "$SNAPSHOT_TIMER_ENABLED_BEFORE" in
+  enabled|enabled-runtime) systemctl enable edge1-asterisk-readonly-snapshot.timer >/dev/null 2>&1 || true ;;
+  *) systemctl disable edge1-asterisk-readonly-snapshot.timer >/dev/null 2>&1 || true ;;
+esac
+if [ "$SNAPSHOT_TIMER_ACTIVE_BEFORE" = active ]; then
+  systemctl start edge1-asterisk-readonly-snapshot.timer >/dev/null 2>&1 || true
+else
+  systemctl stop edge1-asterisk-readonly-snapshot.timer >/dev/null 2>&1 || true
+fi
 systemctl restart edge1-operations-api.service
+systemctl restart edge1-operator-mcp.service
 EOF
 chmod 0700 "$EVIDENCE_DIR/rollback.sh"
 
@@ -185,8 +223,20 @@ assert value.get('status') == 'ok', value
 assert value.get('mutations_enabled') is False, value
 PY
 
+systemctl restart edge1-operator-mcp.service
+for i in $(seq 1 20); do
+  MCP_HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8102/mcp 2>/dev/null || true)
+  if [ "$MCP_HTTP_CODE" = "401" ]; then
+    break
+  fi
+  [ "$i" -lt 20 ] || fail "Edge1 Operator MCP bearer boundary failed after restart: HTTP $MCP_HTTP_CODE"
+  sleep 1
+done
+
 ss -lnt | grep -F '127.0.0.1:8097' > "$EVIDENCE_DIR/operations-loopback-listener-post.txt"
 ! ss -lnt | grep -E '0\.0\.0\.0:8097|\[::\]:8097' >/dev/null || fail "Operations API became publicly wildcard-bound"
+ss -lnt | grep -F '127.0.0.1:8102' > "$EVIDENCE_DIR/mcp-loopback-listener-post.txt"
+! ss -lnt | grep -E '0\.0\.0\.0:8102|\[::\]:8102' >/dev/null || fail "MCP became publicly wildcard-bound"
 systemctl is-active --quiet edge1-operator-mcp.service || fail "Edge1 Operator MCP regressed"
 systemctl is-active --quiet edge1-secure-mcp-tunnel.service || fail "Secure MCP Tunnel regressed"
 systemctl is-enabled --quiet edge1-secure-mcp-tunnel.service || fail "Secure MCP Tunnel lost persistence"
@@ -195,8 +245,9 @@ if id -nG wwadmin | tr ' ' '\n' | grep -qx asterisk; then
   fail "wwadmin gained forbidden asterisk group authority"
 fi
 
-systemctl status edge1-operations-api.service edge1-asterisk-readonly-snapshot.timer --no-pager > "$EVIDENCE_DIR/service-status-post.txt" 2>&1 || true
+systemctl status edge1-operations-api.service edge1-operator-mcp.service edge1-asterisk-readonly-snapshot.timer --no-pager > "$EVIDENCE_DIR/service-status-post.txt" 2>&1 || true
 stat -Lc 'path=%n type=%F owner=%U group=%G mode=%a' "$SNAPSHOT_FILE" > "$EVIDENCE_DIR/snapshot-metadata-post.txt"
 id wwadmin > "$EVIDENCE_DIR/wwadmin-groups-post.txt"
 printf 'EDGE1_OPERATOR_COMMISSIONING_CLOSEOUT=PASS\n' > "$EVIDENCE_DIR/result.txt"
+MUTATION_STARTED=0
 printf 'Evidence: %s\n' "$EVIDENCE_DIR"
