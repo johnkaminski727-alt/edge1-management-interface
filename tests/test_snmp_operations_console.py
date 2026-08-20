@@ -55,15 +55,20 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
         self.assertNotIn("subprocess", self.source)
         self.assertNotIn("/bin/sh", self.source)
 
-    def test_public_publisher_routes_unauthenticated_users_through_identity_bridge(self):
+    def test_public_publisher_enters_authenticated_snmp_route_before_identity_bridge(self):
         self.assertNotIn('install -m 0644 "$SNMP_SOURCE" "$SNMP_DEST"', self.publisher)
         self.assertIn('cp "$SOURCE" "$TMP_INDEX"', self.publisher)
         self.assertNotIn(
             "sed 's#/edge1-status/operations-center/snmp.html#/edge1-ops/snmp/#g'",
             self.publisher,
         )
-        self.assertIn("https://ww.cx/admin/edge1-security-login.php", self.publisher)
-        self.assertIn("Sign in through WW.CX to continue", self.publisher)
+        self.assertIn('href="/edge1-ops/snmp/">Open authenticated SNMP Operations</a>', self.publisher)
+        self.assertNotIn(
+            'href="https://ww.cx/admin/edge1-security-login.php">Sign in through WW.CX to continue</a>',
+            self.publisher,
+        )
+        self.assertIn('bounded "snmp" return state', self.publisher)
+        self.assertIn("return you here after authentication", self.publisher)
 
     def test_security_console_links_to_snmp_after_identity_exchange(self):
         self.assertIn('href="/edge1-ops/snmp/">Open SNMP Operations</a>', self.security_console)
