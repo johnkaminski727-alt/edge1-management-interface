@@ -215,9 +215,14 @@ def test_send_more_than_ten_recipients_is_rejected_before_provider_call() -> Non
     assert client.last_request is None
 
 
-def test_send_4xx_is_explicit_rejection() -> None:
+def test_send_permanent_4xx_is_explicit_rejection() -> None:
     with pytest.raises(ProviderRejectedError):
         outbound_provider(FakeClient(FakeResponse(400, {}))).send(outbound_message())
+
+
+def test_send_rate_limit_is_safe_retry() -> None:
+    with pytest.raises(ProviderSafeRetryError):
+        outbound_provider(FakeClient(FakeResponse(429, {}))).send(outbound_message())
 
 
 def test_send_connect_failure_is_safe_retry() -> None:
@@ -232,6 +237,6 @@ def test_send_read_timeout_is_outcome_unknown() -> None:
         outbound_provider(FakeClient(error=httpx.ReadTimeout("timed out", request=request))).send(outbound_message())
 
 
-def test_send_server_error_is_outcome_unknown() -> None:
-    with pytest.raises(ProviderOutcomeUnknownError):
+def test_send_server_error_is_safe_retry() -> None:
+    with pytest.raises(ProviderSafeRetryError):
         outbound_provider(FakeClient(FakeResponse(503, {}))).send(outbound_message())
