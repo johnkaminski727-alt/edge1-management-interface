@@ -35,10 +35,12 @@ class ControlSurfaceAllowlistTests(unittest.TestCase):
                 self.assertNotIn("--port", text)
                 self.assertNotIn("sudo", text)
 
-    def test_asterisk_diagnostic_helper_assets_are_covered_by_config_digest(self):
+    def test_commissioning_security_assets_are_covered_by_config_digest(self):
         data = json.loads((ROOT / "config" / "edge1-operations-allowlist.json").read_text())
         argv = data["actions"]["config.digest"]["argv"]
         for path in (
+            "server/edge1_operator_mcp_protocol.py",
+            "server/edge1_operator_entrypoint.py",
             "server/asterisk_readonly_snapshot.py",
             "server/asterisk_operator_diagnostics.py",
             "deploy/systemd/edge1-asterisk-readonly-snapshot.service",
