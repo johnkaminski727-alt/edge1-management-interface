@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=business159-operator
 Group=business159-operator
+Environment=BUSINESS159_NODE_BIN=/opt/node-v24.18.0-linux-x64/bin/node
 ExecStart=/usr/local/libexec/business159-tunnel/business159-secure-mcp-tunnel.sh run
 Restart=on-failure
 RestartSec=5
@@ -16,7 +17,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadOnlyPaths=/etc/business159-tunnel /etc/business159-operator /usr/local/bin/tunnel-client /usr/local/libexec/business159-tunnel /opt/edge1-management-interface/tools/mcp/business159-live-shell
+ReadOnlyPaths=/etc/business159-tunnel /etc/business159-operator /usr/local/bin/tunnel-client /usr/local/libexec/business159-tunnel /opt/edge1-management-interface/tools/mcp/business159-live-shell /opt/node-v24.18.0-linux-x64
 ReadWritePaths=/run/business159-secure-mcp-tunnel /var/lib/business159-operator
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=true
