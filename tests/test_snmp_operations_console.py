@@ -33,6 +33,10 @@ class SnmpOperationsConsoleStaticTests(unittest.TestCase):
         ):
             self.assertIn(f'data-view="{section}"', self.source)
 
+    def test_back_link_returns_to_published_operations_center(self):
+        self.assertIn('href="/edge1-status/">Back to Operations Center</a>', self.source)
+        self.assertNotIn('href="/edge1-status/operations-center/">Back to Operations Center</a>', self.source)
+
     def test_dangerous_controls_are_absent(self):
         self.assertIn("SNMP SET: <strong>Disabled by policy</strong>", self.source)
         self.assertNotIn("/traps", self.source)
