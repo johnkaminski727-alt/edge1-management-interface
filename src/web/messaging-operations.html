@@ -3,109 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WW.CX Messaging Operations</title>
+<meta name="theme-color" content="#091018">
+<title>Messaging Operations | WW.CX</title>
 <style>
-:root { color-scheme: dark; font-family: system-ui, sans-serif; }
-body { max-width: 1100px; margin: 0 auto; padding: 24px; background: #111; color: #eee; }
-header, section { border: 1px solid #444; border-radius: 12px; padding: 18px; margin-bottom: 18px; background: #191919; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.card { border: 1px solid #383838; border-radius: 10px; padding: 14px; background: #202020; }
-.label { color: #aaa; font-size: .85rem; }
-.value { font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
-.warning { border-color: #b58b00; }
-.safe { border-color: #397b51; }
-input, textarea, button { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; margin-bottom: 12px; }
-button { cursor: pointer; font-weight: 700; }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0e0e0e; padding: 12px; border-radius: 8px; }
-small { color: #aaa; }
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--bg:#071019;--panel:#0d1822;--panel-2:#101f2b;--line:#223646;--muted:#92a6b6;--text:#edf5fa;--accent:#76d4ff;--ok:#75d7a3;--warn:#f0c66e;--danger:#ff8c8c;--focus:#bfeaff}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:radial-gradient(circle at 80% 0,#102938 0,transparent 38rem),var(--bg);color:var(--text);min-height:100vh}button,input,textarea{font:inherit}.skip{position:absolute;left:-9999px}.skip:focus{left:1rem;top:1rem;z-index:99;background:#fff;color:#000;padding:.7rem 1rem;border-radius:.5rem}.shell{max-width:1600px;margin:auto;padding:20px}.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:10px 4px 20px}.eyebrow{margin:0 0 5px;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;color:var(--accent);font-weight:800}.topbar h1{font-size:clamp(1.7rem,3vw,2.8rem);margin:0}.subtitle{color:var(--muted);max-width:760px;margin:.45rem 0 0;line-height:1.5}.mode{display:inline-flex;align-items:center;gap:.5rem;border:1px solid #31536a;background:#102533;border-radius:999px;padding:.55rem .8rem;font-size:.82rem;white-space:nowrap}.mode i{width:.55rem;height:.55rem;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px #75d7a320}.safety{display:flex;gap:.75rem;align-items:flex-start;border:1px solid #6b5625;background:#211d12;border-radius:12px;padding:12px 14px;margin-bottom:16px;color:#f3deb0}.safety strong{white-space:nowrap}.grid{display:grid;grid-template-columns:230px minmax(420px,1.35fr) minmax(330px,.75fr);gap:14px;align-items:start}.panel{background:linear-gradient(180deg,#0e1b25,#0a151e);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px #0005;overflow:hidden}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 16px 12px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:1rem}.panel-body{padding:14px}.nav{padding:10px}.nav button{display:flex;width:100%;justify-content:space-between;align-items:center;border:0;background:transparent;color:var(--muted);border-radius:9px;padding:10px 11px;text-align:left;cursor:pointer}.nav button:hover,.nav button:focus-visible{background:#132632;color:var(--text);outline:2px solid transparent}.nav button.active{background:#153044;color:#fff}.nav .count{font-size:.74rem;padding:.1rem .42rem;border:1px solid #345166;border-radius:999px}.status-row{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;margin-bottom:12px}.metric{border:1px solid var(--line);background:#0a151d;border-radius:10px;padding:10px}.metric span{display:block;color:var(--muted);font-size:.72rem;margin-bottom:3px}.metric strong{font-size:.92rem;overflow-wrap:anywhere}.toolbar{display:flex;gap:8px;margin:12px 0}.toolbar input{flex:1;border:1px solid #30485a;background:#07121a;color:var(--text);border-radius:9px;padding:10px 12px}.toolbar button,.button{border:1px solid #35586d;background:#112b3a;color:#eaf8ff;border-radius:9px;padding:10px 12px;cursor:pointer}.toolbar button:focus-visible,.button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.empty{border:1px dashed #385062;border-radius:12px;padding:28px 18px;text-align:center;color:var(--muted);line-height:1.5}.empty strong{display:block;color:var(--text);margin-bottom:5px}.timeline{list-style:none;padding:0;margin:0}.timeline li{border-bottom:1px solid var(--line);padding:11px 2px}.timeline li:last-child{border-bottom:0}.timeline small{color:var(--muted)}.timeline pre{margin:.45rem 0 0;font-size:.76rem;color:#c9d7df;white-space:pre-wrap;overflow-wrap:anywhere}.tabs{display:flex;gap:6px;padding:10px 14px 0;overflow:auto}.tabs button{border:0;background:transparent;color:var(--muted);padding:9px 10px;border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer}.tabs button.active{color:#fff;border-bottom-color:var(--accent)}.diagnostic{border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:8px}.diagnostic.warning,.diagnostic.critical{border-color:#735d2c;background:#211d13}.diagnostic strong{display:block;font-size:.82rem;margin-bottom:3px}.diagnostic span{color:var(--muted);font-size:.84rem;line-height:1.4}.copilot{border:1px solid #315064;background:linear-gradient(180deg,#112837,#0d1c27);border-radius:12px;padding:13px;margin-bottom:12px}.copilot h3{font-size:.94rem;margin:0 0 6px}.copilot p{color:#b9cad4;font-size:.84rem;line-height:1.5;margin:.3rem 0}.badge{display:inline-flex;border:1px solid #446679;border-radius:999px;padding:.2rem .5rem;font-size:.7rem;color:#cfeaf8}.composer label{display:block;color:var(--muted);font-size:.78rem;margin:10px 0 5px}.composer input,.composer textarea{width:100%;border:1px solid #30485a;background:#07121a;color:var(--text);border-radius:9px;padding:10px}.composer textarea{min-height:105px;resize:vertical}.composer button{width:100%;margin-top:10px}.composer button[disabled]{opacity:.45;cursor:not-allowed}.fine{font-size:.75rem;color:var(--muted);line-height:1.45}.footer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.mini{border:1px solid var(--line);border-radius:10px;padding:11px;background:#09141c}.mini span{display:block;font-size:.72rem;color:var(--muted)}.mini strong{font-size:.82rem}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:1050px){.grid{grid-template-columns:190px 1fr}.inspector{grid-column:1/-1}.status-row,.footer-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.shell{padding:12px}.topbar{flex-direction:column}.grid{grid-template-columns:1fr}.nav{display:flex;overflow:auto}.nav button{min-width:max-content}.status-row,.footer-grid{grid-template-columns:1fr 1fr}.safety{flex-direction:column}.safety strong{white-space:normal}}@media(max-width:420px){.status-row,.footer-grid{grid-template-columns:1fr}.toolbar{flex-direction:column}}
 </style>
 </head>
 <body>
-<header>
-<h1>WW.CX Messaging Operations</h1>
-<p>Read-only gateway visibility and local sandbox simulation. Live SMS/MMS and carrier delivery are disabled.</p>
-</header>
-
-<section>
-<h2>Gateway Health</h2>
-<div id="status" class="grid"><div class="card">Loading status...</div></div>
-</section>
-
-<section>
-<h2>Diagnostics</h2>
-<div id="diagnostics">Loading diagnostics...</div>
-</section>
-
-<section class="safe">
-<h2>Sandbox Message Simulation</h2>
-<p><strong>No external delivery occurs.</strong> This validates a synthetic payload and simulates internal stages in memory.</p>
-<form id="sandbox-form">
-<label>Sender label<input name="sender_label" value="Spirit Creek Telegraph Office" required></label>
-<label>Synthetic E.164 recipient<input name="recipient" value="+15555550100" required></label>
-<label>Message<textarea name="body" rows="5" required>Sandbox test message. No live delivery.</textarea></label>
-<button type="submit">Run sandbox simulation</button>
-</form>
-<pre id="sandbox-result">No simulation run yet.</pre>
-</section>
-
-<section>
-<h2>Recent Health Snapshots</h2>
-<pre id="history">No history loaded yet.</pre>
-</section>
-
+<a class="skip" href="#main">Skip to Messaging Operations</a>
+<main class="shell" id="main">
+<header class="topbar"><div><p class="eyebrow">WW.CX Operations</p><h1>Messaging Operations</h1><p class="subtitle">SMS &amp; MMS operations, delivery safety, quarantine posture and carrier readiness. This console shows only the data exposed by the current bounded operations service.</p></div><div class="mode"><i aria-hidden="true"></i>Sandbox / no carrier traffic</div></header>
+<section class="safety" aria-label="Safety boundary"><strong>Draft is not send.</strong><span>Carrier delivery, production credentials, public webhooks, DID assignment, quarantine release and live traffic remain disabled. AI-generated or retrieved content cannot authorize them.</span></section>
+<div class="grid">
+<aside class="panel" aria-label="Messaging views"><div class="panel-head"><h2>Workspace</h2></div><nav class="nav"><button class="active" type="button">Overview <span class="count">live</span></button><button type="button">Inbox <span class="count">read gate</span></button><button type="button">Delivery <span class="count">DLR</span></button><button type="button">Consent <span class="count">STOP</span></button><button type="button">Quarantine <span class="count">held</span></button><button type="button">Audit <span class="count">read</span></button></nav></aside>
+<section class="panel" aria-labelledby="workspace-title"><div class="panel-head"><div><p class="eyebrow">Operational truth</p><h2 id="workspace-title">Gateway workspace</h2></div><span class="badge" id="checked-at">checking…</span></div><div class="panel-body"><div id="status" class="status-row" aria-live="polite"><div class="metric"><span>Gateway</span><strong>Loading…</strong></div></div><form class="toolbar" id="search-form" role="search"><label class="sr-only" for="search">Filter visible diagnostics/history</label><input id="search" type="search" placeholder="Filter current operational evidence…" autocomplete="off"><button type="submit">Filter</button></form><div class="tabs" role="tablist" aria-label="Workspace evidence"><button class="active" type="button" data-tab="diagnostics">Diagnostics</button><button type="button" data-tab="history">Health history</button><button type="button" data-tab="sandbox">Safe simulator</button></div><div id="workspace-status" class="fine" role="status">Loading bounded gateway evidence…</div><div id="diagnostics" aria-live="polite"></div><ol id="history" class="timeline" hidden></ol><div id="sandbox" hidden><div class="empty"><strong>Internal simulator only</strong>Use the form in the inspector to exercise the synthetic pipeline. It never contacts a carrier or delivers a message.</div></div></div></section>
+<aside class="panel inspector" aria-labelledby="inspector-title"><div class="panel-head"><div><p class="eyebrow">Operator inspector</p><h2 id="inspector-title">Compose &amp; Copilot</h2></div><span class="badge">prepared-not-sent</span></div><div class="panel-body"><section class="copilot"><h3>BigBird communications copilot</h3><p>Current accepted AI tools can read bounded untrusted message context and prepare a local reply artifact. AI analysis never grants send authority.</p><p class="fine"><code>messaging.status.read</code> · <code>messages.conversation.read</code> · <code>messages.draft.prepare</code></p></section><form id="sandbox-form" class="composer"><label for="sender_label">Sender identity</label><input id="sender_label" name="sender_label" value="Spirit Creek Telegraph Office" required><label for="recipient">Synthetic E.164 destination</label><input id="recipient" name="recipient" value="+15555550100" required><label for="body">Message</label><textarea id="body" name="body" required>Sandbox test message. No live delivery.</textarea><button class="button" type="submit">Run safe simulation</button><button class="button" type="button" disabled aria-describedby="send-help">Authorize &amp; send</button><p class="fine" id="send-help">Live send is intentionally unavailable here. A future send path must separately validate operator identity, scope, sender/DID, destination, consent, restrictions, limits, provider readiness, audit metadata and idempotency.</p></form><pre id="sandbox-result" class="fine" aria-live="polite">No simulation run yet.</pre></div></aside>
+</div>
+<section class="footer-grid" aria-label="Messaging readiness summary"><div class="mini"><span>Carrier adapter</span><strong>Telnyx source ready / unregistered</strong></div><div class="mini"><span>Persistent provider</span><strong>Simulator only</strong></div><div class="mini"><span>MMS security</span><strong>Private quarantine / fail closed</strong></div><div class="mini"><span>Production traffic</span><strong>Not authorized</strong></div></section>
+</main>
 <script>
-const escapeHtml = value => String(value)
-  .replaceAll("&", "&amp;")
-  .replaceAll("<", "&lt;")
-  .replaceAll(">", "&gt;")
-  .replaceAll('"', "&quot;")
-  .replaceAll("'", "&#039;");
-
-async function loadStatus() {
-  const response = await fetch("/messaging/status", {cache: "no-store"});
-  if (!response.ok) throw new Error(`Status request failed: ${response.status}`);
-  const data = await response.json();
-  const entries = [
-    ["Gateway", data.gateway], ["State", data.state],
-    ["Service Active", data.service_active], ["Listener Reachable", data.listener_reachable],
-    ["Production Actions", data.production_actions_enabled], ["Checked At", data.checked_at]
-  ];
-  document.getElementById("status").innerHTML = entries.map(([label, value]) =>
-    `<div class="card ${value === false ? "warning" : ""}"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(value)}</div></div>`
-  ).join("");
-}
-
-async function loadDiagnostics() {
-  const response = await fetch("/messaging/diagnostics", {cache: "no-store"});
-  if (!response.ok) throw new Error(`Diagnostics request failed: ${response.status}`);
-  const data = await response.json();
-  document.getElementById("diagnostics").innerHTML = data.observations.map(item =>
-    `<div class="card ${item.severity === "warning" || item.severity === "critical" ? "warning" : ""}"><strong>${escapeHtml(item.code)}</strong><br>${escapeHtml(item.message)}</div>`
-  ).join("") + `<p><small>Disabled: ${escapeHtml(data.disabled_actions.join(", "))}</small></p>`;
-}
-
-async function loadHistory() {
-  const response = await fetch("/messaging/history?limit=10", {cache: "no-store"});
-  if (!response.ok) throw new Error(`History request failed: ${response.status}`);
-  document.getElementById("history").textContent = JSON.stringify(await response.json(), null, 2);
-}
-
-document.getElementById("sandbox-form").addEventListener("submit", async event => {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  const payload = Object.fromEntries(form.entries());
-  const response = await fetch("/messaging/sandbox/simulate", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(payload)
-  });
-  const result = await response.json();
-  document.getElementById("sandbox-result").textContent = JSON.stringify(result, null, 2);
-});
-
-Promise.all([loadStatus(), loadDiagnostics()]).then(loadHistory).catch(error => {
-  document.getElementById("diagnostics").textContent = error.message;
-});
+const escapeHtml=value=>String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+let diagnosticRows=[];let historyRows=[];
+function renderStatus(data){const entries=[["Gateway",data.gateway],["State",data.state],["Service",data.service_active?"active":"inactive"],["Listener",data.listener_reachable?"reachable":"unreachable"],["Production actions",data.production_actions_enabled?"enabled":"disabled"],["Checked",data.checked_at||"unknown"],["Mode","read/sandbox"],["External delivery","disabled"]];document.getElementById("status").innerHTML=entries.map(([label,value])=>`<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");document.getElementById("checked-at").textContent=data.checked_at||"checked";}
+function renderDiagnostics(filter=""){const needle=filter.toLowerCase();const rows=diagnosticRows.filter(item=>`${item.code} ${item.message} ${item.severity}`.toLowerCase().includes(needle));document.getElementById("diagnostics").innerHTML=rows.length?rows.map(item=>`<article class="diagnostic ${escapeHtml(item.severity)}"><strong>${escapeHtml(item.code)}</strong><span>${escapeHtml(item.message)}</span></article>`).join(""):`<div class="empty"><strong>No matching diagnostics</strong>Change the filter to view the current bounded observations.</div>`;}
+function renderHistory(filter=""){const needle=filter.toLowerCase();const rows=historyRows.filter(item=>JSON.stringify(item).toLowerCase().includes(needle));document.getElementById("history").innerHTML=rows.length?rows.map(item=>`<li><strong>${escapeHtml(item.state||"snapshot")}</strong> <small>${escapeHtml(item.checked_at||"")}</small><pre>${escapeHtml(JSON.stringify(item,null,2))}</pre></li>`).join(""):`<li class="empty"><strong>No matching snapshots</strong></li>`;}
+async function load(){const [statusResponse,diagnosticsResponse,historyResponse]=await Promise.all([fetch("/messaging/status",{cache:"no-store"}),fetch("/messaging/diagnostics",{cache:"no-store"}),fetch("/messaging/history?limit=10",{cache:"no-store"})]);if(!statusResponse.ok||!diagnosticsResponse.ok||!historyResponse.ok)throw new Error("One or more bounded messaging operations endpoints are unavailable.");const status=await statusResponse.json();const diagnostics=await diagnosticsResponse.json();const history=await historyResponse.json();renderStatus(status);diagnosticRows=Array.isArray(diagnostics.observations)?diagnostics.observations:[];historyRows=Array.isArray(history.snapshots)?history.snapshots:[];renderDiagnostics();renderHistory();document.getElementById("workspace-status").textContent=`${diagnosticRows.length} diagnostic observations · ${historyRows.length} recent health snapshots · production actions ${status.production_actions_enabled?"ENABLED":"disabled"}`;}
+document.getElementById("search-form").addEventListener("submit",event=>{event.preventDefault();const value=document.getElementById("search").value.trim();renderDiagnostics(value);renderHistory(value);});
+document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll("[data-tab]").forEach(item=>item.classList.toggle("active",item===button));for(const id of ["diagnostics","history","sandbox"])document.getElementById(id).hidden=id!==button.dataset.tab;}));
+document.getElementById("sandbox-form").addEventListener("submit",async event=>{event.preventDefault();const payload=Object.fromEntries(new FormData(event.currentTarget).entries());const response=await fetch("/messaging/sandbox/simulate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const result=await response.json();document.getElementById("sandbox-result").textContent=JSON.stringify(result,null,2);});
+load().catch(error=>{document.getElementById("workspace-status").textContent=error.message;document.getElementById("diagnostics").innerHTML=`<div class="empty"><strong>Messaging evidence unavailable</strong>${escapeHtml(error.message)}</div>`;});
 </script>
 </body>
 </html>
