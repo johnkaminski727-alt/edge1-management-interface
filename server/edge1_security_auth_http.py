@@ -145,8 +145,20 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
         )
         return HttpResponse(200, headers, body)
 
+    def _exchange_origin_allowed(self, request: HttpRequest) -> bool:
+        origin = self._header(request, "origin")
+        if origin == self.config.business159_origin:
+            return True
+        if origin != "null":
+            return False
+        return (
+            self._header(request, "sec-fetch-site").lower() == "same-site"
+            and self._header(request, "sec-fetch-mode").lower() == "navigate"
+            and self._header(request, "sec-fetch-dest").lower() == "document"
+        )
+
     def _exchange(self, request: HttpRequest) -> HttpResponse:
-        if self._header(request, "origin") != self.config.business159_origin:
+        if not self._exchange_origin_allowed(request):
             raise AuthorizationError("origin_invalid")
         if self._content_type(request) != "application/x-www-form-urlencoded":
             raise ValueError("content_type_invalid")
