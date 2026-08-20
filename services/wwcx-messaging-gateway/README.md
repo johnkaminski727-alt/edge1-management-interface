@@ -4,65 +4,78 @@ Provider-neutral SMS/MMS gateway staged separately from FreePBX and Asterisk.
 
 ## Safety boundary
 
-This milestone does not change live trunks, transports, firewall rules, DNS, production certificates, carrier profiles, or telephone-number routing. It provides an internal development service and carrier simulator only.
+The gateway is designed so that repository implementation, runtime readiness, carrier configuration, credentials, authorization, and live traffic are separate states. Source code or an AI-generated draft is never authority to send.
 
-## Capabilities
+The currently accepted Edge1 runtime remains private and loopback-only. No real carrier, DID, public webhook, production credential, or live SMS/MMS traffic is enabled by this repository state.
 
-- Health and readiness endpoints
-- Normalized inbound and outbound SMS/MMS event model
-- Idempotent simulator intake
-- In-memory development event store and PostgreSQL persistence
-- Management status and pause/resume controls
-- Authenticated bounded conversation reads for operator/Private-AI context
-- Local `prepared_not_sent` reply artifacts through the BigBird messaging facade
-- Spirit Creek Telegraph Office operator window
-- Arbitrary operator-controlled sender identity
-- SMS/MMS simulator dispatch receipts and ledger
-- Optional browser-coordinate attestation with explicit consent
-- Server UTC and client-observed time metadata
-- Content and media SHA-256 digests
-- PGP-ready armored ciphertext and fingerprint metadata
-- Fail-closed MMS media quarantine metadata foundation
-- Automated API tests
+## Current carrier-neutral capabilities
 
-## MMS media quarantine foundation
+- health and readiness endpoints;
+- normalized inbound and outbound SMS/MMS event models;
+- PostgreSQL durable event persistence;
+- durable inbound and outbound queues with bounded workers;
+- provider-neutral webhook and send interfaces;
+- verified-webhook receipt persistence and recovery;
+- provider-event replay/idempotency and changed-body collision rejection;
+- bounded webhook abuse/audit counters without retaining unverified bodies;
+- STOP / START / HELP consent and suppression state with ordering protection;
+- outbound sender, destination, volume, recipient-count and message-length policy;
+- delivery-status/DLR persistence, ordering and idempotency;
+- fail-closed uncertain-send behavior to prevent duplicate delivery;
+- private content-addressed MMS quarantine storage with digest verification;
+- trusted-scanner adapter with fail-closed timeout/error/unavailable states;
+- clean MMS remains held until a separate release policy exists;
+- authenticated bounded AI conversation reads;
+- prepared-not-sent AI message drafting;
+- simulator-only private acceptance paths.
 
-MMS media is treated as held by default. The gateway does not fetch provider media URLs through the AI/read surface and does not expose those URLs in quarantine records.
+## Carrier adapter state
 
-`app/media_quarantine.py` models these states:
+`app/telnyx_provider.py` is the first real-carrier reference implementation. It provides:
 
-- `quarantined_missing_digest`
-- `quarantined_pending_scan`
-- `scanned_clean_held`
-- `quarantined_malicious`
-- `quarantined_scan_error`
+- Ed25519 webhook verification using Telnyx signature and timestamp headers;
+- five-minute replay-window enforcement;
+- inbound SMS/MMS normalization;
+- terminal delivery-status normalization;
+- credential-injected outbound submission;
+- explicit separation between permanent provider rejection, proven safe retry, and outcome-uncertain submission.
 
-A trusted scanner may be supplied later by the deployment integration. Until then, media remains `quarantined_pending_scan`. Even an explicit clean scanner result remains `scanned_clean_held`; this module never authorizes release. Actual quarantine storage, malware-engine integration, release workflow, and retention policy remain separate runtime/privileged work.
+The Telnyx adapter is deliberately **not registered** by `build_provider_registry()`. The simulator remains the only active provider. Adding source code does not activate Telnyx, install credentials, expose a webhook, assign a telephone number, or authorize traffic.
 
-SMS without media reports quarantine as not applicable rather than inventing malware semantics.
+Commercial carrier selection and activation remain separate approval decisions. Current pricing, regulatory requirements, number availability and contractual terms must be revalidated before any purchase or activation.
 
-## Spirit Creek Telegraph Office
+## MMS private quarantine
 
-Open:
+MMS provider references are untrusted. The private quarantine store uses content-addressed paths derived from SHA-256 rather than provider-controlled filenames or URLs, enforces private filesystem permissions and bounded size limits, and verifies stored bytes against the expected digest. Scan adapters operate on verified private blobs. Scanner failure, timeout, absence, unknown verdict, metadata corruption or digest failure all hold the attachment.
 
-```text
-http://127.0.0.1:8092/telegraph-office
-```
+A clean scan produces `scanned_clean_held`; it does not authorize release. The ordinary AI/read surface does not expose provider media URLs.
 
-The window requires the simulator token for dispatch. It can collect present coordinates only after the operator selects the location option and grants browser permission.
+## AI boundary
 
-PGP private keys and passphrases are deliberately not accepted by the gateway. Encryption and decryption must occur in a trusted local client. Paste only armored ciphertext and public fingerprints into the operator window. This prevents the simulator service and ordinary logs from becoming a private-key repository.
+BigBird may read bounded sanitized messaging context and prepare drafts. Retrieved SMS/MMS content is explicitly untrusted data and cannot grant scopes, authorize tools, change policy, reveal secrets, release quarantine, or authorize delivery.
 
-Endpoints:
+Repository/live capabilities currently include:
 
-```text
-POST /v1/telegraph/dispatch
-GET  /v1/telegraph/ledger
-```
+- `messaging.status.read`
+- `messages.conversation.read`
+- `messages.draft.prepare`
 
-The ledger records message IDs, routing metadata, timestamps, verification digests, coordinate attestations, and PGP fingerprints. It does not intentionally expose private keys or passphrases.
+`messages.draft.prepare` produces a local `prepared_not_sent` artifact. No `messages.send` authority is granted by this integration.
 
-## Run locally
+## Outbound lifecycle
+
+The durable queue and worker preserve a fail-closed progression. Before a worker can call a provider, the job must pass provider allowlisting, provider registration, outbound policy, sender/destination restrictions, suppression, MMS-release restrictions and rate controls.
+
+Provider outcomes are treated conservatively:
+
+- proven pre-submit connection failure may be retried;
+- explicit provider rejection is blocked for operator review;
+- ambiguous submission failure remains claimed and requires reconciliation;
+- accepted submission records the provider message ID for later DLR reconciliation.
+
+The worker still runs one bounded iteration only and is disabled unless explicitly enabled.
+
+## Local development
 
 ```bash
 cd services/wwcx-messaging-gateway
@@ -73,26 +86,19 @@ export WWCX_SIMULATOR_TOKEN=development-only
 uvicorn app.main:app --reload --port 8092
 ```
 
-Run tests:
+Run validation:
 
 ```bash
-pytest
+pytest -q
+python -m compileall app tests
 ```
 
-## Current limitations
+PostgreSQL/Docker integration acceptance is exercised by the repository `WW.CX Messaging Gateway` workflow.
 
-- PGP cryptographic operations are not performed by the gateway; only pre-encrypted armored payloads and fingerprints are accepted.
-- Clock synchronization fields are modeled, but host NTP state must be populated by the deployment integration.
-- Coordinates are an attestation with a source and accuracy radius, not proof of identity.
-- MMS quarantine is metadata/fail-closed policy only until private storage and a trusted scanner are attached.
-- No live carrier traffic is enabled.
+## Live private acceptance baseline
 
-## Next controlled milestones
+The last documented carrier-neutral Edge1 acceptance uses application version `0.4.7`, PostgreSQL, loopback listener `127.0.0.1:58080`, simulator-only provider registration, disabled outbound/inbound workers in persistent runtime, disabled outbound policy, and no public carrier traffic. See `docs/phase3-readiness-state.md` for exact evidence and rollback locations.
 
-1. Add a durable queue and worker process.
-2. Add a trusted local PGP client or hardware-backed key-agent integration.
-3. Populate NTP synchronization and offset from the Edge1 host health service.
-4. Implement Telnyx and Bandwidth signature adapters behind the provider interface.
-5. Attach private MMS quarantine storage and malware scanning behind the fail-closed foundation.
-6. Build the FreePBX user/DID adapter without changing voice routing.
-7. Expose a public webhook only after reverse-proxy, WAF, TLS, firewall, and rollback review.
+## Remaining activation boundaries
+
+The following are intentionally not implied by this README or by a green CI run: carrier commercial acceptance, charges, telephone-number purchase/assignment, carrier credentials, externally reachable production webhooks, production DNS/firewall/certificate changes, live SMS/MMS test traffic, production traffic cutover, credential rotation, or legal/regulatory representations.

@@ -24,6 +24,18 @@ text = page.read_text()
 
 assert "Messaging Operations" in text
 assert "/messaging/status" in text
+assert "/messaging/diagnostics" in text
+assert "/messaging/history?limit=10" in text
+assert "/messaging/sandbox/simulate" in text
+assert "Draft is not send" in text
+assert "messages.conversation.read" in text
+assert "messages.draft.prepare" in text
+assert "Authorize &amp; send" in text
+assert "disabled aria-describedby=\"send-help\"" in text
+assert "Production traffic" in text
+assert "Not authorized" in text
+assert "@media(max-width:720px)" in text
+assert "focus-visible" in text
 
 print("Messaging console validation passed")
-print("Read-only operations view confirmed")
+print("Responsive sandbox-only operations boundary confirmed")
