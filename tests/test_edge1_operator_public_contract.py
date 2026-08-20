@@ -5,6 +5,9 @@ import importlib.util
 import pathlib
 import unittest
 
+from server.edge1_operator_entrypoint import build_operator
+from server.edge1_operator_transport import TransportRequest
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ROOT / "server/edge1_operator_mcp_protocol.py"
 SERVICE_PATH = ROOT / "deploy/edge1-operations-api.service"
@@ -33,6 +36,14 @@ EXPECTED = (
 )
 
 
+class FakeRuntime:
+    def identity(self):
+        return {"service": "edge1-operator"}
+
+    def health(self):
+        return {"status": "ok"}
+
+
 class Edge1OperatorPublicContractTests(unittest.TestCase):
     def test_external_contract_is_exactly_sixteen_read_only_tools(self):
         names = tuple(tool["name"] for tool in MODULE.TOOLS)
@@ -54,6 +65,43 @@ class Edge1OperatorPublicContractTests(unittest.TestCase):
                 self.assertEqual(tool["access"], "read")
                 self.assertEqual(tool["annotations"], expected)
                 self.assertEqual(tool["inputSchema"]["additionalProperties"], False)
+
+    def test_public_dispatch_rejects_internal_turn_tools_even_when_called_directly(self):
+        operator, _runtime = build_operator(runtime=FakeRuntime(), turn_store=object())
+        listed = operator.handle(TransportRequest(method="tools/list", payload={}))
+        self.assertEqual(tuple(tool["name"] for tool in listed.result["tools"]), EXPECTED)
+
+        cases = (
+            ("agent.turn.status", {"task_id": "t", "conversation_id": "c"}),
+            (
+                "agent.turn.handoff",
+                {
+                    "task_id": "t",
+                    "conversation_id": "c",
+                    "requesting_agent": "fen",
+                    "to_agent": "gus",
+                    "expected_epoch": 0,
+                    "idempotency_key": "k",
+                },
+            ),
+        )
+        for name, arguments in cases:
+            with self.subTest(tool=name):
+                response = operator.handle(
+                    TransportRequest(
+                        method="tools/call",
+                        payload={"name": name, "arguments": arguments},
+                    )
+                )
+                self.assertTrue(response.ok)
+                self.assertEqual(
+                    response.result,
+                    {
+                        "tool": name,
+                        "status": "error",
+                        "payload": {"message": "unknown_tool"},
+                    },
+                )
 
     def test_operations_api_allows_netlink_without_network_admin_capabilities(self):
         text = SERVICE_PATH.read_text(encoding="utf-8")
