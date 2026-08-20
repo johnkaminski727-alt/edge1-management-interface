@@ -23,26 +23,25 @@ node_major=$(/usr/bin/node -p 'process.versions.node.split(".")[0]')
 VERSION_LINE=$($BINARY --version 2>/dev/null || true)
 [ -n "$VERSION_LINE" ] || { echo "unable to identify tunnel-client version" >&2; exit 6; }
 $BINARY run --help 2>&1 | grep -q -- '--mcp.command' || { echo "tunnel-client lacks stdio --mcp.command support" >&2; exit 7; }
-$BINARY doctor --help >/dev/null 2>&1 || { echo "tunnel-client doctor command unavailable" >&2; exit 8; }
+$BINARY doctor --help 2>&1 | grep -q -- '--mcp.command' || { echo "tunnel-client doctor lacks stdio --mcp.command support" >&2; exit 8; }
 
-python3 - "$ROOT/deploy/business159-tunnel/tunnel-client.yaml" <<'PY'
+python3 - "$ROOT/deploy/business159-tunnel/tunnel-client.yaml" "$ROOT/deploy/business159-tunnel/business159-secure-mcp-tunnel.sh" <<'PY'
 from pathlib import Path
 import sys
-text = Path(sys.argv[1]).read_text(encoding='utf-8')
-required = (
+config = Path(sys.argv[1]).read_text(encoding='utf-8')
+wrapper = Path(sys.argv[2]).read_text(encoding='utf-8')
+for token in (
     'api_key: file:/etc/business159-tunnel/runtime-api-key',
     'listen_addr: 127.0.0.1:0',
     'url_file: /run/business159-secure-mcp-tunnel/health-url',
     'pid_file: /run/business159-secure-mcp-tunnel/tunnel-client.pid',
-    'commands:',
-    'channel: main',
-    'command: /usr/local/libexec/business159-tunnel/business159-live-shell.sh',
-)
-for token in required:
-    if token not in text:
+):
+    if token not in config:
         raise SystemExit(f'missing required Business159 tunnel config token: {token}')
-if 'server_urls:' in text:
-    raise SystemExit('Business159 tunnel must use native stdio MCP binding')
+if 'server_urls:' in config or 'commands:' in config:
+    raise SystemExit('Business159 stdio binding must be supplied through --mcp.command')
+if '--mcp.command "$MCP_COMMAND"' not in wrapper:
+    raise SystemExit('Business159 runtime wrapper does not bind stdio MCP with --mcp.command')
 PY
 
 if id "$SERVICE_USER" >/dev/null 2>&1; then
@@ -65,22 +64,13 @@ for sibling in edge1-secure-mcp-tunnel.service edge1-operator-mcp.service bigbir
 done
 
 case "$MODE" in
-    "")
-        echo "Business159 tunnel dry run passed. No files changed and no service was started/enabled."
-        exit 0
-        ;;
+    "") echo "Business159 tunnel dry run passed. No files changed and no service was started/enabled."; exit 0 ;;
     --apply) ;;
     *) echo "unknown argument: $MODE" >&2; exit 12 ;;
 esac
 
-if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
-    echo "refusing: Business159 tunnel service is enabled; use maintenance workflow" >&2
-    exit 13
-fi
-if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
-    echo "refusing: Business159 tunnel service is active; use maintenance workflow" >&2
-    exit 14
-fi
+systemctl is-enabled --quiet "$SERVICE" 2>/dev/null && { echo "refusing: Business159 tunnel service is enabled; use maintenance workflow" >&2; exit 13; }
+systemctl is-active --quiet "$SERVICE" 2>/dev/null && { echo "refusing: Business159 tunnel service is active; use maintenance workflow" >&2; exit 14; }
 
 if ! id "$SERVICE_USER" >/dev/null 2>&1; then
     useradd --system --home-dir "$STATE_DIR" --create-home --shell /usr/sbin/nologin "$SERVICE_USER"
@@ -93,34 +83,18 @@ install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/business159-sec
 install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/business159-live-shell.sh" "$LIBEXEC_DIR/business159-live-shell.sh"
 install -o root -g root -m 0755 "$ROOT/deploy/business159-tunnel/ssh" "$LIBEXEC_DIR/ssh"
 install -o root -g root -m 0644 "$ROOT/deploy/business159-tunnel/business159-secure-mcp-tunnel.service" "$UNIT"
-
 systemctl daemon-reload
 systemd-analyze verify "$UNIT"
 
-for secret_file in "$ETC_DIR/runtime-api-key" "$ETC_DIR/tunnel-id"; do
-    [ ! -e "$secret_file" ] || {
-        owner=$(stat -c '%U:%G' "$secret_file")
-        mode=$(stat -c '%a' "$secret_file")
-        [ "$owner" = root:$SERVICE_USER ] && [ "$mode" = 640 ] || {
-            echo "existing $(basename "$secret_file") has unexpected owner/mode: $owner $mode" >&2
-            exit 15
-        }
-    }
-done
-for ssh_file in "$SSH_DIR/ssh_config" "$SSH_DIR/known_hosts"; do
-    [ ! -e "$ssh_file" ] || {
-        owner=$(stat -c '%U:%G' "$ssh_file")
-        mode=$(stat -c '%a' "$ssh_file")
-        [ "$owner" = root:$SERVICE_USER ] && [ "$mode" = 640 ] || {
-            echo "existing $(basename "$ssh_file") has unexpected owner/mode: $owner $mode" >&2
-            exit 16
-        }
+for f in "$ETC_DIR/runtime-api-key" "$ETC_DIR/tunnel-id" "$SSH_DIR/ssh_config" "$SSH_DIR/known_hosts"; do
+    [ ! -e "$f" ] || {
+        owner=$(stat -c '%U:%G' "$f"); mode=$(stat -c '%a' "$f")
+        [ "$owner" = root:$SERVICE_USER ] && [ "$mode" = 640 ] || { echo "existing $(basename "$f") has unexpected owner/mode: $owner $mode" >&2; exit 15; }
     }
 done
 
 if systemctl is-enabled --quiet "$SERVICE" 2>/dev/null || systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
-    echo "refusing: staging must not activate or enable Business159 tunnel" >&2
-    exit 17
+    echo "refusing: staging must not activate or enable Business159 tunnel" >&2; exit 16
 fi
 
 echo "Business159 Secure MCP Tunnel assets staged; service remains disabled/inactive."
