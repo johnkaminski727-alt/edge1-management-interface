@@ -36,6 +36,7 @@ done
 
 install -d -o root -g wwadmin -m 0750 /etc/edge1-snmp /etc/edge1-snmp/profiles
 install -d -o wwadmin -g wwadmin -m 0700 /var/lib/edge1-snmp
+install -d -o wwadmin -g wwadmin -m 0700 /var/lib/edge1-snmp/server-pollers
 install -d -o wwadmin -g wwadmin -m 0755 "$STATUS_DIR"
 install -d -o root -g root -m 0755 "$LIBEXEC_DIR"
 
@@ -67,6 +68,8 @@ EDGE1_SNMP_DB=/var/lib/edge1-snmp/snmp.sqlite3 \
 EDGE1_SNMP_CONFIG=/etc/edge1-snmp/config.json \
 EDGE1_SNMP_PROFILE_DIR=/etc/edge1-snmp/profiles \
 /usr/bin/python3 "$LIBEXEC_DIR/edge1_snmp_platform.py" init-db
+EDGE1_SNMP_DB=/var/lib/edge1-snmp/snmp.sqlite3 \
+/usr/bin/python3 "$LIBEXEC_DIR/edge1_snmp_server_pollers.py" list >/dev/null
 chown wwadmin:wwadmin /var/lib/edge1-snmp/snmp.sqlite3
 chmod 0600 /var/lib/edge1-snmp/snmp.sqlite3
 install -m 0644 "$ROOT/deploy/edge1-snmp-ai-identity.service" /etc/systemd/system/edge1-snmp-ai-identity.service
