@@ -3,6 +3,8 @@
 # The consoles are served by the authenticated adapter; do not expose them with Alias.
 ProxyPass        /edge1-ops/api/v1/snmp http://127.0.0.1:8108/edge1-ops/api/v1/snmp retry=0 timeout=90
 ProxyPassReverse /edge1-ops/api/v1/snmp http://127.0.0.1:8108/edge1-ops/api/v1/snmp
+# Canonicalize the human SNMP console URL before proxying.
+RedirectMatch 302 ^/edge1-ops/snmp$ https://edge1.ww.cx/edge1-ops/snmp/
 ProxyPass        /edge1-ops/snmp/ http://127.0.0.1:8108/edge1-ops/snmp/ retry=0 timeout=30
 ProxyPassReverse /edge1-ops/snmp/ http://127.0.0.1:8108/edge1-ops/snmp/
 ProxyPass        /edge1-ops/security/ http://127.0.0.1:8108/edge1-ops/security/ retry=0 timeout=20
