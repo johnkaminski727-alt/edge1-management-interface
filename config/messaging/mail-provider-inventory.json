@@ -1,11 +1,11 @@
 {
   "contract": "wwcx.mail-provider-inventory.v1",
-  "observed_at": "2026-08-01T05:28:53+00:00",
+  "observed_at": "2026-08-20T22:53:29+00:00",
   "production_changes_authorized": false,
   "source": {
-    "workflow_run_id": 30685903870,
-    "artifact_id": 8813887895,
-    "artifact_sha256": "69a4b8620bd279be5276cf91ac4f1f0355bd968f1525f1005e4835cbd184f3e2",
+    "workflow_run_id": 32426273025,
+    "artifact_id": 9427519019,
+    "artifact_sha256": "e35b8643da1b2f1db95fe342ebd3518101a60792c86aab0046d0573b07ca44d5",
     "resolvers": [
       "cloudflare",
       "google"
@@ -36,6 +36,32 @@
         "ns4142.dns.dyn.com"
       ],
       "configured_route_count": 6,
+      "provider_admin_inventory": {
+        "observed_at": "2026-08-02",
+        "source": "namecheap_private_email_support_ticket_NC-JDV-2953",
+        "subscription_plan": "Pro",
+        "subscription_status": "active",
+        "subscription_active_through": "2026-11-14",
+        "mailbox_slots_total": 3,
+        "physical_mailboxes": [
+          {
+            "address": "blank@ww.cx",
+            "status": "active",
+            "aliases": [],
+            "catch_all_target": true
+          },
+          {
+            "address": "domaincontact@ww.cx",
+            "status": "active",
+            "aliases": [],
+            "catch_all_target": false
+          }
+        ],
+        "mailbox_slots_unused": 1,
+        "catch_all_enabled": true,
+        "catch_all_target": "blank@ww.cx",
+        "mailbox_forwarding_filters_verified": false
+      },
       "operational_evidence": [
         {
           "date": "2026-07-17",
@@ -48,9 +74,27 @@
           "type": "account_identity",
           "detail": "A Google family-group invitation was issued by john@ww.cx.",
           "effect": "This confirms a Google account identity exists, not that Google currently receives ww.cx mail."
+        },
+        {
+          "date": "2026-08-02",
+          "type": "provider_admin_inventory",
+          "detail": "Namecheap Private Email support confirmed active Pro service, physical mailboxes blank@ww.cx and domaincontact@ww.cx, no aliases, one unused mailbox slot, and Catch-All to blank@ww.cx.",
+          "effect": "This resolves the physical mailbox/alias/Catch-All inventory as of the observation date without changing provider state. Mailbox-level forwarding and filter rules remain unverified."
+        },
+        {
+          "date": "2026-08-16",
+          "type": "google_workspace_onboarding",
+          "detail": "Google Workspace welcome mail to techgod@ww.cx still instructed the administrator to verify the domain before custom-domain Gmail could be used.",
+          "effect": "This is setup/onboarding evidence, not proof that Google Workspace receives ww.cx mail. No later activation notice was found in the connected Gmail account through 2026-08-20."
+        },
+        {
+          "date": "2026-08-20",
+          "type": "public_dns_resolver_consensus",
+          "detail": "Fresh read-only inventory from Cloudflare and Google resolvers agreed on MX 10 mx1.privateemail.com / 20 mx2.privateemail.com, SPF v=spf1 include:spf.privateemail.com ~all, Dyn authoritative nameservers, and no published DMARC record.",
+          "effect": "Namecheap Private Email remains the current public inbound mail provider for ww.cx at the observation time; Google Workspace has not replaced the MX path."
         }
       ],
-      "provider_admin_verification": "required"
+      "provider_admin_verification": "partial_read_only_verified_2026-08-02"
     },
     "creekco.ca": {
       "provider_family": "namecheap_shared_hosting",
@@ -162,11 +206,11 @@
     }
   },
   "gaps": [
-    "The actual provider-side mailbox, alias, and forwarder inventory has not been exported or reconciled.",
-    "john-inbox@ww.cx and maildesk@ww.cx are canonical definitions but are not proven provisioned at the provider.",
-    "DKIM selectors and signing status are not yet inventoried for any domain.",
-    "ww.cx has no published DMARC record in this observation.",
-    "spiritcreekgardens.com has no published MX, SPF, or DMARC record.",
+    "ww.cx provider-side physical mailbox inventory was reconciled on 2026-08-02; mailbox-level forwarding/filter rules remain unverified because support could not inspect them.",
+    "john-inbox@ww.cx and maildesk@ww.cx are canonical logical delivery targets but are not physical Namecheap mailboxes; Catch-All targeted blank@ww.cx as of the 2026-08-02 provider inventory.",
+    "Independent runtime DKIM verification remains incomplete; Namecheap support reported the default selector configured for ww.cx on 2026-08-02.",
+    "ww.cx has no published DMARC record in the fresh 2026-08-20 DNS observation.",
+    "spiritcreekgardens.com has no published MX, SPF, or DMARC record in the fresh 2026-08-20 DNS observation.",
     "No sender identity is live-enabled in the outbound gateway."
   ],
   "activation_boundary": {

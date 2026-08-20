@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
+from datetime import datetime
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "config" / "messaging" / "mail-provider-inventory.json"
@@ -20,11 +22,17 @@ outbound = json.loads(OUTBOUND_PATH.read_text(encoding="utf-8"))
 
 assert inventory["contract"] == "wwcx.mail-provider-inventory.v1"
 assert inventory["production_changes_authorized"] is False
-assert inventory["source"]["workflow_run_id"] == 30685903870
-assert inventory["source"]["artifact_id"] == 8813887895
-assert len(inventory["source"]["artifact_sha256"]) == 64
-assert inventory["source"]["resolver_consensus"] is True
-assert set(inventory["source"]["resolvers"]) == {"cloudflare", "google"}
+
+# Evidence snapshots are intentionally refreshable. Validate durable provenance
+# properties rather than pinning the validator to one historical workflow run.
+observed_at = datetime.fromisoformat(inventory["observed_at"].replace("Z", "+00:00"))
+assert observed_at.tzinfo is not None
+source = inventory["source"]
+assert isinstance(source["workflow_run_id"], int) and source["workflow_run_id"] > 0
+assert isinstance(source["artifact_id"], int) and source["artifact_id"] > 0
+assert re.fullmatch(r"[0-9a-f]{64}", source["artifact_sha256"])
+assert source["resolver_consensus"] is True
+assert set(source["resolvers"]) == {"cloudflare", "google"}
 
 expected_domains = {
     "ww.cx",
@@ -67,6 +75,21 @@ assert inventory["domains"]["spiritcreekgardens.com"]["mx"] == []
 assert inventory["domains"]["spiritcreekgardens.com"]["spf"] == []
 assert inventory["domains"]["spiritcreekgardens.com"]["dmarc"] == []
 assert inventory["domains"]["spiritcreekgardens.com"]["delivery_status"] == "not_ready_no_mx"
+
+wwcx_admin = inventory["domains"]["ww.cx"]["provider_admin_inventory"]
+assert wwcx_admin["observed_at"] == "2026-08-02"
+assert wwcx_admin["subscription_status"] == "active"
+assert wwcx_admin["mailbox_slots_total"] == 3
+assert wwcx_admin["mailbox_slots_unused"] == 1
+assert wwcx_admin["catch_all_enabled"] is True
+assert wwcx_admin["catch_all_target"] == "blank@ww.cx"
+assert wwcx_admin["mailbox_forwarding_filters_verified"] is False
+assert {item["address"] for item in wwcx_admin["physical_mailboxes"]} == {
+    "blank@ww.cx",
+    "domaincontact@ww.cx",
+}
+assert all(item["status"] == "active" for item in wwcx_admin["physical_mailboxes"])
+assert all(item["aliases"] == [] for item in wwcx_admin["physical_mailboxes"])
 
 routes = inbound["routing"]["routes"]
 assert len(routes) == 37
@@ -155,6 +178,7 @@ for token in (
     assert token in document, token
 
 print("Mail provider inventory validation passed")
+print("Refreshable resolver evidence provenance and WW.CX provider-admin state verified")
 print("Five domains reconciled against the 37-route inbound and identity configuration")
 print("CreekCo accessibility and NOC evidence now matches the canonical registry")
 print("All mailbox, DNS, routing, and outbound activation gates remain disabled")
