@@ -8,6 +8,7 @@ Type=simple
 User=business159-operator
 Group=business159-operator
 Environment=BUSINESS159_NODE_BIN=/opt/node-v24.18.0-linux-x64/bin/node
+Environment=NODE_OPTIONS=--jitless
 EnvironmentFile=-/etc/business159-operator/runtime-policy
 ExecStart=/usr/local/libexec/business159-tunnel/business159-secure-mcp-tunnel.sh run
 Restart=on-failure
