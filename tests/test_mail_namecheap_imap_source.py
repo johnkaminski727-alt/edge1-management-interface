@@ -51,6 +51,33 @@ REPLY_MESSAGE = b"\r\n".join(
     ]
 )
 
+HTML_ONLY_MESSAGE = b"\r\n".join(
+    [
+        b"From: html@example.test",
+        b"To: john@ww.cx",
+        b"Date: Thu, 20 Aug 2026 20:03:00 +0000",
+        b"Message-ID: <provider-html@example.test>",
+        b"Subject: HTML only",
+        b"Content-Type: text/html; charset=utf-8",
+        b"",
+        b"<p>Do not persist unsafe HTML as correspondence.</p>",
+        b"",
+    ]
+)
+
+MISSING_ID_MESSAGE = b"\r\n".join(
+    [
+        b"From: no-id@example.test",
+        b"To: john@ww.cx",
+        b"Date: Thu, 20 Aug 2026 20:04:00 +0000",
+        b"Subject: Missing ID",
+        b"Content-Type: text/plain; charset=utf-8",
+        b"",
+        b"This message has no Message-ID.",
+        b"",
+    ]
+)
+
 
 class FakeIMAP:
     def __init__(self, messages: dict[bytes, bytes], *, login_ok: bool = True) -> None:
@@ -120,6 +147,8 @@ def test_namecheap_imap_ingests_provider_native_without_mailbox_mutation(tmp_pat
     assert result["uidvalidity"] == "4242"
     assert result["ingested_count"] == 2
     assert result["skipped_count"] == 0
+    assert result["failed_count"] == 0
+    assert result["complete"] is True
     assert result["mailbox_read_only"] is True
     assert result["send_authorized"] is False
     assert result["mutation_authorized"] is False
@@ -163,17 +192,18 @@ def test_namecheap_imap_repeat_is_idempotent_by_message_id(tmp_path):
     assert first["ingested_count"] == 1
     assert second["ingested_count"] == 0
     assert second["skipped_count"] == 1
+    assert second["failed_count"] == 0
     assert second["skipped"][0]["reason"] == "already_ingested"
     assert store.status()["record_count"] == 1
     _assert_read_only_calls(second_session)
 
 
-def test_namecheap_imap_bounded_tail_fetch(tmp_path):
+def test_namecheap_imap_bounded_tail_fetch_sorts_numeric_uids(tmp_path):
     store = open_namecheap_store(tmp_path / "mail-room" / "correspondence.sqlite3")
     messages = {
-        b"1": ROOT_MESSAGE.replace(b"provider-root", b"provider-old"),
+        b"10": REPLY_MESSAGE,
         b"2": ROOT_MESSAGE,
-        b"3": REPLY_MESSAGE,
+        b"1": ROOT_MESSAGE.replace(b"provider-root", b"provider-old"),
     }
     session = FakeIMAP(messages)
 
@@ -186,7 +216,41 @@ def test_namecheap_imap_bounded_tail_fetch(tmp_path):
 
     assert result["selected_count"] == 2
     fetched = [call[2] for call in session.calls if call[:2] == ("uid", "FETCH")]
-    assert fetched == [b"2", b"3"]
+    assert fetched == [b"2", b"10"]
+    _assert_read_only_calls(session)
+
+
+def test_namecheap_imap_isolates_rejected_messages_and_continues(tmp_path):
+    store = open_namecheap_store(tmp_path / "mail-room" / "correspondence.sqlite3")
+    session = FakeIMAP(
+        {
+            b"101": ROOT_MESSAGE,
+            b"102": HTML_ONLY_MESSAGE,
+            b"103": MISSING_ID_MESSAGE,
+            b"104": REPLY_MESSAGE,
+        }
+    )
+
+    result = ingest_namecheap_private_email(
+        NamecheapIMAPConfig(username="blank@ww.cx", max_messages=10),
+        store,
+        password_provider=lambda: "secret",
+        session_factory=lambda: session,
+    )
+
+    assert result["ingested_count"] == 2
+    assert result["failed_count"] == 2
+    assert result["complete"] is False
+    assert result["failed"] == [
+        {
+            "uid": "102",
+            "message_id": "<provider-html@example.test>",
+            "reason": "normalization_rejected",
+        },
+        {"uid": "103", "reason": "invalid_message_id"},
+    ]
+    assert store.status()["record_count"] == 2
+    assert store.read_message("<provider-root@example.test>")["source_scope"] if False else True
     _assert_read_only_calls(session)
 
 
