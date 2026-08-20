@@ -13,10 +13,3 @@ admin_ui:
 
 process:
   pid_file: /run/business159-secure-mcp-tunnel/tunnel-client.pid
-
-mcp:
-  commands:
-    - channel: main
-      command: /usr/local/libexec/business159-tunnel/business159-live-shell.sh
-  connection_max_ttl: 10m
-  max_concurrent_requests: 4
