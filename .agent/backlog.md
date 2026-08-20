@@ -53,18 +53,6 @@ These counts are attribution/provenance work, not automatic exposure defects.
 - [ ] Do not narrow, disable, firewall, rebind, or restart a listener solely because its classifier label is unknown.
 - [ ] Require a separate reviewed change with consumer/rollback evidence for any eventual exposure reduction.
 
-## P1 — Business159 connector acceptance
-
-Repository packaging and persistent-tunnel work have advanced. Fresh Edge1 service inspection shows `business159-secure-mcp-tunnel.service` active, but service activity alone is not connector-level acceptance.
-
-- [ ] Verify the dedicated Business159 app/runtime exposes the intended bounded tool contract.
-- [ ] Complete connector-level read-only checks through the dedicated Business159 runtime.
-- [ ] Complete the staged-filesystem smoke sequence using the bounded filesystem gate only.
-- [ ] Keep deployment apply and raw shell disabled during acceptance unless separately and explicitly authorized.
-- [ ] Record durable acceptance/rollback evidence after successful connector-level validation.
-
-Do not infer raw-shell, website-deployment, DNS, firewall, credential, or unrestricted host authority from the tunnel service being active.
-
 ## P2 — DTMF provider response
 
 Externally blocked pending provider response. Last retained mailbox state from 2026-08-19 showed no substantive technical reply after the 2026-08-14 notice that there was still no update.
@@ -87,11 +75,15 @@ live_test_authorized=false
 
 ## Deferred / optional
 
+- [ ] Business159 staged-filesystem smoke acceptance may be run later as a new bounded acceptance activity if filesystem mutation capability needs independent proof. It was explicitly deferred at the 2026-08-20 archive closeout and must not be represented as previously passed. Keep deployment apply and raw shell separately gated.
 - [ ] Consider promoting accepted Edge1 front-door HTTP 302 responses to 308 only after sufficient operational experience. This is not required for completion and is not automatically authorized.
 - [ ] Review a shared tunnel-client upgrade only as a separately tested maintenance change; do not upgrade merely to change the historical old-doctor OAuth-metadata result while Big Bird depends on the current binary.
 
 ## Completed / do not reopen without new evidence
 
+- [x] Business159 Secure MCP Tunnel **OPERATIONALLY COMPLETE / PERSISTENT / ARCHIVE READY** on 2026-08-20: dedicated service active/enabled, controlled restart passed, loopback `healthz=live`, `readyz=ready`, repository verifier passed, `NODE_OPTIONS=--jitless` retained with `MemoryDenyWriteExecute=yes`, and final marker `BUSINESS159_PERSISTENT_TUNNEL=PASS`.
+- [x] Business159 workspace packaging accepted for archive: custom app enabled, 26 actions discovered, repo-scoped plugin installed by default, required app recognized, and the obsolete standalone skill removed to avoid shadowing. Final connector invocation was accepted for closeout by explicit operator direction rather than separately captured in archive evidence.
+- [x] Business159 deployment apply and raw shell were not granted by this closeout; staged-filesystem smoke remains deferred and is not claimed as passed.
 - [x] Edge1 public front door **LIVE / ACCEPTED / REVERIFIED** on 2026-08-19; canonical destination `https://ww.cx/time/`.
 - [x] Edge1 front-door rollback/evidence preserved at `/var/backups/wwcx-edge1-front-door-approved-20260819T052836Z`.
 - [x] Global `/etc/systemd/system` trust boundary restored to `root:root 0755` on 2026-08-20 with protected evidence.
@@ -108,8 +100,9 @@ live_test_authorized=false
 - [x] Asterisk `22.10.1` update accepted with rollback evidence.
 - [x] Offline CAP-CP/EBS laboratory installed and synthetic tests accepted without operational feed/delivery.
 
-Authoritative Operator closeout records:
+Authoritative closeout records:
 
+- `docs/business159-operator/2026-08-20-persistent-tunnel-closeout.md`;
 - `docs/edge1-operator/17-post-deployment-acceptance-20260820.md`;
 - `docs/edge1-operator/18-workspace-publication-acceptance-20260820.md`;
 - `docs/edge1-operator/13-completion-status.md`.
