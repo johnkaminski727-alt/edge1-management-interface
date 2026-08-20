@@ -21,6 +21,13 @@ from .edge1_snmp_ui_client import Edge1SnmpUiClient
 
 CONSOLE_READ_SCOPE = "edge1.security.read"
 
+# Short-lived host-only interactive return state. The value is an allowlisted
+# destination identifier only; it contains no credentials or arbitrary URL.
+INTERACTIVE_LOGIN_URL = "https://ww.cx/admin/edge1-security-login.php"
+INTERACTIVE_RETURN_COOKIE_NAME = "__Secure-wwcx_edge1_ops_return"
+INTERACTIVE_RETURN_COOKIE_PATH = "/edge1-ops/session/exchange"
+INTERACTIVE_RETURN_MAX_AGE = 900
+
 
 class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixin, SecurityHttpHelpersMixin):
     def __init__(
@@ -74,6 +81,11 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
         except ValueError:
             return self._json(400, {"error": "bad_request"})
         except AuthenticationError:
+            if request.method.upper() == "GET":
+                if request.path == self.config.routes["console"]:
+                    return self._interactive_login_redirect("security")
+                if request.path == SNMP_CONSOLE_PATH:
+                    return self._interactive_login_redirect("snmp")
             return self._json(401, {"error": "authentication_required"})
         except AuthorizationError:
             return self._json(403, {"error": "forbidden"})
@@ -81,6 +93,42 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
             return self._json(503, {"error": "authentication_service_unavailable"})
         except Exception:
             return self._json(503, {"error": "service_unavailable"})
+
+    def _interactive_return_cookie(self, token: str) -> str:
+        if token not in {"security", "snmp"}:
+            raise ValueError("interactive_return_invalid")
+        return (
+            f"{INTERACTIVE_RETURN_COOKIE_NAME}={token}; "
+            f"Path={INTERACTIVE_RETURN_COOKIE_PATH}; "
+            f"Max-Age={INTERACTIVE_RETURN_MAX_AGE}; "
+            "Secure; HttpOnly; SameSite=Strict"
+        )
+
+    def _clear_interactive_return_cookie(self) -> str:
+        return (
+            f"{INTERACTIVE_RETURN_COOKIE_NAME}=; "
+            f"Path={INTERACTIVE_RETURN_COOKIE_PATH}; "
+            "Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; "
+            "Secure; HttpOnly; SameSite=Strict"
+        )
+
+    def _interactive_login_redirect(self, token: str) -> HttpResponse:
+        return HttpResponse(
+            302,
+            self._base_headers() + (
+                ("Location", INTERACTIVE_LOGIN_URL),
+                ("Set-Cookie", self._interactive_return_cookie(token)),
+                ("Content-Length", "0"),
+            ),
+            b"",
+        )
+
+    def _interactive_return_target(self, token: str) -> str:
+        if token == "snmp":
+            return SNMP_CONSOLE_PATH
+        if token == "security":
+            return self.config.routes["console"]
+        return self.config.routes["redirect_after_exchange"]
 
     def _validate_boundary(self, request: HttpRequest) -> None:
         if not self.config.enabled or not self.config.deployment_authorized:
@@ -162,8 +210,20 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
         )
         return HttpResponse(200, headers, body)
 
+    def _exchange_origin_allowed(self, request: HttpRequest) -> bool:
+        origin = self._header(request, "origin")
+        if origin == self.config.business159_origin:
+            return True
+        if origin != "null":
+            return False
+        return (
+            self._header(request, "sec-fetch-site").lower() == "same-site"
+            and self._header(request, "sec-fetch-mode").lower() == "navigate"
+            and self._header(request, "sec-fetch-dest").lower() == "document"
+        )
+
     def _exchange(self, request: HttpRequest) -> HttpResponse:
-        if self._header(request, "origin") != self.config.business159_origin:
+        if not self._exchange_origin_allowed(request):
             raise AuthorizationError("origin_invalid")
         if self._content_type(request) != "application/x-www-form-urlencoded":
             raise ValueError("content_type_invalid")
@@ -193,11 +253,15 @@ class Edge1SecurityAuthHttpAdapter(SecuritySnmpHttpMixin, SecurityHttpActionMixi
             hash_secret(csrf_token),
             context.expires_at,
         )
+        return_token = self._cookies(request).get(INTERACTIVE_RETURN_COOKIE_NAME, "")
+        redirect_target = self._interactive_return_target(return_token)
         headers = self._base_headers() + (
-            ("Location", self.config.routes["redirect_after_exchange"]),
+            ("Location", redirect_target),
             ("Set-Cookie", self._session_cookie(session_token)),
             ("Set-Cookie", self._csrf_cookie(csrf_token)),
         )
+        if return_token:
+            headers += (("Set-Cookie", self._clear_interactive_return_cookie()),)
         return HttpResponse(303, headers, b"")
 
     def _session(self, request: HttpRequest) -> HttpResponse:
