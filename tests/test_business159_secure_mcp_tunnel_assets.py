@@ -35,6 +35,8 @@ assert 'NoNewPrivileges=true' in unit
 assert 'CapabilityBoundingSet=' in unit
 assert 'AmbientCapabilities=' in unit
 assert 'ProtectSystem=strict' in unit
+assert 'Environment=BUSINESS159_NODE_BIN=/opt/node-v24.18.0-linux-x64/bin/node' in unit
+assert '/opt/node-v24.18.0-linux-x64' in unit
 
 assert 'systemctl enable' not in installer
 assert 'systemctl start' not in installer
@@ -42,6 +44,8 @@ assert 'edge1-secure-mcp-tunnel.service' in installer
 assert 'bigbird-ai-tunnel.service' in installer
 assert '--mcp.command' in installer
 assert 'useradd --system' in installer
+assert 'NODE_BIN=${BUSINESS159_NODE_BIN:-/usr/bin/node}' in installer
+assert '"$NODE_BIN" -e' in installer
 
 assert 'StrictHostKeyChecking=yes' in validator
 assert 'BatchMode=yes' in validator
