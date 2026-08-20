@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 from server.edge1_security_auth_core import AuthenticationError, SessionContext
 from server.edge1_security_auth_http import (
+    INTERACTIVE_DESTINATION_FIELD,
     INTERACTIVE_LOGIN_URL,
     INTERACTIVE_RETURN_COOKIE_NAME,
     INTERACTIVE_RETURN_COOKIE_PATH,
@@ -131,13 +132,16 @@ class InteractiveAuthReturnTests(unittest.TestCase):
         return [value for key, value in response.headers if key.lower() == name.lower()]
 
     @staticmethod
-    def exchange_body():
-        return urlencode({
+    def exchange_body(destination=None):
+        fields = {
             "assertion": "valid-assertion",
             "request_id": "b159-0123456789abcdef0123456789abcdef",
-        }).encode()
+        }
+        if destination is not None:
+            fields[INTERACTIVE_DESTINATION_FIELD] = destination
+        return urlencode(fields).encode()
 
-    def exchange(self, *, origin="https://ww.cx", cookie=None, extra_headers=None):
+    def exchange(self, *, origin="https://ww.cx", cookie=None, destination=None, extra_headers=None):
         headers = {
             "Origin": origin,
             "Content-Type": "application/x-www-form-urlencoded",
@@ -150,19 +154,22 @@ class InteractiveAuthReturnTests(unittest.TestCase):
             "POST",
             "/edge1-ops/session/exchange",
             headers=headers,
-            body=self.exchange_body(),
+            body=self.exchange_body(destination),
         )
 
-    def test_human_consoles_redirect_but_api_and_session_stay_401(self):
-        for path, token in (
+    def test_human_consoles_redirect_with_explicit_destination_and_cookie(self):
+        for path, destination in (
             ("/edge1-ops/security/", "security"),
             ("/edge1-ops/snmp/", "snmp"),
         ):
             response = self.request("GET", path)
             self.assertEqual(response.status, 302)
-            self.assertEqual(self.values(response, "Location"), [INTERACTIVE_LOGIN_URL])
+            self.assertEqual(
+                self.values(response, "Location"),
+                [f"{INTERACTIVE_LOGIN_URL}?{INTERACTIVE_DESTINATION_FIELD}={destination}"],
+            )
             cookie = self.values(response, "Set-Cookie")[0]
-            self.assertIn(f"{INTERACTIVE_RETURN_COOKIE_NAME}={token};", cookie)
+            self.assertIn(f"{INTERACTIVE_RETURN_COOKIE_NAME}={destination};", cookie)
             self.assertIn(f"Path={INTERACTIVE_RETURN_COOKIE_PATH}", cookie)
             self.assertIn("Max-Age=900", cookie)
             self.assertIn("Secure; HttpOnly; SameSite=Strict", cookie)
@@ -173,7 +180,34 @@ class InteractiveAuthReturnTests(unittest.TestCase):
     def test_return_cookie_lifetime_is_bounded(self):
         self.assertEqual(INTERACTIVE_RETURN_MAX_AGE, 900)
 
-    def test_snmp_return_token_redirects_to_snmp_and_is_cleared(self):
+    def test_explicit_snmp_destination_redirects_to_snmp_without_cookie(self):
+        response = self.exchange(destination="snmp")
+        self.assertEqual(response.status, 303)
+        self.assertEqual(self.values(response, "Location"), ["/edge1-ops/snmp/"])
+        self.assertEqual(self.values(response, "X-WWCX-Interactive-Destination"), ["snmp"])
+
+    def test_explicit_security_destination_redirects_to_security_without_cookie(self):
+        response = self.exchange(destination="security")
+        self.assertEqual(response.status, 303)
+        self.assertEqual(self.values(response, "Location"), ["/edge1-ops/security/"])
+        self.assertEqual(self.values(response, "X-WWCX-Interactive-Destination"), ["security"])
+
+    def test_explicit_destination_takes_precedence_over_cookie(self):
+        response = self.exchange(
+            destination="snmp",
+            cookie=f"{INTERACTIVE_RETURN_COOKIE_NAME}=security",
+        )
+        self.assertEqual(response.status, 303)
+        self.assertEqual(self.values(response, "Location"), ["/edge1-ops/snmp/"])
+        cookies = self.values(response, "Set-Cookie")
+        self.assertTrue(any(f"{INTERACTIVE_RETURN_COOKIE_NAME}=;" in value and "Max-Age=0" in value for value in cookies))
+
+    def test_invalid_explicit_destination_is_rejected(self):
+        response = self.exchange(destination="https://evil.example/")
+        self.assertEqual(response.status, 400)
+        self.assertNotIn("evil.example", response.body.decode())
+
+    def test_snmp_return_cookie_redirects_to_snmp_and_is_cleared(self):
         response = self.exchange(cookie=f"{INTERACTIVE_RETURN_COOKIE_NAME}=snmp")
         self.assertEqual(response.status, 303)
         self.assertEqual(self.values(response, "Location"), ["/edge1-ops/snmp/"])
@@ -181,20 +215,21 @@ class InteractiveAuthReturnTests(unittest.TestCase):
         self.assertEqual(len(cookies), 3)
         self.assertTrue(any(f"{INTERACTIVE_RETURN_COOKIE_NAME}=;" in value and "Max-Age=0" in value for value in cookies))
 
-    def test_security_return_token_redirects_to_security(self):
+    def test_security_return_cookie_redirects_to_security(self):
         response = self.exchange(cookie=f"{INTERACTIVE_RETURN_COOKIE_NAME}=security")
         self.assertEqual(response.status, 303)
         self.assertEqual(self.values(response, "Location"), ["/edge1-ops/security/"])
 
-    def test_missing_or_tampered_return_token_uses_fixed_fallback(self):
+    def test_missing_or_tampered_return_cookie_uses_fixed_fallback(self):
         missing = self.exchange()
         self.assertEqual(self.values(missing, "Location"), ["/edge1-ops/security/"])
+        self.assertEqual(self.values(missing, "X-WWCX-Interactive-Destination"), ["fallback"])
         tampered = self.exchange(cookie=f"{INTERACTIVE_RETURN_COOKIE_NAME}=https://evil.example/")
         self.assertEqual(self.values(tampered, "Location"), ["/edge1-ops/security/"])
         self.assertNotIn("evil.example", self.values(tampered, "Location")[0])
 
     def test_session_and_csrf_cookie_security_attributes_are_preserved(self):
-        response = self.exchange(cookie=f"{INTERACTIVE_RETURN_COOKIE_NAME}=snmp")
+        response = self.exchange(destination="snmp")
         cookies = self.values(response, "Set-Cookie")
         session = next(value for value in cookies if value.startswith("__Secure-wwcx_edge1_ops_session="))
         csrf = next(value for value in cookies if value.startswith("__Secure-wwcx_edge1_ops_csrf="))
@@ -205,6 +240,7 @@ class InteractiveAuthReturnTests(unittest.TestCase):
     def test_null_origin_is_allowed_only_for_same_site_top_level_navigation(self):
         accepted = self.exchange(
             origin="null",
+            destination="snmp",
             extra_headers={
                 "Sec-Fetch-Site": "same-site",
                 "Sec-Fetch-Mode": "navigate",
@@ -214,6 +250,7 @@ class InteractiveAuthReturnTests(unittest.TestCase):
         self.assertEqual(accepted.status, 303)
         rejected = self.exchange(
             origin="null",
+            destination="snmp",
             extra_headers={
                 "Sec-Fetch-Site": "cross-site",
                 "Sec-Fetch-Mode": "navigate",
@@ -221,7 +258,7 @@ class InteractiveAuthReturnTests(unittest.TestCase):
             },
         )
         self.assertEqual(rejected.status, 403)
-        self.assertEqual(self.exchange(origin="https://evil.example").status, 403)
+        self.assertEqual(self.exchange(origin="https://evil.example", destination="snmp").status, 403)
 
 
 if __name__ == "__main__":
