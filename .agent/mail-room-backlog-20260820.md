@@ -1,70 +1,96 @@
 # Mail Room remaining blockers and backlog — 2026-08-20
 
-Supersedes `.agent/mail-room-backlog-20260818.md` for current-state purposes; that file is kept as history. See `.agent/mail-room-current-state-20260820.md` for the full verified state this backlog is based on.
+See `.agent/mail-room-current-state-20260820.md` for the current verified state. The 20260818 Mail Room files remain historical only.
 
-## Resolved since 20260818
+## Resolved
 
-- A unified local-functional correspondence read path now exists (`server/mail_correspondence_store.py`, `server/mail_local_rfc822_source.py`, `tools/mail_local_intake.py`, `server/mail_ai_adapter.py` correspondence reads, authenticated correspondence endpoints on the loopback gateway API, client-isolated from the existing website-admin client). This was the "exact next engineering action" the 20260818 handoff called out as highest-value; it is done, tested, and CI-green.
-- BigBird has a bounded, read/prepare-only mail tool surface (`integrations/bigbird_mail/`), explicitly forbidding send/route-modify/execute/quarantine-release, and disabled by default pending a separate BigBird-side enable decision.
+- Local-functional correspondence store and RFC822 intake exist, are tested, and were live-accepted on Edge1.
+- Authenticated Private AI correspondence status/message/thread reads exist behind the dedicated `wwcx-private-ai` boundary.
+- BigBird has bounded Mail status/read/prepared-draft tools; send and mutation authority remain absent.
+- Fresh 2026-08-20 Edge1 checks confirm the outbound Mail gateway service is active/running and `127.0.0.1:8104` remains listening.
+- The 2026-08-19 acceptance proved `/var/lib/wwcx-mail-room/correspondence.sqlite3` existed with private ownership/permissions and authoritative `local_native` records, and returned `ready_local_native`.
+- `ww.cx` physical provider mailbox inventory is reconciled read-only from Namecheap support evidence: `blank@ww.cx`, `domaincontact@ww.cx`, no aliases, one unused slot, Catch-All to `blank@ww.cx`.
+- Fresh Cloudflare + Google resolver consensus on 2026-08-20 confirms `ww.cx` still publishes Namecheap Private Email MX and SPF; Google Workspace onboarding did not replace the public MX path.
+- Provider-native Namecheap IMAP source is implemented and merged (#488), hardened per message (#489), and deliberately unactivated.
+- Canonical provider inventory and refreshable-evidence validation are updated and merged (#490).
 
-## New: visibility blocker (not privileged, but currently unresolved)
+## Remaining local visibility gap — narrowed, not blocking source engineering
 
-Blocked: confirming live Edge1 host state for the outbound-mail-gateway service and the local correspondence store (installed/running status, `WWCX_MAIL_CORRESPONDENCE_READ_ENABLED` value, whether `/var/lib/wwcx-mail-room/correspondence.sqlite3` exists and has been populated).
+The bounded Edge1 Operator connector cannot currently expose arbitrary systemd environment/drop-in contents or correspondence DB rows.
 
-Requires: a session with Edge1 Operator MCP access (this Fen session did not have one attached).
+Therefore a fresh 2026-08-20 session has **not** independently re-read:
 
-Smallest next action: run `edge1.messaging_status` (read-only) from a session that has the Edge1 Operator connector and report the outbound-mail-gateway service state back into this file or a new dated one.
+- the current value of `WWCX_MAIL_CORRESPONDENCE_READ_ENABLED`;
+- the current row count/source mix in `/var/lib/wwcx-mail-room/correspondence.sqlite3`.
 
-This is not a privileged/external blocker in the sense of the items below — it needs no new authorization, only a session with the existing read-only connector attached.
+This no longer justifies saying the Mail Room is unproven or empty: the 2026-08-19 live acceptance already recorded `ready_local_native` with two authoritative records, and 2026-08-20 confirms the service/listener remain active.
 
-## Privileged / external blockers (unchanged from 20260818 — still not performed autonomously)
+Do not change the runtime solely to satisfy this observability gap. Re-inspect it opportunistically when an approved authenticated shell/operator surface can report the values without exposing secrets.
 
-### Provider and mailbox reconciliation
+## Protected live provider activation — next critical path
 
-Blocked: verify/export actual provider-side mailbox, alias, forwarding, and sender-verification state for every managed domain; provision anything missing.
+### Namecheap read-only canary
 
-Requires: provider account access and potentially external production state changes.
+**Implemented but not authorized for live execution:** `server/mail_namecheap_imap_source.py`.
 
-Smallest future operator action: obtain a read-only provider inventory/export first. If changes are then needed, authorize the exact provisioning action separately.
+Remaining steps require a separate live-access decision:
 
-### Final scanner runtime
+1. choose the first physical mailbox (`blank@ww.cx` is the Catch-All target, but selection is an activation decision);
+2. identify an approved secret location without displaying or committing the mailbox credential;
+3. explicitly authorize one bounded read-only IMAP login/canary;
+4. fetch only a bounded tail over verified TLS using `BODY.PEEK[]`;
+5. verify UIDVALIDITY/UID behavior, provider headers, duplicate handling, `production_native` provenance, and Mail Room readability;
+6. keep the mailbox read-only and perform no SMTP/send action.
 
-Blocked: connect an approved server-side scanner adapter to the final outbound scan boundary and inbound threat pipeline.
+### Original-recipient evidence
 
-Requires: runtime/service selection and configuration; engine installation/operation may affect production services.
+Catch-All/Bcc semantics mean RFC822 `To`/`Cc` are not guaranteed to equal the SMTP envelope recipient.
 
-Smallest future operator action: select/approve the runtime scanner and authorize installation/configuration on the intended host.
+The first live canary must determine whether Namecheap supplies a reliable `Delivered-To`, `X-Original-To`, or equivalent header. Until proven, identity-sensitive automation must fail closed rather than infer a recipient from incomplete evidence.
 
-### Production DNS and domain alignment
+### Provider mailbox forwarding/filter rules
 
-Blocked: MX/SPF/DKIM/DMARC changes, domain verification/alignment, and live acceptance routing.
+Namecheap support could not inspect mailbox-level Auto-forward or Filter rules. A logged-in webmail/provider review is still required if those rules matter to production routing. Do not change them without exact authorization.
 
-Requires: DNS/provider privileges and production traffic decisions.
+## Other privileged / external blockers
+
+### Mail scanner runtime
+
+The local correspondence path is accepted, but final Mail inbound/outbound scanning still needs an approved production runtime and end-to-end proof at the secure submission/threat boundaries.
+
+Do not weaken fail-closed scanning to make delivery easier.
+
+### DNS/domain alignment
+
+Fresh public DNS evidence now exists; no DNS mutation is authorized.
+
+Current `ww.cx` facts:
+
+- Namecheap Private Email MX present;
+- Namecheap SPF present;
+- no published DMARC record;
+- provider support reported default DKIM configured on 2026-08-02, but actual production signing/alignment remains a separate verification item.
+
+Any MX/SPF/DKIM/DMARC change requires exact authorization and rollback evidence.
 
 ### Live outbound provider activation
 
-Blocked: credentials, sender verification, provider adapter activation, and production test transmission.
+Still blocked on approved credentials, verified sender/alignment state, provider adapter activation, and separately authorized production transmission.
 
-Requires: provider credentials and explicit authorization for production email transmission.
-
-### Live inbound cutover
-
-Blocked: production webhook/local-MTA/provider routing, mailbox delivery, and real-message acceptance tests.
-
-Requires: provider/routing credentials and explicit live inbound authorization.
+Automatic replies remain disabled during any initial provider testing.
 
 ### Quarantine operations
 
-Blocked: durable quarantine storage/runtime integration, privileged release execution, and destructive retention/deletion policy.
+Durable release/deletion authority remains separately privileged. AI may not release quarantine or weaken hard security controls.
 
-Requires: operational/security policy and explicit authorization for any release/deletion with external consequences.
+## Do not regress
 
-## Do not regress (unchanged, still true at HEAD)
-
-- Do not turn catch-all proposals into live senders automatically.
+- Do not treat physical `blank@ww.cx` or `domaincontact@ww.cx` as public sender identity merely because they are provider mailboxes.
 - Do not expose `john-inbox@ww.cx` or `maildesk@ww.cx` as public send identities.
+- Do not turn Catch-All proposals into live senders automatically.
+- Do not guess original-recipient identity when provider evidence is ambiguous.
 - Do not reintroduce heuristic ambiguous thread matching for automation.
-- Do not allow scanner error/unavailability to become permissive.
-- Do not allow AI output or message content to change authorization, weaken hard risk, or release quarantine.
-- Do not enable auto-reply or provider transmission merely because repository CI is green.
-- Do not enable `WWCX_MAIL_CORRESPONDENCE_READ_ENABLED` or the BigBird mail integration's `default_enabled` flag as a side effect of unrelated work — each is a deliberate, separately-owned activation decision.
+- Do not allow scanner failure to become permissive.
+- Do not let AI output/message content alter authorization or release quarantine.
+- Do not enable provider transmission or auto-reply merely because repository CI is green.
+- Do not put mailbox credentials in Git, Google Drive handoffs, logs, command arguments, or user-visible output.
