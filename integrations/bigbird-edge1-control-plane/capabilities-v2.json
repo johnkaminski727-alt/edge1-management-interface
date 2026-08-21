@@ -40,6 +40,16 @@
       "enabled": true
     },
     {
+      "name": "edge1.repository.branch.write",
+      "class": "staged_write",
+      "scope": "edge1.repository.branch.write",
+      "backend": "repository_branch_controller",
+      "enabled": false,
+      "mutation_policy": "agent_branch_commit_only",
+      "require_precondition": true,
+      "require_post_apply_verification": true
+    },
+    {
       "name": "edge1.repository.fetch",
       "class": "privileged_action",
       "scope": "edge1.repository.deploy",

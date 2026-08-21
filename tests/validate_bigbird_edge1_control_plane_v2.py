@@ -48,6 +48,19 @@ class ControlPlaneV2PolicyTests(unittest.TestCase):
         self.assertEqual(stage["mutation_policy"], "stage_only")
         self.assertTrue(stage["require_precondition"])
 
+    def test_repository_branch_write_is_review_only_and_disabled_in_migration(self):
+        by_name = {item["name"]: item for item in self.capabilities}
+        write = by_name["edge1.repository.branch.write"]
+        deploy = by_name["edge1.repository.fast_forward_main"]
+        self.assertFalse(write["enabled"])
+        self.assertEqual(write["class"], "staged_write")
+        self.assertEqual(write["backend"], "repository_branch_controller")
+        self.assertEqual(write["mutation_policy"], "agent_branch_commit_only")
+        self.assertTrue(write["require_precondition"])
+        self.assertTrue(write["require_post_apply_verification"])
+        self.assertNotEqual(write["scope"], deploy["scope"])
+        self.assertFalse(deploy["enabled"])
+
     def test_mutations_have_explicit_policy(self):
         for item in self.capabilities:
             if item["class"] != "read":
