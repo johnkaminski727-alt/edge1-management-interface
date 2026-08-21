@@ -1,0 +1,124 @@
+{
+  "version": 2,
+  "control_plane": "bigbird-edge1",
+  "mode": "migration",
+  "brokers": {
+    "operations_api": {
+      "base_url": "http://127.0.0.1:8097",
+      "authentication": "wwcx-hmac-sha256-v1"
+    }
+  },
+  "defaults": {
+    "enabled": false,
+    "mutation_policy": "deny",
+    "require_idempotency_key": true,
+    "fail_closed_on_drift": true
+  },
+  "capabilities": [
+    {
+      "name": "edge1.status.snapshot",
+      "class": "read",
+      "scope": "edge1.status.read",
+      "backend": "operations_api",
+      "action": "edge1.snapshot",
+      "enabled": true
+    },
+    {
+      "name": "edge1.repository.status",
+      "class": "read",
+      "scope": "edge1.repository.read",
+      "backend": "operations_api",
+      "action": "repository.status",
+      "enabled": true
+    },
+    {
+      "name": "edge1.repository.head",
+      "class": "read",
+      "scope": "edge1.repository.read",
+      "backend": "operations_api",
+      "action": "repository.head",
+      "enabled": true
+    },
+    {
+      "name": "edge1.repository.fetch",
+      "class": "privileged_action",
+      "scope": "edge1.repository.deploy",
+      "backend": "operations_api",
+      "action": "repository.fetch",
+      "enabled": false,
+      "mutation_policy": "explicit_capability_enable"
+    },
+    {
+      "name": "edge1.repository.fast_forward_main",
+      "class": "privileged_action",
+      "scope": "edge1.repository.deploy",
+      "backend": "operations_api",
+      "action": "repository.fast_forward_main",
+      "enabled": false,
+      "mutation_policy": "explicit_capability_enable"
+    },
+    {
+      "name": "edge1.files.stage",
+      "class": "staged_write",
+      "scope": "edge1.files.stage",
+      "backend": "filesystem_write_connector",
+      "enabled": true,
+      "mutation_policy": "stage_only",
+      "require_precondition": true
+    },
+    {
+      "name": "edge1.files.apply",
+      "class": "staged_write_apply",
+      "scope": "edge1.files.apply",
+      "backend": "filesystem_write_connector",
+      "enabled": false,
+      "mutation_policy": "approved_apply_only",
+      "require_precondition": true,
+      "require_backup": true,
+      "require_post_apply_verification": true
+    },
+    {
+      "name": "edge1.security.validate",
+      "class": "read",
+      "scope": "edge1.security.validate",
+      "backend": "operations_api",
+      "action": "security.validate_config",
+      "enabled": true
+    },
+    {
+      "name": "edge1.security.logs.rotate",
+      "class": "privileged_action",
+      "scope": "edge1.security.maintain",
+      "backend": "operations_api",
+      "action": "security.logs.rotate",
+      "enabled": false,
+      "mutation_policy": "explicit_capability_enable"
+    },
+    {
+      "name": "edge1.security.rules.reload",
+      "class": "privileged_action",
+      "scope": "edge1.security.maintain",
+      "backend": "operations_api",
+      "action": "security.rules.reload",
+      "enabled": false,
+      "mutation_policy": "explicit_capability_enable"
+    },
+    {
+      "name": "edge1.archive.search",
+      "class": "read",
+      "scope": "edge1.archive.read",
+      "backend": "archive_federation",
+      "enabled": false
+    },
+    {
+      "name": "edge1.archive.ingest",
+      "class": "staged_write",
+      "scope": "edge1.archive.write",
+      "backend": "archive_federation",
+      "enabled": false,
+      "mutation_policy": "staged_adapter_write",
+      "require_precondition": true,
+      "require_post_apply_verification": true
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/bigbird-edge1-control-plane-capabilities-v2.schema.json",
+  "title": "BigBird Edge1 Control Plane Capability Manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "control_plane", "mode", "brokers", "defaults", "capabilities"],
+  "properties": {
+    "version": {"const": 2},
+    "control_plane": {"const": "bigbird-edge1"},
+    "mode": {"enum": ["migration", "active"]},
+    "brokers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["base_url", "authentication"],
+        "properties": {
+          "base_url": {"type": "string", "minLength": 1},
+          "authentication": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "mutation_policy", "require_idempotency_key", "fail_closed_on_drift"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "mutation_policy": {"type": "string", "minLength": 1},
+        "require_idempotency_key": {"type": "boolean"},
+        "fail_closed_on_drift": {"type": "boolean"}
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "class", "scope", "backend", "enabled"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^edge1\\.[a-z0-9_.-]+$"},
+          "class": {"enum": ["read", "staged_write", "staged_write_apply", "privileged_action"]},
+          "scope": {"type": "string", "pattern": "^edge1\\.[a-z0-9_.-]+$"},
+          "backend": {"type": "string", "minLength": 1},
+          "action": {"type": "string", "minLength": 1},
+          "enabled": {"type": "boolean"},
+          "mutation_policy": {"type": "string", "minLength": 1},
+          "require_precondition": {"type": "boolean"},
+          "require_backup": {"type": "boolean"},
+          "require_post_apply_verification": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}
