@@ -13,6 +13,8 @@ Security properties:
 - messages are fetched with BODY.PEEK[] so they are not marked Seen;
 - no STORE, MOVE, COPY, DELETE, EXPUNGE, APPEND, or SMTP operation exists here;
 - provider mail is persisted as authoritative ``production_native`` correspondence;
+- Namecheap original-recipient evidence is required per message and takes precedence
+  over visible To/Cc headers, preventing Catch-All/Bcc/forward misattribution;
 - duplicate RFC Message-ID values are skipped idempotently rather than rewritten;
 - malformed/unsupported messages fail closed individually without blocking safe peers.
 """
@@ -25,6 +27,7 @@ import ssl
 from dataclasses import dataclass
 from email import policy
 from email.parser import BytesParser
+from email.utils import getaddresses
 from pathlib import Path
 from typing import Callable, Protocol, Sequence
 
@@ -39,6 +42,7 @@ NAMECHEAP_SCOPE = "production_native"
 MAX_FETCH_MESSAGES = 100
 _MAILBOX_ADDRESS_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
 _UID_RE = re.compile(rb"^[1-9][0-9]*$")
+_ORIGINAL_RECIPIENT_HEADERS = ("X-Original-To", "Delivered-To")
 
 
 class NamecheapIMAPSourceError(RuntimeError):
@@ -152,6 +156,58 @@ def _message_id(raw: bytes) -> str:
         raise NamecheapIMAPSourceError("provider message lacks a canonical Message-ID") from exc
 
 
+def _provider_original_recipient(raw: bytes, expected_domain: str) -> dict[str, str]:
+    """Return one authoritative provider recipient or fail closed.
+
+    The accepted live Namecheap header canary established that real delivered mail can
+    expose both X-Original-To and Delivered-To. Prefer X-Original-To because a Catch-All
+    delivery may set Delivered-To to the physical mailbox while X-Original-To preserves
+    the logical SMTP recipient. If the stronger header is present but ambiguous/invalid,
+    do not silently fall through to weaker evidence.
+    """
+
+    try:
+        message = BytesParser(policy=policy.default).parsebytes(raw, headersonly=True)
+    except Exception as exc:
+        raise NamecheapIMAPSourceError("provider message headers cannot be parsed") from exc
+
+    for header_name in _ORIGINAL_RECIPIENT_HEADERS:
+        values = message.get_all(header_name, [])
+        if not values:
+            continue
+        parsed = [address for _, address in getaddresses(values) if address]
+        if len(parsed) != 1:
+            raise NamecheapIMAPSourceError("provider original-recipient evidence is ambiguous")
+        try:
+            address = MailCorrespondenceStore._address(parsed[0], header_name)
+        except CorrespondenceStoreError as exc:
+            raise NamecheapIMAPSourceError("provider original-recipient evidence is invalid") from exc
+        domain = address.rsplit("@", 1)[1].casefold()
+        if domain != expected_domain.casefold():
+            raise NamecheapIMAPSourceError("provider original-recipient domain is unexpected")
+        return {"address": address, "header": header_name}
+
+    raise NamecheapIMAPSourceError("provider original-recipient evidence is unavailable")
+
+
+class _RecipientBoundStore:
+    """Proxy a store while binding one provider-authoritative inbound recipient."""
+
+    def __init__(self, store: MailCorrespondenceStore, recipient: str) -> None:
+        self._store = store
+        self._recipient = recipient
+        self.source_scope = store.source_scope
+        self.source_authoritative = store.source_authoritative
+
+    def read_message(self, message_id: str):
+        return self._store.read_message(message_id)
+
+    def ingest(self, payload: dict):
+        rebound = dict(payload)
+        rebound["recipients"] = [self._recipient]
+        return self._store.ingest(rebound)
+
+
 def _already_ingested(store: MailCorrespondenceStore, message_id: str) -> bool:
     try:
         existing = store.read_message(message_id)
@@ -175,9 +231,10 @@ def ingest_namecheap_private_email(
 ) -> dict[str, object]:
     """Read a bounded tail of INBOX and persist new authoritative correspondence.
 
-    Provider/session failures abort the pass. Message-specific RFC822 failures are held
-    out of the store, reported by UID, and do not weaken validation for other messages.
-    The function performs no mailbox mutation and never returns the supplied password.
+    Provider/session failures abort the pass. Message-specific RFC822 or original-
+    recipient failures are held out of the store and reported by UID without weakening
+    validation for safe neighboring messages. The function performs no mailbox mutation
+    and never returns the supplied password.
     """
 
     config.validate()
@@ -190,6 +247,7 @@ def ingest_namecheap_private_email(
     if not isinstance(password, str) or not password:
         raise NamecheapIMAPSourceError("mailbox credential is unavailable")
 
+    expected_domain = config.username.rsplit("@", 1)[1]
     session: IMAPSession | None = None
     logged_in = False
     try:
@@ -226,7 +284,23 @@ def ingest_namecheap_private_email(
                 continue
 
             try:
-                record = normalize_rfc822(raw, store, direction="inbound")
+                recipient = _provider_original_recipient(raw, expected_domain)
+            except NamecheapIMAPSourceError:
+                failed.append(
+                    {
+                        "uid": uid_text,
+                        "message_id": message_id,
+                        "reason": "recipient_evidence_rejected",
+                    }
+                )
+                continue
+
+            try:
+                record = normalize_rfc822(
+                    raw,
+                    _RecipientBoundStore(store, recipient["address"]),
+                    direction="inbound",
+                )
             except LocalMailSourceError:
                 failed.append(
                     {
@@ -242,6 +316,7 @@ def ingest_namecheap_private_email(
                     "uid": uid_text,
                     "message_id": record["message_id"],
                     "thread_id": record["thread_id"],
+                    "recipient_header": recipient["header"],
                     "provenance": record["provenance"],
                     "content_is_untrusted": record["content_is_untrusted"],
                     "send_authorized": record["send_authorized"],

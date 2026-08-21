@@ -6,14 +6,18 @@ on:
       - 'server/mail_namecheap_imap_source.py'
       - 'server/mail_local_rfc822_source.py'
       - 'server/mail_correspondence_store.py'
+      - 'tools/messaging/namecheap_imap_ingestion_acceptance.py'
       - 'tests/test_mail_namecheap_imap_source.py'
+      - 'tests/test_namecheap_imap_ingestion_acceptance.py'
       - '.github/workflows/mail-namecheap-imap-source.yml'
   pull_request:
     paths:
       - 'server/mail_namecheap_imap_source.py'
       - 'server/mail_local_rfc822_source.py'
       - 'server/mail_correspondence_store.py'
+      - 'tools/messaging/namecheap_imap_ingestion_acceptance.py'
       - 'tests/test_mail_namecheap_imap_source.py'
+      - 'tests/test_namecheap_imap_ingestion_acceptance.py'
       - '.github/workflows/mail-namecheap-imap-source.yml'
 
 permissions:
@@ -30,7 +34,15 @@ jobs:
           python-version: '3.11'
       - name: Install test dependency
         run: python -m pip install pytest
-      - name: Compile provider source
-        run: python -m py_compile server/mail_namecheap_imap_source.py server/mail_local_rfc822_source.py server/mail_correspondence_store.py
-      - name: Run provider source tests
-        run: pytest -q tests/test_mail_namecheap_imap_source.py
+      - name: Compile provider source and acceptance tool
+        run: |
+          python -m py_compile \
+            server/mail_namecheap_imap_source.py \
+            server/mail_local_rfc822_source.py \
+            server/mail_correspondence_store.py \
+            tools/messaging/namecheap_imap_ingestion_acceptance.py
+      - name: Run provider source and acceptance tests
+        run: |
+          pytest -q \
+            tests/test_mail_namecheap_imap_source.py \
+            tests/test_namecheap_imap_ingestion_acceptance.py
