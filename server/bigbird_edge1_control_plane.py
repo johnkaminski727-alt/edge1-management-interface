@@ -6,7 +6,9 @@ Migration implementation:
 - authenticates to the existing loopback Edge1 Operations API;
 - discovers broker actions and bounded backend availability;
 - executes enabled read capabilities;
-- permits only the explicitly enabled stage-only filesystem capability;
+- permits the explicitly enabled stage-only filesystem capability;
+- implements a bounded repository branch-write backend that remains disabled
+  until active-mode acceptance and authorization;
 - refuses apply, rollback, privileged actions, arbitrary shell, paths, SQL,
   URLs, and service targets.
 """
@@ -35,8 +37,15 @@ MANIFEST_PATH = Path(
 )
 SECRET_FILE = Path(os.environ.get("BIGBIRD_CONTROL_PLANE_SECRET_FILE", "/etc/edge1-operations-api.secret"))
 FSCTL = Path(os.environ.get("BIGBIRD_CONTROL_PLANE_FSCTL", "/usr/local/sbin/bigbird-fsctl"))
+REPOCTL = Path(
+    os.environ.get(
+        "BIGBIRD_CONTROL_PLANE_REPOCTL",
+        str(ROOT / "tools/bigbird_repository_controller.py"),
+    )
+)
 ACTOR = os.environ.get("BIGBIRD_CONTROL_PLANE_ACTOR", "bigbird-edge1-control-plane-v2")
 TIMEOUT = int(os.environ.get("BIGBIRD_CONTROL_PLANE_TIMEOUT", "15"))
+REPOSITORY_TIMEOUT = int(os.environ.get("BIGBIRD_CONTROL_PLANE_REPOSITORY_TIMEOUT", "180"))
 FS_STAGE_MAX_BYTES = 200000
 FS_STAGE_TARGET = re.compile(r"^/opt/edge1-management-interface/docs/[A-Za-z0-9._/\-]+$")
 FS_STAGE_ID = re.compile(r"^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$")
@@ -132,6 +141,8 @@ def backend_available(backend):
         return None
     if backend == "filesystem_write_connector":
         return FSCTL.is_file() and os.access(FSCTL, os.X_OK)
+    if backend == "repository_branch_controller":
+        return REPOCTL.is_file()
     return False
 
 
@@ -188,9 +199,19 @@ def authorize_execution(manifest, capability):
         and backend == "filesystem_write_connector"
         and capability.get("name") == "edge1.files.stage"
     )
-    if manifest.get("mode") == "migration" and not stage_only:
+    repository_branch_write = (
+        capability_class == "staged_write"
+        and capability.get("mutation_policy") == "agent_branch_commit_only"
+        and backend == "repository_branch_controller"
+        and capability.get("name") == "edge1.repository.branch.write"
+    )
+
+    if manifest.get("mode") == "migration":
+        if stage_only:
+            return
         raise ControlPlaneError("only stage-only filesystem writes are allowed while control plane is in migration mode")
-    if stage_only:
+
+    if stage_only or repository_branch_write:
         return
 
     raise ControlPlaneError("capability class is not executable in this client revision")
@@ -279,6 +300,37 @@ def run_fsctl_stage(params):
     return result
 
 
+def run_repository_branch_write(params):
+    if not REPOCTL.is_file():
+        raise ControlPlaneError("repository branch controller is unavailable")
+    try:
+        body = json.dumps(params, sort_keys=True)
+    except (TypeError, ValueError) as exc:
+        raise ControlPlaneError("repository branch request must be JSON serializable") from exc
+    try:
+        proc = subprocess.run(
+            ["python3", str(REPOCTL), "commit"],
+            input=body,
+            text=True,
+            capture_output=True,
+            timeout=REPOSITORY_TIMEOUT,
+            check=False,
+            env={**os.environ, "PATH": "/usr/bin:/bin"},
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ControlPlaneError("repository branch controller execution failed") from exc
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "repository branch controller failed").strip()[:1200]
+        raise ControlPlaneError("repository branch write rejected: {}".format(detail))
+    try:
+        result = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise ControlPlaneError("repository branch controller returned invalid JSON") from exc
+    if result.get("status") != "committed" or result.get("pushed") is not False or result.get("deployed") is not False:
+        raise ControlPlaneError("repository branch controller returned an unsafe or invalid result")
+    return result
+
+
 def run_capability(manifest, name, params=None):
     capabilities = capability_map(manifest)
     capability = capabilities.get(name)
@@ -305,6 +357,16 @@ def run_capability(manifest, name, params=None):
             "mutation_policy": capability["mutation_policy"],
             "stage": stage,
             "next_step": "Inspect and approve the stage separately before any operator/root apply.",
+        }
+
+    if capability["name"] == "edge1.repository.branch.write":
+        result = run_repository_branch_write(params)
+        return {
+            "capability": capability["name"],
+            "backend": capability["backend"],
+            "mutation_policy": capability["mutation_policy"],
+            "repository_write": result,
+            "next_step": "Review and push/open a pull request separately; this capability never deploys main.",
         }
 
     raise ControlPlaneError("capability backend execution is not implemented")
