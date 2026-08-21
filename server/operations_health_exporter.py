@@ -14,40 +14,7 @@ def load(path):
         return {}
 
 
-def main():
-
-    security = load(
-        Path("/var/www/edge1-status/security-operations.json")
-    )
-
-    wallet = load(
-        Path("/var/www/edge1-status/bitcoin-wallet.json")
-    )
-
-    mining = load(
-        Path("/var/www/edge1-status/bitcoin-mining.json")
-    )
-
-    telephony = load(
-        Path("/var/www/edge1-status/operations-telephony.json")
-    )
-
-    messaging = load(
-        Path("/var/www/edge1-status/operations-messaging.json")
-    )
-
-    inventory = load(
-        Path("/var/www/edge1-status/operations-inventory.json")
-    )
-
-    network = load(
-        Path("/var/www/edge1-status/operations-network.json")
-    )
-
-    carrier = load(
-        Path("/var/www/edge1-status/operations-carrier.json")
-    )
-
+def build_checks(security, wallet, mining, telephony, messaging, inventory, network, carrier):
     checks=[]
 
     sec_ok = security.get("health",{}).get("status") == "healthy"
@@ -122,21 +89,31 @@ def main():
     })
 
 
-    mining_warning = mining.get("warnings",[])
+    mining_available = bool(mining)
+    mining_warning = mining.get("warnings",[]) if mining_available else []
 
     checks.append({
         "name":"Mining",
-        "state":"warning" if mining_warning else "healthy",
+        "state":
+            "healthy"
+            if mining_available and not mining_warning
+            else "warning",
         "reason_code":
-            "mining.hardware.not_configured"
+            "mining.unavailable"
+            if not mining_available
+            else "mining.hardware.not_configured"
             if mining_warning
             else "",
         "detail":
-            "; ".join(mining_warning)
+            "Mining telemetry unavailable"
+            if not mining_available
+            else "; ".join(mining_warning)
             if mining_warning
             else "Mining telemetry healthy",
         "recommendation":
-            "Configure mining hardware if production mining is intended."
+            "Check mining exporter."
+            if not mining_available
+            else "Configure mining hardware if production mining is intended."
             if mining_warning
             else "No action required."
     })
@@ -247,6 +224,47 @@ def main():
             else "Review carrier readiness and interconnect status."
     })
 
+
+    return checks
+
+
+def main():
+
+    security = load(
+        Path("/var/www/edge1-status/security-operations.json")
+    )
+
+    wallet = load(
+        Path("/var/www/edge1-status/bitcoin-wallet.json")
+    )
+
+    mining = load(
+        Path("/var/www/edge1-status/bitcoin-mining.json")
+    )
+
+    telephony = load(
+        Path("/var/www/edge1-status/operations-telephony.json")
+    )
+
+    messaging = load(
+        Path("/var/www/edge1-status/operations-messaging.json")
+    )
+
+    inventory = load(
+        Path("/var/www/edge1-status/operations-inventory.json")
+    )
+
+    network = load(
+        Path("/var/www/edge1-status/operations-network.json")
+    )
+
+    carrier = load(
+        Path("/var/www/edge1-status/operations-carrier.json")
+    )
+
+    checks = build_checks(
+        security, wallet, mining, telephony, messaging, inventory, network, carrier
+    )
 
     overall = (
         "healthy"
