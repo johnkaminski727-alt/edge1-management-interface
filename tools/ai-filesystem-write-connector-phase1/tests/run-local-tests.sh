@@ -46,6 +46,23 @@ python3 "$ROOT/sbin/bigbird-fsctl" audit --limit 20 | grep -q "fs.apply_succeede
 python3 "$ROOT/sbin/bigbird-fsctl" rollback --by test "$stage_id" >/tmp/bigbird-fsctl-rollback.json
 test ! -f "$TMP/target/docs/local-test.md"
 
+printf '%s\n' 'original target content' > "$TMP/target/docs/drift-test.md"
+printf '%s\n' 'proposed replacement content' > "$TMP/drift-proposed.md"
+drift_stage_id="$(python3 "$ROOT/sbin/bigbird-fsctl" stage \
+  --source "$TMP/drift-proposed.md" \
+  --target "$TMP/target/docs/drift-test.md" \
+  --actor test \
+  --reason "drift precondition test" | python3 -c 'import json,sys; print(json.load(sys.stdin)["stage_id"])')"
+python3 "$ROOT/sbin/bigbird-fsctl" approve --by test "$drift_stage_id" >/tmp/bigbird-fsctl-drift-approve.json
+printf '%s\n' 'external concurrent change' > "$TMP/target/docs/drift-test.md"
+if python3 "$ROOT/sbin/bigbird-fsctl" apply "$drift_stage_id" >/tmp/bigbird-fsctl-drift-apply.out 2>&1; then
+  echo "apply succeeded despite target drift" >&2
+  exit 1
+fi
+grep -q "target precondition failed" /tmp/bigbird-fsctl-drift-apply.out
+grep -q "external concurrent change" "$TMP/target/docs/drift-test.md"
+python3 "$ROOT/sbin/bigbird-fsctl" audit --limit 50 | grep -q "fs.apply_precondition_failed"
+
 if python3 "$ROOT/sbin/bigbird-fsctl" stage \
   --source "$TMP/proposed.md" \
   --target "$TMP/target/not-docs/bad.md" \

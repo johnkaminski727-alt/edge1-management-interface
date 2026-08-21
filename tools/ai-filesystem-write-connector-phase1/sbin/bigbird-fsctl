@@ -156,6 +156,44 @@ def assert_stage_fresh(metadata: dict[str, Any]) -> None:
         raise SystemExit("stage has expired")
 
 
+def target_state(path: Path) -> tuple[bool, str | None]:
+    if not path.exists():
+        return False, None
+    return True, sha256_bytes(path.read_bytes())
+
+
+def assert_target_precondition(policy: dict[str, Any], metadata: dict[str, Any], target_path: Path, phase: str) -> None:
+    expected_exists = bool(metadata.get("current_exists"))
+    expected_sha256 = metadata.get("current_sha256")
+    observed_exists, observed_sha256 = target_state(target_path)
+
+    error = None
+    if observed_exists != expected_exists:
+        error = "target existence changed since stage"
+    elif expected_exists and (not isinstance(expected_sha256, str) or not expected_sha256):
+        error = "stage metadata is missing current_sha256"
+    elif expected_exists and observed_sha256 != expected_sha256:
+        error = "target digest changed since stage"
+
+    if error:
+        append_audit(
+            policy,
+            {
+                "event_type": "fs.apply_precondition_failed",
+                "actor": "root-apply-processor",
+                "stage_id": metadata["stage_id"],
+                "target": metadata["target"],
+                "phase": phase,
+                "error": error,
+                "expected_exists": expected_exists,
+                "expected_sha256": expected_sha256,
+                "observed_exists": observed_exists,
+                "observed_sha256": observed_sha256,
+            },
+        )
+        raise SystemExit("target precondition failed: " + error)
+
+
 def cmd_init(_: argparse.Namespace) -> None:
     policy = load_policy()
     staging_root(policy).mkdir(parents=True, exist_ok=True)
@@ -323,6 +361,7 @@ def cmd_apply(args: argparse.Namespace) -> None:
     if sha256_bytes(content) != metadata["proposed_sha256"]:
         raise SystemExit("staged content hash mismatch")
 
+    assert_target_precondition(policy, metadata, target_path, "before_backup")
     append_audit(policy, {"event_type": "fs.apply_started", "actor": "root-apply-processor", "stage_id": args.stage_id, "target": str(target)})
     backup_dir = backup_root(policy) / args.stage_id
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -330,9 +369,13 @@ def cmd_apply(args: argparse.Namespace) -> None:
     marker = backup_dir / "target_missing"
     if target_path.exists():
         shutil.copy2(target_path, backup_file)
+        if sha256_bytes(backup_file.read_bytes()) != metadata["current_sha256"]:
+            append_audit(policy, {"event_type": "fs.apply_precondition_failed", "actor": "root-apply-processor", "stage_id": args.stage_id, "target": str(target), "phase": "backup_verification", "error": "backup digest does not match staged current_sha256"})
+            raise SystemExit("target precondition failed: backup digest mismatch")
     else:
         marker.write_text("target did not exist before apply\n", encoding="utf-8")
 
+    assert_target_precondition(policy, metadata, target_path, "before_replace")
     atomic_write(target_path, content)
     ownership = preserve_repo_ownership(target_path)
     written_hash = sha256_bytes(target_path.read_bytes())
