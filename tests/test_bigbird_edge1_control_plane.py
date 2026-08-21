@@ -40,6 +40,20 @@ class BigBirdControlPlaneTests(unittest.TestCase):
         with self.assertRaisesRegex(CONTROL.ControlPlaneError, "only stage-only filesystem writes"):
             CONTROL.authorize_execution(manifest, capability)
 
+    def test_migration_mode_rejects_repository_branch_write_even_if_enabled(self):
+        manifest = copy.deepcopy(self.manifest)
+        capability = copy.deepcopy(self.by_name["edge1.repository.branch.write"])
+        capability["enabled"] = True
+        with self.assertRaisesRegex(CONTROL.ControlPlaneError, "only stage-only filesystem writes"):
+            CONTROL.authorize_execution(manifest, capability)
+
+    def test_active_mode_allows_repository_branch_write_when_explicitly_enabled(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["mode"] = "active"
+        capability = copy.deepcopy(self.by_name["edge1.repository.branch.write"])
+        capability["enabled"] = True
+        CONTROL.authorize_execution(manifest, capability)
+
     def test_active_mode_still_rejects_unimplemented_privileged_class(self):
         manifest = copy.deepcopy(self.manifest)
         manifest["mode"] = "active"
@@ -100,6 +114,46 @@ class BigBirdControlPlaneTests(unittest.TestCase):
         self.assertEqual(result["mutation_policy"], "stage_only")
         self.assertIn("approve", result["next_step"].lower())
 
+    def test_repository_branch_write_dispatches_only_when_active_and_enabled(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["mode"] = "active"
+        for item in manifest["capabilities"]:
+            if item["name"] == "edge1.repository.branch.write":
+                item["enabled"] = True
+        params = {
+            "request_id": "req-001",
+            "expected_base_sha": "a" * 40,
+            "branch": "agent/bigbird-test-001",
+            "commit_message": "Test branch write",
+            "changes": [{"path": "docs/example.md", "content": "candidate\n", "mode": "replace"}],
+        }
+        backend_result = {
+            "status": "committed",
+            "request_id": "req-001",
+            "branch": "agent/bigbird-test-001",
+            "base_sha": "a" * 40,
+            "commit_sha": "b" * 40,
+            "changed_paths": ["docs/example.md"],
+            "pushed": False,
+            "deployed": False,
+            "idempotent_replay": False,
+        }
+        with mock.patch.object(CONTROL, "run_repository_branch_write", return_value=backend_result) as backend:
+            result = CONTROL.run_capability(manifest, "edge1.repository.branch.write", params)
+        backend.assert_called_once_with(params)
+        self.assertEqual(result["repository_write"], backend_result)
+        self.assertEqual(result["mutation_policy"], "agent_branch_commit_only")
+        self.assertIn("never deploys main", result["next_step"])
+
+    def test_repository_branch_backend_result_must_be_non_deploying(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            helper = Path(tmp) / "repoctl.py"
+            helper.write_text("print('not used')\n", encoding="utf-8")
+            unsafe = mock.Mock(returncode=0, stdout='{"status":"committed","pushed":true,"deployed":false}', stderr="")
+            with mock.patch.object(CONTROL, "REPOCTL", helper), mock.patch.object(CONTROL.subprocess, "run", return_value=unsafe):
+                with self.assertRaisesRegex(CONTROL.ControlPlaneError, "unsafe or invalid result"):
+                    CONTROL.run_repository_branch_write({"request_id": "req-001"})
+
     def test_backend_availability_requires_executable_fsctl(self):
         with tempfile.TemporaryDirectory() as tmp:
             fake = Path(tmp) / "bigbird-fsctl"
@@ -110,6 +164,16 @@ class BigBirdControlPlaneTests(unittest.TestCase):
             fake.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
             with mock.patch.object(CONTROL, "FSCTL", fake):
                 self.assertTrue(CONTROL.backend_available("filesystem_write_connector"))
+
+    def test_repository_backend_availability_requires_controller_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "missing.py"
+            with mock.patch.object(CONTROL, "REPOCTL", missing):
+                self.assertFalse(CONTROL.backend_available("repository_branch_controller"))
+            helper = Path(tmp) / "repoctl.py"
+            helper.write_text("pass\n", encoding="utf-8")
+            with mock.patch.object(CONTROL, "REPOCTL", helper):
+                self.assertTrue(CONTROL.backend_available("repository_branch_controller"))
 
 
 if __name__ == "__main__":
