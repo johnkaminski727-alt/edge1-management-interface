@@ -143,6 +143,9 @@ check(schema["properties"]["max_messages"]["maximum"] == MODULE.MAX_CANARY_MESSA
 for key in ("message_body_fetch_authorized", "mailbox_mutation_authorized", "store_write_authorized", "mail_send_authorized"):
     check(schema["properties"][key]["const"] is False, f"schema permits prohibited activity: {key}")
 
+# Fixed time keeps the direct unit cases deterministic. CLI cases below build a
+# separate authorization from the real current UTC clock because the CLI itself
+# validates against wall time.
 now = datetime(2026, 8, 20, 23, 0, 0, tzinfo=timezone.utc)
 username = "blank@ww.cx"
 auth = authorization(username, now)
@@ -244,7 +247,8 @@ check(audit["message_body_fetched"] is False, "audit-only mode permits body fetc
 with tempfile.TemporaryDirectory() as temporary:
     folder = pathlib.Path(temporary)
     auth_path = folder / "authorization.json"
-    auth_path.write_text(json.dumps(auth), encoding="utf-8")
+    cli_auth = authorization(username, datetime.now(timezone.utc))
+    auth_path.write_text(json.dumps(cli_auth), encoding="utf-8")
     auth_path.chmod(0o644)
     rejects(lambda: MODULE._private_regular_file(auth_path, "authorization"), "broad authorization permissions")
     auth_path.chmod(0o600)
