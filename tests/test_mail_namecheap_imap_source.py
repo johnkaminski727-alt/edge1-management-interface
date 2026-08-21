@@ -25,6 +25,7 @@ ROOT_MESSAGE = b"\r\n".join(
     [
         b"From: sender@example.test",
         b"To: john@ww.cx",
+        b"X-Original-To: john@ww.cx",
         b"Date: Thu, 20 Aug 2026 20:00:00 +0000",
         b"Message-ID: <provider-root@example.test>",
         b"Subject: Provider correspondence root",
@@ -39,6 +40,7 @@ REPLY_MESSAGE = b"\r\n".join(
     [
         b"From: responder@example.test",
         b"To: records@ww.cx",
+        b"X-Original-To: records@ww.cx",
         b"Date: Thu, 20 Aug 2026 20:05:00 +0000",
         b"Message-ID: <provider-reply@example.test>",
         b"In-Reply-To: <provider-root@example.test>",
@@ -55,6 +57,7 @@ HTML_ONLY_MESSAGE = b"\r\n".join(
     [
         b"From: html@example.test",
         b"To: john@ww.cx",
+        b"X-Original-To: john@ww.cx",
         b"Date: Thu, 20 Aug 2026 20:03:00 +0000",
         b"Message-ID: <provider-html@example.test>",
         b"Subject: HTML only",
@@ -69,6 +72,7 @@ MISSING_ID_MESSAGE = b"\r\n".join(
     [
         b"From: no-id@example.test",
         b"To: john@ww.cx",
+        b"X-Original-To: john@ww.cx",
         b"Date: Thu, 20 Aug 2026 20:04:00 +0000",
         b"Subject: Missing ID",
         b"Content-Type: text/plain; charset=utf-8",
@@ -167,6 +171,77 @@ def test_namecheap_imap_ingests_provider_native_without_mailbox_mutation(tmp_pat
     assert first["mutation_authorized"] is False
     assert first["recipients"] == ["john@ww.cx"]
     assert second["thread_id"] == first["thread_id"]
+    assert result["ingested"][0]["recipient_header"] == "X-Original-To"
+    _assert_read_only_calls(session)
+
+
+def test_namecheap_imap_prefers_x_original_to_over_visible_and_delivery_addresses(tmp_path):
+    message = b"\r\n".join(
+        [
+            b"From: sender@example.test",
+            b"To: public-role@ww.cx",
+            b"Delivered-To: blank@ww.cx",
+            b"X-Original-To: hidden-catchall@ww.cx",
+            b"Date: Thu, 20 Aug 2026 20:10:00 +0000",
+            b"Message-ID: <provider-original-recipient@example.test>",
+            b"Subject: Original recipient precedence",
+            b"Content-Type: text/plain; charset=utf-8",
+            b"",
+            b"Provider-native body remains untrusted data.",
+            b"",
+        ]
+    )
+    store = open_namecheap_store(tmp_path / "mail-room" / "correspondence.sqlite3")
+    session = FakeIMAP({b"105": message})
+
+    result = ingest_namecheap_private_email(
+        NamecheapIMAPConfig(username="blank@ww.cx", max_messages=1),
+        store,
+        password_provider=lambda: "secret",
+        session_factory=lambda: session,
+    )
+
+    record = store.read_message("<provider-original-recipient@example.test>")
+    assert record["recipients"] == ["hidden-catchall@ww.cx"]
+    assert result["ingested"][0]["recipient_header"] == "X-Original-To"
+    _assert_read_only_calls(session)
+
+
+def test_namecheap_imap_falls_back_to_delivered_to_when_x_original_to_absent(tmp_path):
+    message = ROOT_MESSAGE.replace(
+        b"X-Original-To: john@ww.cx",
+        b"Delivered-To: blank@ww.cx",
+    )
+    store = open_namecheap_store(tmp_path / "mail-room" / "correspondence.sqlite3")
+    session = FakeIMAP({b"106": message})
+
+    result = ingest_namecheap_private_email(
+        NamecheapIMAPConfig(username="blank@ww.cx", max_messages=1),
+        store,
+        password_provider=lambda: "secret",
+        session_factory=lambda: session,
+    )
+
+    assert store.read_message("<provider-root@example.test>")["recipients"] == ["blank@ww.cx"]
+    assert result["ingested"][0]["recipient_header"] == "Delivered-To"
+
+
+def test_namecheap_imap_rejects_missing_original_recipient_evidence(tmp_path):
+    message = ROOT_MESSAGE.replace(b"X-Original-To: john@ww.cx\r\n", b"")
+    store = open_namecheap_store(tmp_path / "mail-room" / "correspondence.sqlite3")
+    session = FakeIMAP({b"107": message})
+
+    result = ingest_namecheap_private_email(
+        NamecheapIMAPConfig(username="blank@ww.cx", max_messages=1),
+        store,
+        password_provider=lambda: "secret",
+        session_factory=lambda: session,
+    )
+
+    assert result["ingested_count"] == 0
+    assert result["failed_count"] == 1
+    assert result["failed"][0]["reason"] == "recipient_evidence_rejected"
+    assert store.status()["record_count"] == 0
     _assert_read_only_calls(session)
 
 
