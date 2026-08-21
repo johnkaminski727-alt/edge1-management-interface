@@ -20,12 +20,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
-      WWCX_NAMECHEAP_IMAP_USERNAME: ${{ secrets.WWCX_NAMECHEAP_IMAP_USERNAME || secrets.WWCX_MAIL_SMTP_USERNAME }}
-      WWCX_NAMECHEAP_IMAP_PASSWORD: ${{ secrets.WWCX_NAMECHEAP_IMAP_PASSWORD || secrets.WWCX_MAIL_SMTP_PASSWORD }}
+      WWCX_NAMECHEAP_IMAP_USERNAME: ${{ secrets.WWCX_NAMECHEAP_IMAP_USERNAME }}
+      WWCX_NAMECHEAP_IMAP_PASSWORD: ${{ secrets.WWCX_NAMECHEAP_IMAP_PASSWORD }}
       EXPECTED_USERNAME_SHA256: d77a36b6dffc3cb6f256b29c5c28ce3f32cb2e27260fdb5412b8a4a1232678e8
       EXPECTED_HOST_SHA256: ecdd57561632c3fccd03a895a391a75098a9074ea4d2ef43881d184e94b1e815
     steps:
       - uses: actions/checkout@v4
+
+      - name: Probe TLS transport without credentials
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import socket
+          import ssl
+          import sys
+
+          host = 'mail.privateemail.com'
+          port = 993
+          try:
+              addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+              print(f'DNS resolution succeeded ({len(addresses)} candidate addresses)')
+              with socket.create_connection((host, port), timeout=10) as raw:
+                  raw.settimeout(10)
+                  context = ssl.create_default_context()
+                  with context.wrap_socket(raw, server_hostname=host) as tls:
+                      greeting = tls.recv(512)
+                      if not greeting.startswith(b'*'):
+                          sys.exit('TLS connected but IMAP greeting was not recognized')
+                      print(f'TLS transport and IMAP greeting succeeded; TLS={tls.version()}')
+          except socket.gaierror:
+              sys.exit('DNS resolution failed')
+          except TimeoutError:
+              sys.exit('TCP/TLS transport timed out before authentication')
+          except (OSError, ssl.SSLError):
+              sys.exit('TCP/TLS transport failed before authentication')
+          PY
 
       - name: Verify secret availability and authorized mailbox binding
         shell: bash
@@ -39,10 +68,10 @@ jobs:
           password = os.environ.get('WWCX_NAMECHEAP_IMAP_PASSWORD', '')
           expected = os.environ['EXPECTED_USERNAME_SHA256']
           if not username or not password:
-              sys.exit('required approved mail canary secrets are unavailable')
+              sys.exit('required Namecheap canary secrets are unavailable')
           if hashlib.sha256(username.encode('utf-8')).hexdigest() != expected:
-              sys.exit('configured mail credential is not bound to the authorized blank@ww.cx mailbox')
-          print('Approved mail secrets are available and mailbox hash binding is verified')
+              sys.exit('configured Namecheap mailbox does not match the authorized mailbox')
+          print('Namecheap canary secrets are available and mailbox hash binding is verified')
           PY
 
       - name: Build short-lived private authorization
