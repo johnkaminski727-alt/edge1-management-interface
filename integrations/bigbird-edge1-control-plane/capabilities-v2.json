@@ -62,7 +62,7 @@
       "class": "staged_write",
       "scope": "edge1.files.stage",
       "backend": "filesystem_write_connector",
-      "enabled": false,
+      "enabled": true,
       "mutation_policy": "stage_only",
       "require_precondition": true
     },
