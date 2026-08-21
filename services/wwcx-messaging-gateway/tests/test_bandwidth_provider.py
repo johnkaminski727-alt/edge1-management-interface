@@ -192,6 +192,15 @@ def test_normalize_delivery_rejects_intermediate_status() -> None:
         )
 
 
+def test_normalize_delivery_rejects_missing_recipient_instead_of_unknown_fallback() -> None:
+    events = delivery_event("message-delivered")
+    del events[0]["to"]
+    with pytest.raises(ValueError, match="recipient"):
+        provider().normalize_delivery_webhook(
+            ProviderWebhookRequest(body=json.dumps(events).encode(), headers={})
+        )
+
+
 def test_send_requires_injected_outbound_configuration() -> None:
     with pytest.raises(ProviderConfigurationError):
         provider().send(outbound_message())
