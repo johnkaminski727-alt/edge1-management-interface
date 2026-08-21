@@ -218,6 +218,30 @@ def test_send_read_timeout_is_outcome_unknown() -> None:
         provider.send(outbound_message())
 
 
+def test_send_read_error_is_outcome_unknown_not_uncaught() -> None:
+    private_key = Ed25519PrivateKey.generate()
+    request = httpx.Request("POST", "https://api.telnyx.com/v2/messages")
+    provider = provider_with_key(
+        private_key,
+        api_key_provider=lambda: "test-only-api-key",
+        client_factory=lambda: FakeClient(error=httpx.ReadError("connection reset", request=request)),
+    )
+    with pytest.raises(ProviderOutcomeUnknownError):
+        provider.send(outbound_message())
+
+
+def test_send_write_error_is_outcome_unknown_not_uncaught() -> None:
+    private_key = Ed25519PrivateKey.generate()
+    request = httpx.Request("POST", "https://api.telnyx.com/v2/messages")
+    provider = provider_with_key(
+        private_key,
+        api_key_provider=lambda: "test-only-api-key",
+        client_factory=lambda: FakeClient(error=httpx.WriteError("connection reset", request=request)),
+    )
+    with pytest.raises(ProviderOutcomeUnknownError):
+        provider.send(outbound_message())
+
+
 def test_send_server_error_is_outcome_unknown() -> None:
     private_key = Ed25519PrivateKey.generate()
     provider = provider_with_key(

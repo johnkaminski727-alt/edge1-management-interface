@@ -237,7 +237,9 @@ class BandwidthProvider(MessagingProvider):
             raise ValueError("Bandwidth delivery callback direction is not outbound")
         message_id = _message_id(message)
         recipient = event.get("to")
-        recipient_key = recipient if isinstance(recipient, str) and recipient else "unknown"
+        if not isinstance(recipient, str) or not recipient:
+            raise ValueError("Bandwidth delivery callback recipient is missing")
+        recipient_key = recipient
         raw_status = str(event_type)
         error_code = event.get("errorCode")
         if event_type == "message-failed" and isinstance(error_code, int):

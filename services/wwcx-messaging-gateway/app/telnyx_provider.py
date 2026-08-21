@@ -318,7 +318,13 @@ class TelnyxProvider(MessagingProvider):
                 )
         except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
             raise ProviderSafeRetryError("Telnyx connection failed before submission") from exc
-        except (httpx.ReadTimeout, httpx.WriteTimeout, httpx.RemoteProtocolError) as exc:
+        except (
+            httpx.ReadTimeout,
+            httpx.WriteTimeout,
+            httpx.ReadError,
+            httpx.WriteError,
+            httpx.RemoteProtocolError,
+        ) as exc:
             raise ProviderOutcomeUnknownError("Telnyx submission outcome is uncertain") from exc
 
         if 400 <= response.status_code < 500:
