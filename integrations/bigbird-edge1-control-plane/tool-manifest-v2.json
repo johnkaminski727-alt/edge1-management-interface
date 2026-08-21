@@ -1,0 +1,171 @@
+{
+  "version": 2,
+  "integration": "bigbird-edge1-control-plane",
+  "mode": "migration",
+  "adapter_contract": "python-callable",
+  "module": "server.bigbird_edge1_control_plane",
+  "dispatcher": "run_capability",
+  "capability_manifest": "integrations/bigbird-edge1-control-plane/capabilities-v2.json",
+  "tools": [
+    {
+      "name": "edge1.status.snapshot",
+      "capability": "edge1.status.snapshot",
+      "scope": "edge1.status.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "edge1.repository.status",
+      "capability": "edge1.repository.status",
+      "scope": "edge1.repository.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "edge1.repository.head",
+      "capability": "edge1.repository.head",
+      "scope": "edge1.repository.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "edge1.files.stage",
+      "capability": "edge1.files.stage",
+      "scope": "edge1.files.stage",
+      "enabled": true,
+      "read_only": false,
+      "destructive": false,
+      "mutation_policy": "stage_only",
+      "input_schema": {
+        "type": "object",
+        "required": ["target", "content", "reason"],
+        "properties": {
+          "target": {
+            "type": "string",
+            "pattern": "^/opt/edge1-management-interface/docs/[A-Za-z0-9._/\\-]+$"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200000
+          },
+          "actor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 240
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "edge1.repository.branch.write",
+      "capability": "edge1.repository.branch.write",
+      "scope": "edge1.repository.branch.write",
+      "enabled": false,
+      "read_only": false,
+      "destructive": false,
+      "mutation_policy": "agent_branch_commit_only",
+      "input_schema": {
+        "type": "object",
+        "required": ["request_id", "expected_base_sha", "branch", "commit_message", "changes"],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,95}$"
+          },
+          "expected_base_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "branch": {
+            "type": "string",
+            "pattern": "^agent/bigbird-[a-z0-9][a-z0-9._-]{0,79}$"
+          },
+          "commit_message": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "changes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": ["path", "content"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "content": {
+                  "type": "string"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": ["create", "replace"]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "edge1.files.apply",
+      "capability": "edge1.files.apply",
+      "scope": "edge1.files.apply",
+      "enabled": false,
+      "read_only": false,
+      "destructive": false,
+      "mutation_policy": "approved_apply_only",
+      "input_schema": {
+        "type": "object",
+        "required": ["stage_id"],
+        "properties": {
+          "stage_id": {
+            "type": "string",
+            "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "edge1.security.validate",
+      "capability": "edge1.security.validate",
+      "scope": "edge1.security.validate",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  ]
+}
