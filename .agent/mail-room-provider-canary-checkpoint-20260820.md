@@ -69,23 +69,50 @@ Exact-head validation for PR #492 passed:
 
 CI used only synthetic IMAP fixtures and did not contact Namecheap.
 
+## Authorized live attempt — 2026-08-21
+
+At 2026-08-21T01:44Z John explicitly authorized the previously defined one-time credential-backed provider-read canary. The authorized mailbox was resolved to the existing Catch-All target `blank@ww.cx`; the live scope remained `mail.privateemail.com:993`, verified TLS, `INBOX` read-only, `max_messages=1`, `BODY.PEEK[HEADER]` only, sanitized evidence, logout and stop.
+
+Gus verified the available Edge1 execution path before attempting provider access:
+
+- `edge1-operator-mcp` identity/health: healthy;
+- authenticated principal: `edge1-operator`;
+- Operations API health: ok;
+- `mutations_enabled=false`;
+- Messaging health: ok.
+
+That connector is read-only and cannot consume the mailbox credential or execute the canary. The current ChatGPT runtime also had no SSH identity configured for Edge1.
+
+A one-shot, non-merged GitHub Actions execution branch was therefore created to use repository secrets without exposing them:
+
+- branch: `agent/namecheap-imap-live-canary-20260821`;
+- trigger commit: `3d0ee65141e6592a666abe992e7025727099ad6f`;
+- workflow run: `32437669015`;
+- run guard: only a commit containing `[RUN-NAMECHEAP-IMAP-CANARY-ONCE]` executes the live job;
+- mailbox binding: exact SHA-256 for `blank@ww.cx`;
+- message bound: one newest header.
+
+The run failed safely in preflight at `Verify secret availability and authorized mailbox binding` because repository Actions secrets `WWCX_NAMECHEAP_IMAP_USERNAME` and `WWCX_NAMECHEAP_IMAP_PASSWORD` were not configured. The authorization-build, IMAP-execution, sanitized-evidence, and artifact-upload steps were all skipped.
+
+**No Namecheap provider socket/session was opened. No mailbox credential was exposed, entered, retrieved, inspected, or used.** This is not an authentication rejection and is not evidence of a provider failure.
+
 ## Current authority boundary
 
-No real Namecheap credential has been entered, retrieved, inspected, or used by this work. No live IMAP provider session has been initiated by this work.
+The one-time header-only provider canary is authorized, but execution is blocked solely by the absence of an approved secret-backed runtime path containing the existing `blank@ww.cx` mailbox credential.
 
-The next immediate Mail Room action is therefore not more code. It is a separately authorized, one-time, credential-backed, authenticated provider-read canary.
+The exact remaining prerequisite is to make that existing credential available through an approved secret mechanism without placing it in Git, Google Drive, logs, chat, or a command transcript. Acceptable execution paths include a properly protected Edge1 runtime secret/environment or repository Actions secrets dedicated to this bounded canary. Do not reset or rotate the mailbox password merely to satisfy the canary unless separately authorized.
 
-That live canary would remain limited to:
+Once an approved secret path exists, the authorized canary remains limited to:
 
-1. one explicitly selected existing Namecheap mailbox;
+1. `blank@ww.cx` only;
 2. `mail.privateemail.com:993`;
 3. verified TLS;
 4. `INBOX` selected read-only;
-5. at most 1–5 newest message headers via `BODY.PEEK[HEADER]`;
+5. one newest message header via `BODY.PEEK[HEADER]`;
 6. sanitized evidence only;
 7. logout and stop.
 
-It must not be combined with provider ingestion, full-message/body reads, Mail Room store writes, mailbox/provider changes, SMTP authentication, outbound mail, DNS changes, sender activation, forwarding/alias changes, auto-replies, or any other production activation.
+It must not be combined with provider ingestion, full-message/body reads, Mail Room store writes, mailbox/provider changes, SMTP authentication, outbound mail, DNS changes, sender activation, forwarding/alias changes, auto-replies, password reset/rotation, or any other production activation.
 
 ## Subsequent boundary after a successful header canary
 
@@ -97,4 +124,4 @@ Full provider-native ingestion through `server/mail_namecheap_imap_source.py` re
 
 Read this checkpoint after `.agent/mail-room-current-state-20260820.md`, `.agent/mail-room-backlog-20260820.md`, and `.agent/mail-room-handoff-20260820.md`.
 
-Do not reopen provider-selection or missing-adapter work unless newer direct evidence shows regression. The implementation path is built and CI-green. Stop at the credential/authenticated-provider-access boundary unless the user explicitly authorizes that exact live action.
+Do not reopen provider-selection or missing-adapter work unless newer direct evidence shows regression. Provider-read engineering is built and CI-green. The only immediate blocker is approved secret availability for the already-authorized one-time header canary.
