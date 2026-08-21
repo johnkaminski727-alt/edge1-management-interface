@@ -1,0 +1,141 @@
+name: One-time authorized Namecheap IMAP read canary
+
+on:
+  push:
+    branches:
+      - agent/namecheap-imap-live-canary-20260821
+    paths:
+      - '.github/workflows/namecheap-imap-live-canary-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: namecheap-imap-read-canary-once
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    if: contains(github.event.head_commit.message, '[RUN-NAMECHEAP-IMAP-CANARY-ONCE]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      WWCX_NAMECHEAP_IMAP_USERNAME: ${{ secrets.WWCX_NAMECHEAP_IMAP_USERNAME }}
+      WWCX_NAMECHEAP_IMAP_PASSWORD: ${{ secrets.WWCX_NAMECHEAP_IMAP_PASSWORD }}
+      EXPECTED_USERNAME_SHA256: d77a36b6dffc3cb6f256b29c5c28ce3f32cb2e27260fdb5412b8a4a1232678e8
+      EXPECTED_HOST_SHA256: ecdd57561632c3fccd03a895a391a75098a9074ea4d2ef43881d184e94b1e815
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secret availability and authorized mailbox binding
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import sys
+
+          username = os.environ.get('WWCX_NAMECHEAP_IMAP_USERNAME', '')
+          password = os.environ.get('WWCX_NAMECHEAP_IMAP_PASSWORD', '')
+          expected = os.environ['EXPECTED_USERNAME_SHA256']
+          if not username or not password:
+              sys.exit('required Namecheap canary secrets are unavailable')
+          if hashlib.sha256(username.encode('utf-8')).hexdigest() != expected:
+              sys.exit('configured Namecheap mailbox does not match the authorized mailbox')
+          print('Namecheap canary secrets are available and mailbox hash binding is verified')
+          PY
+
+      - name: Build short-lived private authorization
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          authorization = {
+              'contract': 'wwcx.namecheap-imap-read-canary-authorization.v1',
+              'provider_read_canary_authorized': True,
+              'expected_host_sha256': os.environ['EXPECTED_HOST_SHA256'],
+              'expected_port': 993,
+              'expected_username_sha256': os.environ['EXPECTED_USERNAME_SHA256'],
+              'mailbox': 'INBOX',
+              'max_messages': 1,
+              'expires_at': (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(timespec='seconds'),
+              'message_body_fetch_authorized': False,
+              'mailbox_mutation_authorized': False,
+              'store_write_authorized': False,
+              'mail_send_authorized': False,
+          }
+          target = Path(os.environ['RUNNER_TEMP']) / 'namecheap-imap-canary-authorization.json'
+          target.write_text(json.dumps(authorization, sort_keys=True), encoding='utf-8')
+          target.chmod(0o600)
+          print('Short-lived authorization created outside the Git working tree')
+          PY
+
+      - name: Execute one header-only provider read
+        shell: bash
+        run: |
+          python3 tools/messaging/namecheap_imap_read_canary.py \
+            --authorization "$RUNNER_TEMP/namecheap-imap-canary-authorization.json" \
+            --execute \
+            --output "$RUNNER_TEMP/namecheap-imap-canary-result.json" \
+            --pretty
+
+      - name: Verify and summarize sanitized evidence
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['RUNNER_TEMP']) / 'namecheap-imap-canary-result.json'
+          result = json.loads(path.read_text(encoding='utf-8'))
+          assert result['contract'] == 'wwcx.namecheap-imap-read-canary-result.v1'
+          assert result['provider'] == 'namecheap_private_email'
+          assert result['host_sha256'] == os.environ['EXPECTED_HOST_SHA256']
+          assert result['port'] == 993
+          assert result['username_sha256'] == os.environ['EXPECTED_USERNAME_SHA256']
+          assert result['mailbox'] == 'INBOX'
+          assert 0 <= result['selected_count'] <= 1
+          assert result['network_activity'] is True
+          assert result['tls_verification_required'] is True
+          assert result['mailbox_read_only'] is True
+          assert result['message_body_fetched'] is False
+          assert result['mailbox_mutation_authorized'] is False
+          assert result['store_write_authorized'] is False
+          assert result['mail_send_authorized'] is False
+          assert result['credentials_output'] is False
+          summary = {
+              'contract': result['contract'],
+              'checked_at': result['checked_at'],
+              'provider': result['provider'],
+              'host_sha256': result['host_sha256'],
+              'port': result['port'],
+              'username_sha256': result['username_sha256'],
+              'mailbox': result['mailbox'],
+              'uidvalidity': result['uidvalidity'],
+              'selected_count': result['selected_count'],
+              'messages': result['messages'],
+              'network_activity': result['network_activity'],
+              'tls_verification_required': result['tls_verification_required'],
+              'mailbox_read_only': result['mailbox_read_only'],
+              'message_body_fetched': result['message_body_fetched'],
+              'mailbox_mutation_authorized': result['mailbox_mutation_authorized'],
+              'store_write_authorized': result['store_write_authorized'],
+              'mail_send_authorized': result['mail_send_authorized'],
+              'credentials_output': result['credentials_output'],
+          }
+          print(json.dumps(summary, sort_keys=True))
+          PY
+
+      - name: Preserve sanitized one-time evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: namecheap-imap-read-canary-sanitized
+          path: ${{ runner.temp }}/namecheap-imap-canary-result.json
+          if-no-files-found: error
+          retention-days: 1
