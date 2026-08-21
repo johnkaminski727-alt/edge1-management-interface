@@ -3,6 +3,8 @@
 Date: 2026-08-18
 Status: live change accepted locally; repository-managed policy added for reproducibility
 
+**Superseded redirect target:** the root/`/index.html` redirect target below (`https://creekco.ca/time/`) was changed the next day to `https://ww.cx/time/`. See `docs/control-surfaces/edge1-front-door-20260819.md` for the change decision and `docs/control-surfaces/edge1-front-door-live-acceptance-20260819.md` for its live acceptance. The FreePBX/UCP restriction described below remains current and is not affected by that change.
+
 ## Live result
 
 The Edge1 Apache HTTPS vhost now includes `/etc/apache2/wwcx-edge1-control-surfaces.conf`.

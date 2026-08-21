@@ -91,11 +91,13 @@ A future native-session broker must satisfy all of the following before the butt
 
 ## Public `edge1.ww.cx` behavior
 
-The required ordinary public destination is:
+**Current state (see `docs/control-surfaces/edge1-front-door-20260819.md` and `.agent/control-surfaces.md`):** a repository-managed Apache redirect is now committed and live. The current ordinary public destination is:
 
 ```text
-https://creekco.ca/time/
+https://ww.cx/time/
 ```
+
+The section below describes the original planning-stage state (no redirect yet committed, target `https://creekco.ca/time/`), kept for historical context; it is not the current behavior.
 
 No Apache redirect is committed by this foundation because current vhost ordering, certificate identity, aliases/proxies, and service-specific routes must be freshly inventoried first. The Operations Center therefore reports redirect state as `unverified`, not `failed` or `complete`.
 
