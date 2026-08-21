@@ -23,15 +23,30 @@ class ControlPlaneV2PolicyTests(unittest.TestCase):
         names = [item["name"] for item in self.capabilities]
         self.assertEqual(len(names), len(set(names)))
 
-    def test_enabled_mutations_are_forbidden_during_migration(self):
+    def test_only_stage_only_mutation_may_be_enabled_during_migration(self):
         if self.manifest["mode"] != "migration":
             self.skipTest("migration-only policy")
-        enabled_mutations = [
+        forbidden_enabled_mutations = [
             item["name"]
             for item in self.capabilities
-            if item["enabled"] and item["class"] != "read"
+            if item["enabled"]
+            and item["class"] != "read"
+            and not (
+                item["class"] == "staged_write"
+                and item.get("mutation_policy") == "stage_only"
+                and item["name"] == "edge1.files.stage"
+            )
         ]
-        self.assertEqual(enabled_mutations, [])
+        self.assertEqual(forbidden_enabled_mutations, [])
+
+    def test_stage_only_capability_is_narrow_and_preconditioned(self):
+        by_name = {item["name"]: item for item in self.capabilities}
+        stage = by_name["edge1.files.stage"]
+        self.assertTrue(stage["enabled"])
+        self.assertEqual(stage["class"], "staged_write")
+        self.assertEqual(stage["backend"], "filesystem_write_connector")
+        self.assertEqual(stage["mutation_policy"], "stage_only")
+        self.assertTrue(stage["require_precondition"])
 
     def test_mutations_have_explicit_policy(self):
         for item in self.capabilities:
@@ -44,6 +59,7 @@ class ControlPlaneV2PolicyTests(unittest.TestCase):
         stage = by_name["edge1.files.stage"]
         apply = by_name["edge1.files.apply"]
         self.assertNotEqual(stage["scope"], apply["scope"])
+        self.assertFalse(apply["enabled"])
         self.assertTrue(apply["require_precondition"])
         self.assertTrue(apply["require_backup"])
         self.assertTrue(apply["require_post_apply_verification"])
