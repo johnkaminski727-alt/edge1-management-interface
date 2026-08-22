@@ -6,15 +6,38 @@ CONFIG=${CONFIG:-$REPO_ROOT/config/messaging/edge1-mail-gateway-v1.json}
 RENDERER=${RENDERER:-$REPO_ROOT/tools/messaging/render_edge1_mail_gateway_postfix.py}
 OUTPUT_ROOT=${OUTPUT_ROOT:-/tmp}
 POSTFIX_ETC=${POSTFIX_ETC:-/etc/postfix}
+SYSTEM_SBIN=${SYSTEM_SBIN:-/usr/sbin}
+SYSTEM_BIN=${SYSTEM_BIN:-/usr/bin}
 
 fail() {
     echo "ERROR: $*" >&2
     exit 1
 }
 
-command -v python3 >/dev/null 2>&1 || fail "python3 is unavailable"
-command -v postconf >/dev/null 2>&1 || fail "postconf is unavailable"
-command -v ss >/dev/null 2>&1 || fail "ss is unavailable"
+resolve_command() {
+    name=$1
+    shift
+    found=$(command -v "$name" 2>/dev/null || true)
+    if [ -n "$found" ]; then
+        printf '%s\n' "$found"
+        return 0
+    fi
+    for candidate in "$@"; do
+        if [ -x "$candidate" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+PYTHON3_BIN=${PYTHON3_BIN:-$(resolve_command python3 "$SYSTEM_BIN/python3" || true)}
+POSTCONF_BIN=${POSTCONF_BIN:-$(resolve_command postconf "$SYSTEM_SBIN/postconf" "$SYSTEM_BIN/postconf" || true)}
+SS_BIN=${SS_BIN:-$(resolve_command ss "$SYSTEM_BIN/ss" "$SYSTEM_SBIN/ss" || true)}
+
+[ -n "$PYTHON3_BIN" ] && [ -x "$PYTHON3_BIN" ] || fail "python3 is unavailable"
+[ -n "$POSTCONF_BIN" ] && [ -x "$POSTCONF_BIN" ] || fail "postconf is unavailable (checked PATH, $SYSTEM_SBIN/postconf, and $SYSTEM_BIN/postconf)"
+[ -n "$SS_BIN" ] && [ -x "$SS_BIN" ] || fail "ss is unavailable (checked PATH, $SYSTEM_BIN/ss, and $SYSTEM_SBIN/ss)"
 
 [ -f "$CONFIG" ] || fail "gateway configuration is unavailable"
 [ -f "$RENDERER" ] || fail "Postfix renderer is unavailable"
@@ -32,9 +55,9 @@ if command -v git >/dev/null 2>&1 && [ -d "$REPO_ROOT/.git" ]; then
     git -C "$REPO_ROOT" status --short --branch > "$out/current/repository-status.txt" 2>/dev/null || true
 fi
 
-postconf -n > "$out/current/postconf-n.txt"
-postconf -M > "$out/current/postconf-M.txt"
-ss -lntp > "$out/current/listeners-tcp.txt" 2>/dev/null || ss -lnt > "$out/current/listeners-tcp.txt"
+"$POSTCONF_BIN" -n > "$out/current/postconf-n.txt"
+"$POSTCONF_BIN" -M > "$out/current/postconf-M.txt"
+"$SS_BIN" -lntp > "$out/current/listeners-tcp.txt" 2>/dev/null || "$SS_BIN" -lnt > "$out/current/listeners-tcp.txt"
 
 for name in main.cf master.cf; do
     if [ -f "$POSTFIX_ETC/$name" ]; then
@@ -42,7 +65,7 @@ for name in main.cf master.cf; do
     fi
 done
 
-python3 "$RENDERER" --config "$CONFIG" --output-dir "$out/rendered" >/dev/null
+"$PYTHON3_BIN" "$RENDERER" --config "$CONFIG" --output-dir "$out/rendered" >/dev/null
 
 # Hard safety invariants. The preflight itself must never bless a public SMTP state.
 grep -Fx 'inet_interfaces = loopback-only' "$out/rendered/main.cf.fragment" >/dev/null \
@@ -68,7 +91,7 @@ fi
         smtpd_recipient_restrictions
     do
         printf '%s = ' "$key"
-        postconf -h "$key" 2>/dev/null || true
+        "$POSTCONF_BIN" -h "$key" 2>/dev/null || true
     done
 } > "$out/current/relevant-postconf.txt"
 
@@ -86,7 +109,7 @@ fi
 # blocks later apply tooling until explicitly reconciled.
 : > "$out/current/collisions.txt"
 for key in virtual_mailbox_domains virtual_mailbox_maps virtual_transport; do
-    value=$(postconf -h "$key" 2>/dev/null || true)
+    value=$("$POSTCONF_BIN" -h "$key" 2>/dev/null || true)
     if [ -n "$value" ]; then
         printf '%s=%s\n' "$key" "$value" >> "$out/current/collisions.txt"
     fi
@@ -103,6 +126,8 @@ current_hashes="$out/current/sha256.txt"
 cat > "$out/README.txt" <<EOF
 WW.CX Edge1 Mail Gateway local-only Postfix preflight
 Generated: $stamp
+Postconf executable: $POSTCONF_BIN
+Socket utility: $SS_BIN
 
 This directory is evidence only. No Postfix configuration was edited, no service was
 restarted, no listener was opened, and no DNS/MX state was changed.
