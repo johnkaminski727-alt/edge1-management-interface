@@ -1,0 +1,34 @@
+name: Cookie Monster Edge1 foundation
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/cookie_monster_edge1_install.py'
+      - 'deploy/cookie-monster-fengus-worker@.service'
+      - 'config/cookie-monster/datasets.example.json'
+      - 'tests/test_cookie_monster_edge1_install.py'
+      - 'docs/cookie-monster/edge1-foundation-install.md'
+      - '.agent/cookie-monster-alpha.md'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/cookie_monster_edge1_install.py'
+      - 'tests/test_cookie_monster_edge1_install.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile installer
+        run: python3 -m py_compile deploy/cookie_monster_edge1_install.py tests/test_cookie_monster_edge1_install.py
+      - name: Validate disabled registry
+        run: python3 -m json.tool config/cookie-monster/datasets.example.json >/dev/null
+      - name: Run foundation tests
+        run: python3 -m unittest -v tests.test_cookie_monster_edge1_install
