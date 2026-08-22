@@ -12,6 +12,7 @@ Last updated: 2026-08-22
 - Big Bird remains control-plane/orchestration; its Cookie Monster handoff is a bounded job contract, not archive authority.
 - Fengus is a bounded worker with no direct archive credentials or direct archive path in its work-item contract.
 - Human review is append-only; web mutation stays disabled until an authenticated operator transport is deliberately wired.
+- Runtime cockpit publication is a separate atomic copy from generated evidence into a private web root; generated state is never copied back into Git.
 
 ## Implemented surfaces
 
@@ -21,15 +22,18 @@ Last updated: 2026-08-22
 - `server/cookie_monster_fengus_worker.py`
 - `server/cookie_monster_acceptance.py`
 - `deploy/cookie-monster-fengus-worker@.service`
+- `deploy/cookie_monster_runtime_publish.py`
 - `tests/test_cookie_monster_alpha.py`
 - `tests/test_cookie_monster_control.py`
 - `tests/test_cookie_monster_acceptance.py`
+- `tests/test_cookie_monster_runtime_publish.py`
 - `src/web/cookie-monster/index.html`
 - `src/web/cookie-monster/demo-status.json`
 - `src/web/cookie-monster/assets/mascot.webp`
 - `docs/cookie-monster/alpha-foundation.md`
 - `docs/cookie-monster/alpha-m3-m5.md`
 - `docs/cookie-monster/alpha-m6-acceptance.md`
+- `docs/cookie-monster/runtime-publication.md`
 
 ## Closed review findings
 
@@ -49,10 +53,18 @@ A repeatable source-level M6 harness exercises the complete Alpha safety path ag
 
 Pre-publication local acceptance result: PASS (5 records / 4 unique assets / 1 duplicate group / 0 provenance gaps / 0 unauthorized source writes / 0 Fengus out-of-allowlist jobs).
 
+## M7 runtime publication source package
+
+The private cockpit runtime-publication package is implemented source-side. It requires a valid generated `status.json`, validates every present JSON snapshot before mutation, keeps repository/generated/web roots disjoint, backs up the complete managed destination set, atomically publishes the UI plus status/review/job/acceptance snapshots, removes stale optional runtime state, emits a SHA-256 publication manifest and supports exact managed-file rollback.
+
+Local validation before publication: Python compile PASS and 6/6 targeted runtime-publication tests PASS.
+
+This closes the source implementation gap for runtime packaging. It does not claim a live Edge1 apply: the currently exposed Edge1 Operator connector remains read-only.
+
 ## Remaining activation work
 
 1. Select and create a non-production staging dataset mapping on Edge1.
-2. Package runtime status/review/job/acceptance snapshots into the static Cookie Monster UI deployment path.
+2. Run the runtime publisher preflight and apply through an authenticated write-capable Edge1 path after generating a real non-production status snapshot.
 3. Decide/wire the authenticated operator transport for actual web approve/reject clicks.
 4. Create the Fengus runtime user/directories and activate the hardened worker service only after deployment review.
-5. Re-run M6 against a deliberately selected Edge1 non-production staging dataset after runtime packaging; the synthetic source-level M6 gate is implemented and passing.
+5. Re-run M6 against the deliberately selected Edge1 non-production staging dataset after runtime publication, with zero provenance gaps and zero unauthorized writes.

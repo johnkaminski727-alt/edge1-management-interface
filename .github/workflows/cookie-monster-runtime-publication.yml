@@ -1,0 +1,30 @@
+name: Cookie Monster runtime publication
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/cookie_monster_runtime_publish.py'
+      - 'tests/test_cookie_monster_runtime_publish.py'
+      - 'docs/cookie-monster/runtime-publication.md'
+      - '.agent/cookie-monster-alpha.md'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/cookie_monster_runtime_publish.py'
+      - 'tests/test_cookie_monster_runtime_publish.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile runtime publisher
+        run: python3 -m py_compile deploy/cookie_monster_runtime_publish.py tests/test_cookie_monster_runtime_publish.py
+      - name: Run runtime publication tests
+        run: python3 -m unittest -v tests.test_cookie_monster_runtime_publish
