@@ -48,6 +48,7 @@ jobs:
         run: node --check tools/mcp/edge1-live-shell/src/index.js
       - name: Validate systemd unit syntax
         run: |
+          sudo install -D -m 0755 server/edge1_release_controller.py /usr/local/libexec/edge1-release-controller
           systemd-analyze verify \
             deploy/edge1-release-controller/edge1-release-controller-status.service \
             deploy/edge1-release-controller/edge1-release-controller-status.timer
