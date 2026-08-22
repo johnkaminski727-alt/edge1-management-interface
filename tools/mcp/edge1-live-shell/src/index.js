@@ -10,6 +10,8 @@ const ALLOW_RESTARTS = process.env.EDGE1_ALLOW_RESTARTS === '1';
 const ENABLE_RAW_SHELL = process.env.EDGE1_ENABLE_RAW_SHELL === '1';
 const ALLOW_COOKIE_MONSTER = process.env.EDGE1_ALLOW_COOKIE_MONSTER === '1';
 const COOKIE_MONSTER_TARGET_SHA = process.env.EDGE1_COOKIE_MONSTER_TARGET_SHA || '';
+const ALLOW_RELEASES = process.env.EDGE1_ALLOW_RELEASES === '1';
+const RELEASE_TARGET_SHA = process.env.EDGE1_RELEASE_TARGET_SHA || '';
 const ALLOWED_SERVICES = new Set((process.env.EDGE1_ALLOWED_SERVICES || 'bigbird-ai-gateway').split(',').map(v => v.trim()).filter(Boolean));
 const REPOSITORIES = parseRepositories(process.env.EDGE1_REPOSITORIES || 'edge1-interface=/opt/edge1-management-interface;bigbird-gateway=/opt/bigbird-ai-gateway');
 
@@ -94,12 +96,16 @@ function validCookieMonsterTarget() {
   return /^[0-9a-f]{40}$/.test(COOKIE_MONSTER_TARGET_SHA);
 }
 
-function cookieMonsterRepository() {
+function validReleaseTarget() {
+  return /^[0-9a-f]{40}$/.test(RELEASE_TARGET_SHA);
+}
+
+function edge1Repository() {
   return REPOSITORIES.get('edge1-interface') || null;
 }
 
 function cookieMonsterCommand(action) {
-  const repo = cookieMonsterRepository();
+  const repo = edge1Repository();
   if (!repo) return null;
   const qRepo = shellQuote(repo);
   const script = shellQuote(`${repo}/deploy/cookie_monster_edge1_activate.py`);
@@ -119,10 +125,28 @@ function cookieMonsterCommand(action) {
   return null;
 }
 
+function releaseCommand(action) {
+  const repo = edge1Repository();
+  if (!repo) return null;
+  const qRepo = shellQuote(repo);
+  const target = shellQuote(RELEASE_TARGET_SHA);
+  const controller = '/usr/local/libexec/edge1-release-controller';
+  if (action === 'status') {
+    return `if test -x ${shellQuote(controller)}; then sudo -n ${shellQuote(controller)} status --write-status --publish-status; else printf '%s\\n' '{"schema":"wwcx.edge1-release-status.v1","healthy":false,"action_required":true,"controller_installed":false,"automatic_promotion":false}'; fi`;
+  }
+  if (action === 'rollback_last') {
+    return `sudo -n ${shellQuote(controller)} rollback-last && sudo -n ${shellQuote(controller)} status --write-status --publish-status`;
+  }
+  if (action === 'reconcile') {
+    return `set -eu; repo=${qRepo}; target=${target}; tmp="/tmp/edge1-release-bootstrap-$$"; cleanup(){ git -C "$repo" worktree remove --force "$tmp" >/dev/null 2>&1 || true; rm -rf "$tmp" >/dev/null 2>&1 || true; }; trap cleanup EXIT HUP INT TERM; git -C "$repo" fetch --prune origin; git -C "$repo" cat-file -e "$target^{commit}"; git -C "$repo" merge-base --is-ancestor "$target" origin/main; git -C "$repo" worktree add --detach "$tmp" "$target"; sudo -n /usr/bin/python3 "$tmp/deploy/install_edge1_release_controller.py" --repo "$tmp" --apply; test -x ${shellQuote(controller)}; source=/opt/edge1-management-source; test "$(git -C "$source" symbolic-ref --short HEAD)" = main; test -z "$(git -C "$source" status --porcelain)"; git -C "$source" fetch --prune origin; git -C "$source" cat-file -e "$target^{commit}"; git -C "$source" merge-base --is-ancestor "$target" origin/main; sudo -n ${shellQuote(controller)} prepare "$target"; sudo -n ${shellQuote(controller)} promote "$target"; sudo -n ${shellQuote(controller)} status --write-status --publish-status`;
+  }
+  return null;
+}
+
 function createServer() {
   const server = new McpServer(
-    { name: 'edge1-live-shell', version: '0.2.0' },
-    { instructions: 'Read first. Verify Edge1 identity before mutation. Prefer edge1_inspect over edge1_exec. Never request or expose credentials. Restarts, Cookie Monster activation and raw shell are disabled unless explicitly enabled by the operator environment.' }
+    { name: 'edge1-live-shell', version: '0.3.0' },
+    { instructions: 'Read first. Verify Edge1 identity before mutation. Prefer edge1_inspect over edge1_exec. Never request or expose credentials. Restarts, Cookie Monster activation, commit-pinned release promotion and raw shell are disabled unless explicitly enabled by the operator environment.' }
   );
 
   server.registerTool('edge1_connection_test', {
@@ -184,6 +208,21 @@ function createServer() {
     const command = cookieMonsterCommand(action);
     if (!command) return { content: [{ type: 'text', text: 'Cookie Monster repository alias is unavailable.' }], isError: true };
     return resultPayload('cookie_monster', await runSsh(command), { action, targetSha: (action === 'sync_sources' || action === 'activate') ? COOKIE_MONSTER_TARGET_SHA : null });
+  });
+
+  server.registerTool('edge1_release', {
+    description: 'Read or reconcile the persistent Edge1 runtime release controller. Reconcile is commit-pinned and bootstrap-safe; rollback returns only to the controller-recorded previous release. No arbitrary path, service, branch or command is accepted.',
+    inputSchema: z.object({ action: z.enum(['status', 'reconcile', 'rollback_last']) })
+  }, async ({ action }) => {
+    if (action !== 'status' && !ALLOW_RELEASES) {
+      return { content: [{ type: 'text', text: 'Edge1 release mutations are disabled by policy (EDGE1_ALLOW_RELEASES=0).' }], isError: true };
+    }
+    if (action === 'reconcile' && !validReleaseTarget()) {
+      return { content: [{ type: 'text', text: 'EDGE1_RELEASE_TARGET_SHA must be an exact 40-character Git commit SHA.' }], isError: true };
+    }
+    const command = releaseCommand(action);
+    if (!command) return { content: [{ type: 'text', text: 'Edge1 repository alias is unavailable.' }], isError: true };
+    return resultPayload('release', await runSsh(command), { action, targetSha: action === 'reconcile' ? RELEASE_TARGET_SHA : null });
   });
 
   server.registerTool('edge1_exec', {
