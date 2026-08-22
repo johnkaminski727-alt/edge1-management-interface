@@ -129,6 +129,31 @@ class DigitalArchivePrivateFoundationTests(unittest.TestCase):
                 with self.assertRaises(da.FoundationError):
                     da.bounded_evidence_path(outside)
 
+    def test_rollback_started_projects_is_reverse_order_and_volume_preserving(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            repo = self.fake_repo(root)
+            evidence = root / 'evidence'
+            evidence.mkdir()
+            state = {
+                'projects': {
+                    da.PAPERLESS_PROJECT: {'was_running': False, 'started_by_transaction': True},
+                    da.ARCHIVEBOX_PROJECT: {'was_running': False, 'started_by_transaction': True},
+                }
+            }
+            calls = []
+
+            def fake_run(command, **kwargs):
+                calls.append(command)
+                return mock.Mock(returncode=0, stdout='', stderr='')
+
+            with mock.patch.object(da, 'run', side_effect=fake_run):
+                result = da.rollback_started_projects(repo, state, {}, evidence)
+            self.assertEqual(result['stopped_projects'], [da.ARCHIVEBOX_PROJECT, da.PAPERLESS_PROJECT])
+            self.assertTrue(result['volumes_preserved'])
+            self.assertTrue(all('-v' not in command for command in calls))
+            self.assertTrue((evidence / 'rollback-result.json').is_file())
+
     def test_source_contains_no_runtime_install_or_public_mutation_authority(self):
         text = SCRIPT.read_text(encoding='utf-8').lower()
         for forbidden in (
