@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD_FILE: /run/secrets/paperless_db_password
+    secrets:
+      - paperless_db_password
+    volumes:
+      - /var/lib/wwcx-digital-archive/paperless/postgres:/var/lib/postgresql/data
+
+  broker:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    volumes:
+      - /var/lib/wwcx-digital-archive/paperless/valkey:/data
+
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.0.5
+    restart: unless-stopped
+    depends_on:
+      - db
+      - broker
+    ports:
+      - "127.0.0.1:8113:8000"
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+      PAPERLESS_DBNAME: paperless
+      PAPERLESS_DBUSER: paperless
+      PAPERLESS_DBPASS_FILE: /run/secrets/paperless_db_password
+      PAPERLESS_SECRET_KEY_FILE: /run/secrets/paperless_secret_key
+      PAPERLESS_TIME_ZONE: Atlantic/Reykjavik
+      PAPERLESS_OCR_LANGUAGE: eng
+    secrets:
+      - paperless_db_password
+      - paperless_secret_key
+    volumes:
+      - /var/lib/wwcx-digital-archive/paperless/data:/usr/src/paperless/data
+      - /var/lib/wwcx-digital-archive/paperless/media:/usr/src/paperless/media
+      - /var/lib/wwcx-digital-archive/paperless/export:/usr/src/paperless/export
+      - /var/lib/wwcx-digital-archive/paperless/consume:/usr/src/paperless/consume
+
+secrets:
+  paperless_db_password:
+    file: ${PAPERLESS_DB_PASSWORD_FILE:?set PAPERLESS_DB_PASSWORD_FILE to a root-readable runtime secret file}
+  paperless_secret_key:
+    file: ${PAPERLESS_SECRET_KEY_FILE:?set PAPERLESS_SECRET_KEY_FILE to a root-readable runtime secret file}

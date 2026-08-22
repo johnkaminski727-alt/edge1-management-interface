@@ -1,0 +1,14 @@
+services:
+  archivebox:
+    image: archivebox/archivebox:0.7.4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8114:8000"
+    environment:
+      PUBLIC_INDEX: "False"
+      PUBLIC_SNAPSHOTS: "False"
+      PUBLIC_ADD_VIEW: "False"
+      SAVE_ARCHIVE_DOT_ORG: "False"
+      TIMEZONE: Atlantic/Reykjavik
+    volumes:
+      - /var/lib/wwcx-digital-archive/archivebox/data:/data
