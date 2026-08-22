@@ -8,6 +8,7 @@ const TIMEOUT_MS = Math.min(Number(process.env.EDGE1_TIMEOUT_MS || 30000), 12000
 const MAX_OUTPUT_BYTES = Math.min(Number(process.env.EDGE1_MAX_OUTPUT_BYTES || 24000), 262144);
 const ALLOW_RESTARTS = process.env.EDGE1_ALLOW_RESTARTS === '1';
 const ENABLE_RAW_SHELL = process.env.EDGE1_ENABLE_RAW_SHELL === '1';
+const ALLOW_COOKIE_MONSTER = process.env.EDGE1_ALLOW_COOKIE_MONSTER === '1';
 const ALLOWED_SERVICES = new Set((process.env.EDGE1_ALLOWED_SERVICES || 'bigbird-ai-gateway').split(',').map(v => v.trim()).filter(Boolean));
 const REPOSITORIES = parseRepositories(process.env.EDGE1_REPOSITORIES || 'edge1-interface=/opt/edge1-management-interface;bigbird-gateway=/opt/bigbird-ai-gateway');
 
@@ -88,10 +89,34 @@ function validService(service) {
   return /^[A-Za-z0-9@_.-]+$/.test(service) && ALLOWED_SERVICES.has(service);
 }
 
+function cookieMonsterRepository() {
+  return REPOSITORIES.get('edge1-interface') || null;
+}
+
+function cookieMonsterCommand(action) {
+  const repo = cookieMonsterRepository();
+  if (!repo) return null;
+  const qRepo = shellQuote(repo);
+  const script = shellQuote(`${repo}/deploy/cookie_monster_edge1_activate.py`);
+  if (action === 'preflight') {
+    return `sudo -n /usr/bin/python3 ${script} --repo ${qRepo}`;
+  }
+  if (action === 'sync_sources') {
+    return `set -eu; repo=${qRepo}; test "$(git -C "$repo" symbolic-ref --short HEAD)" = main; test -z "$(git -C "$repo" status --porcelain)"; before=$(git -C "$repo" rev-parse HEAD); git -C "$repo" fetch --prune origin; git -C "$repo" merge --ff-only origin/main; after=$(git -C "$repo" rev-parse HEAD); printf 'before=%s\\nafter=%s\\nbranch=' "$before" "$after"; git -C "$repo" symbolic-ref --short HEAD; printf 'status='; git -C "$repo" status --short --branch`;
+  }
+  if (action === 'activate') {
+    return `sudo -n /usr/bin/python3 ${script} --repo ${qRepo} --apply`;
+  }
+  if (action === 'rollback_last') {
+    return `sudo -n /usr/bin/python3 ${script} --repo ${qRepo} --rollback-last`;
+  }
+  return null;
+}
+
 function createServer() {
   const server = new McpServer(
-    { name: 'edge1-live-shell', version: '0.1.0' },
-    { instructions: 'Read first. Verify Edge1 identity before mutation. Prefer edge1_inspect over edge1_exec. Never request or expose credentials. Restarts and raw shell are disabled unless explicitly enabled by the operator environment.' }
+    { name: 'edge1-live-shell', version: '0.2.0' },
+    { instructions: 'Read first. Verify Edge1 identity before mutation. Prefer edge1_inspect over edge1_exec. Never request or expose credentials. Restarts, Cookie Monster activation and raw shell are disabled unless explicitly enabled by the operator environment.' }
   );
 
   server.registerTool('edge1_connection_test', {
@@ -138,6 +163,18 @@ function createServer() {
     if (!validService(service)) return { content: [{ type: 'text', text: 'Service is not allowlisted.' }], isError: true };
     const command = `sudo -n systemctl restart ${shellQuote(service)} && systemctl is-active ${shellQuote(service)} && systemctl --no-pager --full status ${shellQuote(service)}`;
     return resultPayload('restart_service', await runSsh(command), { service });
+  });
+
+  server.registerTool('edge1_cookie_monster', {
+    description: 'Run the fixed Cookie Monster Alpha staging lifecycle on Edge1. Preflight is read-only; source sync, activation and rollback are disabled unless EDGE1_ALLOW_COOKIE_MONSTER=1. No arbitrary path or command is accepted.',
+    inputSchema: z.object({ action: z.enum(['preflight', 'sync_sources', 'activate', 'rollback_last']) })
+  }, async ({ action }) => {
+    if (action !== 'preflight' && !ALLOW_COOKIE_MONSTER) {
+      return { content: [{ type: 'text', text: 'Cookie Monster mutation actions are disabled by policy (EDGE1_ALLOW_COOKIE_MONSTER=0).' }], isError: true };
+    }
+    const command = cookieMonsterCommand(action);
+    if (!command) return { content: [{ type: 'text', text: 'Cookie Monster repository alias is unavailable.' }], isError: true };
+    return resultPayload('cookie_monster', await runSsh(command), { action });
   });
 
   server.registerTool('edge1_exec', {
