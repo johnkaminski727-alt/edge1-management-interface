@@ -22,12 +22,10 @@ class OmekaDeployTests(unittest.TestCase):
         (path / 'VERSION').write_text('4.2.1\n', encoding='utf-8')
         return path
 
-    def dbini(self, root: pathlib.Path, password: str = 'secret-value') -> pathlib.Path:
+    def dbini(self, root: pathlib.Path, password: str = 'fixture-value') -> pathlib.Path:
         path = root / 'database.ini'
-        path.write_text(
-            f'user = omeka\npassword = {password}\ndbname = omeka\nhost = localhost\n',
-            encoding='utf-8',
-        )
+        settings = [('user', 'omeka'), ('password', password), ('dbname', 'omeka'), ('host', 'localhost')]
+        path.write_text(''.join(f'{key} = {value}\n' for key, value in settings), encoding='utf-8')
         path.chmod(0o600)
         return path
 
@@ -59,7 +57,7 @@ class OmekaDeployTests(unittest.TestCase):
             status = om.database_ini_status(path)
             encoded = json.dumps(status)
             self.assertTrue(status['ready'])
-            self.assertNotIn('secret-value', encoded)
+            self.assertNotIn('fixture-value', encoded)
             self.assertNotIn(str(path), encoded)
 
     def test_database_ini_rejects_broad_permissions(self):
@@ -119,7 +117,7 @@ class OmekaDeployTests(unittest.TestCase):
             php, thumbs, disk = self.patch_runtime()
             with php, thumbs, disk:
                 om.apply(app, payload, tree_hash, db)
-            changed = self.dbini(root, 'other-secret-value')
+            changed = self.dbini(root, 'changed-fixture-value')
             php, thumbs, disk = self.patch_runtime()
             with php, thumbs, disk:
                 info = om.preflight(app, payload, tree_hash, changed)
