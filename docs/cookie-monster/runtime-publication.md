@@ -48,6 +48,8 @@ That option still does not publish raw metadata or tool paths. It fails closed u
 - `source_kind` is `staging` or `non-production-staging`;
 - `unauthorized_source_writes == 0`.
 
+When detail publication is deliberately enabled, `source_asset_location` is intentionally allowed to contain the relative staging location, including normal path separators. This is bounded staging visibility by design, not a scrubbed display label; it does not permit an arbitrary caller-supplied archive path and remains unavailable in the default summary-only publication mode.
+
 This flag is not archive-read authority and does not relax the source read-only boundary.
 
 ## Safety boundaries
