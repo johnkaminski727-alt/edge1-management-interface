@@ -1,0 +1,13 @@
+{
+  "schema": "wwcx.cookie-monster.datasets.v1",
+  "datasets": {
+    "synthetic-media-v1": {
+      "source_root": "/srv/cookie-monster/staging/synthetic-media-v1",
+      "kind": "synthetic-non-production",
+      "enabled": false,
+      "read_only_required": true,
+      "canonical_archive": false,
+      "description": "Deterministic Cookie Monster Alpha acceptance dataset. Runtime activation remains separate."
+    }
+  }
+}
