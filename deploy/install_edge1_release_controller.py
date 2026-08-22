@@ -3,8 +3,8 @@
 
 Default execution is a read-only preflight. ``--apply`` installs only the
 controller executable, its read-only status timer, and the release-manager
-status page.  It also creates a dedicated mutable source checkout when one does
-not already exist.  It does *not* switch the running control plane, install the
+status page. It also creates a dedicated mutable source checkout when one does
+not already exist. It does *not* switch the running control plane, install the
 release-root service drop-ins, or promote a commit; those are separate explicit
 release-controller actions.
 """
@@ -19,8 +19,8 @@ from pathlib import Path
 import pwd
 import shutil
 import subprocess
-import sys
 from typing import Any
+from urllib.parse import urlsplit
 
 
 EXPECTED_REPO = Path("/opt/edge1-management-interface")
@@ -123,6 +123,21 @@ def source_snapshot(source: Path = SOURCE_ROOT) -> dict[str, Any]:
     }
 
 
+def safe_remote_url(value: str) -> bool:
+    """Allow ordinary SSH/file remotes but never copy credential-bearing HTTP URLs."""
+    value = value.strip()
+    if not value:
+        return False
+    if value.startswith("git@") and ":" in value:
+        return True
+    if "://" not in value:
+        return True
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"https", "http", "ssh", "git", "file"}:
+        return False
+    return parsed.username is None and parsed.password is None
+
+
 def ensure_source_clone(legacy: Path = LEGACY_ROOT, source: Path = SOURCE_ROOT) -> dict[str, Any]:
     existing = source_snapshot(source)
     if existing["present"]:
@@ -130,11 +145,18 @@ def ensure_source_clone(legacy: Path = LEGACY_ROOT, source: Path = SOURCE_ROOT) 
             raise InstallError("existing dedicated source checkout is not on main")
         if existing["dirty"]:
             raise InstallError("existing dedicated source checkout is dirty")
-        return {"created": False, **existing}
+        return {"created": False, "origin_rebound": False, **existing}
     if source.exists() or source.is_symlink():
         raise InstallError("dedicated source path exists but is not a usable Git checkout")
     if not legacy.exists():
         raise InstallError("legacy management repository is unavailable for local bootstrap clone")
+
+    legacy_prefix = ["git", "-c", f"safe.directory={legacy}", "-C", str(legacy)]
+    remote = run(legacy_prefix + ["remote", "get-url", "origin"], check=False)
+    remote_url = (remote.stdout or "").strip() if remote.returncode == 0 else ""
+    if remote_url and not safe_remote_url(remote_url):
+        raise InstallError("legacy origin appears credential-bearing or unsupported; refusing to copy it")
+
     user = pwd.getpwnam(SOURCE_USER)
     source.parent.mkdir(parents=True, exist_ok=True)
     run(["git", "clone", "--no-hardlinks", str(legacy), str(source)], timeout=300)
@@ -149,11 +171,16 @@ def ensure_source_clone(legacy: Path = LEGACY_ROOT, source: Path = SOURCE_ROOT) 
             run(prefix + ["checkout", "main"])
         else:
             raise InstallError("bootstrap clone does not contain a main branch or origin/main ref")
+
+    origin_rebound = False
+    if remote_url and remote_url != str(legacy):
+        run(prefix + ["remote", "set-url", "origin", remote_url])
+        origin_rebound = True
     run(["chown", "-R", f"{user.pw_uid}:{user.pw_gid}", str(source)], timeout=300)
     snapshot = source_snapshot(source)
     if snapshot["branch"] != "main" or snapshot["dirty"]:
         raise InstallError("dedicated source checkout failed post-create validation")
-    return {"created": True, **snapshot}
+    return {"created": True, "origin_rebound": origin_rebound, **snapshot}
 
 
 def backup_one(source: Path, backup: Path, name: str) -> dict[str, Any]:
