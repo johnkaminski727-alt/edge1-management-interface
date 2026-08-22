@@ -19,14 +19,17 @@ Last updated: 2026-08-22
 - `server/cookie_monster_contract.py`
 - `server/cookie_monster_review.py`
 - `server/cookie_monster_fengus_worker.py`
+- `server/cookie_monster_acceptance.py`
 - `deploy/cookie-monster-fengus-worker@.service`
 - `tests/test_cookie_monster_alpha.py`
 - `tests/test_cookie_monster_control.py`
+- `tests/test_cookie_monster_acceptance.py`
 - `src/web/cookie-monster/index.html`
 - `src/web/cookie-monster/demo-status.json`
 - `src/web/cookie-monster/assets/mascot.webp`
 - `docs/cookie-monster/alpha-foundation.md`
 - `docs/cookie-monster/alpha-m3-m5.md`
+- `docs/cookie-monster/alpha-m6-acceptance.md`
 
 ## Closed review findings
 
@@ -40,10 +43,16 @@ Fen independently verified PR #512 and closed the M0-M2 source hardening review.
 4. M5 ingestion read audit remains authoritative for source access; review decisions add human action evidence.
 5. The UI shows review, Big Bird job and Fengus surfaces. Review buttons generate the exact bounded CLI action until authenticated web mutation transport is connected.
 
+## M6 synthetic acceptance
+
+A repeatable source-level M6 harness exercises the complete Alpha safety path against a generated five-file non-production dataset. It verifies read-only source behavior, exact duplicate detection, provenance/hash-chain integrity, repeat-run idempotency, append-only audit, bounded human review, Big Bird's path-free job contract, and Fengus allowlist/archive-denial behavior. The operator UI exposes `acceptance.json` through an M6 acceptance screen without claiming a live run when evidence is absent.
+
+Pre-publication local acceptance result: PASS (5 records / 4 unique assets / 1 duplicate group / 0 provenance gaps / 0 unauthorized source writes / 0 Fengus out-of-allowlist jobs).
+
 ## Remaining activation work
 
 1. Select and create a non-production staging dataset mapping on Edge1.
-2. Package runtime status/review/job snapshots into the static Cookie Monster UI deployment path.
+2. Package runtime status/review/job/acceptance snapshots into the static Cookie Monster UI deployment path.
 3. Decide/wire the authenticated operator transport for actual web approve/reject clicks.
 4. Create the Fengus runtime user/directories and activate the hardened worker service only after deployment review.
-5. Run M6 acceptance against the selected non-production staging dataset with zero provenance gaps and zero unauthorized writes.
+5. Re-run M6 against a deliberately selected Edge1 non-production staging dataset after runtime packaging; the synthetic source-level M6 gate is implemented and passing.
