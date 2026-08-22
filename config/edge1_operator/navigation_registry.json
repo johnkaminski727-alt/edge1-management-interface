@@ -193,6 +193,21 @@
       "palette": false,
       "toolbox": false,
       "evidence_status": "verified_config_unaccepted_browser"
+    },
+    {
+      "id": "cookie-monster",
+      "label": "Cookie Monster",
+      "section": "Tools",
+      "sort_order": 140,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/cookie-monster/",
+      "runtime_route": "/edge1-status/cookie-monster/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "Alpha ingestion, provenance, review, Big Bird handoff, Fengus status and acceptance cockpit; live route authorization remains separately gated.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "verified_repository_unaccepted_browser"
     }
   ]
 }
