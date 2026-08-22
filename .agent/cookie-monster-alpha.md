@@ -12,9 +12,10 @@ Last updated: 2026-08-22
 - Big Bird remains control-plane/orchestration; its Cookie Monster handoff is a bounded job contract, not archive authority.
 - Fengus is a bounded worker with no direct archive credentials or direct archive path in its work-item contract.
 - Human review is append-only; web mutation stays disabled until an authenticated operator transport is deliberately wired.
-- Runtime cockpit publication is a separate atomic copy from generated evidence into a private web root; generated state is never copied back into Git.
+- Runtime cockpit publication is a separate atomic copy from generated evidence into an operator web root; generated state is never copied back into Git.
 - Runtime dataset selection is slug-based and deterministic; neither Big Bird jobs nor the dataset registry may carry arbitrary archive/filesystem paths.
 - Edge1 foundation installation is backup-first and leaves the staging dataset disabled; installation does not equal ingestion activation.
+- Browser publication is derived and minimized by default; raw generated runtime evidence is not a browser contract.
 
 ## Implemented surfaces
 
@@ -48,6 +49,8 @@ Last updated: 2026-08-22
 
 Fen independently verified PR #512 and closed the M0-M2 source hardening review. Append-only provenance/idempotency, symlink containment and processing budgets are verified.
 
+Fen independently verified PR #514 and PR #515 with no HIGH or MEDIUM findings. The M3-M6 review confirmed the Big Bird contract does not carry path/URL/command/credential authority, Fengus remains data-only and unactivated, review decisions are OS-level append-only/hash-chained, and the M6 gate independently recomputes provenance/review integrity.
+
 ## M3-M5 source direction
 
 1. M3 review decisions are separate hash-chained append-only events; approved/rejected are terminal in Alpha.
@@ -64,7 +67,7 @@ Pre-publication local acceptance result: PASS (5 records / 4 unique assets / 1 d
 
 ## M7 runtime publication source package
 
-The private cockpit runtime-publication package is implemented source-side. It requires a valid generated `status.json`, validates every present JSON snapshot before mutation, keeps repository/generated/web roots disjoint, backs up the complete managed destination set, atomically publishes the UI plus status/review/job/acceptance snapshots, removes stale optional runtime state, emits a SHA-256 publication manifest and supports exact managed-file rollback.
+The cockpit runtime-publication package is implemented source-side. It requires a valid generated `status.json`, validates every present JSON snapshot before mutation, keeps repository/generated/web roots disjoint, backs up the complete managed destination set, atomically publishes the UI plus runtime views, removes stale optional runtime state, emits a SHA-256 publication manifest and supports exact managed-file rollback.
 
 PR #518 merged after the dedicated runtime-publication workflow, Edge1 Operator Validation and repository validation all passed. This closes the source implementation gap for runtime packaging. It does not claim a live Edge1 apply: the currently exposed Edge1 Operator connector remains read-only.
 
@@ -76,16 +79,26 @@ PR #519 merged after the dedicated dataset-dispatch workflow, runtime-publicatio
 
 ## M9 Edge1 foundation installer source package
 
-A backup-first source installer now defines the exact private Edge1 foundation needed before a non-production activation: disabled runtime registry, `/srv/cookie-monster/datasets/alpha-staging`, generated-state root, Fengus inbox/outbox, dedicated nologin Fengus account, and the hardened worker template unit. Existing dataset registry divergence fails closed instead of being overwritten. Newly created staging is read-only by default, `systemctl daemon-reload` does not start a worker, and config rollback preserves runtime directories/service-account identity rather than deleting evidence or invalidating UIDs.
+A backup-first source installer defines the exact private Edge1 foundation needed before a non-production activation: disabled runtime registry, `/srv/cookie-monster/datasets/alpha-staging`, generated-state root, Fengus inbox/outbox, dedicated nologin Fengus account, and the hardened worker template unit. Existing dataset registry divergence fails closed instead of being overwritten. Newly created staging is read-only by default, `systemctl daemon-reload` does not start a worker, and config rollback preserves runtime directories/service-account identity rather than deleting evidence or invalidating UIDs.
 
-Local source validation before publication: Python compile PASS and 7/7 targeted installer tests PASS. Dedicated CI and repository validation remain required before merge. No live install has been performed because the exposed Edge1 Operator connector is read-only.
+No live install is implied by repository source. The exposed Edge1 Operator connector remains read-only.
+
+## M10 browser publication minimization hardening
+
+A focused hardening follow-up keeps the runtime web surface from becoming a raw-evidence mirror. The publisher projects `wwcx.cookie-monster.operator-view.v1` JSON before writing to the web root.
+
+Default publication is summary-only and excludes raw metadata payloads, metadata-tool filesystem paths, asset filenames/relative source locations, arbitrary acceptance detail strings, internal Fengus paths, raw knowledge facts and the generated evidence filesystem path. Explicit `--publish-detail` is bounded to `alpha-read-only` non-production staging evidence with zero unauthorized source writes, and even then raw metadata/tool paths stay excluded.
+
+Static and runtime symlink sources fail closed. The runtime manifest hashes the published operator views rather than the raw generated snapshots.
 
 ## Remaining activation work
 
-1. Run the M9 installer preflight and reviewed `--apply` through an authenticated write-capable Edge1 path.
-2. Populate the deliberately non-production `alpha-staging` directory, then explicitly enable only that registry entry.
-3. Run a bounded dispatch against staged data and verify source immutability, idempotency and provenance.
-4. Publish that dataset's generated runtime snapshots through the PR #518 publisher and verify the private cockpit.
-5. Decide/wire the authenticated operator transport for actual web approve/reject clicks.
-6. Exercise a Fengus template instance only with a bounded generated work item after runtime review; keep archive/network access denied.
-7. Re-run M6 against the deliberately selected Edge1 non-production staging dataset with zero provenance gaps and zero unauthorized writes.
+1. Do not treat repository main as live Edge1 state: the latest read-only Edge1 snapshot still showed the management checkout at `20b3f6c2a5a3da6484b433f6f171c3c713ef920e`, behind the later runtime-publication/dispatch/foundation merges.
+2. Reconcile/synchronize the intended Edge1 checkout through an authenticated write-capable deployment path before Cookie Monster publication or foundation apply.
+3. Run the M9 installer preflight and reviewed `--apply` only through that authenticated write-capable Edge1 path; leave the staging dataset disabled after installation.
+4. Populate one deliberately non-production `alpha-staging` dataset, then explicitly enable only that registry entry.
+5. Run a bounded dispatch against staged data and verify source immutability, idempotency and provenance.
+6. Publish only minimized operator-view snapshots and verify the browser route/access boundary before promoting Cookie Monster into shared navigation.
+7. Keep web approve/reject clicks disabled until an authenticated operator mutation transport and human approval owner are deliberately defined.
+8. Keep Fengus credential-free and runtime-inactive until a separate deployment review authorizes service activation; any later worker instance remains archive/network denied.
+9. Re-run M6 against the deliberately selected Edge1 non-production staging dataset with zero provenance gaps and zero unauthorized writes.
