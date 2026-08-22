@@ -60,9 +60,11 @@ class DigitalArchiveBackupRestoreTests(unittest.TestCase):
             with self.assertRaises(archive_backup.BackupError):
                 archive_backup.load_manifest(root)
 
-    def test_restore_compose_is_isolated_and_version_pinned(self):
+    def test_restore_compose_is_internal_no_port_and_version_pinned(self):
         text = archive_backup.restore_compose_text(pathlib.Path('/tmp/restore-test'))
         self.assertNotIn('ports:', text)
+        self.assertIn('internal: true', text)
+        self.assertEqual(text.count('networks: [restore]'), 3)
         self.assertIn(archive_backup.PAPERLESS_IMAGE, text)
         self.assertIn(archive_backup.POSTGRES_IMAGE, text)
         self.assertIn(archive_backup.VALKEY_IMAGE, text)
@@ -70,18 +72,51 @@ class DigitalArchiveBackupRestoreTests(unittest.TestCase):
         self.assertIn('${RESTORE_DB_PASSWORD}', text)
         self.assertIn('${RESTORE_SECRET_KEY}', text)
 
-    def test_preflight_reports_blockers_without_public_authority(self):
+    def test_consume_queue_must_be_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            consume = pathlib.Path(td) / 'consume'
+            consume.mkdir()
+            self.assertTrue(archive_backup.consume_queue_empty(consume))
+            (consume / 'incoming.pdf').write_bytes(b'pending')
+            self.assertFalse(archive_backup.consume_queue_empty(consume))
+            with self.assertRaises(archive_backup.BackupError):
+                archive_backup.require_consume_quiescent(consume)
+
+    def test_preflight_reports_consume_queue_blocker_without_public_authority(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
-            with mock.patch.object(archive_backup, 'docker_ready', return_value=False), \
-                 mock.patch.object(archive_backup, 'PAPERLESS_EXPORT_ROOT', root / 'missing-export'), \
-                 mock.patch.object(archive_backup, 'ARCHIVEBOX_DATA_ROOT', root / 'missing-archivebox'):
-                info = archive_backup.preflight(root / 'missing-repo')
+            repo = root / 'repo'
+            repo.mkdir()
+            export = root / 'export'
+            export.mkdir()
+            consume = root / 'consume'
+            consume.mkdir()
+            (consume / 'pending.pdf').write_bytes(b'pending')
+            archivebox = root / 'archivebox'
+            archivebox.mkdir()
+            secret1 = root / 'db.secret'
+            secret2 = root / 'app.secret'
+            for secret in (secret1, secret2):
+                secret.write_bytes(b'x' * 40)
+                secret.chmod(0o600)
+            with mock.patch.object(archive_backup, 'docker_ready', return_value=True), \
+                 mock.patch.object(archive_backup, 'PAPERLESS_EXPORT_ROOT', export), \
+                 mock.patch.object(archive_backup, 'PAPERLESS_CONSUME_ROOT', consume), \
+                 mock.patch.object(archive_backup, 'ARCHIVEBOX_DATA_ROOT', archivebox):
+                info = archive_backup.preflight(repo, secret1, secret2)
             self.assertEqual(info['status'], 'preflight-blocked')
+            self.assertIn('paperless-consume-queue-not-empty', info['blockers'])
+            self.assertFalse(info['paperless_consume_queue_empty'])
             self.assertFalse(info['public_changes'])
             self.assertFalse(info['canonical_source_changes'])
             self.assertFalse(info['deletes_backup_data'])
             self.assertFalse(info['off_host_backup_created'])
+
+    def test_cleanup_is_required_for_restore_pass(self):
+        self.assertTrue(archive_backup.acceptance_pass(True, True, True))
+        self.assertFalse(archive_backup.acceptance_pass(True, True, False))
+        self.assertFalse(archive_backup.acceptance_pass(False, True, True))
+        self.assertFalse(archive_backup.acceptance_pass(True, False, True))
 
     def test_restore_acceptance_source_has_no_public_or_backup_deletion_authority(self):
         text = SCRIPT.read_text(encoding='utf-8').lower()
@@ -91,6 +126,7 @@ class DigitalArchiveBackupRestoreTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
         self.assertIn("'production_projects_changed': false", text)
+        self.assertIn("'restore_network_external_egress': false", text)
         self.assertIn("'ephemeral_secret_values_recorded': false", text)
         self.assertIn("'off_host_backup_created': false", text)
 
