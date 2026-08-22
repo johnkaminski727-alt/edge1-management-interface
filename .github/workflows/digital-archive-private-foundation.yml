@@ -1,0 +1,31 @@
+name: Digital Archive private foundation
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/digital-archive/**'
+      - 'docs/archive/**'
+      - 'docs/cookie-monster/bigbird-split-steady-state.md'
+      - 'tests/test_digital_archive_foundation.py'
+      - '.agent/digital-archive.md'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/digital-archive/**'
+      - 'tests/test_digital_archive_foundation.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile foundation tests
+        run: python3 -m py_compile tests/test_digital_archive_foundation.py
+      - name: Run foundation tests
+        run: python3 -m unittest -v tests.test_digital_archive_foundation
