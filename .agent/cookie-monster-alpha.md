@@ -16,6 +16,7 @@ Last updated: 2026-08-22
 - Runtime dataset selection is slug-based and deterministic; neither Big Bird jobs nor the dataset registry may carry arbitrary archive/filesystem paths.
 - Edge1 foundation installation is backup-first and leaves the staging dataset disabled; installation does not equal ingestion activation.
 - Browser publication is derived and minimized by default; raw generated runtime evidence is not a browser contract.
+- The shared Edge1 Operator registry may describe Cookie Monster as staged evidence, but navigation remains disabled until the real route and authorization boundary are accepted live.
 
 ## Implemented surfaces
 
@@ -29,6 +30,7 @@ Last updated: 2026-08-22
 - `deploy/cookie_monster_runtime_publish.py`
 - `deploy/cookie_monster_edge1_install.py`
 - `config/cookie-monster/datasets.example.json`
+- `config/edge1_operator/navigation_registry.json` (staged-disabled Cookie Monster candidate only)
 - `tests/test_cookie_monster_alpha.py`
 - `tests/test_cookie_monster_control.py`
 - `tests/test_cookie_monster_dispatch.py`
@@ -44,6 +46,7 @@ Last updated: 2026-08-22
 - `docs/cookie-monster/alpha-dispatch.md`
 - `docs/cookie-monster/runtime-publication.md`
 - `docs/cookie-monster/edge1-foundation-install.md`
+- `docs/cookie-monster/alpha-operator-runbook.md`
 
 ## Closed review findings
 
@@ -91,14 +94,20 @@ Default publication is summary-only and excludes raw metadata payloads, metadata
 
 Static and runtime symlink sources fail closed. The runtime manifest hashes the published operator views rather than the raw generated snapshots.
 
+## M11 operator-shell registration
+
+Cookie Monster is represented in the canonical Edge1 Operator navigation registry as a `staged_disabled` candidate at `/edge1-status/cookie-monster/`. Its `browser_route` remains null, it is excluded from the navigation palette and ToolBox, and its authorization metadata is explicitly `unverified_route_policy`.
+
+This makes the UI discoverable in the source architecture without pretending the live browser route, deployment state, or access-control boundary has been accepted. Promotion to `accepted_live` still requires real browser/auth acceptance evidence.
+
 ## Remaining activation work
 
-1. Do not treat repository main as live Edge1 state: the latest read-only Edge1 snapshot still showed the management checkout at `20b3f6c2a5a3da6484b433f6f171c3c713ef920e`, behind the later runtime-publication/dispatch/foundation merges.
+1. Do not treat repository main as live Edge1 state: the latest read-only Edge1 snapshot still showed the management checkout at `20b3f6c2a5a3da6484b433f6f171c3c713ef920e`, behind the later runtime-publication/dispatch/foundation/UI-registration merges.
 2. Reconcile/synchronize the intended Edge1 checkout through an authenticated write-capable deployment path before Cookie Monster publication or foundation apply.
 3. Run the M9 installer preflight and reviewed `--apply` only through that authenticated write-capable Edge1 path; leave the staging dataset disabled after installation.
 4. Populate one deliberately non-production `alpha-staging` dataset, then explicitly enable only that registry entry.
 5. Run a bounded dispatch against staged data and verify source immutability, idempotency and provenance.
-6. Publish only minimized operator-view snapshots and verify the browser route/access boundary before promoting Cookie Monster into shared navigation.
+6. Publish only minimized operator-view snapshots and verify the browser route/access boundary before changing the staged operator-shell registration to `accepted_live`.
 7. Keep web approve/reject clicks disabled until an authenticated operator mutation transport and human approval owner are deliberately defined.
 8. Keep Fengus credential-free and runtime-inactive until a separate deployment review authorizes service activation; any later worker instance remains archive/network denied.
 9. Re-run M6 against the deliberately selected Edge1 non-production staging dataset with zero provenance gaps and zero unauthorized writes.
