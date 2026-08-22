@@ -17,7 +17,17 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-ROOT = Path(os.environ.get("EDGE1_OPS_ROOT", "/opt/edge1-management-interface")).resolve()
+
+def _configured_absolute_path(value):
+    """Return an absolute path without resolving a deploy-time symlink target."""
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return Path(os.path.abspath(str(path)))
+
+
+ROOT_CONFIGURED = _configured_absolute_path(os.environ.get("EDGE1_OPS_ROOT", "/opt/edge1-management-interface"))
+ROOT = ROOT_CONFIGURED.resolve()
 ALLOWLIST_PATH = Path(os.environ.get("EDGE1_OPS_ALLOWLIST", str(ROOT / "config/edge1-operations-allowlist.json")))
 DB_PATH = Path(os.environ.get("EDGE1_OPS_DB", "/var/lib/edge1-operations-api/audit.sqlite3"))
 SECRET_FILE = Path(os.environ.get("EDGE1_OPS_SECRET_FILE", "/etc/edge1-operations-api.secret"))
@@ -30,7 +40,25 @@ def utcnow():
     return datetime.now(timezone.utc).isoformat()
 
 
+def ensure_root_stable():
+    """Fail closed if a release/symlink switch changed the configured repo target.
+
+    The API loads code and its default allowlist from one repository generation.
+    Continuing to execute actions after the configured root points at a different
+    generation can produce contradictory repository state or run old policy against
+    a new checkout. A service restart is therefore required after such a switch.
+    """
+    try:
+        current = ROOT_CONFIGURED.resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError("repository root is unavailable; service restart required") from exc
+    if current != ROOT:
+        raise RuntimeError("repository root target changed since service start; service restart required")
+    return ROOT
+
+
 def load_allowlist():
+    ensure_root_stable()
     with ALLOWLIST_PATH.open(encoding="utf-8") as handle:
         data = json.load(handle)
     actions = data.get("actions", {})
@@ -121,6 +149,7 @@ def authenticate(headers, method, path, body):
 
 
 def safe_action(name):
+    ensure_root_stable()
     action = load_allowlist().get(name)
     if not action:
         raise KeyError("unknown action")
@@ -141,6 +170,7 @@ def safe_action(name):
 
 def run_action(name, actor, body_hash):
     argv, cwd, timeout, _ = safe_action(name)
+    ensure_root_stable()
     started = time.monotonic()
     try:
         result = subprocess.run(
@@ -197,16 +227,25 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 actions = load_allowlist()
                 connect_db().close()
-                self.send_json(200, {"status": "ok", "actions": len(actions), "mutations_enabled": MUTATIONS_ENABLED})
+                self.send_json(200, {
+                    "status": "ok",
+                    "actions": len(actions),
+                    "mutations_enabled": MUTATIONS_ENABLED,
+                    "repository_root_stable": True,
+                })
             except Exception as exc:
-                self.send_json(503, {"status": "error", "detail": str(exc)})
+                self.send_json(503, {"status": "error", "detail": str(exc), "repository_root_stable": False})
             return
         if self.path == "/v1/actions":
             ok, detail, actor = authenticate(self.headers, "GET", self.path, b"")
             if not ok:
                 self.send_json(401, {"error": detail})
                 return
-            actions = load_allowlist()
+            try:
+                actions = load_allowlist()
+            except RuntimeError as exc:
+                self.send_json(503, {"error": str(exc), "repository_root_stable": False})
+                return
             self.send_json(200, {"actions": [{"name": name, "mutating": bool(value.get("mutating"))}
                                                for name, value in sorted(actions.items())]})
             return
