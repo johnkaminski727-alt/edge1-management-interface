@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""One-shot loopback SMTP -> Mail Room acceptance for Edge1 Mail Gateway v1.
+"""One-shot loopback SMTP -> raw archive -> Mail Room acceptance for Edge1 Mail Gateway v1.
 
 This tool never contacts an external host. It connects only to 127.0.0.1:25, submits
-one synthetic message to a configured candidate domain, then verifies that the Postfix
-pipe transport persisted exactly one authoritative production_native Mail Room record.
+one synthetic message to a configured candidate domain, then verifies both the durable
+per-domain raw RFC822 archive and exactly one authoritative production_native Mail Room
+record correlated to the Postfix queue id.
 """
 
 from __future__ import annotations
@@ -35,6 +36,8 @@ from mail_correspondence_store import (  # noqa: E402
 
 CONFIG = ROOT / "config" / "messaging" / "edge1-mail-gateway-v1.json"
 STORE = pathlib.Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
+ARCHIVE_ROOT = pathlib.Path("/var/lib/wwcx-mail-gateway/inbound")
+ARCHIVE_CONTRACT = "wwcx.edge1-mail-gateway-raw-archive.v1"
 CONTRACT = "wwcx.edge1-mail-gateway-local-acceptance.v1"
 EXPECTED_USER = "wwcx-mail-gateway"
 
@@ -124,7 +127,63 @@ def _wait_for_record(path: pathlib.Path, message_id: str, timeout: float = 12.0)
     raise AcceptanceError("local SMTP message was not persisted by Mail Room") from last_error
 
 
-def run(*, config_path: pathlib.Path, store_path: pathlib.Path, domain: str | None) -> dict[str, Any]:
+def _archive_evidence(
+    archive_root: pathlib.Path,
+    *,
+    domain: str,
+    recipient: str,
+    provider_message_id: str,
+) -> dict[str, Any]:
+    prefix = "postfix:"
+    if not provider_message_id.startswith(prefix):
+        raise AcceptanceError("Postfix queue correlation is unavailable")
+    queue_id = provider_message_id[len(prefix):]
+    recipient_hash = hashlib.sha256(recipient.casefold().encode("utf-8")).hexdigest()[:16]
+    directory = archive_root / domain / f"{queue_id}-{recipient_hash}"
+    message_path = directory / "message.eml"
+    metadata_path = directory / "metadata.json"
+    if directory.is_symlink() or not directory.is_dir():
+        raise AcceptanceError("raw archive delivery directory is unavailable")
+    if message_path.is_symlink() or not message_path.is_file():
+        raise AcceptanceError("raw RFC822 archive is unavailable")
+    if metadata_path.is_symlink() or not metadata_path.is_file():
+        raise AcceptanceError("raw archive metadata is unavailable")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if metadata.get("contract") != ARCHIVE_CONTRACT:
+        raise AcceptanceError("raw archive metadata contract is invalid")
+    if metadata.get("domain") != domain:
+        raise AcceptanceError("raw archive domain is invalid")
+    if metadata.get("envelope_recipient") != recipient:
+        raise AcceptanceError("raw archive recipient is invalid")
+    if metadata.get("postfix_queue_id") != queue_id:
+        raise AcceptanceError("raw archive queue correlation is invalid")
+    normalization = metadata.get("normalization")
+    if not isinstance(normalization, dict) or normalization.get("status") != "ingested":
+        raise AcceptanceError("raw archive normalization did not complete")
+    raw = message_path.read_bytes()
+    if not raw or len(raw) != metadata.get("size_bytes"):
+        raise AcceptanceError("raw archive size evidence is invalid")
+    raw_sha256 = hashlib.sha256(raw).hexdigest()
+    if raw_sha256 != metadata.get("rfc822_sha256"):
+        raise AcceptanceError("raw archive digest evidence is invalid")
+    original_to = f"X-Original-To: {recipient}".encode("utf-8")
+    if original_to not in raw:
+        raise AcceptanceError("raw archive lacks Postfix original-recipient evidence")
+    return {
+        "raw_archive_verified": True,
+        "archive_contract": ARCHIVE_CONTRACT,
+        "archive_rfc822_sha256": raw_sha256,
+        "archive_size_bytes": len(raw),
+    }
+
+
+def run(
+    *,
+    config_path: pathlib.Path,
+    store_path: pathlib.Path,
+    archive_root: pathlib.Path,
+    domain: str | None,
+) -> dict[str, Any]:
     try:
         username = pwd.getpwuid(os.geteuid()).pw_name
     except KeyError as exc:
@@ -133,6 +192,8 @@ def run(*, config_path: pathlib.Path, store_path: pathlib.Path, domain: str | No
         raise AcceptanceError(f"acceptance must run as {EXPECTED_USER}")
     if store_path != STORE:
         raise AcceptanceError("acceptance is restricted to the live Mail Room store")
+    if archive_root != ARCHIVE_ROOT:
+        raise AcceptanceError("acceptance is restricted to the live raw archive root")
     if not store_path.is_file() or store_path.is_symlink():
         raise AcceptanceError("live Mail Room store is unavailable or unsafe")
 
@@ -174,6 +235,12 @@ def run(*, config_path: pathlib.Path, store_path: pathlib.Path, domain: str | No
     if record.get("mutation_authorized") is not False or record.get("send_authorized") is not False:
         raise AcceptanceError("ingested record unexpectedly grants authority")
 
+    archive = _archive_evidence(
+        archive_root,
+        domain=selected_domain,
+        recipient=recipient,
+        provider_message_id=provider_message_id,
+    )
     return {
         "contract": CONTRACT,
         "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -188,6 +255,7 @@ def run(*, config_path: pathlib.Path, store_path: pathlib.Path, domain: str | No
         "record_count_after": after["record_count"],
         "ingested_count": 1,
         "provenance": record["provenance"],
+        **archive,
         "content_output": False,
         "credentials_output": False,
         "mailbox_mutation_authorized": False,
@@ -202,6 +270,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=str(CONFIG))
     parser.add_argument("--store", default=str(STORE))
+    parser.add_argument("--archive-root", default=str(ARCHIVE_ROOT))
     parser.add_argument("--domain")
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
@@ -213,6 +282,7 @@ def main() -> int:
         result = run(
             config_path=pathlib.Path(args.config).absolute(),
             store_path=pathlib.Path(args.store).absolute(),
+            archive_root=pathlib.Path(args.archive_root).absolute(),
             domain=args.domain,
         )
         print(json.dumps(result, sort_keys=True, indent=2))
