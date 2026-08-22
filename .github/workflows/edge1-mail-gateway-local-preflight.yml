@@ -1,0 +1,37 @@
+name: Edge1 Mail Gateway local preflight
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/messaging/prepare-edge1-mail-gateway-local-preflight.sh'
+      - 'tests/validate_edge1_mail_gateway_local_preflight.py'
+      - '.github/workflows/edge1-mail-gateway-local-preflight.yml'
+      - 'tools/messaging/render_edge1_mail_gateway_postfix.py'
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/messaging/prepare-edge1-mail-gateway-local-preflight.sh'
+      - 'tests/validate_edge1_mail_gateway_local_preflight.py'
+      - '.github/workflows/edge1-mail-gateway-local-preflight.yml'
+      - 'tools/messaging/render_edge1_mail_gateway_postfix.py'
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check preflight shell syntax
+        run: sh -n deploy/messaging/prepare-edge1-mail-gateway-local-preflight.sh
+      - name: Compile validator
+        run: python3 -m py_compile tests/validate_edge1_mail_gateway_local_preflight.py
+      - name: Validate read-only preflight behavior
+        run: python3 tests/validate_edge1_mail_gateway_local_preflight.py
+      - name: Assert no live Postfix mutation commands
+        run: |
+          ! grep -nE 'postconf[[:space:]]+-e|postmap[[:space:]]|systemctl[[:space:]]+(restart|reload)[[:space:]]+postfix|service[[:space:]]+postfix' \
+            deploy/messaging/prepare-edge1-mail-gateway-local-preflight.sh
