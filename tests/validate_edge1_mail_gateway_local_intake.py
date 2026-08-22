@@ -41,7 +41,7 @@ def message(*, original_to: str | None = "vendor@creekco.ca", html_only: bool = 
             [
                 b"Content-Type: text/html; charset=utf-8",
                 b"",
-                b"<p>not accepted</p>",
+                b"<p>not accepted by strict normalization</p>",
                 b"",
             ]
         )
@@ -70,11 +70,15 @@ def main() -> int:
     assert "relay_domains =" in rendered["main.cf.fragment"]
     assert "reject_unauth_destination" in rendered["main.cf.fragment"]
     assert "wwcxmail_destination_recipient_limit = 1" in rendered["main.cf.fragment"]
+    assert "message_size_limit = 52428800" in rendered["main.cf.fragment"]
     assert "user=wwcx-mail-gateway" in rendered["master.cf.fragment"]
     assert "flags=ROq" in rendered["master.cf.fragment"]
+    assert "edge1_mail_gateway_archive.py" in rendered["master.cf.fragment"]
+    assert "edge1_mail_gateway_ingest.py" not in rendered["master.cf.fragment"]
     assert "--recipient ${original_recipient}" in rendered["master.cf.fragment"]
     assert "--recipient ${recipient}" not in rendered["master.cf.fragment"]
     assert "--queue-id ${queue_id}" in rendered["master.cf.fragment"]
+    assert "--archive-root /var/lib/wwcx-mail-gateway/inbound" in rendered["master.cf.fragment"]
 
     unsafe = json.loads(json.dumps(config))
     unsafe["activation"]["public_smtp_listener_enabled"] = True
@@ -155,7 +159,7 @@ def main() -> int:
                 envelope_recipient="html@creekco.ca",
                 queue_id="ABC126",
             )
-            raise AssertionError("HTML-only gateway message was accepted")
+            raise AssertionError("HTML-only gateway message was accepted by strict normalizer")
         except Edge1MailGatewaySourceError:
             pass
 
@@ -184,7 +188,8 @@ def main() -> int:
     print("Edge1 Mail Gateway local-only intake validation passed")
     print("Catch-all recipient authority uses SMTP original recipient")
     print("One-recipient pipe delivery is required for exact attribution")
-    print("Conflicting original-recipient evidence fails closed")
+    print("Postfix transport now enters durable raw archive before normalization")
+    print("Conflicting original-recipient evidence still fails strict normalization")
     print("Postfix rendering remains loopback-only and relay-denying")
     print("ww.cx remains excluded from v1 managed-domain rendering")
     return 0
