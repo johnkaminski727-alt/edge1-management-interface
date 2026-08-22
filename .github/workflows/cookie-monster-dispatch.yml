@@ -1,0 +1,35 @@
+name: Cookie Monster dataset dispatch
+
+on:
+  pull_request:
+    paths:
+      - 'server/cookie_monster_dispatch.py'
+      - 'server/cookie_monster_contract.py'
+      - 'server/cookie_monster_alpha.py'
+      - 'tests/test_cookie_monster_dispatch.py'
+      - 'config/cookie-monster/datasets.example.json'
+      - 'docs/cookie-monster/alpha-dispatch.md'
+      - '.agent/cookie-monster-alpha.md'
+  push:
+    branches: [main]
+    paths:
+      - 'server/cookie_monster_dispatch.py'
+      - 'tests/test_cookie_monster_dispatch.py'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile dispatcher
+        run: python3 -m py_compile server/cookie_monster_alpha.py server/cookie_monster_contract.py server/cookie_monster_dispatch.py tests/test_cookie_monster_dispatch.py
+      - name: Validate example registry JSON
+        run: python3 -m json.tool config/cookie-monster/datasets.example.json >/dev/null
+      - name: Run dispatch tests
+        run: python3 -m unittest -v tests.test_cookie_monster_dispatch
