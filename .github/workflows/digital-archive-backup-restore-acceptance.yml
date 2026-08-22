@@ -37,8 +37,12 @@ jobs:
           ! grep -nEi '(certbot|a2ensite|a2enmod|iptables|nft add|ufw |/var/www/edge1-status|rm -rf|shutil\.rmtree|docker compose down -v)' deploy/digital-archive/backup_restore_acceptance.py
           grep -F "'off_host_backup_created': False" deploy/digital-archive/backup_restore_acceptance.py
           grep -F "'production_projects_changed': False" deploy/digital-archive/backup_restore_acceptance.py
+          grep -F "'restore_network_external_egress': False" deploy/digital-archive/backup_restore_acceptance.py
           grep -F "'ephemeral_secret_values_recorded': False" deploy/digital-archive/backup_restore_acceptance.py
           grep -F "'public_changes': False" deploy/digital-archive/backup_restore_acceptance.py
+          grep -F "internal: true" deploy/digital-archive/backup_restore_acceptance.py
+          grep -F "paperless-consume-queue-not-empty" deploy/digital-archive/backup_restore_acceptance.py
+          grep -F "disposable_cleanup_pass" deploy/digital-archive/backup_restore_acceptance.py
       - name: Reject obvious secret material
         run: |
           ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|password[[:space:]]*=[[:space:]]*[^$])' \
