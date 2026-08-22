@@ -9,11 +9,11 @@ non-production activation that:
 * dispatches the fixed path-free Alpha job contract;
 * exercises one fixed Fengus systemd work item through its hardened unit;
 * writes a live acceptance snapshot; and
-* publishes the private Cookie Monster cockpit with bounded staging detail.
+* stages the Cookie Monster operator view with bounded staging detail outside the public web root.
 
-No DNS, certificate, firewall, Apache, authentication, canonical archive or
-external account is changed. Rollback restores control state and the published
-cockpit while intentionally preserving generated/source/Fengus evidence.
+No DNS, certificate, firewall, Apache, authentication, canonical archive, public
+web root or external account is changed. Rollback restores control and staged
+operator-view state while intentionally preserving generated/source/Fengus evidence.
 """
 from __future__ import annotations
 
@@ -41,7 +41,8 @@ JOB_PATH = Path('/var/lib/cookie-monster-alpha/jobs/alpha-staging.json')
 FENGUS_INBOX = Path('/var/lib/cookie-monster-alpha/fengus/inbox')
 FENGUS_OUTBOX = Path('/var/lib/cookie-monster-alpha/fengus/outbox')
 FENGUS_GROUP = 'cookie-monster-fengus'
-WEB_ROOT = Path('/var/www/edge1-status/cookie-monster')
+FENGUS_UNIT = Path('/etc/systemd/system/cookie-monster-fengus-worker@.service')
+COCKPIT_STAGE_ROOT = Path('/var/lib/cookie-monster-alpha/operator-view')
 BACKUP_ROOT = Path('/var/backups')
 CURRENT_STATE = Path('/var/lib/cookie-monster-alpha/activation-current.json')
 STATE_SCHEMA = 'wwcx.cookie-monster.edge1-activation.v1'
@@ -166,12 +167,31 @@ def _required_repo_files(repo: Path) -> tuple[Path, ...]:
     )
 
 
+def verify_fengus_foundation(
+    unit_path: Path = FENGUS_UNIT,
+    inbox: Path = FENGUS_INBOX,
+    outbox: Path = FENGUS_OUTBOX,
+    group_name: str = FENGUS_GROUP,
+) -> dict[str, Any]:
+    if unit_path.is_symlink() or not unit_path.is_file():
+        raise ActivationError('Fengus hardened worker unit is not installed')
+    try:
+        group = grp.getgrnam(group_name)
+    except KeyError as exc:
+        raise ActivationError('Fengus service group is missing') from exc
+    for label, path in (('inbox', inbox), ('outbox', outbox)):
+        if path.is_symlink() or not path.is_dir():
+            raise ActivationError(f'Fengus {label} directory is missing or invalid')
+    return {'unit': str(unit_path), 'group_gid': group.gr_gid, 'inbox': str(inbox), 'outbox': str(outbox)}
+
+
 def preflight(
     repo: Path = EXPECTED_REPO,
     registry_path: Path = REGISTRY_PATH,
     dataset_path: Path = DATASET_PATH,
     generated_path: Path = GENERATED_PATH,
     current_state: Path = CURRENT_STATE,
+    verify_runtime: bool = True,
 ) -> dict[str, Any]:
     repo = repo.expanduser().resolve()
     if not repo.is_dir():
@@ -200,6 +220,7 @@ def preflight(
     generated = generated_path.exists()
     if generated and (generated_path.is_symlink() or not generated_path.is_dir()):
         raise ActivationError('generated alpha-staging path is not a regular directory')
+    fengus_foundation = verify_fengus_foundation() if verify_runtime else None
     return {
         'status': 'preflight-ok',
         'repo': str(repo),
@@ -211,6 +232,8 @@ def preflight(
         'synthetic_files': len(source),
         'generated_present': generated,
         'current_activation_present': current_state.is_file() and not current_state.is_symlink(),
+        'fengus_foundation': fengus_foundation,
+        'cockpit_stage': str(COCKPIT_STAGE_ROOT),
         'public_changes': False,
         'canonical_archive_access': False,
     }
@@ -317,7 +340,8 @@ def read_jsonl_first(path: Path) -> dict[str, Any]:
 
 def _work_request(job: dict[str, Any], record: dict[str, Any]) -> dict[str, Any]:
     asset = record.get('source_asset_id')
-    if not isinstance(asset, str) or not asset.startswith('sha256:'):
+    digest = asset[7:] if isinstance(asset, str) and asset.startswith('sha256:') else ''
+    if len(digest) != 64 or any(char not in '0123456789abcdef' for char in digest):
         raise ActivationError('generated record missing bounded source asset id')
     work_id = 'work-' + hashlib.sha256(asset.encode('utf-8')).hexdigest()[:24]
     return {
@@ -356,9 +380,17 @@ def run_fengus(
     unit = f'cookie-monster-fengus-worker@{work_id}.service'
     run(['/bin/systemctl', 'start', unit], timeout=60)
     result = read_json(result_path)
-    if result.get('schema') != RESULT_SCHEMA or result.get('work_id') != work_id or result.get('operation') != request['operation']:
+    result_hash = result.get('result_hash')
+    digest = result_hash[7:] if isinstance(result_hash, str) and result_hash.startswith('sha256:') else ''
+    if (
+        result.get('schema') != RESULT_SCHEMA
+        or result.get('work_id') != work_id
+        or result.get('operation') != request['operation']
+        or len(digest) != 64
+        or any(char not in '0123456789abcdef' for char in digest)
+    ):
         raise ActivationError('Fengus result failed bounded schema verification')
-    return {'unit': unit, 'work_id': work_id, 'result_hash': result.get('result_hash')}
+    return {'unit': unit, 'work_id': work_id, 'result_hash': result_hash}
 
 
 def update_fengus_status(generated_path: Path, fengus: dict[str, Any]) -> dict[str, Any]:
@@ -425,10 +457,16 @@ def write_live_acceptance(
         raise ActivationError('generated status has unexpected schema')
     summary = status.get('summary') if isinstance(status.get('summary'), dict) else {}
     gaps = verify_provenance(status, dataset_path)
+    duplicate_groups = summary.get('duplicate_groups')
+    unauthorized_writes = summary.get('unauthorized_source_writes')
+    if type(duplicate_groups) is not int or duplicate_groups < 0:
+        raise ActivationError('generated duplicate group count is invalid')
+    if type(unauthorized_writes) is not int or unauthorized_writes < 0:
+        raise ActivationError('generated unauthorized-write count is invalid')
     criteria = {
         'synthetic_source_immutable': {'pass': source_before == source_after, 'value': len(source_after), 'detail': ''},
-        'duplicate_detection': {'pass': int(summary.get('duplicate_groups', 0)) >= 1, 'value': summary.get('duplicate_groups'), 'detail': ''},
-        'zero_unauthorized_source_writes': {'pass': summary.get('unauthorized_source_writes') == 0, 'value': summary.get('unauthorized_source_writes'), 'detail': ''},
+        'duplicate_detection': {'pass': duplicate_groups >= 1, 'value': duplicate_groups, 'detail': ''},
+        'zero_unauthorized_source_writes': {'pass': unauthorized_writes == 0, 'value': unauthorized_writes, 'detail': ''},
         'zero_provenance_gaps': {'pass': not gaps, 'value': len(gaps), 'detail': ''},
         'fengus_bounded_systemd_work': {'pass': bool(fengus.get('result_hash')), 'value': fengus.get('work_id'), 'detail': ''},
     }
@@ -442,9 +480,9 @@ def write_live_acceptance(
         'summary': {
             'assets': summary.get('knowledge_records', 0),
             'unique_assets': summary.get('unique_assets', 0),
-            'duplicate_groups': summary.get('duplicate_groups', 0),
+            'duplicate_groups': duplicate_groups,
             'provenance_gaps': len(gaps),
-            'unauthorized_source_writes': summary.get('unauthorized_source_writes'),
+            'unauthorized_source_writes': unauthorized_writes,
             'fengus_jobs_outside_allowlist': 0,
         },
         'criteria': criteria,
@@ -471,7 +509,7 @@ def publish(repo: Path, generated_path: Path) -> dict[str, Any]:
         '/usr/bin/python3', str(repo / 'deploy/cookie_monster_runtime_publish.py'),
         '--repo-root', str(repo),
         '--generated-root', str(generated_path),
-        '--web-root', str(WEB_ROOT),
+        '--web-root', str(COCKPIT_STAGE_ROOT),
         '--backup-root', str(BACKUP_ROOT),
         '--publish-detail',
         '--apply',
@@ -485,7 +523,7 @@ def publish(repo: Path, generated_path: Path) -> dict[str, Any]:
             try:
                 run([
                     '/usr/bin/python3', str(repo / 'deploy/cookie_monster_runtime_publish.py'),
-                    '--web-root', str(WEB_ROOT),
+                    '--web-root', str(COCKPIT_STAGE_ROOT),
                     '--rollback', str(recovery),
                 ], cwd=repo, timeout=120)
             except ActivationError:
@@ -514,6 +552,7 @@ def create_backup(
     registry_path: Path,
     job_path: Path,
     dataset_status: str,
+    repo: Path,
 ) -> tuple[Path, dict[str, Any]]:
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     backup = backup_root / f'wwcx-cookie-monster-alpha-activation-{stamp}-{os.getpid()}'
@@ -528,6 +567,7 @@ def create_backup(
             'job': _backup_file(job_path, backup / 'alpha-staging-job.json'),
         },
         'publisher_backup': None,
+        'publisher_script': _backup_file(repo / 'deploy/cookie_monster_runtime_publish.py', backup / 'runtime-publisher.py'),
         'generated_evidence_preserved': True,
         'source_evidence_preserved': True,
         'fengus_evidence_preserved': True,
@@ -595,11 +635,18 @@ def rollback(backup: Path, repo: Path = EXPECTED_REPO) -> dict[str, Any]:
         if not isinstance(publisher_backup, str):
             raise ActivationError('publisher backup state is invalid')
         safe_publisher_backup = _safe_publisher_backup_path(Path(publisher_backup))
+        publisher_script = backup / 'runtime-publisher.py'
+        publisher_state = state.get('publisher_script')
+        if not isinstance(publisher_state, dict) or publisher_state.get('present') is not True:
+            raise ActivationError('activation backup is missing the exact runtime publisher')
+        expected_publisher_hash = publisher_state.get('sha256')
+        if not isinstance(expected_publisher_hash, str) or sha256_file(publisher_script) != expected_publisher_hash:
+            raise ActivationError('activation runtime publisher backup hash mismatch')
         run([
-            '/usr/bin/python3', str(repo / 'deploy/cookie_monster_runtime_publish.py'),
-            '--web-root', str(WEB_ROOT),
+            '/usr/bin/python3', str(publisher_script),
+            '--web-root', str(COCKPIT_STAGE_ROOT),
             '--rollback', str(safe_publisher_backup),
-        ], cwd=repo, timeout=120)
+        ], cwd=backup, timeout=120)
     _restore_file(backup, state, 'registry', 'datasets.json', REGISTRY_PATH)
     _restore_file(backup, state, 'job', 'alpha-staging-job.json', JOB_PATH)
     marker = {
@@ -629,7 +676,7 @@ def apply(repo: Path = EXPECTED_REPO) -> dict[str, Any]:
     repo = _authorized_mutation_repo(repo)
     info = preflight(repo=repo)
     repo = Path(info['repo'])
-    backup, backup_state = create_backup(BACKUP_ROOT, REGISTRY_PATH, JOB_PATH, info['dataset_state'])
+    backup, backup_state = create_backup(BACKUP_ROOT, REGISTRY_PATH, JOB_PATH, info['dataset_state'], repo)
     publisher_backup: str | None = None
     try:
         prepare_synthetic_dataset(DATASET_PATH)
@@ -662,7 +709,7 @@ def apply(repo: Path = EXPECTED_REPO) -> dict[str, Any]:
             'job_id': job.get('job_id'),
             'run_id': dispatch.get('run_id'),
             'work_id': fengus.get('work_id'),
-            'cockpit': str(WEB_ROOT),
+            'cockpit_stage': str(COCKPIT_STAGE_ROOT),
             'public_changes': False,
         }
         atomic_json(CURRENT_STATE, current, mode=0o600)
@@ -673,7 +720,7 @@ def apply(repo: Path = EXPECTED_REPO) -> dict[str, Any]:
             'run_id': dispatch.get('run_id'),
             'work_id': fengus.get('work_id'),
             'acceptance': acceptance.get('result'),
-            'cockpit': str(WEB_ROOT),
+            'cockpit_stage': str(COCKPIT_STAGE_ROOT),
             'publisher_backup': publisher_backup,
             'public_changes': False,
         }
@@ -688,7 +735,7 @@ def apply(repo: Path = EXPECTED_REPO) -> dict[str, Any]:
             if publisher_backup:
                 run([
                     '/usr/bin/python3', str(repo / 'deploy/cookie_monster_runtime_publish.py'),
-                    '--web-root', str(WEB_ROOT), '--rollback', publisher_backup,
+                    '--web-root', str(COCKPIT_STAGE_ROOT), '--rollback', publisher_backup,
                 ], cwd=repo, timeout=120)
             _restore_file(backup, backup_state, 'registry', 'datasets.json', REGISTRY_PATH)
             _restore_file(backup, backup_state, 'job', 'alpha-staging-job.json', JOB_PATH)
