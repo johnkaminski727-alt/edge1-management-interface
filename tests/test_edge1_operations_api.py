@@ -58,6 +58,34 @@ class OperationsApiTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.module.safe_action("escape")
 
+    def test_repository_root_symlink_target_drift_is_rejected(self):
+        root = Path(self.tmp.name)
+        release_one = root / "release-one"
+        release_two = root / "release-two"
+        release_one.mkdir()
+        release_two.mkdir()
+        logical_root = root / "current"
+        logical_root.symlink_to(release_one, target_is_directory=True)
+
+        self.module.ROOT_CONFIGURED = logical_root.absolute()
+        self.module.ROOT = logical_root.resolve()
+        self.assertEqual(self.module.ensure_root_stable(), release_one.resolve())
+
+        logical_root.unlink()
+        logical_root.symlink_to(release_two, target_is_directory=True)
+
+        with self.assertRaisesRegex(RuntimeError, "target changed"):
+            self.module.ensure_root_stable()
+        with self.assertRaisesRegex(RuntimeError, "target changed"):
+            self.module.safe_action("safe")
+
+    def test_repository_root_disappearance_is_rejected(self):
+        root = Path(self.tmp.name)
+        missing = root / "missing-root"
+        self.module.ROOT_CONFIGURED = missing
+        with self.assertRaisesRegex(RuntimeError, "unavailable"):
+            self.module.ensure_root_stable()
+
 
 if __name__ == "__main__":
     unittest.main()
