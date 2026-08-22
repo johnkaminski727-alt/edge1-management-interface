@@ -1,0 +1,62 @@
+name: Edge1 Mail Gateway raw archive
+
+on:
+  pull_request:
+    paths:
+      - 'tools/messaging/edge1_mail_gateway_archive.py'
+      - 'tools/messaging/edge1_mail_gateway_local_acceptance.py'
+      - 'tools/messaging/render_edge1_mail_gateway_postfix.py'
+      - 'deploy/messaging/apply-edge1-mail-gateway-local.sh'
+      - 'deploy/messaging/migrate-edge1-mail-gateway-raw-archive.sh'
+      - 'tests/test_edge1_mail_gateway_archive.py'
+      - 'tests/validate_edge1_mail_gateway_local_intake.py'
+      - 'tests/validate_edge1_mail_gateway_local_apply.py'
+      - 'tests/validate_edge1_mail_gateway_raw_archive_migration.py'
+      - '.github/workflows/edge1-mail-gateway-raw-archive.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/messaging/edge1_mail_gateway_archive.py'
+      - 'tools/messaging/edge1_mail_gateway_local_acceptance.py'
+      - 'tools/messaging/render_edge1_mail_gateway_postfix.py'
+      - 'deploy/messaging/apply-edge1-mail-gateway-local.sh'
+      - 'deploy/messaging/migrate-edge1-mail-gateway-raw-archive.sh'
+      - 'tests/test_edge1_mail_gateway_archive.py'
+      - 'tests/validate_edge1_mail_gateway_local_intake.py'
+      - 'tests/validate_edge1_mail_gateway_local_apply.py'
+      - 'tests/validate_edge1_mail_gateway_raw_archive_migration.py'
+      - '.github/workflows/edge1-mail-gateway-raw-archive.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check migration shell syntax
+        run: |
+          bash -n deploy/messaging/apply-edge1-mail-gateway-local.sh
+          bash -n deploy/messaging/migrate-edge1-mail-gateway-raw-archive.sh
+      - name: Compile raw archive tools
+        run: |
+          python3 -m py_compile tools/messaging/edge1_mail_gateway_archive.py
+          python3 -m py_compile tools/messaging/edge1_mail_gateway_local_acceptance.py
+          python3 -m py_compile tools/messaging/render_edge1_mail_gateway_postfix.py
+          python3 -m py_compile tests/test_edge1_mail_gateway_archive.py
+          python3 -m py_compile tests/validate_edge1_mail_gateway_raw_archive_migration.py
+      - name: Validate durable raw archive
+        run: python3 tests/test_edge1_mail_gateway_archive.py
+      - name: Validate local intake rendering
+        run: python3 tests/validate_edge1_mail_gateway_local_intake.py
+      - name: Validate local apply package
+        run: python3 tests/validate_edge1_mail_gateway_local_apply.py
+      - name: Validate live migration package
+        run: python3 tests/validate_edge1_mail_gateway_raw_archive_migration.py
+      - name: Guard public activation boundaries
+        run: |
+          ! grep -R -nE 'inet_interfaces[[:space:]]*=[[:space:]]*(all|0\.0\.0\.0)|production_mx_changes_authorized["[:space:]:=]+true|public_smtp_listener_enabled["[:space:]:=]+true' \
+            deploy/messaging/apply-edge1-mail-gateway-local.sh \
+            deploy/messaging/migrate-edge1-mail-gateway-raw-archive.sh \
+            tools/messaging/render_edge1_mail_gateway_postfix.py
