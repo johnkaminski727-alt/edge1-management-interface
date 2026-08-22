@@ -85,6 +85,7 @@ class ActivationTests(unittest.TestCase):
                     dataset_path=dataset,
                     generated_path=root / 'generated',
                     current_state=root / 'current.json',
+                    verify_runtime=False,
                 )
 
     def test_preflight_is_readonly_and_accepts_disabled_empty_foundation(self):
@@ -102,12 +103,14 @@ class ActivationTests(unittest.TestCase):
                 dataset_path=dataset,
                 generated_path=root / 'generated',
                 current_state=root / 'current.json',
+                verify_runtime=False,
             )
             after = list(root.rglob('*'))
             self.assertEqual(info['status'], 'preflight-ok')
             self.assertEqual(info['dataset_state'], 'empty')
             self.assertFalse(info['dataset_enabled'])
             self.assertFalse(info['public_changes'])
+            self.assertEqual(info['cockpit_stage'], str(cm.COCKPIT_STAGE_ROOT))
             self.assertEqual(before, after)
 
     def test_preflight_rejects_writable_staging_directory(self):
@@ -121,6 +124,7 @@ class ActivationTests(unittest.TestCase):
                 cm.preflight(
                     repo=repo, registry_path=registry, dataset_path=dataset,
                     generated_path=root / 'generated', current_state=root / 'current.json',
+                    verify_runtime=False,
                 )
 
     def test_mutation_repo_is_fixed(self):
@@ -155,6 +159,16 @@ class ActivationTests(unittest.TestCase):
         encoded = json.dumps(request, sort_keys=True).lower()
         for forbidden in ('/srv/', '/var/', 'http://', 'https://', 'command', 'archive', 'credential'):
             self.assertNotIn(forbidden, encoded)
+
+    def test_work_request_rejects_malformed_sha256(self):
+        job = {'job_id': 'cmjob-' + ('b' * 24)}
+        for asset in ('sha256:not-hex', 'sha256:' + ('A' * 64), 'sha256:' + ('a' * 63), 'md5:' + ('a' * 64)):
+            with self.subTest(asset=asset), self.assertRaises(cm.ActivationError):
+                cm._work_request(job, {'source_asset_id': asset})
+
+    def test_cockpit_stage_is_not_public_web_root(self):
+        self.assertTrue(str(cm.COCKPIT_STAGE_ROOT).startswith('/var/lib/cookie-monster-alpha/'))
+        self.assertFalse(str(cm.COCKPIT_STAGE_ROOT).startswith('/var/www/'))
 
     def test_live_acceptance_passes_verified_synthetic_state(self):
         with tempfile.TemporaryDirectory() as td:
