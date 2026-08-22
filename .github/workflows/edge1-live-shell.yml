@@ -5,12 +5,14 @@ on:
     paths:
       - 'tools/mcp/edge1-live-shell/**'
       - 'prompts/edge1-authenticated-operator.md'
+      - 'tests/test_edge1_live_shell_cookie_monster.py'
       - '.github/workflows/edge1-live-shell.yml'
   push:
     branches: [main]
     paths:
       - 'tools/mcp/edge1-live-shell/**'
       - 'prompts/edge1-authenticated-operator.md'
+      - 'tests/test_edge1_live_shell_cookie_monster.py'
       - '.github/workflows/edge1-live-shell.yml'
 
 permissions:
@@ -34,3 +36,11 @@ jobs:
       - name: Verify MCP SDK imports
         working-directory: tools/mcp/edge1-live-shell
         run: node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/server/stdio'), import('zod/v4')]).then(() => console.error('imports ok'))"
+      - name: Validate Cookie Monster named-action boundary
+        run: python3 -m unittest -v tests.test_edge1_live_shell_cookie_monster
+      - name: Keep generic shell independently gated
+        run: |
+          grep -F "EDGE1_ENABLE_RAW_SHELL" tools/mcp/edge1-live-shell/src/index.js
+          grep -F "EDGE1_ALLOW_COOKIE_MONSTER" tools/mcp/edge1-live-shell/src/index.js
+          grep -F "EDGE1_COOKIE_MONSTER_TARGET_SHA" tools/mcp/edge1-live-shell/src/index.js
+          ! grep -nE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' tools/mcp/edge1-live-shell/src/index.js tools/mcp/edge1-live-shell/README.md

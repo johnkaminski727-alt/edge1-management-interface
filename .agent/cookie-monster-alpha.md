@@ -12,11 +12,12 @@ Last updated: 2026-08-22
 - Big Bird remains control-plane/orchestration; its Cookie Monster handoff is a bounded job contract, not archive authority.
 - Fengus is a bounded worker with no direct archive credentials or direct archive path in its work-item contract.
 - Human review is append-only; web mutation stays disabled until an authenticated operator transport is deliberately wired.
-- Runtime cockpit publication is a separate atomic copy from generated evidence into an operator web root; generated state is never copied back into Git.
+- Runtime operator-view publication is a separate atomic copy from generated evidence; generated state is never copied back into Git and live Alpha activation stages the view outside Apache-served roots.
 - Runtime dataset selection is slug-based and deterministic; neither Big Bird jobs nor the dataset registry may carry arbitrary archive/filesystem paths.
 - Edge1 foundation installation is backup-first and leaves the staging dataset disabled; installation does not equal ingestion activation.
 - Browser publication is derived and minimized by default; raw generated runtime evidence is not a browser contract.
 - The shared Edge1 Operator registry may describe Cookie Monster as staged evidence, but navigation remains disabled until the real route and authorization boundary are accepted live.
+- Live Alpha activation is a single backup-first transaction with fixed synthetic staging, provenance acceptance, one bounded Fengus proof and exact rollback; it does not widen the canonical Edge1 Operator or write the mixed/public `/edge1-status/` tree.
 
 ## Implemented surfaces
 
@@ -29,6 +30,7 @@ Last updated: 2026-08-22
 - `deploy/cookie-monster-fengus-worker@.service`
 - `deploy/cookie_monster_runtime_publish.py`
 - `deploy/cookie_monster_edge1_install.py`
+- `deploy/cookie_monster_edge1_activate.py`
 - `config/cookie-monster/datasets.example.json`
 - `config/edge1_operator/navigation_registry.json` (staged-disabled Cookie Monster candidate only)
 - `tests/test_cookie_monster_alpha.py`
@@ -37,6 +39,8 @@ Last updated: 2026-08-22
 - `tests/test_cookie_monster_acceptance.py`
 - `tests/test_cookie_monster_runtime_publish.py`
 - `tests/test_cookie_monster_edge1_install.py`
+- `tests/test_cookie_monster_edge1_activate.py`
+- `tests/test_edge1_live_shell_cookie_monster.py`
 - `src/web/cookie-monster/index.html`
 - `src/web/cookie-monster/demo-status.json`
 - `src/web/cookie-monster/assets/mascot.webp`
@@ -46,6 +50,7 @@ Last updated: 2026-08-22
 - `docs/cookie-monster/alpha-dispatch.md`
 - `docs/cookie-monster/runtime-publication.md`
 - `docs/cookie-monster/edge1-foundation-install.md`
+- `docs/cookie-monster/edge1-alpha-activation.md`
 - `docs/cookie-monster/alpha-operator-runbook.md`
 
 ## Closed review findings
@@ -70,7 +75,7 @@ Pre-publication local acceptance result: PASS (5 records / 4 unique assets / 1 d
 
 ## M7 runtime publication source package
 
-The cockpit runtime-publication package is implemented source-side. It requires a valid generated `status.json`, validates every present JSON snapshot before mutation, keeps repository/generated/web roots disjoint, backs up the complete managed destination set, atomically publishes the UI plus runtime views, removes stale optional runtime state, emits a SHA-256 publication manifest and supports exact managed-file rollback.
+The cockpit runtime-publication package is implemented source-side. It requires a valid generated `status.json`, validates every present JSON snapshot before mutation, keeps repository/generated/destination roots disjoint, backs up the complete managed destination set, atomically publishes the UI plus runtime views, removes stale optional runtime state, emits a SHA-256 publication manifest and supports exact managed-file rollback.
 
 PR #518 merged after the dedicated runtime-publication workflow, Edge1 Operator Validation and repository validation all passed. This closes the source implementation gap for runtime packaging. It does not claim a live Edge1 apply: the currently exposed Edge1 Operator connector remains read-only.
 
@@ -88,7 +93,7 @@ No live install is implied by repository source. The exposed Edge1 Operator conn
 
 ## M10 browser publication minimization hardening
 
-A focused hardening follow-up keeps the runtime web surface from becoming a raw-evidence mirror. The publisher projects `wwcx.cookie-monster.operator-view.v1` JSON before writing to the web root.
+A focused hardening follow-up keeps the runtime web surface from becoming a raw-evidence mirror. The publisher projects `wwcx.cookie-monster.operator-view.v1` JSON before writing to its configured destination.
 
 Default publication is summary-only and excludes raw metadata payloads, metadata-tool filesystem paths, asset filenames/relative source locations, arbitrary acceptance detail strings, internal Fengus paths, raw knowledge facts and the generated evidence filesystem path. Explicit `--publish-detail` is bounded to `alpha-read-only` non-production staging evidence with zero unauthorized source writes, and even then raw metadata/tool paths stay excluded.
 
@@ -100,14 +105,23 @@ Cookie Monster is represented in the canonical Edge1 Operator navigation registr
 
 This makes the UI discoverable in the source architecture without pretending the live browser route, deployment state, or access-control boundary has been accepted. Promotion to `accepted_live` still requires real browser/auth acceptance evidence.
 
+## M12 bounded live Alpha activation source package
+
+`deploy/cookie_monster_edge1_activate.py` converts the remaining multi-command live rollout into one reviewed root-only transaction. Default mode is read-only preflight. `--apply` is restricted to the canonical Edge1 management repository and fixed `alpha-staging` dataset; it rejects writable, symlinked or divergent source state, verifies the installed Fengus foundation, backs up runtime registry/job state plus the exact publisher source, populates only the deterministic synthetic set, enables only the existing non-production/read-only registry entry, dispatches the path-free Alpha job, proves source immutability/provenance, executes one fixed Fengus `text.token-stats` work item through the hardened systemd unit, writes live acceptance evidence, and stages the minimized operator view at `/var/lib/cookie-monster-alpha/operator-view`. Rollback restores control/staged-view state using the hash-verified publisher copy while intentionally retaining source/generated/Fengus evidence.
+
+The activation transaction deliberately never writes `/var/www/edge1-status`: that path is an Apache-served mixed/public boundary and its Cookie Monster route/access-control state remains separately gated.
+
+The attended `edge1-live-shell` sidecar exposes a separate `edge1_cookie_monster` named action with only `preflight`, `sync_sources`, `activate`, and `rollback_last`. Mutation actions require `EDGE1_ALLOW_COOKIE_MONSTER=1`. Source synchronization and activation additionally require exact `EDGE1_COOKIE_MONSTER_TARGET_SHA`: sync refuses dirty/non-main state, fetches origin, proves the pinned target is an ancestor of `origin/main`, and fast-forwards only to that exact target; activation refuses to run unless HEAD equals the target. Raw `edge1_exec` remains separately disabled by default. The canonical production Edge1 Operator remains exactly the reviewed read-only surface.
+
+This package is source readiness, not a claim that live activation occurred.
+
 ## Remaining activation work
 
-1. Do not treat repository main as live Edge1 state: the latest read-only Edge1 snapshot still showed the management checkout at `20b3f6c2a5a3da6484b433f6f171c3c713ef920e`, behind the later runtime-publication/dispatch/foundation/UI-registration merges.
-2. Reconcile/synchronize the intended Edge1 checkout through an authenticated write-capable deployment path before Cookie Monster publication or foundation apply.
-3. Run the M9 installer preflight and reviewed `--apply` only through that authenticated write-capable Edge1 path; leave the staging dataset disabled after installation.
-4. Populate one deliberately non-production `alpha-staging` dataset, then explicitly enable only that registry entry.
-5. Run a bounded dispatch against staged data and verify source immutability, idempotency and provenance.
-6. Publish only minimized operator-view snapshots and verify the browser route/access boundary before changing the staged operator-shell registration to `accepted_live`.
-7. Keep web approve/reject clicks disabled until an authenticated operator mutation transport and human approval owner are deliberately defined.
-8. Keep Fengus credential-free and runtime-inactive until a separate deployment review authorizes service activation; any later worker instance remains archive/network denied.
-9. Re-run M6 against the deliberately selected Edge1 non-production staging dataset with zero provenance gaps and zero unauthorized writes.
+1. The fresh read-only host snapshot sees `/opt/edge1-management-interface` clean on `main` at `20b3f6c2a5a3da6484b433f6f171c3c713ef920e`; the long-running Operations API still reports its older resolved generation at `d326d4546abefa695a293266342a5c1075f010e2`. Do not use that ambiguous process for repository mutation.
+2. Attach the attended write-capable Edge1 sidecar or another authenticated equivalent; verify hostname/principal before any mutation.
+3. Set `EDGE1_COOKIE_MONSTER_TARGET_SHA` to the exact reviewed merged activation revision and use the named source-sync action only after confirming the logical repository remains clean on `main`; fast-forward only to that pinned revision without resetting, stashing or rebasing unrelated work.
+4. Run the M9 installer preflight and reviewed `--apply` if the foundation is still absent; leave `alpha-staging` disabled after foundation installation.
+5. Run `edge1_cookie_monster: preflight`, inspect the result, then run the bounded activation transaction.
+6. Require live acceptance PASS: exact duplicate detection, unchanged source hashes, zero unauthorized writes, zero provenance gaps, and verified bounded Fengus result.
+7. Keep the generated operator view staged under `/var/lib`; perform browser publication only as a separate transaction after the real route/auth boundary is verified and authorized, then consider changing the staged operator-shell registration to `accepted_live`.
+8. Keep public DNS/certificates/proxy exposure, canonical archive ingestion and external publication separately gated.

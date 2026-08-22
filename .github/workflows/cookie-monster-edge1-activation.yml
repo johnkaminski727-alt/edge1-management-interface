@@ -1,0 +1,63 @@
+name: Cookie Monster Edge1 activation
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/cookie_monster_edge1_activate.py'
+      - 'deploy/cookie_monster_edge1_install.py'
+      - 'deploy/cookie_monster_runtime_publish.py'
+      - 'deploy/cookie-monster-fengus-worker@.service'
+      - 'server/cookie_monster_alpha.py'
+      - 'server/cookie_monster_contract.py'
+      - 'server/cookie_monster_dispatch.py'
+      - 'server/cookie_monster_fengus_worker.py'
+      - 'tests/test_cookie_monster_edge1_activate.py'
+      - '.github/workflows/cookie-monster-edge1-activation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/cookie_monster_edge1_activate.py'
+      - 'deploy/cookie_monster_edge1_install.py'
+      - 'deploy/cookie_monster_runtime_publish.py'
+      - 'deploy/cookie-monster-fengus-worker@.service'
+      - 'server/cookie_monster_alpha.py'
+      - 'server/cookie_monster_contract.py'
+      - 'server/cookie_monster_dispatch.py'
+      - 'server/cookie_monster_fengus_worker.py'
+      - 'tests/test_cookie_monster_edge1_activate.py'
+      - '.github/workflows/cookie-monster-edge1-activation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile activation path
+        run: |
+          python3 -m py_compile \
+            deploy/cookie_monster_edge1_activate.py \
+            deploy/cookie_monster_edge1_install.py \
+            deploy/cookie_monster_runtime_publish.py \
+            server/cookie_monster_alpha.py \
+            server/cookie_monster_contract.py \
+            server/cookie_monster_dispatch.py \
+            server/cookie_monster_fengus_worker.py
+      - name: Run activation boundary tests
+        run: python3 -m unittest -v tests.test_cookie_monster_edge1_activate tests.test_cookie_monster_edge1_install tests.test_cookie_monster_dispatch tests.test_cookie_monster_runtime_publish
+      - name: Guard public and authority boundaries
+        run: |
+          ! grep -nE '(certbot|iptables|nft |ufw |a2enmod|a2ensite|systemctl (restart|reload) apache2|/srv/cookie-monster/(canonical|archive)|https?://)' deploy/cookie_monster_edge1_activate.py
+          ! grep -F '/var/www/edge1-status' deploy/cookie_monster_edge1_activate.py
+          grep -F "COCKPIT_STAGE_ROOT = Path('/var/lib/cookie-monster-alpha/operator-view')" deploy/cookie_monster_edge1_activate.py
+          grep -F "DATASET_SLUG = 'alpha-staging'" deploy/cookie_monster_edge1_activate.py
+          grep -F "public_changes': False" deploy/cookie_monster_edge1_activate.py
+          grep -F "canonical_archive_access': False" deploy/cookie_monster_edge1_activate.py
+      - name: Reject obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|password[[:space:]]*=[[:space:]]*[^$])' \
+            deploy/cookie_monster_edge1_activate.py \
+            tests/test_cookie_monster_edge1_activate.py
