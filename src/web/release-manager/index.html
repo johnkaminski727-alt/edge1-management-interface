@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07141a">
+<title>WW.CX Edge1 Release Manager</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--bg:#07141a;--panel:#0d2229;--panel2:#12313a;--line:#28525d;--ink:#f4fbfb;--muted:#9fc0c7;--good:#4ad295;--warn:#ffcc66;--bad:#ff7b7b;--accent:#6fd7ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#12323a 0,transparent 35%),var(--bg);color:var(--ink)}main{max-width:1180px;margin:auto;padding:24px}.hero,.panel{border:1px solid var(--line);background:var(--panel);border-radius:18px}.hero{padding:24px;background:linear-gradient(135deg,#0d2229,#133741)}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.78rem;color:var(--accent);font-weight:800}.hero h1{font-size:clamp(2rem,6vw,4.5rem);margin:.12em 0}.hero p{max-width:800px;color:var(--muted);font-size:1.05rem}.badges{display:flex;gap:8px;flex-wrap:wrap}.badge{border:1px solid var(--line);border-radius:999px;padding:7px 11px;background:#091b21;font-size:.86rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.panel{padding:20px;margin-top:16px}.card{border:1px solid #244650;background:#091b21;border-radius:13px;padding:15px;min-width:0}.label{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}.value{font-size:1.2rem;font-weight:750;margin-top:6px;overflow-wrap:anywhere}.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}code{color:#b9f3eb;overflow-wrap:anywhere}.note{border-left:4px solid var(--accent);background:#102a31;padding:12px 14px;border-radius:9px;color:var(--muted)}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #1e3b44;vertical-align:top}th{color:var(--muted);font-size:.78rem;text-transform:uppercase}.footer{text-align:center;color:var(--muted);padding:20px 0}a{color:var(--accent)}@media(max-width:650px){main{padding:14px}.hero,.panel{border-radius:14px;padding:16px}}
+</style>
+</head>
+<body>
+<main>
+<section class="hero">
+<div class="eyebrow">WW.CX Edge1 Control Plane</div>
+<h1>Release Manager</h1>
+<p>One source checkout. Immutable commit-pinned runtime releases. One atomic current pointer. Exact rollback. No invisible deployment drift.</p>
+<div class="badges"><span id="health" class="badge">Loading…</span><span class="badge">Automatic promotion: OFF</span><span class="badge">Mutations: fail-closed</span></div>
+</section>
+<section class="panel"><h2>Deployment identity</h2><div id="identity" class="grid"></div></section>
+<section class="panel"><h2>Control-plane health</h2><div id="health-grid" class="grid"></div><div id="health-note" class="note" style="margin-top:14px">Reading the persistent status snapshot…</div></section>
+<section class="panel"><h2>Managed services</h2><div id="services"></div></section>
+<section class="panel"><h2>Last transaction</h2><div id="transaction" class="grid"></div></section>
+<section class="panel"><h2>Operator boundary</h2><p class="note">This page is read-only. Promotion and rollback are named, commit-pinned actions through the authenticated Edge1 operator path. The release manager never auto-deploys every merge to <code>main</code>, never accepts arbitrary shell, and automatically restores the previous release when post-switch health does not converge.</p><p><a href="/edge1-status/">Back to Operations Center</a></p></section>
+<div class="footer">WW.CX Edge1 Release Manager · source ≠ runtime · current + previous are explicit</div>
+</main>
+<script>
+"use strict";
+const esc=v=>String(v??"—").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const short=v=>v?String(v).slice(0,12):"—";
+const card=(label,value,cls="")=>`<div class="card"><div class="label">${esc(label)}</div><div class="value ${cls}">${esc(value)}</div></div>`;
+function render(s){
+ const healthy=s.healthy===true;
+ const health=document.getElementById("health");health.textContent=healthy?"Healthy":"Attention required";health.className=`badge ${healthy?"good":"warn"}`;
+ const src=s.source||{},rt=s.runtime||{},ops=s.operations_api||{};
+ document.getElementById("identity").innerHTML=[card("Runtime current",short(rt.current),rt.current?"good":"warn"),card("Rollback previous",short(rt.previous)),card("Source HEAD",short(src.head)),card("Source branch",src.branch||"Unavailable"),card("Source dirty",src.dirty===false?"No":src.dirty===true?"YES":"Unknown",src.dirty===false?"good":"warn"),card("Source differs",rt.source_differs_from_runtime?"Yes — promotion available":"No")].join("");
+ document.getElementById("health-grid").innerHTML=[card("Operations API",ops.status||"Unavailable",ops.status==="ok"?"good":"bad"),card("Repository root stable",ops.repository_root_stable===true?"Yes":"No / unknown",ops.repository_root_stable===true?"good":"bad"),card("Mutations enabled",ops.mutations_enabled===false?"No":"YES / unknown",ops.mutations_enabled===false?"good":"bad"),card("Listeners loopback-only",s.loopback_only===true?"Yes":"No / unknown",s.loopback_only===true?"good":"bad")].join("");
+ const errors=s.errors||[];document.getElementById("health-note").innerHTML=healthy?"The current release, service state, Operations API root identity, mutation boundary and loopback listeners agree.":errors.length?`Attention: ${errors.map(esc).join(" · ")}`:"A required health invariant is not currently satisfied. Promotion remains fail-closed.";
+ const services=Object.entries(s.services||{});document.getElementById("services").innerHTML=services.length?`<table><thead><tr><th>Service</th><th>State</th></tr></thead><tbody>${services.map(([name,ok])=>`<tr><td><code>${esc(name)}</code></td><td class="${ok?"good":"bad"}">${ok?"active":"inactive"}</td></tr>`).join("")}</tbody></table>`:"No service snapshot available.";
+ const t=s.last_transaction||{};document.getElementById("transaction").innerHTML=[card("Status",t.status||"No transaction recorded"),card("Type",t.transaction||"—"),card("Target",short(t.target)),card("Completed",t.completed_at||"—")].join("");
+}
+async function load(){try{const r=await fetch("./status.json",{cache:"no-store"});if(!r.ok)throw new Error(`HTTP ${r.status}`);render(await r.json())}catch(err){document.getElementById("health").textContent="Status unavailable";document.getElementById("health").className="badge bad";document.getElementById("health-note").textContent=`Persistent status snapshot unavailable: ${err.message}`}}
+load();setInterval(load,30000);
+</script>
+</body>
+</html>
