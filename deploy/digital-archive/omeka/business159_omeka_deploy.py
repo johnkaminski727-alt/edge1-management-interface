@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded Omeka S 4.2 private deployment transaction for Business159.
-
-Default mode is read-only preflight. Apply installs only a caller-supplied,
-hash-verified Omeka S release payload into a private application root and
-installs a caller-supplied runtime database.ini file. It never creates the
-database/user, first admin, DNS, certificate, public route, or external account.
-"""
+"""Bounded Omeka S 4.2 private deployment transaction for Business159."""
 from __future__ import annotations
 
 import argparse
@@ -24,7 +18,7 @@ from typing import Any
 APP_ROOT_DEFAULT = Path('~/apps/wwcx-omeka-s')
 STATE_SCHEMA = 'wwcx.digital-archive.omeka-business159.v1'
 REQUIRED_PHP_EXTENSIONS = {'PDO', 'pdo_mysql', 'mbstring', 'xml'}
-MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
+MAX_PAYLOAD_BYTES = 512 * 1024 * 1024
 
 
 class OmekaDeployError(RuntimeError):
@@ -65,36 +59,24 @@ def php_status() -> dict[str, Any]:
     if not match:
         return {'ready': False, 'reason': 'php-version-unparseable'}
     php_tuple = (int(match.group(1)), int(match.group(2)))
-    return {
-        'ready': php_tuple >= (8, 1) and not missing,
-        'version': version.stdout.strip(),
-        'missing_extensions': missing,
-        'php_path': php,
-    }
+    return {'ready': php_tuple >= (8, 1) and not missing, 'version': version.stdout.strip(), 'missing_extensions': missing, 'php_path': php}
 
 
 def thumbnail_status() -> dict[str, Any]:
-    imagick = False
     php = shutil.which('php')
+    imagick = gd = False
     if php:
         result = run([php, '-r', 'echo extension_loaded("imagick") ? "yes" : "no";'])
         imagick = result.returncode == 0 and result.stdout.strip() == 'yes'
-    imagemagick = shutil.which('magick') or shutil.which('convert')
-    gd = False
-    if php:
         result = run([php, '-r', 'echo extension_loaded("gd") ? "yes" : "no";'])
         gd = result.returncode == 0 and result.stdout.strip() == 'yes'
+    imagemagick = shutil.which('magick') or shutil.which('convert')
     return {'ready': bool(imagick or imagemagick or gd), 'imagick': imagick, 'imagemagick_cli': bool(imagemagick), 'gd': gd}
 
 
 def apache_rewrite_evidence(app_root: Path) -> dict[str, Any]:
-    """Shared-host preflight cannot prove the Apache vhost policy from filesystem state alone."""
     parent = app_root.parent
-    return {
-        'verified': False,
-        'reason': 'shared-host-vhost-policy-must-be-verified-by-browser-or-control-plane',
-        'parent_writable': parent.exists() and os.access(parent, os.W_OK),
-    }
+    return {'verified': False, 'reason': 'shared-host-vhost-policy-must-be-verified-by-browser-or-control-plane', 'parent_writable': parent.exists() and os.access(parent, os.W_OK)}
 
 
 def database_ini_status(path: Path | None) -> dict[str, Any]:
@@ -116,8 +98,8 @@ def database_ini_status(path: Path | None) -> dict[str, Any]:
         text = path.read_text(encoding='utf-8')
     except OSError:
         return {'ready': False, 'reason': 'unreadable'}
-    required_keys = ('user', 'password', 'dbname', 'host')
-    missing = [key for key in required_keys if not re.search(rf'(?m)^\s*{key}\s*=\s*.+$', text)]
+    required = ('user', 'password', 'dbname', 'host')
+    missing = [key for key in required if not re.search(rf'(?m)^\s*{key}\s*=\s*.+$', text)]
     if missing:
         return {'ready': False, 'reason': 'missing-required-settings', 'missing': missing}
     return {'ready': True, 'reason': 'ready', 'mode': oct(mode), 'bytes': info.st_size}
@@ -151,12 +133,11 @@ def payload_status(payload: Path | None, expected_tree_sha256: str | None) -> di
                 version_text += candidate.read_text(encoding='utf-8', errors='ignore')[:200000]
             except OSError:
                 pass
-    version_match = re.search(r'(?<!\d)(4\.2(?:\.\d+)?)(?!\d)', version_text)
-    if not version_match:
+    match = re.search(r'(?<!\d)(4\.2(?:\.\d+)?)(?!\d)', version_text)
+    if not match:
         return {'ready': False, 'reason': 'omeka-4.2-version-not-verifiable'}
-    total_bytes = 0
+    total = count = 0
     digest = hashlib.sha256()
-    file_count = 0
     for path in sorted(payload.rglob('*')):
         if path.is_symlink():
             return {'ready': False, 'reason': 'payload-symlink-rejected'}
@@ -164,24 +145,17 @@ def payload_status(payload: Path | None, expected_tree_sha256: str | None) -> di
             continue
         rel = path.relative_to(payload).as_posix()
         size = path.stat().st_size
-        total_bytes += size
-        file_count += 1
-        if total_bytes > MAX_ARCHIVE_BYTES:
+        total += size
+        count += 1
+        if total > MAX_PAYLOAD_BYTES:
             return {'ready': False, 'reason': 'payload-too-large'}
         file_hash = sha256_file(path)
-        digest.update(rel.encode('utf-8') + b'\0' + file_hash.encode('ascii') + b'\n')
+        digest.update(rel.encode() + b'\0' + file_hash.encode('ascii') + b'\n')
     tree_hash = digest.hexdigest()
     expected = normalize_sha(expected_tree_sha256)
     if expected is not None and tree_hash != expected:
         return {'ready': False, 'reason': 'payload-sha256-mismatch', 'tree_sha256': tree_hash}
-    return {
-        'ready': True,
-        'reason': 'ready',
-        'version': version_match.group(1),
-        'tree_sha256': tree_hash,
-        'files': file_count,
-        'bytes': total_bytes,
-    }
+    return {'ready': True, 'reason': 'ready', 'version': match.group(1), 'tree_sha256': tree_hash, 'files': count, 'bytes': total}
 
 
 def disk_status(root: Path) -> dict[str, Any]:
@@ -193,12 +167,7 @@ def disk_status(root: Path) -> dict[str, Any]:
     return {'ready': usage.free >= minimum, 'free_bytes': usage.free, 'minimum_free_bytes': minimum}
 
 
-def preflight(
-    app_root: Path = APP_ROOT_DEFAULT,
-    payload: Path | None = None,
-    expected_tree_sha256: str | None = None,
-    database_ini: Path | None = None,
-) -> dict[str, Any]:
+def preflight(app_root: Path = APP_ROOT_DEFAULT, payload: Path | None = None, expected_tree_sha256: str | None = None, database_ini: Path | None = None) -> dict[str, Any]:
     app_root = app_root.expanduser().resolve()
     php = php_status()
     thumbs = thumbnail_status()
@@ -207,6 +176,7 @@ def preflight(
     disk = disk_status(app_root)
     rewrite = apache_rewrite_evidence(app_root)
     current = app_root / 'current'
+    shared_db = app_root / 'shared/config/database.ini'
     blockers = []
     if not php.get('ready'):
         blockers.append('php-requirements-not-ready')
@@ -220,6 +190,8 @@ def preflight(
         blockers.append('insufficient-free-storage')
     if current.exists() and not current.is_symlink():
         blockers.append('current-path-conflict')
+    if shared_db.exists() and database_ini is not None and shared_db.read_bytes() != database_ini.expanduser().read_bytes():
+        blockers.append('shared-database-ini-conflict')
     return {
         'status': 'preflight-ok' if not blockers else 'preflight-blocked',
         'app_root': str(app_root),
@@ -233,6 +205,7 @@ def preflight(
         'public_changes': False,
         'creates_database': False,
         'creates_first_admin': False,
+        'persistent_files_root': str(app_root / 'shared/files'),
         'blockers': blockers,
     }
 
@@ -249,9 +222,34 @@ def copy_payload(source: Path, destination: Path) -> None:
     if destination.exists():
         raise OmekaDeployError('release destination already exists')
     shutil.copytree(source, destination, symlinks=False)
-    for path in destination.rglob('*'):
-        if path.is_symlink():
-            raise OmekaDeployError('copied release unexpectedly contains symlink')
+    if any(path.is_symlink() for path in destination.rglob('*')):
+        raise OmekaDeployError('copied release unexpectedly contains symlink')
+
+
+def install_shared_runtime(app_root: Path, release_dir: Path, database_ini: Path) -> None:
+    shared_files = app_root / 'shared/files'
+    shared_config = app_root / 'shared/config'
+    shared_files.mkdir(parents=True, exist_ok=True)
+    shared_config.mkdir(parents=True, exist_ok=True)
+    os.chmod(shared_files, 0o750)
+    os.chmod(shared_config, 0o700)
+    shared_db = shared_config / 'database.ini'
+    if shared_db.exists():
+        if shared_db.is_symlink() or not shared_db.is_file() or shared_db.read_bytes() != database_ini.read_bytes():
+            raise OmekaDeployError('shared database.ini conflicts with supplied runtime configuration')
+    else:
+        shutil.copyfile(database_ini, shared_db)
+        os.chmod(shared_db, 0o600)
+    release_files = release_dir / 'files'
+    if release_files.exists():
+        if release_files.is_symlink() or not release_files.is_dir() or any(release_files.iterdir()):
+            raise OmekaDeployError('release files directory must be an empty regular directory before shared-data linkage')
+        release_files.rmdir()
+    release_files.symlink_to(shared_files, target_is_directory=True)
+    release_db = release_dir / 'config/database.ini'
+    if release_db.exists() and not release_db.is_symlink():
+        release_db.unlink()
+    release_db.symlink_to(shared_db)
 
 
 def apply(app_root: Path, payload: Path, expected_tree_sha256: str, database_ini: Path) -> dict[str, Any]:
@@ -267,19 +265,10 @@ def apply(app_root: Path, payload: Path, expected_tree_sha256: str, database_ini
     releases.mkdir(mode=0o750, exist_ok=True)
     evidence_root.mkdir(mode=0o700, exist_ok=True)
     tree_hash = info['release']['tree_sha256']
-    release_dir = releases / tree_hash[:16]
-    if release_dir.exists():
-        if release_dir.is_symlink() or not release_dir.is_dir():
-            raise OmekaDeployError('existing release path conflicts')
-    else:
-        copy_payload(payload, release_dir)
-    config_target = release_dir / 'config/database.ini'
-    shutil.copyfile(database_ini, config_target)
-    os.chmod(config_target, 0o600)
-    files_dir = release_dir / 'files'
-    if not files_dir.is_dir():
-        raise OmekaDeployError('release files directory disappeared')
-    os.chmod(files_dir, 0o750)
+    stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    release_dir = releases / f'{tree_hash[:16]}-{stamp}-{os.getpid()}'
+    copy_payload(payload, release_dir)
+    install_shared_runtime(app_root, release_dir, database_ini)
     current = app_root / 'current'
     prior_target = os.readlink(current) if current.is_symlink() else None
     temp_link = app_root / f'.current.tmp-{os.getpid()}'
@@ -289,7 +278,6 @@ def apply(app_root: Path, payload: Path, expected_tree_sha256: str, database_ini
     finally:
         if temp_link.exists() or temp_link.is_symlink():
             temp_link.unlink()
-    stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     evidence = evidence_root / f'{stamp}-{os.getpid()}'
     evidence.mkdir(mode=0o700)
     state = {
@@ -299,7 +287,8 @@ def apply(app_root: Path, payload: Path, expected_tree_sha256: str, database_ini
         'release_dir': str(release_dir),
         'prior_current_target': prior_target,
         'current_target': str(release_dir),
-        'database_ini_installed': True,
+        'persistent_files_root': str(app_root / 'shared/files'),
+        'database_ini_shared': True,
         'database_ini_values_recorded': False,
         'public_changes': False,
         'database_created': False,
@@ -350,7 +339,7 @@ def rollback(app_root: Path, evidence: Path) -> dict[str, Any]:
         'rolled_back_at': utc_now(),
         'release_preserved': True,
         'database_unchanged': True,
-        'files_preserved': True,
+        'persistent_files_preserved': True,
         'public_changes': False,
     }
     atomic_json(evidence / 'rollback-result.json', result)
