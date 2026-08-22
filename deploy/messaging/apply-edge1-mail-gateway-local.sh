@@ -49,6 +49,7 @@ POSTMAP_BIN=${POSTMAP_BIN:-$(resolve_command postmap "$SYSTEM_SBIN/postmap" "$SY
 POSTFIX_BIN=${POSTFIX_BIN:-$(resolve_command postfix "$SYSTEM_SBIN/postfix" "$SYSTEM_BIN/postfix" || true)}
 SS_BIN=${SS_BIN:-$(resolve_command ss "$SYSTEM_BIN/ss" "$SYSTEM_SBIN/ss" || true)}
 RUNUSER_BIN=${RUNUSER_BIN:-$(resolve_command runuser "$SYSTEM_SBIN/runuser" "$SYSTEM_BIN/runuser" || true)}
+SYSTEMCTL_BIN=${SYSTEMCTL_BIN:-$(resolve_command systemctl "$SYSTEM_BIN/systemctl" "$SYSTEM_SBIN/systemctl" || true)}
 
 for pair in \
     "python3:$PYTHON3_BIN" \
@@ -56,7 +57,8 @@ for pair in \
     "postmap:$POSTMAP_BIN" \
     "postfix:$POSTFIX_BIN" \
     "ss:$SS_BIN" \
-    "runuser:$RUNUSER_BIN"
+    "runuser:$RUNUSER_BIN" \
+    "systemctl:$SYSTEMCTL_BIN"
 do
     name=${pair%%:*}
     path=${pair#*:}
@@ -99,7 +101,7 @@ if grep -q '^ww\.cx ' "$work/rendered/wwcx-edge1-managed-domains"; then
     fail "ww.cx unexpectedly appears in managed domains"
 fi
 
-listeners=$(("$SS_BIN" -lntp 2>/dev/null || "$SS_BIN" -lnt) | awk '$4 ~ /(^|:|\])25$/ {print}')
+listeners=$( ("$SS_BIN" -lntp 2>/dev/null || "$SS_BIN" -lnt) | awk '$4 ~ /(^|:|\])25$/ {print}' )
 if [ -n "$listeners" ] && printf '%s\n' "$listeners" | grep -Ev '127\.0\.0\.1:25|\[::1\]:25|::1:25' | grep . >/dev/null 2>&1; then
     fail "TCP/25 is already exposed outside loopback"
 fi
@@ -185,9 +187,9 @@ MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mai
 
 "$POSTFIX_BIN" reload
 sleep 1
-systemctl is-active --quiet postfix || fail "Postfix is not active after reload"
+"$SYSTEMCTL_BIN" is-active --quiet postfix || fail "Postfix is not active after reload"
 
-listeners_after=$(("$SS_BIN" -lntp 2>/dev/null || "$SS_BIN" -lnt) | awk '$4 ~ /(^|:|\])25$/ {print}')
+listeners_after=$( ("$SS_BIN" -lntp 2>/dev/null || "$SS_BIN" -lnt) | awk '$4 ~ /(^|:|\])25$/ {print}' )
 if [ -n "$listeners_after" ] && printf '%s\n' "$listeners_after" | grep -Ev '127\.0\.0\.1:25|\[::1\]:25|::1:25' | grep . >/dev/null 2>&1; then
     fail "Postfix exposed TCP/25 outside loopback after reload"
 fi
