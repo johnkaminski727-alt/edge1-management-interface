@@ -45,7 +45,7 @@ def main() -> int:
         "postfix",
         "check",
         "reload",
-        "127.0.0.1:25",
+        "127\\.0\\.0\\.1:25",
         "acceptance@ww.cx",
         "No DNS, MX, firewall, certificate, provider, or outbound-delivery change was made.",
     ]
