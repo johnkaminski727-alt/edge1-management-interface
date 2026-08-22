@@ -19,7 +19,7 @@ SCHEMA = "wwcx.cookie-monster.fengus-work.v1"
 RESULT_SCHEMA = "wwcx.cookie-monster.fengus-result.v1"
 JOB_RE = re.compile(r"^cmjob-[a-f0-9]{24}$")
 OPERATIONS = {"text.token-stats", "facts.normalize"}
-FORBIDDEN_KEYS = {"path", "file", "filename", "url", "uri", "command", "shell", "token", "secret", "password", "credential", "archive"}
+FORBIDDEN_KEYS = {"path", "url", "uri", "command", "shell", "token", "secret", "password", "credential", "archive"}
 MAX_INPUT_BYTES = 128 * 1024
 MAX_TEXT_CHARS = 100_000
 
