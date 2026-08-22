@@ -2,9 +2,9 @@
 """Backup + isolated restore acceptance for the private WW.CX Digital Archive.
 
 Paperless uses its document_exporter/document_importer path. ArchiveBox uses a
-full data-directory snapshot and a network-disabled `archivebox status` restore
-check. Backup and restore evidence is retained. No public route or canonical
-source is changed.
+full data-directory snapshot and a network-disabled ``archivebox status``
+restore check. Backup and restore evidence is retained. No public route or
+canonical source is changed.
 """
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ RUNTIME_ROOT = Path('/var/lib/wwcx-digital-archive')
 BACKUP_ROOT = RUNTIME_ROOT / 'backups'
 RESTORE_ROOT = RUNTIME_ROOT / 'restore-tests'
 PAPERLESS_EXPORT_ROOT = RUNTIME_ROOT / 'paperless/export'
+PAPERLESS_CONSUME_ROOT = RUNTIME_ROOT / 'paperless/consume'
 ARCHIVEBOX_DATA_ROOT = RUNTIME_ROOT / 'archivebox/data'
 PAPERLESS_COMPOSE = Path('deploy/digital-archive/paperless/compose.yaml')
 ARCHIVEBOX_COMPOSE = Path('deploy/digital-archive/archivebox/compose.yaml')
@@ -113,6 +114,20 @@ def validate_secret(path: Path) -> None:
         raise BackupError('Paperless runtime secret permissions are too broad')
 
 
+def consume_queue_empty(path: Path = PAPERLESS_CONSUME_ROOT) -> bool:
+    if path.is_symlink() or not path.is_dir():
+        return False
+    try:
+        return next(path.iterdir(), None) is None
+    except OSError:
+        return False
+
+
+def require_consume_quiescent(path: Path = PAPERLESS_CONSUME_ROOT) -> None:
+    if not consume_queue_empty(path):
+        raise BackupError('Paperless consume queue must be empty before backup')
+
+
 def preflight(repo: Path, db_password_file: Path | None = None, secret_key_file: Path | None = None) -> dict[str, Any]:
     repo = repo.expanduser().resolve()
     blockers = []
@@ -122,6 +137,10 @@ def preflight(repo: Path, db_password_file: Path | None = None, secret_key_file:
         blockers.append('docker-compose-unavailable')
     if not PAPERLESS_EXPORT_ROOT.is_dir():
         blockers.append('paperless-export-root-missing')
+    if not PAPERLESS_CONSUME_ROOT.is_dir() or PAPERLESS_CONSUME_ROOT.is_symlink():
+        blockers.append('paperless-consume-root-missing-or-unsafe')
+    elif not consume_queue_empty(PAPERLESS_CONSUME_ROOT):
+        blockers.append('paperless-consume-queue-not-empty')
     if not ARCHIVEBOX_DATA_ROOT.is_dir():
         blockers.append('archivebox-data-root-missing')
     if db_password_file is None or secret_key_file is None:
@@ -139,6 +158,7 @@ def preflight(repo: Path, db_password_file: Path | None = None, secret_key_file:
         'restore_root': str(RESTORE_ROOT),
         'paperless_image': PAPERLESS_IMAGE,
         'archivebox_image': ARCHIVEBOX_IMAGE,
+        'paperless_consume_queue_empty': 'paperless-consume-queue-not-empty' not in blockers and 'paperless-consume-root-missing-or-unsafe' not in blockers,
         'public_changes': False,
         'canonical_source_changes': False,
         'deletes_backup_data': False,
@@ -213,6 +233,7 @@ def snapshot(repo: Path, db_password_file: Path, secret_key_file: Path) -> dict[
     backup_dir.mkdir(parents=True, exist_ok=False)
     os.chmod(backup_dir, 0o700)
 
+    require_consume_quiescent()
     export_dir = PAPERLESS_EXPORT_ROOT / backup_id
     if export_dir.exists():
         raise BackupError('Paperless export destination already exists')
@@ -221,6 +242,7 @@ def snapshot(repo: Path, db_password_file: Path, secret_key_file: Path) -> dict[
         'exec', '-T', 'webserver', 'document_exporter', f'../export/{backup_id}', '--no-progress-bar',
     )
     require_success(exporter, env=env, timeout=1800)
+    require_consume_quiescent()
     paperless_tar = backup_dir / 'paperless-export.tar.gz'
     tar_directory(export_dir, paperless_tar)
 
@@ -233,7 +255,9 @@ def snapshot(repo: Path, db_password_file: Path, secret_key_file: Path) -> dict[
         tar_directory(ARCHIVEBOX_DATA_ROOT, archivebox_tar)
     finally:
         if stopped:
-            require_success(compose_command(repo, ARCHIVEBOX_PROJECT, ARCHIVEBOX_COMPOSE, 'start', 'archivebox'), env=env, timeout=120)
+            restart = run(compose_command(repo, ARCHIVEBOX_PROJECT, ARCHIVEBOX_COMPOSE, 'start', 'archivebox'), env=env, timeout=120)
+            if restart.returncode != 0 and sys.exc_info()[0] is None:
+                raise BackupError('ArchiveBox restart failed after backup snapshot')
 
     manifest = {
         'schema': MANIFEST_SCHEMA,
@@ -246,6 +270,7 @@ def snapshot(repo: Path, db_password_file: Path, secret_key_file: Path) -> dict[
             'archivebox-data.tar.gz': {'sha256': sha256_file(archivebox_tar), 'bytes': archivebox_tar.stat().st_size},
         },
         'paperless_export_path_recorded': False,
+        'paperless_consume_queue_empty': True,
         'secret_values_recorded': False,
         'archivebox_was_running': archivebox_running,
         'archivebox_temporarily_stopped': archivebox_running,
@@ -274,7 +299,7 @@ def load_manifest(backup_dir: Path) -> dict[str, Any]:
 
 
 def restore_compose_text(root: Path) -> str:
-    return f'''services:\n  db:\n    image: {POSTGRES_IMAGE}\n    environment:\n      POSTGRES_DB: paperless\n      POSTGRES_USER: paperless\n      POSTGRES_PASSWORD: ${{RESTORE_DB_PASSWORD}}\n    volumes:\n      - {root / 'postgres'}:/var/lib/postgresql/data\n  broker:\n    image: {VALKEY_IMAGE}\n    volumes:\n      - {root / 'valkey'}:/data\n  webserver:\n    image: {PAPERLESS_IMAGE}\n    depends_on:\n      - db\n      - broker\n    environment:\n      PAPERLESS_REDIS: redis://broker:6379\n      PAPERLESS_DBHOST: db\n      PAPERLESS_DBNAME: paperless\n      PAPERLESS_DBUSER: paperless\n      PAPERLESS_DBPASS: ${{RESTORE_DB_PASSWORD}}\n      PAPERLESS_SECRET_KEY: ${{RESTORE_SECRET_KEY}}\n      PAPERLESS_TIME_ZONE: Atlantic/Reykjavik\n    volumes:\n      - {root / 'data'}:/usr/src/paperless/data\n      - {root / 'media'}:/usr/src/paperless/media\n      - {root / 'export'}:/usr/src/paperless/export\n      - {root / 'consume'}:/usr/src/paperless/consume\n      - {root / 'paperless-backup'}:/restore:ro\n'''
+    return f'''services:\n  db:\n    image: {POSTGRES_IMAGE}\n    environment:\n      POSTGRES_DB: paperless\n      POSTGRES_USER: paperless\n      POSTGRES_PASSWORD: ${{RESTORE_DB_PASSWORD}}\n    volumes:\n      - {root / 'postgres'}:/var/lib/postgresql/data\n    networks: [restore]\n  broker:\n    image: {VALKEY_IMAGE}\n    volumes:\n      - {root / 'valkey'}:/data\n    networks: [restore]\n  webserver:\n    image: {PAPERLESS_IMAGE}\n    depends_on:\n      - db\n      - broker\n    environment:\n      PAPERLESS_REDIS: redis://broker:6379\n      PAPERLESS_DBHOST: db\n      PAPERLESS_DBNAME: paperless\n      PAPERLESS_DBUSER: paperless\n      PAPERLESS_DBPASS: ${{RESTORE_DB_PASSWORD}}\n      PAPERLESS_SECRET_KEY: ${{RESTORE_SECRET_KEY}}\n      PAPERLESS_TIME_ZONE: Atlantic/Reykjavik\n    volumes:\n      - {root / 'data'}:/usr/src/paperless/data\n      - {root / 'media'}:/usr/src/paperless/media\n      - {root / 'export'}:/usr/src/paperless/export\n      - {root / 'consume'}:/usr/src/paperless/consume\n      - {root / 'paperless-backup'}:/restore:ro\n    networks: [restore]\nnetworks:\n  restore:\n    internal: true\n'''
 
 
 def wait_paperless_cli(compose: Path, project: str, env: dict[str, str], timeout: int = 180) -> None:
@@ -289,6 +314,10 @@ def wait_paperless_cli(compose: Path, project: str, env: dict[str, str], timeout
             return
         time.sleep(3)
     raise BackupError('disposable Paperless restore target did not become ready')
+
+
+def acceptance_pass(paperless_ok: bool, archivebox_ok: bool, cleanup_ok: bool) -> bool:
+    return paperless_ok and archivebox_ok and cleanup_ok
 
 
 def restore_check(backup_dir: Path) -> dict[str, Any]:
@@ -320,6 +349,8 @@ def restore_check(backup_dir: Path) -> dict[str, Any]:
     docker = shutil.which('docker') or '/usr/bin/docker'
     compose_base = [docker, 'compose', '--project-name', project, '--file', str(compose)]
     paperless_ok = False
+    paperless_failure_type: str | None = None
+    cleanup_ok = False
     try:
         require_success([*compose_base, 'up', '-d'], env=env, timeout=600)
         wait_paperless_cli(compose, project, env)
@@ -329,30 +360,37 @@ def restore_check(backup_dir: Path) -> dict[str, Any]:
             timeout=1800,
         )
         paperless_ok = True
+    except BackupError as exc:
+        paperless_failure_type = type(exc).__name__
     finally:
-        run([*compose_base, 'down'], env=env, timeout=300)
+        cleanup = run([*compose_base, 'down'], env=env, timeout=300)
+        cleanup_ok = cleanup.returncode == 0
 
     archivebox = run(
         [docker, 'run', '--rm', '--network', 'none', '-v', f'{archivebox_data}:/data', ARCHIVEBOX_IMAGE, 'status'],
         timeout=300,
     )
     archivebox_ok = archivebox.returncode == 0
+    passed = acceptance_pass(paperless_ok, archivebox_ok, cleanup_ok)
     result = {
         'schema': RESTORE_SCHEMA,
         'checked_at': utc_now(),
         'backup_id': manifest['backup_id'],
         'paperless_import_pass': paperless_ok,
+        'paperless_failure_type': paperless_failure_type,
         'archivebox_status_pass': archivebox_ok,
-        'result': 'pass' if paperless_ok and archivebox_ok else 'fail',
+        'disposable_cleanup_pass': cleanup_ok,
+        'result': 'pass' if passed else 'fail',
         'restore_root': str(run_root),
         'restore_state_preserved': True,
         'production_projects_changed': False,
+        'restore_network_external_egress': False,
         'public_changes': False,
         'canonical_source_changes': False,
         'ephemeral_secret_values_recorded': False,
     }
     atomic_json(run_root / 'restore-acceptance.json', result)
-    if result['result'] != 'pass':
+    if not passed:
         raise BackupError(f'restore acceptance failed; evidence={run_root}')
     return result
 
