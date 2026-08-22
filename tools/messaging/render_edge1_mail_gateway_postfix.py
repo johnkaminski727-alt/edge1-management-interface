@@ -23,8 +23,7 @@ class RenderError(RuntimeError):
     pass
 
 
-def _load(path: pathlib.Path) -> dict:
-    data = json.loads(path.read_text(encoding="utf-8"))
+def _validate_safety(data: dict) -> None:
     if not isinstance(data, dict):
         raise RenderError("configuration must be an object")
     if data.get("contract") != "wwcx.edge1-mail-gateway.v1":
@@ -37,6 +36,11 @@ def _load(path: pathlib.Path) -> dict:
         "outbound_delivery_enabled": False,
     }:
         raise RenderError("renderer requires safely disabled activation state")
+
+
+def _load(path: pathlib.Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    _validate_safety(data)
     return data
 
 
@@ -72,6 +76,7 @@ def _regex_domain(domain: str) -> str:
 
 
 def render(data: dict) -> dict[str, str]:
+    _validate_safety(data)
     domains = _candidate_domains(data)
     managed_domains = "".join(f"{domain} OK\n" for domain in domains)
     recipient_regexp = "".join(
