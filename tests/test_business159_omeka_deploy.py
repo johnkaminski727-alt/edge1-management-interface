@@ -15,23 +15,32 @@ spec.loader.exec_module(om)
 
 class OmekaDeployTests(unittest.TestCase):
     def payload(self, root: pathlib.Path) -> pathlib.Path:
-        p = root / 'omeka-s'
+        path = root / 'omeka-s'
         for name in ('application', 'config', 'files', 'modules', 'themes'):
-            (p / name).mkdir(parents=True, exist_ok=True)
-        (p / 'index.php').write_text('<?php\n', encoding='utf-8')
-        (p / 'VERSION').write_text('4.2.1\n', encoding='utf-8')
-        return p
+            (path / name).mkdir(parents=True, exist_ok=True)
+        (path / 'index.php').write_text('<?php\n', encoding='utf-8')
+        (path / 'VERSION').write_text('4.2.1\n', encoding='utf-8')
+        return path
 
-    def dbini(self, root: pathlib.Path) -> pathlib.Path:
-        p = root / 'database.ini'
-        p.write_text('user = omeka\npassword = secret-value\ndbname = omeka\nhost = localhost\n', encoding='utf-8')
-        p.chmod(0o600)
-        return p
+    def dbini(self, root: pathlib.Path, password: str = 'secret-value') -> pathlib.Path:
+        path = root / 'database.ini'
+        path.write_text(
+            f'user = omeka\npassword = {password}\ndbname = omeka\nhost = localhost\n',
+            encoding='utf-8',
+        )
+        path.chmod(0o600)
+        return path
+
+    def patch_runtime(self):
+        return (
+            mock.patch.object(om, 'php_status', return_value={'ready': True}),
+            mock.patch.object(om, 'thumbnail_status', return_value={'ready': True}),
+            mock.patch.object(om, 'disk_status', return_value={'ready': True}),
+        )
 
     def test_payload_tree_hash_and_version(self):
         with tempfile.TemporaryDirectory() as td:
-            p = self.payload(pathlib.Path(td))
-            status = om.payload_status(p, None)
+            status = om.payload_status(self.payload(pathlib.Path(td)), None)
             self.assertTrue(status['ready'])
             self.assertTrue(status['version'].startswith('4.2'))
             self.assertRegex(status['tree_sha256'], r'^[a-f0-9]{64}$')
@@ -39,17 +48,17 @@ class OmekaDeployTests(unittest.TestCase):
     def test_payload_rejects_symlink(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
-            p = self.payload(root)
-            (p / 'link').symlink_to(root / 'elsewhere')
-            self.assertEqual(om.payload_status(p, None)['reason'], 'payload-symlink-rejected')
+            payload = self.payload(root)
+            (payload / 'link').symlink_to(root)
+            self.assertEqual(om.payload_status(payload, None)['reason'], 'payload-symlink-rejected')
 
     def test_database_ini_status_never_returns_values_or_path(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             path = self.dbini(root)
             status = om.database_ini_status(path)
-            self.assertTrue(status['ready'])
             encoded = json.dumps(status)
+            self.assertTrue(status['ready'])
             self.assertNotIn('secret-value', encoded)
             self.assertNotIn(str(path), encoded)
 
@@ -60,75 +69,88 @@ class OmekaDeployTests(unittest.TestCase):
             path.chmod(0o644)
             self.assertEqual(om.database_ini_status(path)['reason'], 'permissions-too-broad')
 
-    def test_preflight_is_readonly_and_keeps_public_boundary_false(self):
+    def test_preflight_is_readonly_and_rewrite_stays_unverified(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             payload = self.payload(root)
             db = self.dbini(root)
-            before = sorted(str(p.relative_to(root)) for p in root.rglob('*'))
-            with mock.patch.object(om, 'php_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'thumbnail_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'disk_status', return_value={'ready': True}):
+            before = sorted(str(path.relative_to(root)) for path in root.rglob('*'))
+            php, thumbs, disk = self.patch_runtime()
+            with php, thumbs, disk:
                 info = om.preflight(root / 'app', payload, None, db)
-            after = sorted(str(p.relative_to(root)) for p in root.rglob('*'))
+            after = sorted(str(path.relative_to(root)) for path in root.rglob('*'))
             self.assertEqual(info['status'], 'preflight-ok')
             self.assertFalse(info['public_changes'])
             self.assertFalse(info['creates_database'])
             self.assertFalse(info['creates_first_admin'])
-            self.assertEqual(before, after)
-
-    def test_preflight_reports_rewrite_as_unverified(self):
-        with tempfile.TemporaryDirectory() as td:
-            root = pathlib.Path(td)
-            payload = self.payload(root)
-            db = self.dbini(root)
-            with mock.patch.object(om, 'php_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'thumbnail_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'disk_status', return_value={'ready': True}):
-                info = om.preflight(root / 'app', payload, None, db)
             self.assertFalse(info['apache_rewrite']['verified'])
             self.assertFalse(info['public_route_verified'])
+            self.assertEqual(before, after)
 
-    def test_apply_installs_private_release_and_secret_config(self):
+    def test_apply_uses_shared_files_and_database_config(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             payload = self.payload(root)
             db = self.dbini(root)
-            sha = om.payload_status(payload, None)['tree_sha256']
+            tree_hash = om.payload_status(payload, None)['tree_sha256']
             app = root / 'app'
-            with mock.patch.object(om, 'php_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'thumbnail_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'disk_status', return_value={'ready': True}):
-                result = om.apply(app, payload, sha, db)
-            self.assertEqual(result['status'], 'private-files-deployed')
-            self.assertTrue((app / 'current').is_symlink())
-            installed = (app / 'current/config/database.ini').resolve()
-            self.assertEqual(installed.stat().st_mode & 0o777, 0o600)
+            php, thumbs, disk = self.patch_runtime()
+            with php, thumbs, disk:
+                result = om.apply(app, payload, tree_hash, db)
+            current = app / 'current'
+            self.assertTrue(current.is_symlink())
+            self.assertTrue((current / 'files').is_symlink())
+            self.assertEqual((current / 'files').resolve(), (app / 'shared/files').resolve())
+            self.assertTrue((current / 'config/database.ini').is_symlink())
+            shared_db = app / 'shared/config/database.ini'
+            self.assertEqual(shared_db.stat().st_mode & 0o777, 0o600)
             state = json.loads((pathlib.Path(result['evidence']) / 'deployment-state.json').read_text())
             self.assertFalse(state['database_ini_values_recorded'])
+            self.assertTrue(state['database_ini_shared'])
             self.assertFalse(state['public_changes'])
 
-    def test_rollback_only_moves_pointer_and_preserves_release(self):
+    def test_conflicting_shared_database_ini_fails_closed(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             payload = self.payload(root)
             db = self.dbini(root)
-            sha = om.payload_status(payload, None)['tree_sha256']
+            tree_hash = om.payload_status(payload, None)['tree_sha256']
             app = root / 'app'
-            with mock.patch.object(om, 'php_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'thumbnail_status', return_value={'ready': True}), \
-                 mock.patch.object(om, 'disk_status', return_value={'ready': True}):
-                result = om.apply(app, payload, sha, db)
-            release = app / 'releases' / sha[:16]
+            php, thumbs, disk = self.patch_runtime()
+            with php, thumbs, disk:
+                om.apply(app, payload, tree_hash, db)
+            changed = self.dbini(root, 'other-secret-value')
+            php, thumbs, disk = self.patch_runtime()
+            with php, thumbs, disk:
+                info = om.preflight(app, payload, tree_hash, changed)
+            self.assertIn('shared-database-ini-conflict', info['blockers'])
+
+    def test_rollback_moves_pointer_and_preserves_shared_data(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            payload = self.payload(root)
+            db = self.dbini(root)
+            tree_hash = om.payload_status(payload, None)['tree_sha256']
+            app = root / 'app'
+            php, thumbs, disk = self.patch_runtime()
+            with php, thumbs, disk:
+                result = om.apply(app, payload, tree_hash, db)
+            release = (app / 'current').resolve()
             rolled = om.rollback(app, pathlib.Path(result['evidence']))
             self.assertEqual(rolled['status'], 'rolled-back-pointer')
             self.assertFalse((app / 'current').exists())
             self.assertTrue(release.is_dir())
+            self.assertTrue((app / 'shared/files').is_dir())
+            self.assertTrue((app / 'shared/config/database.ini').is_file())
             self.assertTrue(rolled['database_unchanged'])
+            self.assertTrue(rolled['persistent_files_preserved'])
 
-    def test_source_has_no_db_creation_admin_or_public_mutation_commands(self):
+    def test_source_has_no_database_admin_or_public_mutation_authority(self):
         text = SCRIPT.read_text(encoding='utf-8').lower()
-        for forbidden in ('create database', 'create user', 'certbot', 'a2ensite', 'a2enmod', 'curl http', 'wget http', 'public_html'):
+        for forbidden in (
+            'create database', 'create user', 'certbot', 'a2ensite', 'a2enmod',
+            'iptables', 'nft add', 'ufw ', 'public_html', 'curl http', 'wget http',
+        ):
             self.assertNotIn(forbidden, text)
         self.assertIn("'public_changes': false", text)
         self.assertIn("'creates_database': false", text)
