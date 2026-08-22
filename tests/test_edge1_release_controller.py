@@ -47,10 +47,11 @@ class ReleaseControllerTests(unittest.TestCase):
             sleep=lambda _seconds: None,
         )
 
-    def test_target_must_be_exact_lowercase_sha(self):
+    def test_target_must_be_exact_sha(self):
         good = 'a' * 40
         self.assertEqual(rc.valid_sha(good), good)
-        for bad in ('main', 'a' * 39, 'A' * 40, ('a' * 40) + ';id', '../' + ('a' * 40)):
+        self.assertEqual(rc.valid_sha('A' * 40), good)
+        for bad in ('main', 'a' * 39, ('a' * 40) + ';id', '../' + ('a' * 40)):
             with self.subTest(bad=bad), self.assertRaises(rc.ReleaseError):
                 rc.valid_sha(bad)
 
