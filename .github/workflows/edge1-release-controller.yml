@@ -1,0 +1,73 @@
+name: Edge1 Release Controller
+
+on:
+  pull_request:
+    paths:
+      - 'server/edge1_release_controller.py'
+      - 'deploy/install_edge1_release_controller.py'
+      - 'deploy/edge1-release-controller/**'
+      - 'src/web/release-manager/**'
+      - 'tools/mcp/edge1-live-shell/src/index.js'
+      - 'config/edge1_operator/navigation_registry.json'
+      - 'tests/test_edge1_release_controller.py'
+      - 'docs/operations/edge1-release-controller.md'
+      - '.agent/edge1-release-controller-20260822.md'
+      - '.github/workflows/edge1-release-controller.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/edge1_release_controller.py'
+      - 'deploy/install_edge1_release_controller.py'
+      - 'deploy/edge1-release-controller/**'
+      - 'src/web/release-manager/**'
+      - 'tools/mcp/edge1-live-shell/src/index.js'
+      - 'config/edge1_operator/navigation_registry.json'
+      - 'tests/test_edge1_release_controller.py'
+      - 'docs/operations/edge1-release-controller.md'
+      - '.agent/edge1-release-controller-20260822.md'
+      - '.github/workflows/edge1-release-controller.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile release controller
+        run: |
+          python3 -m py_compile \
+            server/edge1_release_controller.py \
+            deploy/install_edge1_release_controller.py \
+            tests/test_edge1_release_controller.py
+      - name: Run release controller tests
+        run: python3 -m unittest -v tests.test_edge1_release_controller
+      - name: Check live-shell JavaScript
+        run: node --check tools/mcp/edge1-live-shell/src/index.js
+      - name: Validate systemd unit syntax
+        run: |
+          systemd-analyze verify \
+            deploy/edge1-release-controller/edge1-release-controller-status.service \
+            deploy/edge1-release-controller/edge1-release-controller-status.timer
+      - name: Guard deployment boundaries
+        run: |
+          ! grep -RniE '(certbot|iptables|nft[[:space:]]|ufw[[:space:]]|a2enmod|a2ensite|systemctl (restart|reload) apache2)' \
+            server/edge1_release_controller.py \
+            deploy/install_edge1_release_controller.py \
+            deploy/edge1-release-controller \
+            tools/mcp/edge1-live-shell/src/index.js
+          grep -F 'MANAGED_SERVICES = ("edge1-operations-api.service", "edge1-operator-mcp.service")' server/edge1_release_controller.py
+          grep -F 'automatic_promotion' server/edge1_release_controller.py
+          grep -F "z.enum(['status', 'reconcile', 'rollback_last'])" tools/mcp/edge1-live-shell/src/index.js
+          grep -F 'EDGE1_RELEASE_TARGET_SHA' tools/mcp/edge1-live-shell/src/index.js
+          grep -F '/opt/edge1-runtime/current' deploy/edge1-release-controller/edge1-operations-api-release.conf
+          grep -F '/opt/edge1-runtime/current' deploy/edge1-release-controller/edge1-operator-mcp-release.conf
+      - name: Reject obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|password[[:space:]]*=[[:space:]]*[^$])' \
+            server/edge1_release_controller.py \
+            deploy/install_edge1_release_controller.py \
+            tools/mcp/edge1-live-shell/src/index.js \
+            docs/operations/edge1-release-controller.md
