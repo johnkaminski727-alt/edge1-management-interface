@@ -1,0 +1,52 @@
+name: Edge1 Mail Gateway local intake
+
+on:
+  pull_request:
+    paths:
+      - 'server/mail_edge1_gateway_source.py'
+      - 'tools/messaging/edge1_mail_gateway_ingest.py'
+      - 'tools/messaging/render_edge1_mail_gateway_postfix.py'
+      - 'tests/validate_edge1_mail_gateway_local_intake.py'
+      - '.github/workflows/edge1-mail-gateway-local-intake.yml'
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+  push:
+    branches: [main]
+    paths:
+      - 'server/mail_edge1_gateway_source.py'
+      - 'tools/messaging/edge1_mail_gateway_ingest.py'
+      - 'tools/messaging/render_edge1_mail_gateway_postfix.py'
+      - 'tests/validate_edge1_mail_gateway_local_intake.py'
+      - '.github/workflows/edge1-mail-gateway-local-intake.yml'
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile gateway source and tools
+        run: |
+          python3 -m py_compile server/mail_edge1_gateway_source.py
+          python3 -m py_compile tools/messaging/edge1_mail_gateway_ingest.py
+          python3 -m py_compile tools/messaging/render_edge1_mail_gateway_postfix.py
+          python3 -m py_compile tests/validate_edge1_mail_gateway_local_intake.py
+      - name: Validate local-only intake
+        run: python3 tests/validate_edge1_mail_gateway_local_intake.py
+      - name: Render Postfix fragments
+        run: |
+          tmp="$(mktemp -d)"
+          python3 tools/messaging/render_edge1_mail_gateway_postfix.py --output-dir "$tmp"
+          grep -Fx 'inet_interfaces = loopback-only' "$tmp/main.cf.fragment"
+          grep -Fx 'relay_domains =' "$tmp/main.cf.fragment"
+          ! grep -q 'ww.cx OK' "$tmp/wwcx-edge1-managed-domains"
+          grep -Fx 'creekco.ca OK' "$tmp/wwcx-edge1-managed-domains"
+      - name: Secret-pattern scan
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|WWCX_.*PASSWORD=.)' \
+            server/mail_edge1_gateway_source.py \
+            tools/messaging/edge1_mail_gateway_ingest.py \
+            tools/messaging/render_edge1_mail_gateway_postfix.py \
+            tests/validate_edge1_mail_gateway_local_intake.py
