@@ -293,6 +293,39 @@ def atomic_json(path: Path, value: dict[str, Any], mode: int = 0o600) -> None:
     os.replace(temp, path)
 
 
+def rollback_started_projects(
+    repo: Path,
+    state: dict[str, Any],
+    env: dict[str, str],
+    evidence: Path,
+) -> dict[str, Any]:
+    stopped: list[str] = []
+    failures: list[str] = []
+    for project, relative in (
+        (ARCHIVEBOX_PROJECT, ARCHIVEBOX_COMPOSE),
+        (PAPERLESS_PROJECT, PAPERLESS_COMPOSE),
+    ):
+        project_state = state.get('projects', {}).get(project, {})
+        if project_state.get('started_by_transaction') is not True or project_state.get('was_running') is not False:
+            continue
+        result = run(compose_command(repo, project, relative, 'down'), env=env, timeout=180)
+        if result.returncode == 0:
+            stopped.append(project)
+        else:
+            failures.append(project)
+    rollback_result = {
+        'schema': STATE_SCHEMA,
+        'rolled_back_at': utc_now(),
+        'stopped_projects': stopped,
+        'failed_projects': failures,
+        'volumes_preserved': True,
+        'runtime_data_preserved': True,
+        'public_changes': False,
+    }
+    atomic_json(evidence / 'rollback-result.json', rollback_result)
+    return rollback_result
+
+
 def apply(repo: Path, db_password_file: Path, secret_key_file: Path) -> dict[str, Any]:
     if os.geteuid() != 0:
         raise FoundationError('--apply requires root')
@@ -331,31 +364,42 @@ def apply(repo: Path, db_password_file: Path, secret_key_file: Path) -> dict[str
     }
     atomic_json(evidence / 'deployment-state.json', state)
 
-    if not paperless_was_running:
-        require_success(compose_command(repo, PAPERLESS_PROJECT, PAPERLESS_COMPOSE, 'up', '-d'), env=env, timeout=300)
-        state['projects'][PAPERLESS_PROJECT]['started_by_transaction'] = True
-        atomic_json(evidence / 'deployment-state.json', state)
-    if not archivebox_was_running:
-        require_success(compose_command(repo, ARCHIVEBOX_PROJECT, ARCHIVEBOX_COMPOSE, 'up', '-d'), env=env, timeout=300)
-        state['projects'][ARCHIVEBOX_PROJECT]['started_by_transaction'] = True
-        atomic_json(evidence / 'deployment-state.json', state)
+    try:
+        if not paperless_was_running:
+            require_success(compose_command(repo, PAPERLESS_PROJECT, PAPERLESS_COMPOSE, 'up', '-d'), env=env, timeout=300)
+            state['projects'][PAPERLESS_PROJECT]['started_by_transaction'] = True
+            atomic_json(evidence / 'deployment-state.json', state)
+        if not archivebox_was_running:
+            require_success(compose_command(repo, ARCHIVEBOX_PROJECT, ARCHIVEBOX_COMPOSE, 'up', '-d'), env=env, timeout=300)
+            state['projects'][ARCHIVEBOX_PROJECT]['started_by_transaction'] = True
+            atomic_json(evidence / 'deployment-state.json', state)
 
-    paperless_health = wait_http(f'http://127.0.0.1:{PAPERLESS_PORT}/')
-    archivebox_health = wait_http(f'http://127.0.0.1:{ARCHIVEBOX_PORT}/')
-    if not paperless_health.get('ready') or not archivebox_health.get('ready'):
-        raise FoundationError('private archive service health verification failed; use recorded evidence for rollback')
-    state['verified_at'] = utc_now()
-    state['health'] = {'paperless': paperless_health, 'archivebox': archivebox_health}
-    atomic_json(evidence / 'deployment-state.json', state)
-    atomic_json(CURRENT_STATE, {'schema': STATE_SCHEMA, 'evidence': str(evidence), 'verified_at': state['verified_at']})
-    return {
-        'status': 'private-foundation-active',
-        'paperless': paperless_health,
-        'archivebox': archivebox_health,
-        'evidence': str(evidence),
-        'public_changes': False,
-        'canonical_data_ingestion': False,
-    }
+        paperless_health = wait_http(f'http://127.0.0.1:{PAPERLESS_PORT}/')
+        archivebox_health = wait_http(f'http://127.0.0.1:{ARCHIVEBOX_PORT}/')
+        if not paperless_health.get('ready') or not archivebox_health.get('ready'):
+            raise FoundationError('private archive service health verification failed')
+        state['verified_at'] = utc_now()
+        state['health'] = {'paperless': paperless_health, 'archivebox': archivebox_health}
+        atomic_json(evidence / 'deployment-state.json', state)
+        atomic_json(CURRENT_STATE, {'schema': STATE_SCHEMA, 'evidence': str(evidence), 'verified_at': state['verified_at']})
+        return {
+            'status': 'private-foundation-active',
+            'paperless': paperless_health,
+            'archivebox': archivebox_health,
+            'evidence': str(evidence),
+            'public_changes': False,
+            'canonical_data_ingestion': False,
+        }
+    except FoundationError as exc:
+        rollback_result = rollback_started_projects(repo, state, env, evidence)
+        atomic_json(evidence / 'failure.json', {
+            'schema': STATE_SCHEMA,
+            'failed_at': utc_now(),
+            'failure_type': type(exc).__name__,
+            'automatic_rollback': rollback_result,
+        })
+        status = 'complete' if not rollback_result['failed_projects'] else 'partial'
+        raise FoundationError(f'private foundation activation failed; automatic rollback={status}; evidence={evidence}') from exc
 
 
 def bounded_evidence_path(path: Path) -> Path:
@@ -384,24 +428,9 @@ def rollback(repo: Path, evidence: Path, db_password_file: Path, secret_key_file
     if state.get('source_hashes') != validate_compose_sources(repo):
         raise FoundationError('compose sources changed since deployment; refusing blind rollback')
     env = compose_env(db_password_file, secret_key_file)
-    stopped: list[str] = []
-    for project, relative in (
-        (ARCHIVEBOX_PROJECT, ARCHIVEBOX_COMPOSE),
-        (PAPERLESS_PROJECT, PAPERLESS_COMPOSE),
-    ):
-        project_state = state.get('projects', {}).get(project, {})
-        if project_state.get('started_by_transaction') is True and project_state.get('was_running') is False:
-            require_success(compose_command(repo, project, relative, 'down'), env=env, timeout=180)
-            stopped.append(project)
-    result = {
-        'schema': STATE_SCHEMA,
-        'rolled_back_at': utc_now(),
-        'stopped_projects': stopped,
-        'volumes_preserved': True,
-        'runtime_data_preserved': True,
-        'public_changes': False,
-    }
-    atomic_json(evidence / 'rollback-result.json', result)
+    result = rollback_started_projects(repo, state, env, evidence)
+    if result['failed_projects']:
+        raise FoundationError('rollback could not stop all transaction-started projects')
     return {'status': 'rolled-back-private-foundation', **result}
 
 
