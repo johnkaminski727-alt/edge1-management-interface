@@ -1,0 +1,26 @@
+{
+  "schema": "wwcx.cookie-monster.alpha.v1",
+  "generated_at": "2026-08-22T07:00:00Z",
+  "mode": "alpha-read-only-demo",
+  "source_kind": "staging",
+  "summary": {"files_discovered": 3, "unique_assets": 2, "duplicate_groups": 1, "knowledge_records": 3, "review_items": 3, "unauthorized_source_writes": 0},
+  "tooling": {"ffprobe": {"available": true, "path": "/usr/bin/ffprobe"}, "mediainfo": {"available": false, "path": null}, "exiftool": {"available": false, "path": null}},
+  "fengus": {"connected": false, "mode": "not-connected-in-m0-m1", "jobs_active": 0, "jobs_completed": 0, "jobs_failed": 0},
+  "assets": [
+    {"filename":"sample-a.txt","mime_type":"text/plain","size_bytes":13,"source_asset_id":"sha256:demo0001","source_asset_location":"samples/sample-a.txt"},
+    {"filename":"sample-a-copy.txt","mime_type":"text/plain","size_bytes":13,"source_asset_id":"sha256:demo0001","source_asset_location":"samples/sample-a-copy.txt"},
+    {"filename":"sample-image.png","mime_type":"image/png","size_bytes":2048,"source_asset_id":"sha256:demo0002","source_asset_location":"samples/sample-image.png"}
+  ],
+  "duplicates": [{"source_asset_id":"sha256:demo0001","count":2,"locations":["samples/sample-a.txt","samples/sample-a-copy.txt"]}],
+  "knowledge_records": [
+    {"knowledge_record_id":"kr-demo-1","source_asset_id":"sha256:demo0001","source_asset_location":"samples/sample-a.txt","review_status":"draft","confidence":1.0,"record_hash":"sha256:record-demo-1","previous_record_hash":null,"extraction_method":"cookie-monster-alpha-metadata","extraction_method_version":"0.1.0-alpha","facts":{"filename":"sample-a.txt","mime_type":"text/plain","size_bytes":13}},
+    {"knowledge_record_id":"kr-demo-2","source_asset_id":"sha256:demo0001","source_asset_location":"samples/sample-a-copy.txt","review_status":"draft","confidence":1.0,"record_hash":"sha256:record-demo-2","previous_record_hash":"sha256:record-demo-1","extraction_method":"cookie-monster-alpha-metadata","extraction_method_version":"0.1.0-alpha","facts":{"filename":"sample-a-copy.txt","mime_type":"text/plain","size_bytes":13}},
+    {"knowledge_record_id":"kr-demo-3","source_asset_id":"sha256:demo0002","source_asset_location":"samples/sample-image.png","review_status":"draft","confidence":1.0,"record_hash":"sha256:record-demo-3","previous_record_hash":"sha256:record-demo-2","extraction_method":"cookie-monster-alpha-metadata","extraction_method_version":"0.1.0-alpha","facts":{"filename":"sample-image.png","mime_type":"image/png","size_bytes":2048}}
+  ],
+  "review_queue": [
+    {"knowledge_record_id":"kr-demo-1","source_asset_id":"sha256:demo0001","source_asset_location":"samples/sample-a.txt","review_status":"draft","reason":"initial_alpha_record"},
+    {"knowledge_record_id":"kr-demo-2","source_asset_id":"sha256:demo0001","source_asset_location":"samples/sample-a-copy.txt","review_status":"draft","reason":"initial_alpha_record"},
+    {"knowledge_record_id":"kr-demo-3","source_asset_id":"sha256:demo0002","source_asset_location":"samples/sample-image.png","review_status":"draft","reason":"initial_alpha_record"}
+  ],
+  "audit": []
+}
