@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/messaging/edge1-mail-gateway-v1.schema.json",
+  "title": "WW.CX Edge1 Mail Gateway v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "service_hostname",
+    "activation",
+    "storage_root",
+    "provenance_source",
+    "domains"
+  ],
+  "properties": {
+    "contract": {
+      "const": "wwcx.edge1-mail-gateway.v1"
+    },
+    "service_hostname": {
+      "const": "mail.ww.cx"
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_smtp_listener_enabled",
+        "production_mx_changes_authorized",
+        "outbound_delivery_enabled"
+      ],
+      "properties": {
+        "public_smtp_listener_enabled": {"const": false},
+        "production_mx_changes_authorized": {"const": false},
+        "outbound_delivery_enabled": {"const": false}
+      }
+    },
+    "storage_root": {
+      "const": "/var/lib/wwcx-mail-gateway"
+    },
+    "provenance_source": {
+      "const": "edge1-mail-gateway-smtp"
+    },
+    "domains": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "migration_order",
+          "catch_all_enabled",
+          "archive_identity",
+          "retain_provider_fallback"
+        ],
+        "properties": {
+          "mode": {
+            "enum": ["stay_external", "candidate"]
+          },
+          "migration_order": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "catch_all_enabled": {
+            "type": "boolean"
+          },
+          "archive_identity": {
+            "type": ["string", "null"],
+            "format": "email"
+          },
+          "retain_provider_fallback": {
+            "const": true
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
