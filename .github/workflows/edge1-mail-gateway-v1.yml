@@ -1,0 +1,54 @@
+name: Edge1 Mail Gateway v1
+
+on:
+  pull_request:
+    paths:
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+      - 'schemas/messaging/edge1-mail-gateway-v1.schema.json'
+      - 'docs/messaging-operations/edge1-mail-gateway-v1-20260822.md'
+      - 'tests/validate_edge1_mail_gateway_v1.py'
+      - '.github/workflows/edge1-mail-gateway-v1.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+      - 'schemas/messaging/edge1-mail-gateway-v1.schema.json'
+      - 'docs/messaging-operations/edge1-mail-gateway-v1-20260822.md'
+      - 'tests/validate_edge1_mail_gateway_v1.py'
+      - '.github/workflows/edge1-mail-gateway-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON syntax
+        run: |
+          python3 -m json.tool config/messaging/edge1-mail-gateway-v1.json >/dev/null
+          python3 -m json.tool schemas/messaging/edge1-mail-gateway-v1.schema.json >/dev/null
+      - name: Validate gateway safety invariants
+        run: python3 tests/validate_edge1_mail_gateway_v1.py
+      - name: Compile validator
+        run: python3 -m py_compile tests/validate_edge1_mail_gateway_v1.py
+      - name: Assert no production activation
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          cfg = json.loads(Path('config/messaging/edge1-mail-gateway-v1.json').read_text())
+          activation = cfg['activation']
+          assert not activation['public_smtp_listener_enabled']
+          assert not activation['production_mx_changes_authorized']
+          assert not activation['outbound_delivery_enabled']
+          assert cfg['domains']['ww.cx']['mode'] == 'stay_external'
+          PY
+      - name: Secret-pattern scan
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|WWCX_.*PASSWORD=.)' \
+            config/messaging/edge1-mail-gateway-v1.json \
+            docs/messaging-operations/edge1-mail-gateway-v1-20260822.md \
+            schemas/messaging/edge1-mail-gateway-v1.schema.json \
+            tests/validate_edge1_mail_gateway_v1.py
