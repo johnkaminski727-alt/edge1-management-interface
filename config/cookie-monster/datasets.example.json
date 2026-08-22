@@ -1,0 +1,11 @@
+{
+  "schema": "wwcx.cookie-monster.datasets.v1",
+  "datasets": {
+    "alpha-staging": {
+      "enabled": false,
+      "non_production": true,
+      "read_only": true,
+      "description": "Explicitly staged non-production Cookie Monster Alpha dataset. Enable only after creating /srv/cookie-monster/datasets/alpha-staging and reviewing the runtime boundary."
+    }
+  }
+}
