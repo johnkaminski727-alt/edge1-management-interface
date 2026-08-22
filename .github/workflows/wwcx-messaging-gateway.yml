@@ -39,7 +39,18 @@ jobs:
         working-directory: services/wwcx-messaging-gateway
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/wwcx-messaging-gateway/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[dev]'
       - run: docker compose -f compose.test.yaml up -d --build --wait
+      - name: Verify Postgres send-rate limiter concurrency and idempotency
+        env:
+          DATABASE_URL: postgresql://wwcx:wwcx-test-only@127.0.0.1:55432/wwcx_messaging
+        run: pytest -q tests/test_postgres_rate_limiter_integration.py
       - run: WWCX_TEST_OUTBOUND_QUEUE=1 sh scripts/smoke-test.sh
       - run: sh scripts/webhook-receipt-smoke.sh
       - run: sh scripts/delivery-status-smoke.sh
