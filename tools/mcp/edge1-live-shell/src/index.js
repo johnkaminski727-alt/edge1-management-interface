@@ -9,6 +9,7 @@ const MAX_OUTPUT_BYTES = Math.min(Number(process.env.EDGE1_MAX_OUTPUT_BYTES || 2
 const ALLOW_RESTARTS = process.env.EDGE1_ALLOW_RESTARTS === '1';
 const ENABLE_RAW_SHELL = process.env.EDGE1_ENABLE_RAW_SHELL === '1';
 const ALLOW_COOKIE_MONSTER = process.env.EDGE1_ALLOW_COOKIE_MONSTER === '1';
+const COOKIE_MONSTER_TARGET_SHA = process.env.EDGE1_COOKIE_MONSTER_TARGET_SHA || '';
 const ALLOWED_SERVICES = new Set((process.env.EDGE1_ALLOWED_SERVICES || 'bigbird-ai-gateway').split(',').map(v => v.trim()).filter(Boolean));
 const REPOSITORIES = parseRepositories(process.env.EDGE1_REPOSITORIES || 'edge1-interface=/opt/edge1-management-interface;bigbird-gateway=/opt/bigbird-ai-gateway');
 
@@ -89,6 +90,10 @@ function validService(service) {
   return /^[A-Za-z0-9@_.-]+$/.test(service) && ALLOWED_SERVICES.has(service);
 }
 
+function validCookieMonsterTarget() {
+  return /^[0-9a-f]{40}$/.test(COOKIE_MONSTER_TARGET_SHA);
+}
+
 function cookieMonsterRepository() {
   return REPOSITORIES.get('edge1-interface') || null;
 }
@@ -98,14 +103,15 @@ function cookieMonsterCommand(action) {
   if (!repo) return null;
   const qRepo = shellQuote(repo);
   const script = shellQuote(`${repo}/deploy/cookie_monster_edge1_activate.py`);
+  const target = shellQuote(COOKIE_MONSTER_TARGET_SHA);
   if (action === 'preflight') {
     return `sudo -n /usr/bin/python3 ${script} --repo ${qRepo}`;
   }
   if (action === 'sync_sources') {
-    return `set -eu; repo=${qRepo}; test "$(git -C "$repo" symbolic-ref --short HEAD)" = main; test -z "$(git -C "$repo" status --porcelain)"; before=$(git -C "$repo" rev-parse HEAD); git -C "$repo" fetch --prune origin; git -C "$repo" merge --ff-only origin/main; after=$(git -C "$repo" rev-parse HEAD); printf 'before=%s\\nafter=%s\\nbranch=' "$before" "$after"; git -C "$repo" symbolic-ref --short HEAD; printf 'status='; git -C "$repo" status --short --branch`;
+    return `set -eu; repo=${qRepo}; target=${target}; test "$(git -C "$repo" symbolic-ref --short HEAD)" = main; test -z "$(git -C "$repo" status --porcelain)"; before=$(git -C "$repo" rev-parse HEAD); git -C "$repo" fetch --prune origin; git -C "$repo" cat-file -e "$target^{commit}"; git -C "$repo" merge-base --is-ancestor "$target" origin/main; git -C "$repo" merge --ff-only "$target"; after=$(git -C "$repo" rev-parse HEAD); test "$after" = "$target"; printf 'before=%s\\nafter=%s\\nbranch=' "$before" "$after"; git -C "$repo" symbolic-ref --short HEAD; printf 'status='; git -C "$repo" status --short --branch`;
   }
   if (action === 'activate') {
-    return `sudo -n /usr/bin/python3 ${script} --repo ${qRepo} --apply`;
+    return `set -eu; repo=${qRepo}; target=${target}; test "$(git -C "$repo" rev-parse HEAD)" = "$target"; sudo -n /usr/bin/python3 ${script} --repo ${qRepo} --apply`;
   }
   if (action === 'rollback_last') {
     return `sudo -n /usr/bin/python3 ${script} --repo ${qRepo} --rollback-last`;
@@ -166,15 +172,18 @@ function createServer() {
   });
 
   server.registerTool('edge1_cookie_monster', {
-    description: 'Run the fixed Cookie Monster Alpha staging lifecycle on Edge1. Preflight is read-only; source sync, activation and rollback are disabled unless EDGE1_ALLOW_COOKIE_MONSTER=1. No arbitrary path or command is accepted.',
+    description: 'Run the fixed Cookie Monster Alpha staging lifecycle on Edge1. Preflight is read-only; source sync, activation and rollback are disabled unless EDGE1_ALLOW_COOKIE_MONSTER=1. Source sync and activation are pinned to EDGE1_COOKIE_MONSTER_TARGET_SHA. No arbitrary path or command is accepted.',
     inputSchema: z.object({ action: z.enum(['preflight', 'sync_sources', 'activate', 'rollback_last']) })
   }, async ({ action }) => {
     if (action !== 'preflight' && !ALLOW_COOKIE_MONSTER) {
       return { content: [{ type: 'text', text: 'Cookie Monster mutation actions are disabled by policy (EDGE1_ALLOW_COOKIE_MONSTER=0).' }], isError: true };
     }
+    if ((action === 'sync_sources' || action === 'activate') && !validCookieMonsterTarget()) {
+      return { content: [{ type: 'text', text: 'EDGE1_COOKIE_MONSTER_TARGET_SHA must be an exact 40-character Git commit SHA.' }], isError: true };
+    }
     const command = cookieMonsterCommand(action);
     if (!command) return { content: [{ type: 'text', text: 'Cookie Monster repository alias is unavailable.' }], isError: true };
-    return resultPayload('cookie_monster', await runSsh(command), { action });
+    return resultPayload('cookie_monster', await runSsh(command), { action, targetSha: (action === 'sync_sources' || action === 'activate') ? COOKIE_MONSTER_TARGET_SHA : null });
   });
 
   server.registerTool('edge1_exec', {
