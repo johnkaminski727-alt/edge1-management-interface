@@ -1,0 +1,42 @@
+name: Digital Archive Omeka Business159
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/digital-archive/omeka/**'
+      - 'docs/archive/omeka-business159*.md'
+      - 'tests/test_business159_omeka_deploy.py'
+      - '.github/workflows/digital-archive-omeka-business159.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/digital-archive/omeka/**'
+      - 'docs/archive/omeka-business159*.md'
+      - 'tests/test_business159_omeka_deploy.py'
+      - '.github/workflows/digital-archive-omeka-business159.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile deployment transaction
+        run: python3 -m py_compile deploy/digital-archive/omeka/business159_omeka_deploy.py tests/test_business159_omeka_deploy.py
+      - name: Run deployment boundary tests
+        run: python3 -m unittest -v tests.test_business159_omeka_deploy tests.test_digital_archive_foundation
+      - name: Preserve shared-host authority boundary
+        run: |
+          ! grep -nEi '(create database|create user|certbot|a2ensite|a2enmod|iptables|nft add|ufw |public_html|curl http|wget http)' deploy/digital-archive/omeka/business159_omeka_deploy.py
+          grep -F "'public_changes': False" deploy/digital-archive/omeka/business159_omeka_deploy.py
+          grep -F "'creates_database': False" deploy/digital-archive/omeka/business159_omeka_deploy.py
+          grep -F "'creates_first_admin': False" deploy/digital-archive/omeka/business159_omeka_deploy.py
+      - name: Reject obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|password[[:space:]]*=[[:space:]]*[^$])' \
+            deploy/digital-archive/omeka/business159_omeka_deploy.py \
+            docs/archive/omeka-business159-deployment.md \
+            tests/test_business159_omeka_deploy.py
