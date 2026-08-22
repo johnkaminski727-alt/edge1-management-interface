@@ -15,19 +15,23 @@ Cookie Monster is not complete as a headless service. Every material capability 
 
 ## Alpha source boundary
 
-`server/cookie_monster_alpha.py` accepts a staging source directory and a separate generated-output directory. The output may not be the source directory or a descendant of it. The source is read only; generated `status.json`, `knowledge-records.jsonl`, and `audit.jsonl` are written outside the source tree.
+`server/cookie_monster_alpha.py` accepts a staging source directory and a separate generated-output directory. The output may not be the source directory or a descendant of it. The source is read only. Symlink files and symlink directories inside the staging source are rejected so discovery cannot escape the resolved source root.
 
 ```bash
 python3 server/cookie_monster_alpha.py --source /srv/cookie-monster/staging-source --output /var/lib/cookie-monster-alpha/generated
 ```
 
-## Metadata tooling
+## Metadata tooling and budgets
 
-Alpha discovers `ffprobe`, `mediainfo`, and `exiftool` when installed. Tool failures become diagnostics and review items; they do not modify or discard source assets.
+Alpha discovers `ffprobe`, `mediainfo`, and `exiftool` when installed. Tool failures become diagnostics and review items; they do not modify or discard source assets. Metadata extraction is constrained by one aggregate per-file time budget (20 seconds by default) and the ingestion run has a total time budget (300 seconds by default). Both are configurable through CLI arguments.
 
-## Provenance and duplicates
+## Provenance, idempotency and duplicates
 
-Each file receives a content-addressed `source_asset_id` of the form `sha256:<digest>`. Knowledge records include source pointer, ingestion actor/version, extraction method/version, confidence, review status, correction fields and a previous-record hash. Duplicate candidates are exact byte duplicates grouped by `source_asset_id`; filename similarity alone is never sufficient.
+Each file receives a content-addressed `source_asset_id` of the form `sha256:<digest>`. Knowledge records include source pointer, ingestion actor/version, extraction method/version, confidence, review status, correction fields and a previous-record hash.
+
+`knowledge-records.jsonl` and `audit.jsonl` are append-only across runs. `status.json` is the replaceable current-state snapshot. Knowledge records use a deterministic idempotency key derived from the source asset identity, source location, extraction method/version and recorded facts. Re-ingesting an unchanged staging asset reuses the existing knowledge record instead of creating a fresh unlinked record; the new read and the idempotent reuse are still appended to the audit trail. Legacy Alpha records created before the explicit idempotency field are recognized by deriving the same key from their existing provenance fields rather than rewriting history.
+
+Duplicate candidates are exact byte duplicates grouped by `source_asset_id`; filename similarity alone is never sufficient.
 
 ## UI
 
@@ -44,6 +48,6 @@ The control surface includes dashboard/tooling state, intake browser ("What it a
 ## Milestone mapping
 
 - **M0**: repository scaffolding, source/output separation, UI shell and read-only boundary.
-- **M1**: discovery, SHA-256 identity, duplicate grouping, optional metadata extraction against staging data.
+- **M1**: discovery, SHA-256 identity, exact duplicate grouping, bounded metadata extraction, cross-run idempotency and append-only provenance against staging data.
 - **M2**: draft/pending-review knowledge records with provenance and hash chain.
 - **M3+**: bounded review mutations, Fengus isolation/runtime, archive-read audit integration, measurable acceptance against a non-production staging archive.
