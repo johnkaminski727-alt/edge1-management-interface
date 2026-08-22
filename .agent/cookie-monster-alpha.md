@@ -14,6 +14,7 @@ Last updated: 2026-08-22
 - Human review is append-only; web mutation stays disabled until an authenticated operator transport is deliberately wired.
 - Runtime cockpit publication is a separate atomic copy from generated evidence into a private web root; generated state is never copied back into Git.
 - Runtime dataset selection is slug-based and deterministic; neither Big Bird jobs nor the dataset registry may carry arbitrary archive/filesystem paths.
+- Edge1 foundation installation is backup-first and leaves the staging dataset disabled; installation does not equal ingestion activation.
 
 ## Implemented surfaces
 
@@ -25,12 +26,14 @@ Last updated: 2026-08-22
 - `server/cookie_monster_acceptance.py`
 - `deploy/cookie-monster-fengus-worker@.service`
 - `deploy/cookie_monster_runtime_publish.py`
+- `deploy/cookie_monster_edge1_install.py`
 - `config/cookie-monster/datasets.example.json`
 - `tests/test_cookie_monster_alpha.py`
 - `tests/test_cookie_monster_control.py`
 - `tests/test_cookie_monster_dispatch.py`
 - `tests/test_cookie_monster_acceptance.py`
 - `tests/test_cookie_monster_runtime_publish.py`
+- `tests/test_cookie_monster_edge1_install.py`
 - `src/web/cookie-monster/index.html`
 - `src/web/cookie-monster/demo-status.json`
 - `src/web/cookie-monster/assets/mascot.webp`
@@ -39,6 +42,7 @@ Last updated: 2026-08-22
 - `docs/cookie-monster/alpha-m6-acceptance.md`
 - `docs/cookie-monster/alpha-dispatch.md`
 - `docs/cookie-monster/runtime-publication.md`
+- `docs/cookie-monster/edge1-foundation-install.md`
 
 ## Closed review findings
 
@@ -66,15 +70,22 @@ PR #518 merged after the dedicated runtime-publication workflow, Edge1 Operator 
 
 ## M8 bounded dataset dispatch source package
 
-The Big Bird -> Cookie Monster dispatcher is now source-defined around a path-free runtime dataset registry. A job names only a bounded dataset slug; an enabled registry entry must explicitly be `non_production=true` and `read_only=true`. The dispatcher deterministically resolves `/srv/cookie-monster/datasets/<slug>`, rejects symlink escapes, uses dataset-specific generated output, reuses existing knowledge records for cross-run idempotency, rejects partial-pipeline semantics that Alpha does not yet implement, and records sanitized job failures without exception text.
+The Big Bird -> Cookie Monster dispatcher is source-defined around a path-free runtime dataset registry. A job names only a bounded dataset slug; an enabled registry entry must explicitly be `non_production=true` and `read_only=true`. The dispatcher deterministically resolves `/srv/cookie-monster/datasets/<slug>`, rejects symlink escapes, uses dataset-specific generated output, reuses existing knowledge records for cross-run idempotency, rejects partial-pipeline semantics that Alpha does not yet implement, and records sanitized job failures without exception text.
 
-The example registry is disabled by default and contains no path, URL, command or credential field. The dedicated dispatch test/CI package must pass before this source milestone is merged; source preparation is not a live dataset activation.
+PR #519 merged after the dedicated dataset-dispatch workflow, runtime-publication regression workflow, Edge1 Operator Validation and repository validation all passed. The example registry remains disabled by default and contains no path, URL, command or credential field. This is source readiness, not a live dataset activation.
+
+## M9 Edge1 foundation installer source package
+
+A backup-first source installer now defines the exact private Edge1 foundation needed before a non-production activation: disabled runtime registry, `/srv/cookie-monster/datasets/alpha-staging`, generated-state root, Fengus inbox/outbox, dedicated nologin Fengus account, and the hardened worker template unit. Existing dataset registry divergence fails closed instead of being overwritten. Newly created staging is read-only by default, `systemctl daemon-reload` does not start a worker, and config rollback preserves runtime directories/service-account identity rather than deleting evidence or invalidating UIDs.
+
+Local source validation before publication: Python compile PASS and 7/7 targeted installer tests PASS. Dedicated CI and repository validation remain required before merge. No live install has been performed because the exposed Edge1 Operator connector is read-only.
 
 ## Remaining activation work
 
-1. Create and deliberately enable a non-production `alpha-staging` dataset mapping on Edge1 through an authenticated write-capable deployment path.
-2. Run a bounded dispatch against that staged data and verify source immutability, idempotency and provenance.
-3. Publish that dataset's generated runtime snapshots through the PR #518 publisher and verify the private cockpit.
-4. Decide/wire the authenticated operator transport for actual web approve/reject clicks.
-5. Create the Fengus runtime user/directories and activate the hardened worker service only after deployment review.
-6. Re-run M6 against the deliberately selected Edge1 non-production staging dataset with zero provenance gaps and zero unauthorized writes.
+1. Run the M9 installer preflight and reviewed `--apply` through an authenticated write-capable Edge1 path.
+2. Populate the deliberately non-production `alpha-staging` directory, then explicitly enable only that registry entry.
+3. Run a bounded dispatch against staged data and verify source immutability, idempotency and provenance.
+4. Publish that dataset's generated runtime snapshots through the PR #518 publisher and verify the private cockpit.
+5. Decide/wire the authenticated operator transport for actual web approve/reject clicks.
+6. Exercise a Fengus template instance only with a bounded generated work item after runtime review; keep archive/network access denied.
+7. Re-run M6 against the deliberately selected Edge1 non-production staging dataset with zero provenance gaps and zero unauthorized writes.
