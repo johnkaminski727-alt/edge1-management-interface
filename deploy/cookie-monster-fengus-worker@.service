@@ -1,0 +1,39 @@
+[Unit]
+Description=WW.CX Cookie Monster bounded Fengus worker %i
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=cookie-monster-fengus
+Group=cookie-monster-fengus
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/cookie_monster_fengus_worker.py --request /var/lib/cookie-monster-alpha/fengus/inbox/%i.json --result /var/lib/cookie-monster-alpha/fengus/outbox/%i.json
+WorkingDirectory=/var/lib/cookie-monster-alpha/fengus
+
+# Worker has no network and cannot see the staging/archive source or generated knowledge store.
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/cookie-monster-alpha/fengus/inbox
+ReadWritePaths=/var/lib/cookie-monster-alpha/fengus/outbox
+InaccessiblePaths=/srv/cookie-monster /var/lib/cookie-monster-alpha/generated /etc/edge1-operations-api.secret
+
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=32
+LimitNOFILE=64
+TimeoutStartSec=30s
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
