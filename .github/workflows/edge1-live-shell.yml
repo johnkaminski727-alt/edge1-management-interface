@@ -42,4 +42,5 @@ jobs:
         run: |
           grep -F "EDGE1_ENABLE_RAW_SHELL" tools/mcp/edge1-live-shell/src/index.js
           grep -F "EDGE1_ALLOW_COOKIE_MONSTER" tools/mcp/edge1-live-shell/src/index.js
+          grep -F "EDGE1_COOKIE_MONSTER_TARGET_SHA" tools/mcp/edge1-live-shell/src/index.js
           ! grep -nE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' tools/mcp/edge1-live-shell/src/index.js tools/mcp/edge1-live-shell/README.md
