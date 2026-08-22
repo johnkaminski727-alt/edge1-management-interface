@@ -69,8 +69,11 @@ def main() -> int:
     assert "inet_interfaces = loopback-only" in rendered["main.cf.fragment"]
     assert "relay_domains =" in rendered["main.cf.fragment"]
     assert "reject_unauth_destination" in rendered["main.cf.fragment"]
+    assert "wwcxmail_destination_recipient_limit = 1" in rendered["main.cf.fragment"]
     assert "user=wwcx-mail-gateway" in rendered["master.cf.fragment"]
-    assert "--recipient ${recipient}" in rendered["master.cf.fragment"]
+    assert "flags=ROq" in rendered["master.cf.fragment"]
+    assert "--recipient ${original_recipient}" in rendered["master.cf.fragment"]
+    assert "--recipient ${recipient}" not in rendered["master.cf.fragment"]
     assert "--queue-id ${queue_id}" in rendered["master.cf.fragment"]
 
     unsafe = json.loads(json.dumps(config))
@@ -179,7 +182,8 @@ def main() -> int:
         ]
 
     print("Edge1 Mail Gateway local-only intake validation passed")
-    print("Catch-all recipient authority uses SMTP envelope recipient")
+    print("Catch-all recipient authority uses SMTP original recipient")
+    print("One-recipient pipe delivery is required for exact attribution")
     print("Conflicting original-recipient evidence fails closed")
     print("Postfix rendering remains loopback-only and relay-denying")
     print("ww.cx remains excluded from v1 managed-domain rendering")
