@@ -5,9 +5,11 @@ AUTHORIZATION="WWCX-EDGE1-MAIL-GATEWAY-LOCAL-APPLY-001"
 REPO_ROOT=${REPO_ROOT:-/opt/edge1-management-interface}
 CONFIG=${CONFIG:-$REPO_ROOT/config/messaging/edge1-mail-gateway-v1.json}
 RENDERER=${RENDERER:-$REPO_ROOT/tools/messaging/render_edge1_mail_gateway_postfix.py}
+ARCHIVE_TOOL=${ARCHIVE_TOOL:-$REPO_ROOT/tools/messaging/edge1_mail_gateway_archive.py}
 ACCEPTANCE=${ACCEPTANCE:-$REPO_ROOT/tools/messaging/edge1_mail_gateway_local_acceptance.py}
 POSTFIX_ETC=${POSTFIX_ETC:-/etc/postfix}
 BACKUP_ROOT=${BACKUP_ROOT:-/var/backups/wwcx-mail-gateway}
+ARCHIVE_ROOT=${ARCHIVE_ROOT:-/var/lib/wwcx-mail-gateway/inbound}
 STORE=${STORE:-/var/lib/wwcx-mail-room/correspondence.sqlite3}
 SYSTEM_SBIN=${SYSTEM_SBIN:-/usr/sbin}
 SYSTEM_BIN=${SYSTEM_BIN:-/usr/bin}
@@ -67,6 +69,7 @@ done
 
 [ -f "$CONFIG" ] || fail "gateway configuration is unavailable"
 [ -f "$RENDERER" ] || fail "gateway renderer is unavailable"
+[ -f "$ARCHIVE_TOOL" ] || fail "raw archive tool is unavailable"
 [ -f "$ACCEPTANCE" ] || fail "local acceptance tool is unavailable"
 [ -f "$POSTFIX_ETC/main.cf" ] || fail "Postfix main.cf is unavailable"
 [ -f "$POSTFIX_ETC/master.cf" ] || fail "Postfix master.cf is unavailable"
@@ -93,6 +96,10 @@ grep -Fx 'relay_domains =' "$work/rendered/main.cf.fragment" >/dev/null \
     || fail "rendered configuration does not clear relay domains"
 grep -Fx 'wwcxmail_destination_recipient_limit = 1' "$work/rendered/main.cf.fragment" >/dev/null \
     || fail "rendered configuration lacks single-recipient delivery"
+grep -Fx 'message_size_limit = 52428800' "$work/rendered/main.cf.fragment" >/dev/null \
+    || fail "rendered configuration lacks raw archive size boundary"
+grep -F 'edge1_mail_gateway_archive.py' "$work/rendered/master.cf.fragment" >/dev/null \
+    || fail "rendered pipe does not enter the raw archive"
 grep -F -- '--recipient ${original_recipient}' "$work/rendered/master.cf.fragment" >/dev/null \
     || fail "rendered pipe does not preserve original recipient"
 grep -F 'flags=ROq' "$work/rendered/master.cf.fragment" >/dev/null \
@@ -131,6 +138,7 @@ done
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup="$BACKUP_ROOT/local-apply-$stamp"
 install -d -o root -g root -m 0700 "$backup"
+install -d -o wwcx-mail-gateway -g wwcx-mail-gateway -m 0700 "$ARCHIVE_ROOT"
 cp -a "$POSTFIX_ETC/main.cf" "$backup/main.cf.before"
 cp -a "$POSTFIX_ETC/master.cf" "$backup/master.cf.before"
 "$POSTCONF_BIN" -n > "$backup/postconf-n.before.txt"
@@ -173,8 +181,9 @@ install -o root -g root -m 0644 \
 "$POSTCONF_BIN" -e 'virtual_mailbox_maps=regexp:/etc/postfix/wwcx-edge1-recipient-regexp'
 "$POSTCONF_BIN" -e 'virtual_transport=wwcxmail:'
 "$POSTCONF_BIN" -e 'wwcxmail_destination_recipient_limit=1'
+"$POSTCONF_BIN" -e 'message_size_limit=52428800'
 
-MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_ingest.py --stdin --recipient ${original_recipient} --queue-id ${queue_id} --store /var/lib/wwcx-mail-room/correspondence.sqlite3'
+MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3'
 "$POSTCONF_BIN" -M -e "$MASTER_VALUE"
 
 "$POSTFIX_BIN" check
@@ -199,11 +208,14 @@ fi
     || fail "Postfix virtual transport is not wwcxmail"
 [ "$("$POSTCONF_BIN" -h wwcxmail_destination_recipient_limit)" = "1" ] \
     || fail "Postfix single-recipient limit is not active"
+[ "$("$POSTCONF_BIN" -h message_size_limit)" = "52428800" ] \
+    || fail "Postfix raw archive message-size boundary is not active"
 
 "$RUNUSER_BIN" -u wwcx-mail-gateway -- \
     "$PYTHON3_BIN" "$ACCEPTANCE" \
     --config "$CONFIG" \
     --store "$STORE" \
+    --archive-root "$ARCHIVE_ROOT" \
     --domain creekco.ca \
     --execute > "$backup/local-acceptance.json"
 
@@ -223,7 +235,7 @@ trap - ERR INT TERM
 
 cat "$backup/local-acceptance.json"
 echo
-echo "Edge1 Mail Gateway local-only apply accepted."
+echo "Edge1 Mail Gateway local-only apply accepted with durable raw archive."
 echo "Backup/evidence directory: $backup"
 echo "TCP/25 remains loopback-only."
 echo "No DNS, MX, firewall, certificate, provider, or outbound-delivery change was made."
