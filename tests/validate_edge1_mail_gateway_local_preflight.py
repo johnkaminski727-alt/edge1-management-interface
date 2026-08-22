@@ -55,13 +55,16 @@ exit 2
 def run_preflight(*, public_port25: bool = False, collision: bool = False) -> tuple[subprocess.CompletedProcess[str], pathlib.Path]:
     temporary = tempfile.TemporaryDirectory()
     root = pathlib.Path(temporary.name)
-    # Keep the TemporaryDirectory alive by attaching it to the Path wrapper's module-level
-    # lifetime through this list until process completion/inspection.
     _TEMP_DIRS.append(temporary)
 
     fake_bin = root / "bin"
+    fake_sbin = root / "sbin"
     fake_bin.mkdir()
-    write_executable(fake_bin / "postconf", fake_postconf(collision=collision))
+    fake_sbin.mkdir()
+
+    # Deliberately keep postconf OUT of PATH. This reproduces the Edge1 operator
+    # environment where Postfix is installed but /usr/sbin is not in the login PATH.
+    write_executable(fake_sbin / "postconf", fake_postconf(collision=collision))
     ss_line = (
         "LISTEN 0 100 0.0.0.0:25 0.0.0.0:* users:((postfix,pid=1,fd=1))"
         if public_port25
@@ -79,7 +82,9 @@ def run_preflight(*, public_port25: bool = False, collision: bool = False) -> tu
     env = os.environ.copy()
     env.update(
         {
-            "PATH": f"{fake_bin}:{env['PATH']}",
+            "PATH": f"{fake_bin}:/usr/bin:/bin",
+            "SYSTEM_SBIN": str(fake_sbin),
+            "SYSTEM_BIN": "/usr/bin",
             "REPO_ROOT": str(ROOT),
             "OUTPUT_ROOT": str(output_root),
             "POSTFIX_ETC": str(postfix_etc),
@@ -119,6 +124,8 @@ def main() -> int:
     readme = (evidence_path / "README.txt").read_text()
     assert "No Postfix configuration was edited" in readme
     assert "no DNS/MX state was changed" in readme
+    assert "Postconf executable:" in readme
+    assert "/sbin/postconf" in readme
 
     collision, _ = run_preflight(collision=True)
     assert collision.returncode == 0, collision.stderr
@@ -130,6 +137,7 @@ def main() -> int:
     assert "non-loopback listener" in public.stderr
 
     content = SCRIPT.read_text(encoding="utf-8")
+    assert '"$SYSTEM_SBIN/postconf"' in content
     forbidden = [
         "postconf -e",
         "postmap ",
@@ -143,6 +151,7 @@ def main() -> int:
         assert token not in content, token
 
     print("Edge1 Mail Gateway local preflight validation passed")
+    print("Postfix admin tools resolve safely even when /usr/sbin is absent from PATH")
     print("Loopback-only state produces evidence without Postfix mutation")
     print("Existing virtual-domain settings are surfaced as collisions")
     print("Non-loopback TCP/25 fails closed")
