@@ -1,0 +1,44 @@
+name: Digital Archive private Edge1 foundation
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/digital-archive/**'
+      - 'docs/archive/edge1-private-foundation.md'
+      - 'tests/test_digital_archive_private_foundation.py'
+      - '.github/workflows/digital-archive-private-edge1-foundation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/digital-archive/**'
+      - 'docs/archive/edge1-private-foundation.md'
+      - 'tests/test_digital_archive_private_foundation.py'
+      - '.github/workflows/digital-archive-private-edge1-foundation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile private foundation transaction
+        run: python3 -m py_compile deploy/digital-archive/edge1_private_foundation.py tests/test_digital_archive_private_foundation.py
+      - name: Run private foundation boundary tests
+        run: python3 -m unittest -v tests.test_digital_archive_private_foundation tests.test_digital_archive_foundation
+      - name: Preserve private/non-destructive boundary
+        run: |
+          ! grep -nE '(apt(-get)? install|dnf install|yum install|certbot|iptables|nft add|ufw |a2ensite|a2enmod|/var/www/edge1-status|docker compose down -v)' deploy/digital-archive/edge1_private_foundation.py
+          grep -F "127.0.0.1:8113:8000" deploy/digital-archive/paperless/compose.yaml
+          grep -F "127.0.0.1:8114:8000" deploy/digital-archive/archivebox/compose.yaml
+          grep -F "SAVE_ARCHIVE_DOT_ORG: \"False\"" deploy/digital-archive/archivebox/compose.yaml
+          grep -F "'public_changes': False" deploy/digital-archive/edge1_private_foundation.py
+          grep -F "'canonical_data_ingestion': False" deploy/digital-archive/edge1_private_foundation.py
+      - name: Reject obvious secret material
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|password[[:space:]]*=[[:space:]]*[^$])' \
+            deploy/digital-archive/edge1_private_foundation.py \
+            docs/archive/edge1-private-foundation.md \
+            tests/test_digital_archive_private_foundation.py
