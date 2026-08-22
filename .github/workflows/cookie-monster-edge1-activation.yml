@@ -51,6 +51,8 @@ jobs:
       - name: Guard public and authority boundaries
         run: |
           ! grep -nE '(certbot|iptables|nft |ufw |a2enmod|a2ensite|systemctl (restart|reload) apache2|/srv/cookie-monster/(canonical|archive)|https?://)' deploy/cookie_monster_edge1_activate.py
+          ! grep -F '/var/www/edge1-status' deploy/cookie_monster_edge1_activate.py
+          grep -F "COCKPIT_STAGE_ROOT = Path('/var/lib/cookie-monster-alpha/operator-view')" deploy/cookie_monster_edge1_activate.py
           grep -F "DATASET_SLUG = 'alpha-staging'" deploy/cookie_monster_edge1_activate.py
           grep -F "public_changes': False" deploy/cookie_monster_edge1_activate.py
           grep -F "canonical_archive_access': False" deploy/cookie_monster_edge1_activate.py
