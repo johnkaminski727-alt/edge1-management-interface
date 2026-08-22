@@ -37,6 +37,19 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
         self.assertIsNone(by_id["communications-workspace"]["browser_route"])
         self.assertIsNone(by_id["security-console"]["browser_route"])
         self.assertIsNone(by_id["wwcx-ai"]["browser_route"])
+        self.assertIsNone(by_id["cookie-monster"]["browser_route"])
+
+    def test_cookie_monster_is_registered_but_not_promoted(self):
+        data = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        by_id = {item["id"]: item for item in data["modules"]}
+        module = by_id["cookie-monster"]
+        self.assertEqual(module["candidate_route"], "/edge1-status/cookie-monster/")
+        self.assertEqual(module["runtime_route"], "/edge1-status/cookie-monster/")
+        self.assertEqual(module["availability"], "staged_disabled")
+        self.assertEqual(module["authorization"], "unverified_route_policy")
+        self.assertFalse(module["palette"])
+        self.assertFalse(module["toolbox"])
+        self.assertEqual(module["evidence_status"], "verified_repository_unaccepted_browser")
 
 
 if __name__ == "__main__":
