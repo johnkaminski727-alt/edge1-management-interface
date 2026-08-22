@@ -153,13 +153,65 @@ def _atomic_json(path: pathlib.Path, payload: dict[str, Any]) -> None:
             pass
 
 
-def _archive_paths(root: pathlib.Path, domain: str, queue_id: str, recipient: str) -> tuple[pathlib.Path, pathlib.Path]:
+def _archive_paths(
+    root: pathlib.Path, domain: str, queue_id: str, recipient: str
+) -> tuple[pathlib.Path, pathlib.Path]:
     recipient_hash = hashlib.sha256(recipient.casefold().encode("utf-8")).hexdigest()[:16]
     directory = root / domain / f"{queue_id}-{recipient_hash}"
     _secure_dir(root)
     _secure_dir(root / domain)
     _secure_dir(directory)
     return directory / "message.eml", directory / "metadata.json"
+
+
+def _result(metadata: dict[str, Any], directory: pathlib.Path) -> dict[str, Any]:
+    normalization = metadata.get("normalization")
+    status = normalization.get("status") if isinstance(normalization, dict) else "pending"
+    return {
+        "contract": ARCHIVE_CONTRACT,
+        "status": "archived",
+        "domain": metadata["domain"],
+        "postfix_queue_id": metadata["postfix_queue_id"],
+        "rfc822_sha256": metadata["rfc822_sha256"],
+        "size_bytes": metadata["size_bytes"],
+        "archive_directory": str(directory),
+        "normalization_status": status,
+        "content_output": False,
+        "credentials_output": False,
+        "mail_send_authorized": False,
+        "mailbox_mutation_authorized": False,
+        "provider_mutation_authorized": False,
+    }
+
+
+def _existing_metadata(
+    path: pathlib.Path,
+    *,
+    domain: str,
+    recipient: str,
+    queue_id: str,
+    raw_sha256: str,
+    size_bytes: int,
+) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    if path.is_symlink() or not path.is_file():
+        raise ArchiveError("archive metadata target is unsafe")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("contract") != ARCHIVE_CONTRACT:
+        raise ArchiveError("existing archive metadata contract is invalid")
+    expected = {
+        "domain": domain,
+        "envelope_recipient": recipient,
+        "postfix_queue_id": queue_id,
+        "rfc822_sha256": raw_sha256,
+        "size_bytes": size_bytes,
+        "message_file": "message.eml",
+    }
+    for key, value in expected.items():
+        if data.get(key) != value:
+            raise ArchiveError("existing archive metadata conflicts with delivery")
+    return data
 
 
 def archive_and_normalize(
@@ -180,6 +232,17 @@ def archive_and_normalize(
     )
 
     _atomic_bytes(message_path, raw)
+    existing = _existing_metadata(
+        metadata_path,
+        domain=domain,
+        recipient=canonical_recipient,
+        queue_id=canonical_queue,
+        raw_sha256=raw_sha256,
+        size_bytes=len(raw),
+    )
+    if existing is not None:
+        return _result(existing, message_path.parent)
+
     metadata: dict[str, Any] = {
         "contract": ARCHIVE_CONTRACT,
         "archived_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -229,21 +292,7 @@ def archive_and_normalize(
         # transport successful so Postfix does not redeliver an archived message.
         pass
 
-    return {
-        "contract": ARCHIVE_CONTRACT,
-        "status": "archived",
-        "domain": domain,
-        "postfix_queue_id": canonical_queue,
-        "rfc822_sha256": raw_sha256,
-        "size_bytes": len(raw),
-        "archive_directory": str(message_path.parent),
-        "normalization_status": metadata["normalization"]["status"],
-        "content_output": False,
-        "credentials_output": False,
-        "mail_send_authorized": False,
-        "mailbox_mutation_authorized": False,
-        "provider_mutation_authorized": False,
-    }
+    return _result(metadata, message_path.parent)
 
 
 def main() -> int:
