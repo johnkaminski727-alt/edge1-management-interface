@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh WW.CX Edge1 release-controller status
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=edge1-release-controller-status.service
+
+[Install]
+WantedBy=timers.target
