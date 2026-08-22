@@ -95,6 +95,21 @@
       "evidence_status": "verified_live"
     },
     {
+      "id": "release-manager",
+      "label": "Release Manager",
+      "section": "Operations",
+      "sort_order": 65,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/release-manager/",
+      "runtime_route": "/edge1-status/release-manager/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "Read-only source/runtime identity, current/previous release, rollback and control-plane health status; live browser acceptance remains separately gated.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "verified_repository_unaccepted_browser"
+    },
+    {
       "id": "communications-workspace",
       "label": "Communications",
       "section": "Communications",
