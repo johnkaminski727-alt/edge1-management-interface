@@ -1,0 +1,53 @@
+{
+  "contract": "wwcx.edge1-mail-gateway.v1",
+  "service_hostname": "mail.ww.cx",
+  "activation": {
+    "public_smtp_listener_enabled": false,
+    "production_mx_changes_authorized": false,
+    "outbound_delivery_enabled": false
+  },
+  "storage_root": "/var/lib/wwcx-mail-gateway",
+  "provenance_source": "edge1-mail-gateway-smtp",
+  "domains": {
+    "ww.cx": {
+      "mode": "stay_external",
+      "migration_order": null,
+      "catch_all_enabled": false,
+      "archive_identity": null,
+      "retain_provider_fallback": true,
+      "notes": "Keep Namecheap Private Email and the proven blank@ww.cx Mail Room connector during v1 rollout; preserve domaincontact@ww.cx as a distinct administrative identity."
+    },
+    "creekco.ca": {
+      "mode": "candidate",
+      "migration_order": 1,
+      "catch_all_enabled": true,
+      "archive_identity": "archive@creekco.ca",
+      "retain_provider_fallback": true,
+      "notes": "First production migration candidate after local-only Edge1 acceptance and explicit DNS/public-listener authorization."
+    },
+    "spiritcreekgardens.com": {
+      "mode": "candidate",
+      "migration_order": 2,
+      "catch_all_enabled": true,
+      "archive_identity": "archive@spiritcreekgardens.com",
+      "retain_provider_fallback": true,
+      "notes": "Current inventory observed no published MX; do not publish Edge1 MX until the gateway acceptance gate passes."
+    },
+    "scgardens.ca": {
+      "mode": "candidate",
+      "migration_order": 3,
+      "catch_all_enabled": true,
+      "archive_identity": "archive@scgardens.ca",
+      "retain_provider_fallback": true,
+      "notes": "Treat as an independent domain and provenance boundary even if operationally related to Spirit Creek Gardens."
+    },
+    "omegafx.com": {
+      "mode": "candidate",
+      "migration_order": 4,
+      "catch_all_enabled": true,
+      "archive_identity": "archive@omegafx.com",
+      "retain_provider_fallback": true,
+      "notes": "Move after Creekco and garden-domain acceptance; existing provider mailbox credentials remain migration/rollback material until cutover is accepted."
+    }
+  }
+}
