@@ -1,0 +1,35 @@
+name: Edge1 Mail Gateway public readiness
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/messaging/prepare-edge1-mail-gateway-public-readiness.sh'
+      - 'tests/validate_edge1_mail_gateway_public_readiness.py'
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+      - 'docs/messaging-operations/edge1-mail-gateway-public-readiness-20260822.md'
+      - '.agent/edge1-mail-gateway-public-readiness-20260822.md'
+      - '.github/workflows/edge1-mail-gateway-public-readiness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/messaging/prepare-edge1-mail-gateway-public-readiness.sh'
+      - 'tests/validate_edge1_mail_gateway_public_readiness.py'
+      - 'config/messaging/edge1-mail-gateway-v1.json'
+      - '.github/workflows/edge1-mail-gateway-public-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: bash -n deploy/messaging/prepare-edge1-mail-gateway-public-readiness.sh
+      - name: Validate public readiness safety contract
+        run: python3 tests/validate_edge1_mail_gateway_public_readiness.py
+      - name: Guard production mutation boundaries
+        run: |
+          ! grep -nE 'postconf.* (-e|-M -e)|systemctl (restart|reload)|postfix (restart|reload)|nft (add|insert|delete)|iptables |ufw (allow|delete)|certbot |nsupdate |rndc |git (pull|fetch)' \
+            deploy/messaging/prepare-edge1-mail-gateway-public-readiness.sh
