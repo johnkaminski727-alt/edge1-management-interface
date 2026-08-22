@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import pathlib
 import sys
 import tempfile
@@ -66,6 +67,7 @@ class CookieMonsterAlphaTests(unittest.TestCase):
                 self.assertEqual(record["ingestion_actor"], "test-actor")
                 self.assertEqual(record["extraction_method_version"], "test-v1")
                 self.assertTrue(record["record_hash"].startswith("sha256:"))
+                self.assertTrue(record["idempotency_key"].startswith("sha256:"))
                 if index:
                     self.assertEqual(record["previous_record_hash"], records[index - 1]["record_hash"])
 
@@ -90,10 +92,83 @@ class CookieMonsterAlphaTests(unittest.TestCase):
             cm.write_snapshot(snapshot, output)
             loaded = json.loads((output / "status.json").read_text(encoding="utf-8"))
             self.assertEqual(loaded["schema"], cm.SCHEMA_VERSION)
-            records = [json.loads(line) for line in (output / "knowledge-records.jsonl").read_text(encoding="utf-8").splitlines()]
-            audit = [json.loads(line) for line in (output / "audit.jsonl").read_text(encoding="utf-8").splitlines()]
+            records = cm.read_jsonl(output / "knowledge-records.jsonl")
+            audit = cm.read_jsonl(output / "audit.jsonl")
             self.assertEqual(len(records), 3)
             self.assertGreaterEqual(len(audit), 3)
+
+    def test_repeat_run_is_idempotent_and_preserves_prior_audit(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = self._make_source(root)
+            output = root / "generated"
+            with mock.patch.object(cm, "extract_metadata", return_value=({}, [])):
+                first = cm.build_snapshot(source)
+                cm.write_snapshot(first, output)
+                first_records = (output / "knowledge-records.jsonl").read_text(encoding="utf-8")
+                first_audit = (output / "audit.jsonl").read_text(encoding="utf-8")
+                existing = cm.read_jsonl(output / "knowledge-records.jsonl")
+                second = cm.build_snapshot(source, existing_records=existing)
+                cm.write_snapshot(second, output)
+            self.assertEqual((output / "knowledge-records.jsonl").read_text(encoding="utf-8"), first_records)
+            second_audit = (output / "audit.jsonl").read_text(encoding="utf-8")
+            self.assertTrue(second_audit.startswith(first_audit))
+            self.assertGreater(len(second_audit), len(first_audit))
+            self.assertEqual(second["summary"]["new_knowledge_records"], 0)
+            self.assertEqual(second["summary"]["reused_knowledge_records"], 3)
+            self.assertEqual(
+                [r["knowledge_record_id"] for r in second["knowledge_records"]],
+                [r["knowledge_record_id"] for r in existing],
+            )
+            self.assertTrue(any(e["event"] == "knowledge_record.reused" for e in second["audit"]))
+
+    def test_legacy_record_without_idempotency_key_is_reused(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = self._make_source(root)
+            with mock.patch.object(cm, "extract_metadata", return_value=({}, [])):
+                first = cm.build_snapshot(source)
+            legacy = [dict(row) for row in first["knowledge_records"]]
+            for row in legacy:
+                row.pop("idempotency_key", None)
+            with mock.patch.object(cm, "extract_metadata", return_value=({}, [])):
+                second = cm.build_snapshot(source, existing_records=legacy)
+            self.assertEqual(second["summary"]["new_knowledge_records"], 0)
+            self.assertEqual([r["knowledge_record_id"] for r in second["knowledge_records"]], [r["knowledge_record_id"] for r in legacy])
+
+    def test_symlink_directory_escape_fails_closed(self):
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlink unsupported")
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = self._make_source(root)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "secret.txt").write_text("outside\n", encoding="utf-8")
+            link = source / "escape"
+            try:
+                os.symlink(outside, link, target_is_directory=True)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+            with self.assertRaises(cm.AlphaBoundaryError):
+                cm.discover_files(source)
+
+    def test_metadata_budget_stops_tool_chain(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = pathlib.Path(td) / "asset.bin"
+            path.write_bytes(b"x")
+            with mock.patch.object(cm, "_tool_path", return_value="/fake/tool"), mock.patch.object(cm, "_run_json") as run_json:
+                metadata, diagnostics = cm.extract_metadata(path, budget_seconds=0)
+            self.assertEqual(metadata, {})
+            run_json.assert_not_called()
+            self.assertEqual(diagnostics[0]["tool"], "budget")
+
+    def test_run_budget_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = self._make_source(root)
+            with self.assertRaises(cm.AlphaBoundaryError):
+                cm.build_snapshot(source, run_time_budget_seconds=0)
 
 
 if __name__ == "__main__":
