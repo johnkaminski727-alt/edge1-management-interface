@@ -12,6 +12,7 @@ The canonical production Operator is the hardened `edge1-operator-mcp.service` d
 - Service restart, Cookie Monster mutation actions and raw shell are disabled by default.
 - Repositories and restartable services are allowlisted through environment variables.
 - Cookie Monster accepts only a fixed action enum; it accepts no path, URL, command, credential or arbitrary dataset.
+- Cookie Monster source sync and activation are pinned to one explicitly supplied reviewed Git commit, never an open-ended `origin/main` deployment.
 - Output is capped, timed out, and passed through basic secret redaction before being returned.
 - This sidecar must not be merged into, substituted for, or advertised as the canonical production `edge1-operator-mcp` tool surface.
 
@@ -47,12 +48,15 @@ Run `edge1_connection_test` first. It must return the expected Edge1 hostname an
 EDGE1_SSH_ALIAS=edge1
 EDGE1_ALLOW_RESTARTS=0
 EDGE1_ALLOW_COOKIE_MONSTER=0
+EDGE1_COOKIE_MONSTER_TARGET_SHA=<reviewed-40-character-git-commit>
 EDGE1_ENABLE_RAW_SHELL=0
 EDGE1_ALLOWED_SERVICES=bigbird-ai-gateway
 EDGE1_REPOSITORIES=edge1-interface=/opt/edge1-management-interface;bigbird-gateway=/opt/bigbird-ai-gateway
 EDGE1_TIMEOUT_MS=30000
 EDGE1_MAX_OUTPUT_BYTES=24000
 ```
+
+`EDGE1_COOKIE_MONSTER_TARGET_SHA` must be the exact reviewed 40-character lowercase Git commit intended for the attended rollout. It is deployment identity, not a credential. The sidecar refuses source synchronization or activation when it is missing or malformed.
 
 Keep private addresses and key paths in SSH configuration, never in these variables or the repository.
 
@@ -69,8 +73,8 @@ Keep private addresses and key paths in SSH configuration, never in these variab
 `edge1_cookie_monster` accepts exactly one `action` value and no other execution authority:
 
 - `preflight` — run the activation script's read-only preflight through the approved elevation path;
-- `sync_sources` — require the allowlisted Edge1 repository to be clean on `main`, fetch `origin`, and perform only a fast-forward merge of `origin/main`;
-- `activate` — run the bounded root-only Alpha staging transaction from `deploy/cookie_monster_edge1_activate.py --apply`;
+- `sync_sources` — require the allowlisted Edge1 repository to be clean on `main`, fetch `origin`, verify the pinned target is a commit reachable from `origin/main`, and fast-forward only to that exact target;
+- `activate` — first require the repository HEAD to equal the pinned target, then run the bounded root-only Alpha staging transaction from `deploy/cookie_monster_edge1_activate.py --apply`;
 - `rollback_last` — invoke the activation transaction's recorded rollback pointer.
 
 `sync_sources`, `activate`, and `rollback_last` all require:
@@ -79,7 +83,9 @@ Keep private addresses and key paths in SSH configuration, never in these variab
 EDGE1_ALLOW_COOKIE_MONSTER=1
 ```
 
-The source-sync action refuses a dirty tree, refuses a non-`main` branch, and uses `git merge --ff-only`; it does not reset, clean, stash, rebase or force-push anything. The activation script itself restricts mutation to the canonical `/opt/edge1-management-interface` repository, fixed `alpha-staging` dataset, local runtime paths and private cockpit.
+`sync_sources` and `activate` additionally require a valid `EDGE1_COOKIE_MONSTER_TARGET_SHA`. Source sync refuses a dirty tree, refuses a non-`main` branch, fetches `origin`, proves the exact target is an ancestor of `origin/main`, and uses `git merge --ff-only <target>`. It does not deploy whatever `origin/main` happens to be at execution time and does not reset, clean, stash, rebase or force-push anything.
+
+The activation script itself restricts mutation to the canonical `/opt/edge1-management-interface` repository, fixed `alpha-staging` dataset and private runtime paths. Its minimized operator view is staged under `/var/lib/cookie-monster-alpha/operator-view`; it does not write the Apache-served `/var/www/edge1-status` boundary.
 
 Keep `EDGE1_ENABLE_RAW_SHELL=0` while using the named Cookie Monster action. The purpose of this surface is to complete the attended rollout without widening the session to arbitrary command execution.
 
