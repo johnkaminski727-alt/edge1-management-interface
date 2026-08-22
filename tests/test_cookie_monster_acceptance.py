@@ -37,12 +37,29 @@ class CookieMonsterAcceptanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             source = pathlib.Path(td)
             (source / "asset.txt").write_text("real bytes", encoding="utf-8")
-            records = [{
-                "knowledge_record_id": "kr-" + "a" * 32,
-                "source_asset_location": "asset.txt",
-                "source_asset_id": "sha256:" + "0" * 64,
-            }]
+            records = [{"knowledge_record_id": "kr-" + "a" * 32, "source_asset_location": "asset.txt", "source_asset_id": "sha256:" + "0" * 64}]
             self.assertEqual(len(acceptance.verify_provenance(records, source)), 1)
+
+    def test_review_chain_verifier_detects_tampering(self):
+        record = {
+            "knowledge_record_id": "kr-" + "a" * 32,
+            "source_asset_id": "sha256:" + "b" * 64,
+            "source_asset_location": "asset.txt",
+            "review_status": "pending_review",
+        }
+        import cookie_monster_review as review
+        event = review.make_decision(
+            [record],
+            [],
+            record["knowledge_record_id"],
+            "approved",
+            "operator",
+            "verified",
+            timestamp="2026-08-22T08:00:00Z",
+        )
+        self.assertEqual(acceptance.verify_review_chain([event]), [])
+        event["reason"] = "tampered"
+        self.assertEqual(len(acceptance.verify_review_chain([event])), 1)
 
     def test_ui_surfaces_m6_acceptance_evidence(self):
         text = (ROOT / "src" / "web" / "cookie-monster" / "index.html").read_text(encoding="utf-8")
