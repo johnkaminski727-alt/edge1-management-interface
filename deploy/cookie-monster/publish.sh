@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 ROOT="${COOKIE_MONSTER_REPO_ROOT:-/opt/edge1-management-interface}"
 SOURCE_ROOT="$ROOT/src/web/cookie-monster"
-GENERATED="${COOKIE_MONSTER_GENERATED:-/var/lib/cookie-monster-alpha/generated}"
+OPERATOR_VIEW="${COOKIE_MONSTER_OPERATOR_VIEW:-/var/lib/cookie-monster-alpha/operator-view}"
 DEST_ROOT="${COOKIE_MONSTER_WEB_ROOT:-/var/www/edge1-status/cookie-monster}"
 MODE="${1:-}"
 
@@ -21,12 +21,12 @@ for rel in "${STATIC_FILES[@]}"; do
     fi
 done
 
-if [ -e "$GENERATED" ] && [ -L "$GENERATED" ]; then
-    echo "Refusing symlink generated root: $GENERATED" >&2
+if [ -e "$OPERATOR_VIEW" ] && [ -L "$OPERATOR_VIEW" ]; then
+    echo "Refusing symlink operator-view root: $OPERATOR_VIEW" >&2
     exit 1
 fi
 
-python3 - "$GENERATED" <<'PY'
+python3 - "$OPERATOR_VIEW" <<'PY'
 import json
 import pathlib
 import sys
@@ -46,9 +46,9 @@ case "$MODE" in
     "")
         echo "Cookie Monster publish preflight passed."
         echo "static_source=$SOURCE_ROOT"
-        echo "generated_source=$GENERATED"
+        echo "operator_view_source=$OPERATOR_VIEW"
         echo "destination=$DEST_ROOT"
-        echo "runtime_evidence_present=$(find "$GENERATED" -maxdepth 1 -type f \( -name 'status.json' -o -name 'review-state.json' -o -name 'job-status.json' -o -name 'acceptance.json' \) 2>/dev/null | wc -l)"
+        echo "runtime_evidence_present=$(find "$OPERATOR_VIEW" -maxdepth 1 -type f \( -name 'status.json' -o -name 'review-state.json' -o -name 'job-status.json' -o -name 'acceptance.json' \) 2>/dev/null | wc -l)"
         echo "Use --apply only after the intended Edge1 checkout and staging evidence are verified."
         exit 0
         ;;
@@ -103,8 +103,8 @@ sudo install -m 0644 "$SOURCE_ROOT/index.html" "$DEST_ROOT/index.html"
 sudo install -m 0644 "$SOURCE_ROOT/assets/mascot.webp" "$DEST_ROOT/assets/mascot.webp"
 
 for rel in "${RUNTIME_FILES[@]}"; do
-    if [ -f "$GENERATED/$rel" ]; then
-        sudo install -m 0644 "$GENERATED/$rel" "$DEST_ROOT/$rel"
+    if [ -f "$OPERATOR_VIEW/$rel" ]; then
+        sudo install -m 0644 "$OPERATOR_VIEW/$rel" "$DEST_ROOT/$rel"
     else
         sudo rm -f "$DEST_ROOT/$rel"
     fi

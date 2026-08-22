@@ -7,6 +7,7 @@
       "enabled": false,
       "read_only_required": true,
       "canonical_archive": false,
+      "operator_detail_publish": true,
       "description": "Deterministic Cookie Monster Alpha acceptance dataset. Runtime activation remains separate."
     }
   }

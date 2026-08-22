@@ -12,9 +12,21 @@ This package closes the gap between the merged Cookie Monster source and a futur
 
 Callers therefore select **what approved dataset** to process rather than supplying an arbitrary filesystem path.
 
+## Browser/operator evidence minimization
+
+Raw ingestion state is not copied directly to the browser tree. `server/cookie_monster_operator_view.py` creates a separate bounded operator-view directory.
+
+- external metadata payloads such as raw EXIF/MediaInfo/ffprobe structures are never projected;
+- executable/tool filesystem paths are removed;
+- source filenames/relative locations and record facts are omitted unless that dataset explicitly sets `operator_detail_publish: true`;
+- unknown or future datasets therefore fail closed to summary-only display;
+- the initial synthetic dataset opts into detail because its contents are deterministic non-production fixtures.
+
+The raw append-only `knowledge-records.jsonl`, `audit.jsonl`, and `review-decisions.jsonl` remain outside the web root.
+
 ## Operator UI publisher
 
-`deploy/cookie-monster/publish.sh` is dry-run by default.
+`deploy/cookie-monster/publish.sh` is dry-run by default and consumes `/var/lib/cookie-monster-alpha/operator-view`, not the raw generated evidence directory.
 
 Preflight:
 
@@ -33,9 +45,7 @@ The publisher copies only:
 
 - the Cookie Monster HTML cockpit;
 - the mascot WebP;
-- bounded derived JSON views: `status.json`, `review-state.json`, `job-status.json`, and `acceptance.json` when present.
-
-It intentionally does **not** publish raw `knowledge-records.jsonl`, `audit.jsonl`, or `review-decisions.jsonl`.
+- bounded derived views: `status.json`, `review-state.json`, `job-status.json`, and `acceptance.json` when present.
 
 Apply creates a timestamped `/var/backups/wwcx-cookie-monster-<UTC>/` backup and exact rollback script before changing the web destination. Missing derived runtime views are removed from the web destination so stale evidence is not presented as current evidence.
 
