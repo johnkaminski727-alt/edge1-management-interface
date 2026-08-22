@@ -7,10 +7,10 @@ OPERATOR_VIEW="${COOKIE_MONSTER_OPERATOR_VIEW:-/var/lib/cookie-monster-alpha/ope
 DEST_ROOT="${COOKIE_MONSTER_WEB_ROOT:-/var/www/edge1-status/cookie-monster}"
 MODE="${1:-}"
 
-STATIC_FILES=("index.html" "assets/mascot.webp")
-RUNTIME_FILES=("status.json" "review-state.json" "job-status.json" "acceptance.json")
+STATIC_FILES="index.html assets/mascot.webp"
+RUNTIME_FILES="status.json review-state.json job-status.json acceptance.json"
 
-for rel in "${STATIC_FILES[@]}"; do
+for rel in $STATIC_FILES; do
     if [ ! -f "$SOURCE_ROOT/$rel" ]; then
         echo "Missing static source: $SOURCE_ROOT/$rel" >&2
         exit 1
@@ -72,7 +72,7 @@ backup_one() {
     fi
 }
 
-for rel in "${STATIC_FILES[@]}" "${RUNTIME_FILES[@]}"; do
+for rel in $STATIC_FILES $RUNTIME_FILES; do
     backup_one "$DEST_ROOT/$rel" "$rel"
 done
 
@@ -102,7 +102,7 @@ sudo chmod 0750 "$BACKUP/rollback.sh"
 sudo install -m 0644 "$SOURCE_ROOT/index.html" "$DEST_ROOT/index.html"
 sudo install -m 0644 "$SOURCE_ROOT/assets/mascot.webp" "$DEST_ROOT/assets/mascot.webp"
 
-for rel in "${RUNTIME_FILES[@]}"; do
+for rel in $RUNTIME_FILES; do
     if [ -f "$OPERATOR_VIEW/$rel" ]; then
         sudo install -m 0644 "$OPERATOR_VIEW/$rel" "$DEST_ROOT/$rel"
     else
