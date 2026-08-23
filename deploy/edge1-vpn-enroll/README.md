@@ -27,3 +27,17 @@ Current authenticated public surface:
 - `https://vpn.ww.cx/edge1-ops/vpn/devices` — authenticated device management.
 
 Do not replace the live runtime from this directory. Treat this as deployment guidance until the standalone portal package itself is brought under repository source control.
+
+## Account-owned device self-service
+
+The 2026-08-23 account integration adds an authenticated, account-scoped device layer without copying the WW.CX user database to Edge1. The canonical owner is the signed assertion subject (`wwcx-user-<id>`).
+
+The source overlay under `deploy/edge1-vpn-enroll/overlay/edge1_vpn_enroll/` captures the live standalone package changes required for the next repackaging:
+
+- enrollment invites and devices carry `owner_subject` and display name metadata;
+- `/internal/account` accepts only HMAC-authenticated loopback-backend requests using the existing Operations API secret;
+- self-service list, enroll/re-register, rename, and revoke actions are ownership constrained;
+- the registration sync propagates owner subject and friendly-name changes;
+- raw WireGuard keys and one-time enrollment tokens remain outside the WW.CX account database.
+
+The public WW.CX Account Settings page calls `/edge1-ops/account/api` with a one-time signed assertion. Edge1 validates narrow `edge1.vpn.self.*` scopes and destroys the temporary session after each request. The operator VPN console remains a separate fleet-management surface.

@@ -123,3 +123,11 @@ The registration-only pilot is active on Edge1 with:
 - no active policy version yet, so enrolled devices remain `pending` until approved policy text is activated and accepted.
 
 The public invite route and protected admin route were exercised end-to-end. A reversible smoke enrollment added one WireGuard peer and revocation restored the original peer configuration.
+
+## Account ownership integration (2026-08-23)
+
+WW.CX Account Settings now treats VPN devices as account-owned assets. The stable owner is the Business159 assertion subject (`wwcx-user-<id>`), not a username or display name. The enrollment-to-registration sync carries that subject into the registration store.
+
+Self-service is restricted to narrow scopes: `edge1.vpn.self.read`, `edge1.vpn.self.enroll`, `edge1.vpn.self.rename`, `edge1.vpn.self.revoke`, and `edge1.vpn.self.policy.accept`. Each account request uses a short-lived, one-time signed assertion and is checked against the device owner before any state change.
+
+No policy was activated or accepted as part of this integration. Registration enforcement remains disabled.

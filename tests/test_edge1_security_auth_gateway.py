@@ -275,7 +275,11 @@ class ConfigurationTestCase(unittest.TestCase):
         self.assertFalse(raw["boundaries"]["mutations_enabled"])
         self.assertEqual(
             set(raw["permissions"]["initial"]),
-            {"edge1.security.read", "edge1.security.validate"},
+            {
+                "edge1.security.read", "edge1.security.validate",
+                "edge1.vpn.self.read", "edge1.vpn.self.enroll", "edge1.vpn.self.rename",
+                "edge1.vpn.self.revoke", "edge1.vpn.self.policy.accept",
+            },
         )
 
 

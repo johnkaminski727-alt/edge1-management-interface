@@ -46,7 +46,7 @@ def enrollment_rows() -> list[sqlite3.Row]:
     connection.row_factory = sqlite3.Row
     try:
         return connection.execute(
-            "SELECT id, label, peer_public_key, address, revoked_at FROM devices ORDER BY id"
+            "SELECT id, label, peer_public_key, address, revoked_at, owner_subject FROM devices ORDER BY id"
         ).fetchall()
     finally:
         connection.close()
@@ -79,9 +79,12 @@ def sync_once() -> dict:
             continue
 
         desired_addresses = [row["address"]]
+        owner_subject = (row["owner_subject"] or "").strip()
         needs_upsert = (
             existing is None
             or sorted(existing.get("assigned_addresses") or []) != desired_addresses
+            or (existing.get("display_name") or "") != row["label"]
+            or (existing.get("owner") or "") != owner_subject
         )
         if needs_upsert:
             result = signed_request(
@@ -91,7 +94,7 @@ def sync_once() -> dict:
                     "peer_public_key": public_key,
                     "assigned_addresses": desired_addresses,
                     "display_name": row["label"],
-                    "owner": "",
+                    "owner": owner_subject,
                 },
             )
             by_fingerprint[fingerprint] = result

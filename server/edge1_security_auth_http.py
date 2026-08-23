@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import json
 import secrets
 import time
 from pathlib import Path
@@ -16,6 +17,7 @@ from .edge1_security_auth_http_actions import SecurityHttpActionMixin
 from .edge1_security_auth_http_config import HttpAdapterConfig
 from .edge1_security_auth_http_helpers import SecurityHttpHelpersMixin
 from .edge1_security_auth_http_types import LOOPBACKS, HttpRequest, HttpResponse
+from .edge1_vpn_account_client import VPNAccountBackend, VPNAccountBackendError
 
 CONSOLE_READ_SCOPE = "edge1.security.read"
 
@@ -47,6 +49,8 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             route = self.config.routes
             if request.path == route["health"]:
                 return self._method(request, {"GET"}, self._health)
+            if request.path == "/edge1-ops/account/api":
+                return self._method(request, {"POST"}, self._vpn_account_api)
             if not self.config.live_route_authorized:
                 raise GatewayError("live_route_not_authorized")
             if request.path == route["console"]:
@@ -144,6 +148,54 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             ),
         )
         return HttpResponse(200, headers, body)
+
+    def _vpn_account_api(self, request: HttpRequest) -> HttpResponse:
+        if self._header(request, "origin") != self.config.business159_origin:
+            raise AuthorizationError("origin_invalid")
+        if self._content_type(request) != "application/json":
+            raise ValueError("content_type_invalid")
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("json_invalid") from exc
+        if not isinstance(payload, dict) or set(payload) != {"assertion", "request_id", "action", "parameters"}:
+            raise ValueError("request_invalid")
+        assertion=payload["assertion"]; request_id=payload["request_id"]; action=payload["action"]; parameters=payload["parameters"]
+        if not isinstance(assertion,str) or not valid_event_id(request_id) or not isinstance(action,str) or not isinstance(parameters,dict):
+            raise ValueError("request_invalid")
+        required={"list":"edge1.vpn.self.read","enroll":"edge1.vpn.self.enroll","reregister":"edge1.vpn.self.enroll","rename":"edge1.vpn.self.rename","revoke":"edge1.vpn.self.revoke","accept_policy":"edge1.vpn.self.policy.accept"}.get(action)
+        if required is None: raise ValueError("action_invalid")
+        session_token, context = self.gateway.exchange_assertion(assertion, request_id)
+        try:
+            if required not in context.scopes: raise AuthorizationError("scope_missing")
+            backend=VPNAccountBackend(self.config.operations_secret_path, self.config.operations_timeout_seconds)
+            if action == "list":
+                enrolled=backend.enrollment(context.subject,"list",{}); registrations=backend.registration_devices(context.subject); by_address={}
+                for item in registrations:
+                    if item.get("owner") != context.subject: continue
+                    for address in item.get("assigned_addresses") or []: by_address[address]=item
+                devices=[]
+                for item in enrolled.get("devices",[]):
+                    reg=by_address.get(item.get("address")) or {}
+                    devices.append({"id":item.get("id"),"label":item.get("label"),"address":item.get("address"),"profile":item.get("profile"),"created_at":item.get("created_at"),"revoked_at":item.get("revoked_at"),"status":reg.get("status","pending"),"registration_id":reg.get("id"),"last_seen_at":reg.get("last_seen_at"),"latest_acceptance":reg.get("latest_acceptance")})
+                policies=backend.policies(context.subject); active=next((p for p in policies if p.get("active")),None)
+                return self._json(200,{"devices":devices,"active_policy":active,"owner_subject":context.subject})
+            if action in {"enroll","reregister"}:
+                result=backend.enrollment(context.subject,action,{"label":str(parameters.get("label",context.display_name+" device"))[:80],"profile":str(parameters.get("profile","split")),"owner_display_name":context.display_name})
+                return self._json(200,{"enroll_url":result.get("enroll_url")})
+            if action == "rename":
+                result=backend.enrollment(context.subject,"rename",{"device_id":int(parameters.get("device_id",0)),"label":str(parameters.get("label",""))[:80]}); return self._json(200,{"device":result})
+            if action == "revoke":
+                return self._json(200,backend.enrollment(context.subject,"revoke",{"device_id":int(parameters.get("device_id",0))}))
+            registrations=backend.registration_devices(context.subject); registration_id=str(parameters.get("registration_id",""))
+            match=next((d for d in registrations if d.get("id")==registration_id and d.get("owner")==context.subject),None)
+            if match is None: raise AuthorizationError("device_owner_mismatch")
+            return self._json(200,{"acceptance":backend.accept_policy(context.subject,registration_id,parameters.get("policy_version"))})
+        except VPNAccountBackendError as exc:
+            raise GatewayError("vpn_account_backend_unavailable") from exc
+        finally:
+            try: self.gateway.logout(session_token, self._request_id())
+            except GatewayError: pass
 
     def _exchange_origin_allowed(self, request: HttpRequest) -> bool:
         origin = self._header(request, "origin")
