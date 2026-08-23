@@ -166,7 +166,7 @@ else
 fi
 
 $SS_BIN -lntup \
-  | awk '$5 ~ /:(5060|5061|5038|58080|8088|8089)$/ {print $1, $5}' \
+  | awk '$4 ~ /:(5060|5061|5038|58080|8088|8089)$/ {print $1, $4}' \
   | LC_ALL=C sort -u \
   > "$EVIDENCE_DIR/relevant-listeners.txt"
 
