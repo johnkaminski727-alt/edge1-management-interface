@@ -1,0 +1,39 @@
+name: Edge1 Agent Shell Plugin
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/edge1-agent-shell/**'
+      - '.agents/plugins/marketplace.json'
+      - 'tests/test_edge1_agent_shell_plugin.py'
+      - '.github/workflows/edge1-agent-shell-plugin.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/edge1-agent-shell/**'
+      - '.agents/plugins/marketplace.json'
+      - 'tests/test_edge1_agent_shell_plugin.py'
+      - '.github/workflows/edge1-agent-shell-plugin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate plugin JSON
+        run: |
+          python3 -m json.tool plugins/edge1-agent-shell/.codex-plugin/plugin.json >/dev/null
+          python3 -m json.tool plugins/edge1-agent-shell/.app.json >/dev/null
+          python3 -m json.tool .agents/plugins/marketplace.json >/dev/null
+      - name: Validate plugin contract
+        run: python3 -m unittest -v tests.test_edge1_agent_shell_plugin
+      - name: Secret-pattern scan
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' plugins/edge1-agent-shell
