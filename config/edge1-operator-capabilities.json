@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "capabilities": {
+    "edge1.status.read": {
+      "enabled": true,
+      "access": "read",
+      "required_scope": "edge1.status.read",
+      "tools": [
+        "edge1.identity",
+        "edge1.health",
+        "edge1.snapshot",
+        "edge1.inventory",
+        "edge1.services",
+        "edge1.network_state",
+        "edge1.disk_state",
+        "edge1.bigbird_status",
+        "edge1.operations_status",
+        "edge1.apache_status",
+        "edge1.time_authority_status",
+        "edge1.git_state",
+        "edge1.config_digest",
+        "edge1.capabilities"
+      ]
+    },
+    "edge1.telephony.read": {
+      "enabled": true,
+      "access": "read",
+      "required_scope": "edge1.telephony.read",
+      "tools": ["edge1.asterisk_status", "edge1.telephony_status"]
+    },
+    "edge1.messaging.read": {
+      "enabled": true,
+      "access": "read",
+      "required_scope": "edge1.messaging.read",
+      "tools": ["edge1.messaging_status"]
+    },
+    "edge1.telephony.control.safe": {
+      "enabled": true,
+      "access": "write",
+      "required_scope": "edge1.telephony.control.safe",
+      "tools": ["edge1.telephony_console_reload"]
+    }
+  }
+}
