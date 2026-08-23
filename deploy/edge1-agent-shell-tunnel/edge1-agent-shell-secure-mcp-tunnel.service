@@ -1,0 +1,44 @@
+[Unit]
+Description=WW.CX Edge1 Agent Shell Secure MCP Tunnel
+After=network-online.target edge1-agent-shell.service
+Wants=network-online.target
+Requires=edge1-agent-shell.service
+
+[Service]
+Type=simple
+User=edge1-operator
+Group=edge1-operator
+
+Environment=EDGE1_TUNNEL_CONFIG=/etc/edge1-agent-shell-tunnel/tunnel-client.yaml
+Environment=EDGE1_TUNNEL_ID_FILE=/etc/edge1-agent-shell-tunnel/tunnel-id
+Environment=EDGE1_TUNNEL_API_KEY_FILE=/etc/edge1-tunnel/runtime-api-key
+Environment=EDGE1_OPERATOR_MCP_TOKEN_FILE=/etc/edge1-operator/mcp-token
+
+ExecStart=/usr/local/libexec/edge1-tunnel/edge1-secure-mcp-tunnel.sh run
+
+Restart=on-failure
+RestartSec=5
+
+RuntimeDirectory=edge1-agent-shell-secure-mcp-tunnel
+RuntimeDirectoryMode=0700
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/edge1-agent-shell-tunnel
+ReadOnlyPaths=/etc/edge1-tunnel/runtime-api-key
+ReadOnlyPaths=/etc/edge1-operator/mcp-token
+ReadOnlyPaths=/usr/local/bin/tunnel-client
+ReadOnlyPaths=/usr/local/libexec/edge1-tunnel
+ReadWritePaths=/run/edge1-agent-shell-secure-mcp-tunnel
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -5,18 +5,22 @@ on:
     paths:
       - 'tools/mcp/edge1-agent-shell/**'
       - 'deploy/edge1-agent-shell/**'
+      - 'deploy/edge1-agent-shell-tunnel/**'
       - 'deploy/edge1-tunnel/tunnel-client.yaml'
       - 'deploy/edge1-tunnel/edge1-secure-mcp-tunnel.service'
       - 'tests/test_edge1_agent_shell.py'
+      - 'tests/test_edge1_agent_shell_dedicated_tunnel.py'
       - '.github/workflows/edge1-agent-shell.yml'
   push:
     branches: [main]
     paths:
       - 'tools/mcp/edge1-agent-shell/**'
       - 'deploy/edge1-agent-shell/**'
+      - 'deploy/edge1-agent-shell-tunnel/**'
       - 'deploy/edge1-tunnel/tunnel-client.yaml'
       - 'deploy/edge1-tunnel/edge1-secure-mcp-tunnel.service'
       - 'tests/test_edge1_agent_shell.py'
+      - 'tests/test_edge1_agent_shell_dedicated_tunnel.py'
       - '.github/workflows/edge1-agent-shell.yml'
 
 permissions:
@@ -41,9 +45,12 @@ jobs:
         working-directory: tools/mcp/edge1-agent-shell
         run: node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/node'), import('zod/v4')]).then(() => console.error('imports ok'))"
       - name: Validate Agent Shell contract
-        run: python3 -m unittest -v tests.test_edge1_agent_shell
+        run: python3 -m unittest -v tests.test_edge1_agent_shell tests.test_edge1_agent_shell_dedicated_tunnel
       - name: Validate deployment shell
-        run: sh -n deploy/edge1-agent-shell/install-edge1-agent-shell.sh
+        run: |
+          sh -n deploy/edge1-agent-shell/install-edge1-agent-shell.sh
+          sh -n deploy/edge1-agent-shell-tunnel/install-edge1-agent-shell-secure-mcp-tunnel.sh
+          systemd-analyze verify deploy/edge1-agent-shell-tunnel/edge1-agent-shell-secure-mcp-tunnel.service
       - name: Start loopback service and verify health
         working-directory: tools/mcp/edge1-agent-shell
         run: |
@@ -70,4 +77,5 @@ jobs:
       - name: Secret-pattern scan
         run: |
           ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
-            tools/mcp/edge1-agent-shell deploy/edge1-agent-shell tests/test_edge1_agent_shell.py
+            tools/mcp/edge1-agent-shell deploy/edge1-agent-shell deploy/edge1-agent-shell-tunnel \
+            tests/test_edge1_agent_shell.py tests/test_edge1_agent_shell_dedicated_tunnel.py
