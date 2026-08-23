@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/ava/call-record.schema.json",
+  "title": "Ava Protected Call Record Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "call_ref",
+    "started_at_utc",
+    "direction",
+    "recording_policy",
+    "transcription_policy",
+    "segments",
+    "integrity"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "call_ref": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{3,127}$"},
+    "work_item_ref": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{3,127}$"},
+    "started_at_utc": {"type": "string", "format": "date-time"},
+    "answered_at_utc": {"type": ["string", "null"], "format": "date-time"},
+    "ended_at_utc": {"type": ["string", "null"], "format": "date-time"},
+    "direction": {"enum": ["inbound", "outbound", "internal"]},
+    "caller_ref": {"type": ["string", "null"], "maxLength": 128},
+    "called_party_ref": {"type": ["string", "null"], "maxLength": 128},
+    "disposition": {"type": ["string", "null"], "maxLength": 64},
+    "recording_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "notice_required", "consent_required", "consent_state"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "notice_required": {"type": "boolean"},
+        "consent_required": {"type": "boolean"},
+        "consent_state": {"enum": ["not_required", "pending", "granted", "declined"]}
+      }
+    },
+    "transcription_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "streaming", "speaker_separation"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "streaming": {"type": "boolean"},
+        "speaker_separation": {"type": "boolean"}
+      }
+    },
+    "recording_ref": {"type": ["string", "null"], "maxLength": 128},
+    "transcript_ref": {"type": ["string", "null"], "maxLength": 128},
+    "summary_ref": {"type": ["string", "null"], "maxLength": 128},
+    "segments": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["segment_ref", "kind", "privacy", "started_at_utc", "ended_at_utc"],
+        "properties": {
+          "segment_ref": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{3,127}$"},
+          "kind": {"enum": ["caller_ava", "hold", "private_owner_consult", "caller_owner", "voicemail"]},
+          "privacy": {"enum": ["caller_visible", "private_owner", "protected_evidence"]},
+          "started_at_utc": {"type": "string", "format": "date-time"},
+          "ended_at_utc": {"type": "string", "format": "date-time"},
+          "audio_ref": {"type": ["string", "null"], "maxLength": 128},
+          "transcript_ref": {"type": ["string", "null"], "maxLength": 128}
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 2048,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_ref", "type", "occurred_at_utc"],
+        "properties": {
+          "event_ref": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{3,127}$"},
+          "type": {"enum": ["offered", "answered", "notice", "hold", "consult_started", "accepted", "declined", "bridged", "voicemail", "hangup", "failed"]},
+          "occurred_at_utc": {"type": "string", "format": "date-time"},
+          "actor_ref": {"type": ["string", "null"], "maxLength": 128}
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_sha256"],
+      "properties": {
+        "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "recording_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "transcript_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}
