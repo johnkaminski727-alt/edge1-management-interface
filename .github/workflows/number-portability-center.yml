@@ -1,0 +1,41 @@
+name: Number Portability Center
+
+on:
+  pull_request:
+    paths:
+      - 'server/number_portability_center.py'
+      - 'server/number_portability_server.py'
+      - 'deploy/systemd/wwcx-number-portability.service'
+      - 'src/web/number-portability/**'
+      - 'tests/test_number_portability_center.py'
+      - '.github/workflows/number-portability-center.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/number_portability_center.py'
+      - 'server/number_portability_server.py'
+      - 'deploy/systemd/wwcx-number-portability.service'
+      - 'src/web/number-portability/**'
+      - 'tests/test_number_portability_center.py'
+      - '.github/workflows/number-portability-center.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compile Python
+        run: python -m py_compile server/number_portability_center.py server/number_portability_server.py tests/test_number_portability_center.py
+      - name: Validate browser JavaScript
+        run: node --check src/web/number-portability/app.js
+      - name: Run tests
+        run: python -m unittest -v tests.test_number_portability_center
