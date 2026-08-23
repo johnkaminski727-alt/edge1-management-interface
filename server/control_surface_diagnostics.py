@@ -27,6 +27,7 @@ SECRET_PATTERNS = (
 )
 LONG_VALUE = re.compile(r"\b[A-Za-z0-9+/=_-]{64,}\b")
 PROCESS_NAME = re.compile(r'\(\("([^"]+)"')
+WILDCARD_HOSTS = frozenset({"0.0.0.0", "::", "*", ""})
 
 PROFILES = {
     "asterisk": (
@@ -115,8 +116,12 @@ def split_host_port(value: str) -> tuple[str, int | None]:
         return host, None
 
 
+def normalize_host(host: str) -> str:
+    return host.split("%", 1)[0].strip("[]")
+
+
 def is_loopback(host: str) -> bool:
-    normalized = host.split("%", 1)[0].strip("[]")
+    normalized = normalize_host(host)
     if normalized == "localhost":
         return True
     try:
@@ -126,12 +131,41 @@ def is_loopback(host: str) -> bool:
 
 
 def exposure_for(host: str) -> str:
-    normalized = host.split("%", 1)[0].strip("[]")
+    normalized = normalize_host(host)
     if is_loopback(normalized):
         return "loopback"
-    if normalized in {"0.0.0.0", "::", "*", ""}:
+    if normalized in WILDCARD_HOSTS:
         return "wildcard"
     return "specific"
+
+
+def evidence_backed_listener(protocol: str, host: str, port: int | None) -> tuple[str, str] | None:
+    """Return only listener attributions already proven by retained Edge1 evidence.
+
+    These rules intentionally apply only as a fallback when ``ss -p`` cannot
+    disclose a process name to the Operations API account. A visible process
+    that does not match the normal process-based rules remains unknown rather
+    than being overridden by a port-only assumption.
+    """
+    normalized = normalize_host(host)
+
+    if normalized == "10.77.0.1" and protocol in {"tcp", "udp"} and port == 53:
+        return "internal-service", "evidence-attributed WireGuard-private DNS service"
+    if normalized in WILDCARD_HOSTS and protocol == "udp" and port == 123:
+        return "public-infrastructure", "evidence-attributed Chrony NTP service"
+    if normalized in WILDCARD_HOSTS and protocol == "udp" and port == 51820:
+        return "private-control", "evidence-attributed WireGuard transport"
+    if normalized in WILDCARD_HOSTS and protocol == "udp" and port == 41641:
+        return "private-control", "evidence-attributed Tailscale transport"
+    if normalized in {"10.77.0.1", "89.147.109.253"} and protocol in {"tcp", "udp"} and port == 5060:
+        return "peering", "evidence-attributed Kamailio SIP signaling"
+    if normalized in WILDCARD_HOSTS and protocol == "tcp" and port == 4460:
+        return "public-infrastructure", "evidence-attributed Chrony NTS-KE service"
+    if normalized in WILDCARD_HOSTS and protocol == "tcp" and port in {8001, 8003}:
+        return "private-control", "evidence-attributed FreePBX UCP Node/PM2 listener"
+    if normalized in WILDCARD_HOSTS and protocol == "tcp" and port in {80, 443}:
+        return "public-infrastructure", "evidence-attributed Apache HTTP/HTTPS front door"
+    return None
 
 
 def classify_listener(protocol: str, host: str, port: int | None, process: str) -> tuple[str, str]:
@@ -158,6 +192,10 @@ def classify_listener(protocol: str, host: str, port: int | None, process: str) 
         return "public-infrastructure", "NTP service"
     if proc == "asterisk" and port in {5060, 5061}:
         return "unknown-needs-attribution", "Asterisk non-loopback SIP listener requires peering dependency review"
+    if not proc:
+        attributed = evidence_backed_listener(protocol, host, port)
+        if attributed is not None:
+            return attributed
     return "unknown-needs-attribution", "owner/purpose/consumers require attribution"
 
 
