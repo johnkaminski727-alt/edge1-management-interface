@@ -3,7 +3,7 @@
 
 This service opens the office-manager SQLite database in immutable read-only mode and
 exposes only bounded GET endpoints. It does not create the database, mutate work, approve
-actions, contact providers, or expose proposal parameter payloads.
+actions, contact providers, expose proposal parameter payloads, or read call audio.
 """
 from __future__ import annotations
 
@@ -15,9 +15,16 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+try:
+    from .ava_call_archive import AvaCallArchiveError, AvaCallArchiveReadModel
+except ImportError:  # immutable flat runtime
+    from ava_call_archive import AvaCallArchiveError, AvaCallArchiveReadModel
+
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8116
+DEFAULT_CALL_ARCHIVE = "/var/lib/wwcx-ava-office-manager/call-archive"
 MAX_LIMIT = 100
+MAX_TRANSCRIPT_CHARS = 100_000
 ALLOWED_STATES = {"new", "working", "waiting_external", "needs_owner", "scheduled", "completed", "cancelled"}
 
 
@@ -107,7 +114,8 @@ class AvaOfficeReadModel:
 
 class AvaOfficeHandler(BaseHTTPRequestHandler):
     read_model: AvaOfficeReadModel
-    server_version = "WWCX-AvaOffice/0.1"
+    call_archive: AvaCallArchiveReadModel
+    server_version = "WWCX-AvaOffice/0.2"
 
     def log_message(self, format: str, *args: Any) -> None:
         return
@@ -122,12 +130,26 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    @staticmethod
+    def _bounded_int(raw: str | None, *, default: int, maximum: int, label: str) -> int:
+        if raw is None:
+            return default
+        try:
+            value = int(raw)
+        except ValueError as exc:
+            raise AvaOfficeReadError(f"{label} is invalid") from exc
+        if not 1 <= value <= maximum:
+            raise AvaOfficeReadError(f"{label} is out of bounds")
+        return value
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query, keep_blank_values=False)
         try:
             if parsed.path == "/healthz":
-                self._json(200, self.read_model.health())
+                payload = self.read_model.health()
+                payload["call_archive"] = self.call_archive.health()
+                self._json(200, payload)
                 return
             if parsed.path == "/api/ava-office/summary":
                 self._json(200, self.read_model.summary())
@@ -145,7 +167,32 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
                 limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
                 self._json(200, {"items": self.read_model.instructions(limit=limit)})
                 return
+            if parsed.path == "/api/ava-office/call-archive/health":
+                self._json(200, self.call_archive.health())
+                return
+            if parsed.path == "/api/ava-office/calls":
+                limit = self.read_model._limit(query.get("limit", [None])[0])
+                self._json(200, {"items": self.call_archive.calls(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/voicemails":
+                limit = self.read_model._limit(query.get("limit", [None])[0])
+                self._json(200, {"items": self.call_archive.voicemails(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/transcript":
+                call_ref = query.get("call_ref", [None])[0]
+                if not call_ref:
+                    raise AvaOfficeReadError("call_ref is required")
+                max_chars = self._bounded_int(
+                    query.get("max_chars", [None])[0],
+                    default=20_000,
+                    maximum=MAX_TRANSCRIPT_CHARS,
+                    label="max_chars",
+                )
+                self._json(200, self.call_archive.transcript(call_ref, max_chars=max_chars))
+                return
             self._json(404, {"error": "not_found"})
+        except AvaCallArchiveError as exc:
+            self._json(503, {"error": "call_archive_unavailable", "detail": str(exc)[:200]})
         except (AvaOfficeReadError, sqlite3.Error) as exc:
             self._json(503, {"error": "office_manager_unavailable", "detail": str(exc)[:200]})
 
@@ -158,17 +205,24 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
     do_DELETE = _method_not_allowed  # type: ignore[assignment]
 
 
-def build_server(host: str, port: int, database: str | Path) -> ThreadingHTTPServer:
+def build_server(
+    host: str,
+    port: int,
+    database: str | Path,
+    call_archive_root: str | Path = DEFAULT_CALL_ARCHIVE,
+) -> ThreadingHTTPServer:
     if host not in {"127.0.0.1", "::1", "localhost"}:
         raise AvaOfficeReadError("Ava Office read surface must remain loopback-only")
     if not isinstance(port, int) or isinstance(port, bool) or not 1024 <= port <= 65535:
         raise AvaOfficeReadError("port is invalid")
     read_model = AvaOfficeReadModel(database)
+    call_archive = AvaCallArchiveReadModel(call_archive_root)
 
     class BoundHandler(AvaOfficeHandler):
         pass
 
     BoundHandler.read_model = read_model
+    BoundHandler.call_archive = call_archive
     return ThreadingHTTPServer((host, port), BoundHandler)
 
 
@@ -177,8 +231,9 @@ def main() -> int:
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--database", default="/var/lib/wwcx-ava-office-manager/office-manager.sqlite3")
+    parser.add_argument("--call-archive", default=DEFAULT_CALL_ARCHIVE)
     args = parser.parse_args()
-    server = build_server(args.host, args.port, args.database)
+    server = build_server(args.host, args.port, args.database, args.call_archive)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

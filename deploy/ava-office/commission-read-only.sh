@@ -27,7 +27,10 @@ RELEASES="$RUNTIME_ROOT/releases"
 CURRENT="$RUNTIME_ROOT/current"
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/ava-office
 
-python3 -m py_compile "$REPO_ROOT/server/ava_office_manager.py" "$REPO_ROOT/server/ava_office_manager_server.py"
+python3 -m py_compile \
+    "$REPO_ROOT/server/ava_office_manager.py" \
+    "$REPO_ROOT/server/ava_office_manager_server.py" \
+    "$REPO_ROOT/server/ava_call_archive.py"
 HEAD=$(repo_git rev-parse HEAD 2>/dev/null || printf unknown)
 BRANCH=$(repo_git branch --show-current 2>/dev/null || true)
 DIRTY=$(repo_git status --porcelain 2>/dev/null || printf unknown)
@@ -116,8 +119,10 @@ if [ ! -d "$RELEASE" ]; then
 fi
 install -m 0555 -o root -g root "$REPO_ROOT/server/ava_office_manager_server.py" "$RELEASE/ava_office_manager_server.py"
 install -m 0444 -o root -g root "$REPO_ROOT/server/ava_office_manager.py" "$RELEASE/ava_office_manager.py"
+install -m 0444 -o root -g root "$REPO_ROOT/server/ava_call_archive.py" "$RELEASE/ava_call_archive.py"
 cmp -s "$REPO_ROOT/server/ava_office_manager_server.py" "$RELEASE/ava_office_manager_server.py"
 cmp -s "$REPO_ROOT/server/ava_office_manager.py" "$RELEASE/ava_office_manager.py"
+cmp -s "$REPO_ROOT/server/ava_call_archive.py" "$RELEASE/ava_call_archive.py"
 ln -sfn "$RELEASE" "$CURRENT.new"
 mv -Tf "$CURRENT.new" "$CURRENT"
 [ "$(readlink -f "$CURRENT")" = "$RELEASE" ]
@@ -168,7 +173,12 @@ else
 fi
 
 printf '%s\n' "$(readlink -f "$CURRENT")" > "$EVIDENCE/runtime.after"
-sha256sum "$UNIT_TARGET" "$DATABASE" "$RELEASE/ava_office_manager_server.py" "$RELEASE/ava_office_manager.py" > "$EVIDENCE/installed-files.sha256"
+sha256sum \
+    "$UNIT_TARGET" \
+    "$DATABASE" \
+    "$RELEASE/ava_office_manager_server.py" \
+    "$RELEASE/ava_office_manager.py" \
+    "$RELEASE/ava_call_archive.py" > "$EVIDENCE/installed-files.sha256"
 trap - EXIT INT TERM
 echo "Ava Office commissioning completed. Runtime: $RELEASE"
 echo "Evidence: $EVIDENCE"
