@@ -1,0 +1,45 @@
+name: Edge1 Operator Controls Disabled Commissioning
+
+on:
+  pull_request:
+    paths:
+      - 'server/asterisk_process_identity.py'
+      - 'server/edge1_operations_typed_actions.py'
+      - 'server/edge1_operator_privileged_broker.py'
+      - 'deploy/edge1-operator/install-privileged-broker-v1.sh'
+      - 'deploy/pin-edge1-operations-api-runtime.sh'
+      - 'deploy/pin-edge1-operator-mcp-runtime.sh'
+      - 'deploy/edge1-operator/commission-controls-v1-disabled.sh'
+      - 'tools/operator/validate_controls_disabled_live.py'
+      - 'tests/test_asterisk_process_identity.py'
+      - 'tests/test_edge1_operator_disabled_commissioning.py'
+      - 'tests/test_edge1_operator_privileged_broker_v1.py'
+      - 'tests/validate_edge1_operator_disabled_commissioning.py'
+      - '.github/workflows/edge1-operator-controls-disabled-commissioning.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax check deployment scripts
+        run: |
+          bash -n deploy/edge1-operator/install-privileged-broker-v1.sh
+          sh -n deploy/pin-edge1-operations-api-runtime.sh
+          sh -n deploy/pin-edge1-operator-mcp-runtime.sh
+          bash -n deploy/edge1-operator/commission-controls-v1-disabled.sh
+      - name: Compile control-plane Python
+        run: |
+          python -m py_compile \
+            server/asterisk_process_identity.py \
+            server/edge1_operations_typed_actions.py \
+            server/edge1_operator_privileged_broker.py \
+            tools/operator/validate_controls_disabled_live.py
+      - name: Run disabled commissioning validation
+        run: python tests/validate_edge1_operator_disabled_commissioning.py

@@ -4,6 +4,7 @@ umask 077
 
 REPO=/opt/edge1-management-interface
 SOURCE_REL=server/edge1_operator_privileged_broker.py
+HELPER_REL=server/asterisk_process_identity.py
 UNIT_REL=deploy/edge1-operator/edge1-operator-privileged-broker.service
 SERVICE=edge1-operator-privileged-broker.service
 ROOT=/usr/local/libexec/edge1-operator-privileged-broker
@@ -50,11 +51,12 @@ HEAD=$(git -C "$REPO" rev-parse HEAD)
 [ "$HEAD" = "$EXPECTED_COMMIT" ] || { echo "HEAD $HEAD does not match approved $EXPECTED_COMMIT" >&2; exit 6; }
 [ -z "$(git -C "$REPO" status --porcelain)" ] || { echo "repository working tree is not clean" >&2; exit 7; }
 [ -f "$REPO/$SOURCE_REL" ] || { echo "broker source missing" >&2; exit 8; }
+[ -f "$REPO/$HELPER_REL" ] || { echo "Asterisk identity helper missing" >&2; exit 8; }
 [ -f "$REPO/$UNIT_REL" ] || { echo "broker unit missing" >&2; exit 9; }
 getent passwd wwadmin >/dev/null || { echo "wwadmin account missing" >&2; exit 10; }
 getent group wwadmin >/dev/null || { echo "wwadmin group missing" >&2; exit 11; }
 
-python3 -m py_compile "$REPO/$SOURCE_REL"
+python3 -m py_compile "$REPO/$SOURCE_REL" "$REPO/$HELPER_REL"
 if grep -Eq 'edge1_agent_exec|/bin/sh|-lc|shell=True|subprocess\.(Popen|call|check_call|check_output).*[^[]' "$REPO/$SOURCE_REL"; then
   echo "broker source contains a forbidden generic shell pattern" >&2
   exit 12
@@ -66,6 +68,7 @@ grep -Fxq 'CapabilityBoundingSet=' "$REPO/$UNIT_REL" || { echo "empty capability
 grep -Fxq 'AmbientCapabilities=' "$REPO/$UNIT_REL" || { echo "empty ambient capability set missing" >&2; exit 17; }
 
 SOURCE_SHA=$(sha256sum "$REPO/$SOURCE_REL" | awk '{print $1}')
+HELPER_SHA=$(sha256sum "$REPO/$HELPER_REL" | awk '{print $1}')
 UNIT_SHA=$(sha256sum "$REPO/$UNIT_REL" | awk '{print $1}')
 RELEASE=$RELEASES/$EXPECTED_COMMIT
 
@@ -73,6 +76,7 @@ if [ "$MODE" = dry-run ]; then
   echo "Privileged broker install dry run passed."
   echo "commit=$EXPECTED_COMMIT"
   echo "source_sha256=$SOURCE_SHA"
+  echo "helper_sha256=$HELPER_SHA"
   echo "unit_sha256=$UNIT_SHA"
   echo "release=$RELEASE"
   echo "No files or services were changed."
@@ -100,11 +104,15 @@ systemctl is-active "$SERVICE" > "$EVID/active.before.txt" 2>&1 || true
 install -d -o root -g root -m 0555 "$ROOT" "$RELEASES"
 if [ -e "$RELEASE" ]; then
   [ -f "$RELEASE/edge1_operator_privileged_broker.py" ] || { echo "existing release is invalid" >&2; exit 20; }
+  [ -f "$RELEASE/asterisk_process_identity.py" ] || { echo "existing release helper is invalid" >&2; exit 20; }
   EXISTING=$(sha256sum "$RELEASE/edge1_operator_privileged_broker.py" | awk '{print $1}')
+  EXISTING_HELPER=$(sha256sum "$RELEASE/asterisk_process_identity.py" | awk '{print $1}')
   [ "$EXISTING" = "$SOURCE_SHA" ] || { echo "existing immutable release hash mismatch" >&2; exit 21; }
+  [ "$EXISTING_HELPER" = "$HELPER_SHA" ] || { echo "existing immutable helper hash mismatch" >&2; exit 21; }
 else
   install -d -o root -g root -m 0555 "$RELEASE"
   install -o root -g root -m 0444 "$REPO/$SOURCE_REL" "$RELEASE/edge1_operator_privileged_broker.py"
+  install -o root -g root -m 0444 "$REPO/$HELPER_REL" "$RELEASE/asterisk_process_identity.py"
 fi
 
 TMP_LINK=$ROOT/.current-$STAMP
@@ -160,8 +168,6 @@ OWNER=$(stat -c '%U:%G' /run/edge1-operator-privileged/control.sock)
 [ "$MODE" = 660 ] || { echo "unexpected socket mode $MODE" >&2; "$EVID/rollback.sh"; exit 25; }
 [ "$OWNER" = root:wwadmin ] || { echo "unexpected socket owner $OWNER" >&2; "$EVID/rollback.sh"; exit 26; }
 
-# A root interactive process is intentionally not the Operations API cgroup. The
-# broker must deny this otherwise well-formed local request before any mutation.
 DENIAL=$(python3 - <<'PY'
 import json, socket
 request = {
@@ -191,6 +197,7 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
   echo "commit=$EXPECTED_COMMIT"
   echo "release=$RELEASE"
   echo "source_sha256=$SOURCE_SHA"
+  echo "helper_sha256=$HELPER_SHA"
   echo "unit_sha256=$UNIT_SHA"
   echo "socket_mode=$MODE"
   echo "socket_owner=$OWNER"
@@ -198,7 +205,7 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
   echo "operator_scope_enabled=false"
   echo "operations_safe_gate_enabled=false"
 } > "$EVID/acceptance.txt"
-sha256sum "$RELEASE/edge1_operator_privileged_broker.py" "$UNIT" > "$EVID/SHA256SUMS"
+sha256sum "$RELEASE/edge1_operator_privileged_broker.py" "$RELEASE/asterisk_process_identity.py" "$UNIT" > "$EVID/SHA256SUMS"
 chmod 0600 "$EVID/acceptance.txt" "$EVID/SHA256SUMS"
 
 echo "Privileged broker installation accepted."

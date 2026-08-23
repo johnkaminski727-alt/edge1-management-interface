@@ -18,6 +18,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from server.asterisk_process_identity import resolve_asterisk_pid
+
 REPO = Path("/opt/edge1-management-interface")
 SOURCE = REPO / "server" / "telephony_status_server.py"
 SERVICE = "wwcx-telephony-console.service"
@@ -145,7 +147,7 @@ def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("PBX or Messaging prerequisite is not active")
 
     pid_before = _pid(SERVICE)
-    asterisk_pid_before = _pid(ASTERISK_SERVICE)
+    asterisk_pid_before, asterisk_pid_source = resolve_asterisk_pid()
     messaging_pid_before = _pid(MESSAGING_SERVICE)
     source_sha = _sha256(SOURCE)
     repo_head = _value(["git", "-C", str(REPO), "rev-parse", "HEAD"])
@@ -170,7 +172,7 @@ def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
         time.sleep(1)
 
     pid_after = _pid(SERVICE)
-    asterisk_pid_after = _pid(ASTERISK_SERVICE)
+    asterisk_pid_after, asterisk_pid_source_after = resolve_asterisk_pid()
     messaging_pid_after = _pid(MESSAGING_SERVICE)
     unchanged_dependencies = (
         asterisk_pid_after == asterisk_pid_before
@@ -185,8 +187,6 @@ def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
         or broker_pid_after != pid_after
         or not unchanged_dependencies
     ):
-        # Attempt one recovery restart of the same fixed reviewed unit through the
-        # same narrow broker. This is not exposed as a second public capability.
         recovery = dict(p)
         recovery["expected_pid"] = pid_after if pid_after > 0 else int(broker_pid_after or 0)
         if recovery["expected_pid"] > 0:
@@ -204,6 +204,9 @@ def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
         "source_sha256": source_sha,
         "repo_head": repo_head,
         "loopback_health": True,
+        "asterisk_pid": asterisk_pid_before,
+        "asterisk_pid_source_before": asterisk_pid_source,
+        "asterisk_pid_source_after": asterisk_pid_source_after,
         "asterisk_pid_unchanged": True,
         "messaging_pid_unchanged": True,
         "configuration_changed": False,

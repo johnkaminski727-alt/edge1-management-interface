@@ -47,6 +47,7 @@ esac
 [ -e "$RUNTIME/.git" ] || { echo "runtime is not a Git worktree: $RUNTIME" >&2; exit 5; }
 [ -f "$RUNTIME/server/edge1_operations_api.py" ] || { echo "operations API source missing" >&2; exit 6; }
 [ -f "$RUNTIME/server/edge1_operations_typed_actions.py" ] || { echo "typed Operations API handlers missing" >&2; exit 6; }
+[ -f "$RUNTIME/server/asterisk_process_identity.py" ] || { echo "Asterisk process identity helper missing" >&2; exit 6; }
 [ -f "$RUNTIME/server/telephony_console_control_status.py" ] || { echo "Telephony control status helper missing" >&2; exit 6; }
 [ -f "$RUNTIME/config/edge1-operations-allowlist.json" ] || { echo "operations allowlist missing" >&2; exit 7; }
 
@@ -56,6 +57,7 @@ REVISION=$(git -C "$RUNTIME" rev-parse HEAD)
 python3 -m py_compile \
     "$RUNTIME/server/edge1_operations_api.py" \
     "$RUNTIME/server/edge1_operations_typed_actions.py" \
+    "$RUNTIME/server/asterisk_process_identity.py" \
     "$RUNTIME/server/telephony_console_control_status.py"
 python3 -m json.tool "$RUNTIME/config/edge1-operations-allowlist.json" >/dev/null
 
@@ -186,6 +188,7 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
 sha256sum \
     "$RUNTIME/server/edge1_operations_api.py" \
     "$RUNTIME/server/edge1_operations_typed_actions.py" \
+    "$RUNTIME/server/asterisk_process_identity.py" \
     "$RUNTIME/server/telephony_console_control_status.py" \
     "$RUNTIME/config/edge1-operations-allowlist.json" \
     "$RUNTIME/server/control_surface_diagnostics.py" \
