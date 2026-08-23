@@ -10,7 +10,10 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "server" / "private_ai_browser_worker.py"
+SERVER_DIR = ROOT / "server"
+MODULE_PATH = SERVER_DIR / "private_ai_browser_worker.py"
+if str(SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(SERVER_DIR))
 SPEC = importlib.util.spec_from_file_location("private_ai_browser_worker", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 worker = importlib.util.module_from_spec(SPEC)
