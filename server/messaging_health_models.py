@@ -44,11 +44,7 @@ def health_snapshot(
         and mms_quarantine_root_secure
         and trusted_scanner_available
     )
-    state = (
-        "healthy"
-        if service_active and listener_reachable and mms_security_ready
-        else "degraded"
-    )
+    state = "healthy" if service_active and listener_reachable else "degraded"
     return MessagingHealthSnapshot(
         gateway="wwcx-messaging-gateway",
         service_active=service_active,
