@@ -16,6 +16,8 @@
         "edge1.bigbird_status",
         "edge1.operations_status",
         "edge1.apache_status",
+        "edge1.ava_office_status",
+        "edge1.number_portability_status",
         "edge1.time_authority_status",
         "edge1.git_state",
         "edge1.config_digest",
