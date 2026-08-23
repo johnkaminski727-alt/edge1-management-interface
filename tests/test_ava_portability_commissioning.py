@@ -63,6 +63,18 @@ class CommissioningGuardrailTests(unittest.TestCase):
         self.assertIn('git -c safe.directory="$ROOT"', script)
         self.assertNotIn("git config --global", script)
 
+    def test_bridge_captures_safe_sandbox_and_fresh_snapshot_evidence(self):
+        script = self.read("deploy/activate-office-portability-operations-bridge.sh")
+        self.assertIn('push-service-security.txt', script)
+        self.assertIn('PrivateNetwork,IPAddressDeny,IPAddressAllow,RestrictAddressFamilies', script)
+        self.assertIn('ProtectSystem,ProtectHome,NoNewPrivileges,DynamicUser,NetworkNamespacePath', script)
+        self.assertNotIn('--property=Environment', script)
+        self.assertIn('SNAPSHOT_BEFORE_SHA=missing', script)
+        self.assertIn('snapshot-freshness.txt', script)
+        self.assertIn('collector completed without producing a fresh snapshot', script)
+        self.assertIn('push-service-result.txt', script)
+        self.assertIn("'generated_at': data.get('generated_at')", script)
+
     def test_commissioning_does_not_enable_external_action_planes(self):
         combined = (
             self.read("deploy/ava-office/commission-read-only.sh")
