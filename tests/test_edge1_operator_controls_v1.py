@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import json
 import pathlib
+import tempfile
 import unittest
+from unittest import mock
 
+from server import edge1_operations_api as operations_api
 from server.edge1_operator_capabilities import CapabilityEvaluator, CapabilityConfigurationError
 from server.edge1_operator_mcp_adapter import MCPAdapter
 from server.edge1_operator_mcp_protocol import PUBLIC_EDGE1_TOOL_NAMES, TOOLS
@@ -123,6 +126,29 @@ class OperatorControlsV1Tests(unittest.TestCase):
         self.assertNotIn("cwd", action)
         self.assertIn("Environment=EDGE1_OPS_MUTATIONS_ENABLED=false\n", OPS_SERVICE)
         self.assertIn("Environment=EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false\n", OPS_SERVICE)
+
+    def test_idempotency_claim_is_fail_closed_until_completed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = pathlib.Path(tmp) / "audit.sqlite3"
+            with mock.patch.object(operations_api, "DB_PATH", db_path):
+                action = "telephony.console.reload_safe"
+                key = "operator-control-0004"
+                request_hash = "c" * 64
+                self.assertIsNone(operations_api._idempotency_claim(action, key, request_hash))
+                with self.assertRaises(TypedActionValidationError):
+                    operations_api._idempotency_claim(action, key, request_hash)
+                response = {
+                    "action": action,
+                    "status": "succeeded",
+                    "event_id": "event-1",
+                    "idempotent_replay": False,
+                }
+                operations_api._idempotency_complete(action, key, request_hash, response)
+                replay = operations_api._idempotency_claim(action, key, request_hash)
+                self.assertTrue(replay["idempotent_replay"])
+                self.assertEqual(replay["event_id"], "event-1")
+                with self.assertRaises(TypedActionValidationError):
+                    operations_api._idempotency_claim(action, key, "d" * 64)
 
     def test_manifest_rejects_duplicate_tool_assignment(self):
         broken = json.loads(json.dumps(MANIFEST))
