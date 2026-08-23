@@ -45,7 +45,7 @@ if [ -n "$BRANCH" ] && [ "$BRANCH" != main ]; then
     echo "apply requires main or a detached exact-commit checkout" >&2
     exit 4
 fi
-[ -x "$BRIDGE" ] || { echo "missing bridge activation script" >&2; exit 4; }
+[ -f "$BRIDGE" ] || { echo "missing bridge activation script" >&2; exit 4; }
 [ -f "$AVA_DB" ] || { echo "Ava Office database missing" >&2; exit 4; }
 [ -f "$PORT_DB" ] || { echo "Number Portability database missing" >&2; exit 4; }
 
@@ -82,7 +82,7 @@ printf '=== BACKUP AND JOURNAL MIGRATION ===\n'
 systemctl stop "$AVA_SERVICE" "$PORT_SERVICE"
 
 python3 - "$AVA_DB" "$BACKUP/ava.sqlite3" work_items action_proposals standing_instructions <<'PY'
-import json, os, sqlite3, sys
+import json, sqlite3, sys
 source, backup, *required = sys.argv[1:]
 src = sqlite3.connect(source, timeout=10)
 dst = sqlite3.connect(backup)
