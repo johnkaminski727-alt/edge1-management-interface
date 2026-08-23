@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "autonomy_level": "routine",
+  "execution_enabled": false,
+  "capability_rules": [
+    {"prefix": "calendar.read", "authority": "observe"},
+    {"prefix": "calendar.event.prepare", "authority": "prepare"},
+    {"prefix": "calendar.event.create", "authority": "routine"},
+    {"prefix": "calendar.event.update", "authority": "routine"},
+    {"prefix": "calendar.event.cancel", "authority": "conditional"},
+    {"prefix": "communication.read", "authority": "observe"},
+    {"prefix": "communication.draft", "authority": "prepare"},
+    {"prefix": "communication.send", "authority": "routine"},
+    {"prefix": "telephony.read", "authority": "observe"},
+    {"prefix": "telephony.receptionist", "authority": "routine"},
+    {"prefix": "telephony.transfer", "authority": "routine"},
+    {"prefix": "telephony.originate", "authority": "conditional"},
+    {"prefix": "purchasing.quote", "authority": "prepare"},
+    {"prefix": "purchasing.commit", "authority": "conditional"},
+    {"prefix": "travel.research", "authority": "prepare"},
+    {"prefix": "travel.book", "authority": "conditional"},
+    {"prefix": "financial", "authority": "restricted"},
+    {"prefix": "legal", "authority": "restricted"},
+    {"prefix": "contract", "authority": "restricted"},
+    {"prefix": "credential", "authority": "restricted"},
+    {"prefix": "destructive", "authority": "restricted"},
+    {"prefix": "emergency", "authority": "restricted"}
+  ],
+  "always_confirm_prefixes": [
+    "calendar.event.cancel",
+    "telephony.originate",
+    "purchasing.commit",
+    "travel.book",
+    "financial",
+    "legal",
+    "contract",
+    "credential",
+    "destructive",
+    "emergency"
+  ],
+  "blocked_prefixes": [
+    "financial.transfer",
+    "contract.sign",
+    "credential.export",
+    "destructive.delete_irrecoverable",
+    "emergency.call",
+    "telephony.route.change",
+    "telephony.number.port",
+    "telephony.stir_shaken.sign"
+  ]
+}
