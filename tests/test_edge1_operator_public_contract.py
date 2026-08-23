@@ -30,10 +30,13 @@ EXPECTED = (
     "edge1.apache_status",
     "edge1.asterisk_status",
     "edge1.telephony_status",
+    "edge1.telephony_console_control_status",
+    "edge1.telephony_console_reload",
     "edge1.messaging_status",
     "edge1.time_authority_status",
     "edge1.git_state",
     "edge1.config_digest",
+    "edge1.capabilities",
 )
 
 
@@ -46,26 +49,40 @@ class FakeRuntime:
 
 
 class Edge1OperatorPublicContractTests(unittest.TestCase):
-    def test_external_contract_is_exactly_sixteen_read_only_tools(self):
+    def test_external_contract_is_exactly_reviewed_host_tools(self):
         names = tuple(tool["name"] for tool in MODULE.TOOLS)
         self.assertEqual(names, EXPECTED)
         self.assertEqual(MODULE.PUBLIC_EDGE1_TOOL_NAMES, EXPECTED)
-        self.assertEqual(len(set(names)), 16)
+        self.assertEqual(len(set(names)), 19)
         self.assertNotIn("agent.turn.status", names)
         self.assertNotIn("agent.turn.handoff", names)
 
-    def test_all_public_tools_have_standard_bounded_read_annotations(self):
-        expected = {
+    def test_public_tools_have_bounded_annotations(self):
+        read_annotations = {
             "readOnlyHint": True,
+            "destructiveHint": False,
+            "openWorldHint": False,
+            "idempotentHint": True,
+        }
+        write_annotations = {
+            "readOnlyHint": False,
             "destructiveHint": False,
             "openWorldHint": False,
             "idempotentHint": True,
         }
         for tool in MODULE.TOOLS:
             with self.subTest(tool=tool["name"]):
-                self.assertEqual(tool["access"], "read")
-                self.assertEqual(tool["annotations"], expected)
                 self.assertEqual(tool["inputSchema"]["additionalProperties"], False)
+                if tool["name"] == "edge1.telephony_console_reload":
+                    self.assertEqual(tool["access"], "write")
+                    self.assertEqual(tool["annotations"], write_annotations)
+                    self.assertEqual(
+                        set(tool["inputSchema"]["required"]),
+                        {"expected_pid", "expected_source_sha256", "expected_repo_head", "idempotency_key"},
+                    )
+                else:
+                    self.assertEqual(tool["access"], "read")
+                    self.assertEqual(tool["annotations"], read_annotations)
 
     def test_public_dispatch_rejects_internal_turn_tools_even_when_called_directly(self):
         operator, _runtime = build_operator(runtime=FakeRuntime(), turn_store=object())
@@ -104,7 +121,7 @@ class Edge1OperatorPublicContractTests(unittest.TestCase):
                     },
                 )
 
-    def test_operations_api_allows_netlink_without_network_admin_capabilities(self):
+    def test_operations_api_keeps_legacy_global_and_safe_control_gates_off(self):
         text = SERVICE_PATH.read_text(encoding="utf-8")
         families = next(
             line for line in text.splitlines() if line.startswith("RestrictAddressFamilies=")
@@ -114,6 +131,7 @@ class Edge1OperatorPublicContractTests(unittest.TestCase):
         self.assertIn("AmbientCapabilities=\n", text)
         self.assertNotIn("CAP_NET_ADMIN", text)
         self.assertIn("Environment=EDGE1_OPS_MUTATIONS_ENABLED=false", text)
+        self.assertIn("Environment=EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false", text)
 
     def test_mcp_service_uses_dedicated_persistent_turn_state_without_weakening_sandbox(self):
         text = MCP_SERVICE_PATH.read_text(encoding="utf-8")
