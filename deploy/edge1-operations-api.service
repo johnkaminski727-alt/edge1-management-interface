@@ -12,7 +12,7 @@ Environment=EDGE1_OPS_HOST=127.0.0.1
 Environment=EDGE1_OPS_PORT=8097
 Environment=EDGE1_OPS_MUTATIONS_ENABLED=false
 Environment=EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_operations_api.py
+ExecStart=/usr/bin/python3 -m server.edge1_operations_api
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true
