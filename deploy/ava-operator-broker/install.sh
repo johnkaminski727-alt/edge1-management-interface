@@ -8,6 +8,7 @@ TARGET="/opt/wwcx-ava-operator-broker/releases/$VERSION"
 printf 'mode=%s\nsource=%s\ntarget=%s\n' "$MODE" "$ROOT" "$TARGET"
 [ "$MODE" = apply ] || exit 0
 install -d -m 0755 /opt/wwcx-ava-operator-broker/releases /etc/ava-operator /var/log/wwcx-ava-operator-broker
+install -d -m 0700 /var/lib/wwcx-ava-operator-broker /var/lib/wwcx-ava-operator-broker/shell-gates
 if [ ! -f /etc/ava-operator/broker-token ]; then
   umask 077
   python3 -c 'import secrets; print(secrets.token_hex(32))' > /etc/ava-operator/broker-token
@@ -19,6 +20,7 @@ install -d -m 0755 "$TARGET/server" "$TARGET/config"
 install -m 0644 "$ROOT/server/ava_operator_broker.py" "$TARGET/server/ava_operator_broker.py"
 install -m 0644 "$ROOT/server/ava_operator_policy.py" "$TARGET/server/ava_operator_policy.py"
 install -m 0644 "$ROOT/config/ava-operator-parity.json" "$TARGET/config/ava-operator-parity.json"
+install -m 0755 "$ROOT/tools/ava_shellctl.py" /usr/local/sbin/ava-shellctl
 ln -sfn "$TARGET" /opt/wwcx-ava-operator-broker/current
 install -m 0644 "$ROOT/deploy/ava-operator-broker/wwcx-ava-operator-broker.service" /etc/systemd/system/wwcx-ava-operator-broker.service
 systemctl daemon-reload

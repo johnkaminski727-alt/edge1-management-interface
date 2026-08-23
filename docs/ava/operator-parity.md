@@ -17,3 +17,7 @@ Credentials, destructive operations, financial commitments, legal/contract actio
 ## Integration rule
 
 The Ava-facing broker must expose typed capability names and structured arguments. It must never expose the raw Edge1 Agent Shell URL, SSH keys, Business159 SSH configuration, environment secrets, or a generic command parameter in the browser. The internal adapter may reach the existing authenticated operator transports only after this policy authorizes the typed capability.
+
+## Attended unrestricted shells
+
+Two dormant raw-shell escape hatches are available for attended troubleshooting: root-backed Edge1 and account-level Business159. They require an independent root-controlled TTL gate plus an exact authorization phrase derived only from the original WW.CX admin message. See `docs/ava/unrestricted-shell-gates.md`.

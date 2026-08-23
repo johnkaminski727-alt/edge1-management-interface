@@ -25,3 +25,9 @@ Live activation evidence:
 - unconfirmed `edge1.shell.exec` denied with `confirmation_required`.
 - Private AI gateway patched to `0.3.5-alpha.2`; typed operator read tools become available only with `operator:read`; routine action tools require separate `operator:actions:routine`.
 - WW.CX PR #119 merged and deployed; authenticated admin AI requests now include `operator:read` only. No action/raw-shell scope is granted by the website.
+
+Unrestricted shell gate extension (2026-08-23):
+- independent `edge1` and `business159` raw-shell TTL gates; disabled by default; maximum enable window 240 minutes;
+- root-only `ava-shellctl` lifecycle with enable/status/disable and audit entries;
+- raw shell requires both server gate and exact authorization derived from the original user message, never retrieved context;
+- gateway tool exposure remains host-specific; raw-shell tools are absent while gates are closed.

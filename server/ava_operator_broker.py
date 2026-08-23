@@ -40,6 +40,8 @@ BUSINESS159_USER = "business159-operator"
 BUSINESS159_CONFIG = "/etc/business159-operator/ssh_config"
 BUSINESS159_ALIAS = "business159"
 AUDIT = Path("/var/log/wwcx-ava-operator-broker/audit.jsonl")
+SHELL_GATE_DIR = Path(os.getenv("AVA_SHELL_GATE_DIR", "/var/lib/wwcx-ava-operator-broker/shell-gates"))
+SHELL_HOSTS = {"edge1", "business159"}
 MAX_BODY = 65536
 MAX_OUTPUT = 131072
 
@@ -126,6 +128,34 @@ def _mcp(url: str, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
     raise RuntimeError("Edge1 operator returned no structured result")
 
 
+def shell_gate_status(host: str) -> dict[str, Any]:
+    if host not in SHELL_HOSTS:
+        raise ValueError("unknown shell host")
+    path = SHELL_GATE_DIR / f"{host}.json"
+    now = int(time.time())
+    try:
+        st = path.stat()
+        if not stat.S_ISREG(st.st_mode) or st.st_uid != os.geteuid() or st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+            raise RuntimeError("shell gate permissions are unsafe")
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"host": host, "enabled": False, "reason": "not_enabled"}
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"host": host, "enabled": False, "reason": "invalid_gate", "error_type": type(exc).__name__}
+    expires = value.get("expires_at_unix")
+    if not isinstance(expires, int) or expires <= now:
+        return {"host": host, "enabled": False, "reason": "expired", "expires_at_unix": expires if isinstance(expires, int) else None}
+    return {
+        "host": host,
+        "enabled": True,
+        "reason": "enabled",
+        "expires_at_unix": expires,
+        "remaining_seconds": max(0, expires - now),
+        "actor": str(value.get("actor", ""))[:128],
+        "ticket": str(value.get("ticket", ""))[:128],
+    }
+
+
 def _business159(command: str, *, timeout: int = 30) -> dict[str, Any]:
     if len(command) > 4000:
         raise ValueError("Business159 command too long")
@@ -150,6 +180,22 @@ def invoke(capability: str, arguments: dict[str, Any], confirmed: bool) -> dict[
     if not decision["allowed"]:
         _audit("denied", request_id=request_id, capability=capability, classification=decision["classification"], reason=decision["reason"])
         return {"request_id": request_id, "status": "denied", "decision": decision}
+
+    if capability == "shell.gate.status":
+        host = str(arguments.get("host", ""))
+        try:
+            result = shell_gate_status(host)
+        except ValueError as exc:
+            return {"request_id": request_id, "status": "error", "decision": decision, "error": str(exc)}
+        return {"request_id": request_id, "status": "completed", "decision": decision, "result": result}
+
+    shell_host = "edge1" if capability == "edge1.shell.exec" else "business159" if capability == "business159.shell.exec" else None
+    if shell_host is not None:
+        gate = shell_gate_status(shell_host)
+        if not gate.get("enabled"):
+            _audit("denied", request_id=request_id, capability=capability, classification=decision["classification"], reason="shell_gate_disabled", host=shell_host)
+            denied = dict(decision); denied["allowed"] = False; denied["reason"] = "shell_gate_disabled"
+            return {"request_id": request_id, "status": "denied", "decision": denied, "gate": gate}
 
     started = time.monotonic()
     try:

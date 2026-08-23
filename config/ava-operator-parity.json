@@ -3,30 +3,102 @@
   "profile": "ava-operator-parity",
   "execution_enabled": true,
   "hosts": {
-    "edge1": {"expected_host": "edge1.ww.cx", "transport": "edge1-agent-shell", "read_authority": "observe", "raw_shell_authority": "attended"},
-    "business159": {"expected_host": "business159.web-hosting.com", "expected_principal": "wwcxjywl", "transport": "business159-live-shell", "read_authority": "observe", "raw_shell_authority": "attended"}
+    "edge1": {
+      "expected_host": "edge1.ww.cx",
+      "transport": "edge1-agent-shell",
+      "read_authority": "observe",
+      "raw_shell_authority": "attended"
+    },
+    "business159": {
+      "expected_host": "business159.web-hosting.com",
+      "expected_principal": "wwcxjywl",
+      "transport": "business159-live-shell",
+      "read_authority": "observe",
+      "raw_shell_authority": "attended"
+    }
   },
   "classes": {
-    "observe": {"requires_confirmation": false, "allowed": true},
-    "routine": {"requires_confirmation": false, "allowed": true},
-    "conditional": {"requires_confirmation": true, "allowed": true},
-    "attended": {"requires_confirmation": true, "allowed": true},
-    "restricted": {"requires_confirmation": true, "allowed": false}
+    "observe": {
+      "requires_confirmation": false,
+      "allowed": true
+    },
+    "routine": {
+      "requires_confirmation": false,
+      "allowed": true
+    },
+    "conditional": {
+      "requires_confirmation": true,
+      "allowed": true
+    },
+    "attended": {
+      "requires_confirmation": true,
+      "allowed": true
+    },
+    "restricted": {
+      "requires_confirmation": true,
+      "allowed": false
+    }
   },
   "capabilities": [
-    {"prefix": "edge1.read", "class": "observe"},
-    {"prefix": "edge1.repository", "class": "routine"},
-    {"prefix": "edge1.service.repair", "class": "routine"},
-    {"prefix": "edge1.deploy", "class": "conditional"},
-    {"prefix": "edge1.shell.exec", "class": "attended"},
-    {"prefix": "business159.read", "class": "observe"},
-    {"prefix": "business159.filesystem", "class": "routine"},
-    {"prefix": "business159.deploy", "class": "conditional"},
-    {"prefix": "business159.shell.exec", "class": "attended"},
-    {"prefix": "credential", "class": "restricted"},
-    {"prefix": "destructive", "class": "restricted"},
-    {"prefix": "financial", "class": "restricted"},
-    {"prefix": "legal", "class": "restricted"},
-    {"prefix": "emergency", "class": "restricted"}
+    {
+      "prefix": "shell.gate.status",
+      "class": "observe"
+    },
+    {
+      "prefix": "edge1.read",
+      "class": "observe"
+    },
+    {
+      "prefix": "edge1.repository",
+      "class": "routine"
+    },
+    {
+      "prefix": "edge1.service.repair",
+      "class": "routine"
+    },
+    {
+      "prefix": "edge1.deploy",
+      "class": "conditional"
+    },
+    {
+      "prefix": "edge1.shell.exec",
+      "class": "attended"
+    },
+    {
+      "prefix": "business159.read",
+      "class": "observe"
+    },
+    {
+      "prefix": "business159.filesystem",
+      "class": "routine"
+    },
+    {
+      "prefix": "business159.deploy",
+      "class": "conditional"
+    },
+    {
+      "prefix": "business159.shell.exec",
+      "class": "attended"
+    },
+    {
+      "prefix": "credential",
+      "class": "restricted"
+    },
+    {
+      "prefix": "destructive",
+      "class": "restricted"
+    },
+    {
+      "prefix": "financial",
+      "class": "restricted"
+    },
+    {
+      "prefix": "legal",
+      "class": "restricted"
+    },
+    {
+      "prefix": "emergency",
+      "class": "restricted"
+    }
   ]
 }

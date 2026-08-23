@@ -21,7 +21,7 @@ ProtectHome=false
 PrivateTmp=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 ReadOnlyPaths=/opt/wwcx-ava-operator-broker /etc/edge1-operator /etc/business159-operator /usr/local/libexec/business159-tunnel
-ReadWritePaths=/var/log/wwcx-ava-operator-broker
+ReadWritePaths=/var/log/wwcx-ava-operator-broker /var/lib/wwcx-ava-operator-broker
 
 [Install]
 WantedBy=multi-user.target
