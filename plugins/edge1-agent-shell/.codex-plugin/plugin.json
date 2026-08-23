@@ -1,0 +1,35 @@
+{
+  "name": "wwcx-edge1-agent-shell",
+  "version": "0.1.0",
+  "description": "Give trusted WW.CX agents full read/write/update/service/shell access to Edge1 through the private Agent Shell MCP channel.",
+  "author": {
+    "name": "Christmas Island Worldwide"
+  },
+  "homepage": "https://ww.cx/",
+  "repository": "https://github.com/johnkaminski727-alt/edge1-management-interface",
+  "keywords": [
+    "edge1",
+    "wwcx",
+    "agent",
+    "shell",
+    "operations",
+    "administration",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "WW.CX Edge1 Agent Shell",
+    "shortDescription": "Full private Edge1 administration for trusted agents",
+    "longDescription": "Routes authorized Edge1 administration work to the private high-authority Agent Shell MCP tools for command execution, filesystem read/write/update, service control, and host operations.",
+    "developerName": "Christmas Island Worldwide",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://ww.cx/",
+    "defaultPrompt": [
+      "Inspect Edge1, make the requested change, verify it, and preserve rollback evidence."
+    ]
+  }
+}
