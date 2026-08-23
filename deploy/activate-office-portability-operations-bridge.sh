@@ -23,12 +23,12 @@ EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/office-portability-bridge
 
 python3 -m py_compile "$COLLECTOR_SOURCE" "$SUMMARY_SOURCE"
 HEAD="$(git -C "$ROOT" rev-parse HEAD)"
-BRANCH="$(git -C "$ROOT" branch --show-current)"
+BRANCH="$(git -C "$ROOT" branch --show-current || true)"
 DIRTY="$(git -C "$ROOT" status --porcelain)"
 
 echo "Office/Portability signed snapshot bridge preflight"
 echo "  mode: $MODE"
-echo "  branch: $BRANCH"
+echo "  branch: ${BRANCH:-detached}"
 echo "  commit: $HEAD"
 
 if [ "$MODE" = dry-run ]; then
@@ -39,8 +39,11 @@ fi
 [ -n "$EXPECTED_COMMIT" ] || { echo "--apply requires --expected-commit=SHA" >&2; exit 4; }
 [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid expected commit" >&2; exit 4; }
 [ "$HEAD" = "$EXPECTED_COMMIT" ] || { echo "expected commit mismatch" >&2; exit 4; }
-[ "$BRANCH" = main ] || { echo "apply requires main" >&2; exit 4; }
 [ -z "$DIRTY" ] || { echo "apply requires clean working tree" >&2; exit 4; }
+if [ -n "$BRANCH" ] && [ "$BRANCH" != main ]; then
+    echo "apply requires main or a detached exact-commit checkout" >&2
+    exit 4
+fi
 
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE="$EVIDENCE_ROOT/$STAMP"
