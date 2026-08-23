@@ -98,6 +98,46 @@ class ControlSurfaceDiagnosticsTests(unittest.TestCase):
                 self.assertEqual(row["classification"], expected_class)
                 self.assertEqual(row["exposure"], expected_exposure)
 
+    def test_evidence_backed_listener_attributions_when_process_is_hidden(self):
+        cases = [
+            ("udp", "10.77.0.1", 53, "internal-service"),
+            ("tcp", "10.77.0.1", 53, "internal-service"),
+            ("udp", "0.0.0.0", 123, "public-infrastructure"),
+            ("udp", "::", 123, "public-infrastructure"),
+            ("udp", "0.0.0.0", 51820, "private-control"),
+            ("udp", "::", 51820, "private-control"),
+            ("udp", "0.0.0.0", 41641, "private-control"),
+            ("udp", "::", 41641, "private-control"),
+            ("udp", "10.77.0.1", 5060, "peering"),
+            ("tcp", "10.77.0.1", 5060, "peering"),
+            ("udp", "89.147.109.253", 5060, "peering"),
+            ("tcp", "89.147.109.253", 5060, "peering"),
+            ("tcp", "0.0.0.0", 4460, "public-infrastructure"),
+            ("tcp", "::", 4460, "public-infrastructure"),
+            ("tcp", "*", 8001, "private-control"),
+            ("tcp", "*", 8003, "private-control"),
+            ("tcp", "*", 80, "public-infrastructure"),
+            ("tcp", "*", 443, "public-infrastructure"),
+        ]
+        for protocol, host, port, expected in cases:
+            with self.subTest(protocol=protocol, host=host, port=port):
+                classification, reason = mod.classify_listener(protocol, host, port, "")
+                self.assertEqual(classification, expected)
+                self.assertIn("evidence-attributed", reason)
+
+    def test_dynamic_or_contradictory_listeners_remain_unknown(self):
+        cases = [
+            ("udp", "0.0.0.0", 57784, ""),
+            ("udp", "::", 51550, ""),
+            ("tcp", "100.115.195.54", 40463, ""),
+            ("tcp", "fd7a:115c:a1e0::5d39:c337", 42639, ""),
+            ("tcp", "*", 443, "mystery"),
+        ]
+        for protocol, host, port, process in cases:
+            with self.subTest(protocol=protocol, host=host, port=port, process=process):
+                classification, _reason = mod.classify_listener(protocol, host, port, process)
+                self.assertEqual(classification, "unknown-needs-attribution")
+
     def test_clean_redacts_secrets(self):
         cleaned = mod.clean("password=abc123 token:xyz Authorization: BearerValue")
         self.assertNotIn("abc123", cleaned)
