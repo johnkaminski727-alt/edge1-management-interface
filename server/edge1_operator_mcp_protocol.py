@@ -74,6 +74,8 @@ PUBLIC_EDGE1_TOOL_NAMES = (
     "edge1.bigbird_status",
     "edge1.operations_status",
     "edge1.apache_status",
+    "edge1.ava_office_status",
+    "edge1.number_portability_status",
     "edge1.asterisk_status",
     "edge1.telephony_status",
     "edge1.telephony_console_control_status",
@@ -97,6 +99,8 @@ TOOLS = [
     _public_read_tool("edge1.bigbird_status", "Return bounded BigBird health and tool-registry state."),
     _public_read_tool("edge1.operations_status", "Return loopback Operations API health."),
     _public_read_tool("edge1.apache_status", "Return bounded Apache service state."),
+    _public_read_tool("edge1.ava_office_status", "Return bounded Ava Office health and aggregate read-only summary."),
+    _public_read_tool("edge1.number_portability_status", "Return bounded Number Portability health and aggregate read-only summary."),
     _public_read_tool("edge1.asterisk_status", "Return fixed read-only Asterisk diagnostics."),
     _public_read_tool("edge1.telephony_status", "Return bounded telephony console status."),
     _public_read_tool(
