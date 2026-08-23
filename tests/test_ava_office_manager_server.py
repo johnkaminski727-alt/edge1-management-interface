@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from server.ava_call_archive import manifest_sha256
 from server.ava_office_manager import OfficeManagerStore
 from server.ava_office_manager_server import AvaOfficeReadError, AvaOfficeReadModel, build_server
 
@@ -53,10 +54,11 @@ class AvaOfficeReadModelTests(unittest.TestCase):
             "transcript_ref": "transcript-0001",
             "segments": [{"kind": "voicemail", "transcript_ref": "transcript-0001"}],
             "integrity": {
-                "manifest_sha256": "a" * 64,
+                "manifest_sha256": "0" * 64,
                 "transcript_sha256": hashlib.sha256(transcript).hexdigest(),
             },
         }
+        manifest["integrity"]["manifest_sha256"] = manifest_sha256(manifest)
         (self.archive / "manifests" / "call-0001.json").write_text(json.dumps(manifest), encoding="utf-8")
 
     def tearDown(self) -> None:
