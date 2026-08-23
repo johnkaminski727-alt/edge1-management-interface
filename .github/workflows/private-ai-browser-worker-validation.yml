@@ -4,17 +4,27 @@ on:
   pull_request:
     paths:
       - 'server/private_ai_browser_worker.py'
+      - 'server/ava_visual_generator.py'
+      - 'server/ava_visual_worker.py'
       - 'tests/test_private_ai_browser_worker.py'
+      - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
+      - 'deploy/ava-visual-worker.service'
       - 'docs/private-ai-browser-interface.md'
+      - 'docs/ava-imagination-visuals.md'
       - '.github/workflows/private-ai-browser-worker-validation.yml'
   push:
     branches: [main]
     paths:
       - 'server/private_ai_browser_worker.py'
+      - 'server/ava_visual_generator.py'
+      - 'server/ava_visual_worker.py'
       - 'tests/test_private_ai_browser_worker.py'
+      - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
+      - 'deploy/ava-visual-worker.service'
       - 'docs/private-ai-browser-interface.md'
+      - 'docs/ava-imagination-visuals.md'
       - '.github/workflows/private-ai-browser-worker-validation.yml'
 
 permissions:
@@ -28,11 +38,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile worker
-        run: python -m py_compile server/private_ai_browser_worker.py
+      - name: Compile workers
+        run: python -m py_compile server/private_ai_browser_worker.py server/ava_visual_generator.py server/ava_visual_worker.py
       - name: Run worker tests
-        run: python -m unittest tests.test_private_ai_browser_worker
-      - name: Enforce private gateway boundary
+        run: python -m unittest tests.test_private_ai_browser_worker tests.test_ava_visual_generator
+      - name: Verify systemd units
+        run: systemd-analyze verify deploy/private-ai-browser-worker.service deploy/ava-visual-worker.service
+      - name: Enforce private gateway and credential boundaries
         run: |
           grep -F 'http://127.0.0.1:8787/v1/chat' server/private_ai_browser_worker.py
           ! grep -E '0\.0\.0\.0:8787|https?://[^"[:space:]]+:8787' server/private_ai_browser_worker.py | grep -v '127.0.0.1:8787'
+          grep -F 'OPENAI_API_KEY' server/ava_visual_generator.py server/ava_visual_worker.py
+          grep -F 'EnvironmentFile=-/etc/bigbird-ai-gateway.env' deploy/ava-visual-worker.service
+          ! grep -R -E 'sk-[A-Za-z0-9_-]{20,}' server/ava_visual_generator.py server/ava_visual_worker.py deploy/ava-visual-worker.service
