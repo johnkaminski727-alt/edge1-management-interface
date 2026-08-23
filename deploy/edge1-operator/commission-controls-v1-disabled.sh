@@ -14,18 +14,39 @@ OPS_PIN=deploy/pin-edge1-operations-api-runtime.sh
 OPERATOR_PIN=deploy/pin-edge1-operator-mcp-runtime.sh
 LIVE_VALIDATOR=tools/operator/validate_controls_disabled_live.py
 EXPECTED_COMMIT=
+REVIEWED_CONTROL_BASE=
+DEPLOY_COMMIT=
+MODE=
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
 usage() {
-  echo "usage: bash $0 --authorization $AUTHORIZATION --expected-commit <40-hex-sha> --execute" >&2
+  echo "usage: bash $0 --authorization $AUTHORIZATION (--expected-commit <40-hex-sha> | --reviewed-control-base <40-hex-sha>) --execute" >&2
 }
 
-if [ "$#" -ne 5 ] || [ "$1" != --authorization ] || [ "$2" != "$AUTHORIZATION" ] || [ "$3" != --expected-commit ] || [ "$5" != --execute ]; then
+if [ "$#" -ne 5 ] || [ "$1" != --authorization ] || [ "$2" != "$AUTHORIZATION" ] || [ "$5" != --execute ]; then
   usage
   exit 2
 fi
-EXPECTED_COMMIT=$4
-[[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]] || fail "expected commit must be a full 40-hex SHA"
+case "$3" in
+  --expected-commit)
+    MODE=exact
+    EXPECTED_COMMIT=$4
+    ;;
+  --reviewed-control-base)
+    MODE=reviewed-base
+    REVIEWED_CONTROL_BASE=$4
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+if [ "$MODE" = exact ]; then
+  [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]] || fail "expected commit must be a full 40-hex SHA"
+else
+  [[ "$REVIEWED_CONTROL_BASE" =~ ^[0-9a-f]{40}$ ]] || fail "reviewed control base must be a full 40-hex SHA"
+fi
+
 [ "$(id -u)" -ne 0 ] || fail "run as the authenticated wwadmin user, not root"
 [ "$(id -un)" = wwadmin ] || fail "expected authenticated user wwadmin"
 [ "$(hostname -f)" = edge1.ww.cx ] || fail "expected edge1.ww.cx"
@@ -33,25 +54,66 @@ EXPECTED_COMMIT=$4
 cd "$REPO"
 [ "$(git branch --show-current)" = main ] || fail "primary checkout must be on main"
 [ -z "$(git status --porcelain)" ] || fail "primary checkout has local changes"
-
-for rel in "$BROKER_INSTALL" "$OPS_PIN" "$OPERATOR_PIN" "$LIVE_VALIDATOR" server/asterisk_process_identity.py; do
-  [ -f "$REPO/$rel" ] || fail "required reviewed asset missing: $rel"
-done
 getent passwd "$OPERATOR_SERVICE_USER" >/dev/null || fail "Operator service user is unavailable"
 getent group "$OPERATOR_SERVICE_GROUP" >/dev/null || fail "Operator service group is unavailable"
 
 BEFORE_HEAD=$(git rev-parse HEAD)
 git fetch origin
 REMOTE=$(git rev-parse origin/main)
-[ "$REMOTE" = "$EXPECTED_COMMIT" ] || fail "origin/main $REMOTE does not equal reviewed commit $EXPECTED_COMMIT"
-if [ "$BEFORE_HEAD" != "$EXPECTED_COMMIT" ]; then
+
+if [ "$MODE" = exact ]; then
+  [ "$REMOTE" = "$EXPECTED_COMMIT" ] || fail "origin/main $REMOTE does not equal reviewed commit $EXPECTED_COMMIT"
+  DEPLOY_COMMIT=$EXPECTED_COMMIT
+else
+  git cat-file -e "$REVIEWED_CONTROL_BASE^{commit}" 2>/dev/null || fail "reviewed control base is not present in the local object database"
+  git merge-base --is-ancestor "$REVIEWED_CONTROL_BASE" "$REMOTE" || fail "reviewed control base is not an ancestor of origin/main"
+
+  CONTROL_DIFF=$(git diff --name-only "$REVIEWED_CONTROL_BASE..$REMOTE" -- \
+    deploy/edge1-operator \
+    deploy/pin-edge1-operator-mcp-runtime.sh \
+    deploy/pin-edge1-operations-api-runtime.sh \
+    deploy/edge1-operations-api.service \
+    config/edge1-operator-capabilities.json \
+    config/edge1-operations-allowlist.json \
+    server/__init__.py \
+    server/edge1_operator_http.py \
+    server/edge1_operator_entrypoint.py \
+    server/edge1_operator_mcp_protocol.py \
+    server/edge1_operator_mcp_adapter.py \
+    server/edge1_operator_runtime.py \
+    server/edge1_operator_capabilities.py \
+    server/edge1_operator_operations_client.py \
+    server/edge1_operations_api.py \
+    server/edge1_operations_typed_actions.py \
+    server/asterisk_process_identity.py \
+    server/telephony_console_control_status.py \
+    server/control_surface_diagnostics.py \
+    tools/operator \
+    tests/test_edge1_operator_disabled_commissioning.py \
+    tests/test_edge1_operator_privileged_broker_v1.py)
+  if [ -n "$CONTROL_DIFF" ]; then
+    echo "Control-plane paths changed after reviewed base $REVIEWED_CONTROL_BASE:" >&2
+    printf '%s\n' "$CONTROL_DIFF" >&2
+    fail "fresh control-plane review is required"
+  fi
+  DEPLOY_COMMIT=$REMOTE
+  echo "reviewed_control_base=$REVIEWED_CONTROL_BASE"
+  echo "resolved_deploy_commit=$DEPLOY_COMMIT"
+fi
+
+if [ "$BEFORE_HEAD" != "$DEPLOY_COMMIT" ]; then
   SAFETY="safety/operator-controls-disabled-$(date -u +%Y%m%dT%H%M%SZ)"
   git branch "$SAFETY" "$BEFORE_HEAD"
   echo "safety_branch=$SAFETY"
   git pull --ff-only origin main
 fi
-[ "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT" ] || fail "primary checkout did not reach reviewed commit"
+[ "$(git rev-parse HEAD)" = "$DEPLOY_COMMIT" ] || fail "primary checkout did not reach resolved deploy commit"
 [ -z "$(git status --porcelain)" ] || fail "primary checkout became dirty"
+EXPECTED_COMMIT=$DEPLOY_COMMIT
+
+for rel in "$BROKER_INSTALL" "$OPS_PIN" "$OPERATOR_PIN" "$LIVE_VALIDATOR" server/asterisk_process_identity.py; do
+  [ -f "$REPO/$rel" ] || fail "required reviewed asset missing: $rel"
+done
 
 # Approval of a Telephony runtime is intentionally a later activation step.
 if sudo test -e "$APPROVAL_MARKER"; then
@@ -160,6 +222,9 @@ trap - ERR INT TERM
 
 echo "Edge1 Operator Controls v1 disabled commissioning accepted."
 echo "commit=$EXPECTED_COMMIT"
+if [ "$MODE" = reviewed-base ]; then
+  echo "reviewed_control_base=$REVIEWED_CONTROL_BASE"
+fi
 echo "operations_runtime=$OPS_RUNTIME"
 echo "operator_runtime=$OPERATOR_RUNTIME"
 echo "privileged_broker_installed=true"
