@@ -89,12 +89,22 @@ class AvaCallArchiveReadModel:
     def manifest(self, call_ref: str) -> dict[str, Any]:
         return self._load_manifest_path(self._manifest_path(call_ref))
 
+    def _transcript_ref(self, doc: dict[str, Any]) -> str | None:
+        value = doc.get("transcript_ref")
+        if value is None:
+            segments = doc.get("segments") if isinstance(doc.get("segments"), list) else []
+            for segment in segments:
+                if isinstance(segment, dict) and segment.get("kind") == "voicemail" and segment.get("transcript_ref"):
+                    value = segment.get("transcript_ref")
+                    break
+        if value is None:
+            return None
+        return self._ref(value, "transcript_ref")
+
     def _summary(self, doc: dict[str, Any]) -> dict[str, Any]:
         segments = doc.get("segments") if isinstance(doc.get("segments"), list) else []
         voicemail_segments = [item for item in segments if isinstance(item, dict) and item.get("kind") == "voicemail"]
-        transcript_ref = doc.get("transcript_ref")
-        if transcript_ref is not None:
-            transcript_ref = self._ref(transcript_ref, "transcript_ref")
+        transcript_ref = self._transcript_ref(doc)
         return {
             "call_ref": self._ref(doc.get("call_ref"), "call_ref"),
             "started_at_utc": self._safe_text(doc.get("started_at_utc"), 64),
@@ -129,13 +139,9 @@ class AvaCallArchiveReadModel:
         if isinstance(max_chars, bool) or not isinstance(max_chars, int) or not 1 <= max_chars <= 100_000:
             raise AvaCallArchiveError("max_chars is out of bounds")
         doc = self.manifest(call_ref)
-        transcript_ref = doc.get("transcript_ref")
-        if transcript_ref is None:
-            for segment in doc.get("segments", []):
-                if isinstance(segment, dict) and segment.get("kind") == "voicemail" and segment.get("transcript_ref"):
-                    transcript_ref = segment.get("transcript_ref")
-                    break
-        ref = self._ref(transcript_ref, "transcript_ref")
+        ref = self._transcript_ref(doc)
+        if ref is None:
+            raise AvaCallArchiveError("transcript is unavailable")
         path = self.transcripts / f"{ref}.txt"
         if not path.is_file() or path.stat().st_size > MAX_TRANSCRIPT_BYTES:
             raise AvaCallArchiveError("transcript is unavailable")
