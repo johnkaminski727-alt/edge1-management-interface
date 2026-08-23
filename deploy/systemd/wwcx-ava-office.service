@@ -6,8 +6,8 @@ After=network.target
 Type=simple
 User=wwadmin
 Group=wwadmin
-WorkingDirectory=/opt/edge1-management-interface
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/ava_office_manager_server.py --host 127.0.0.1 --port 8116 --database /var/lib/wwcx-ava-office-manager/office-manager.sqlite3
+WorkingDirectory=/opt/wwcx-ava-office/current
+ExecStart=/usr/bin/python3 /opt/wwcx-ava-office/current/ava_office_manager_server.py --host 127.0.0.1 --port 8116 --database /var/lib/wwcx-ava-office-manager/office-manager.sqlite3
 Restart=on-failure
 RestartSec=3
 UMask=0077
@@ -23,7 +23,7 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
-ReadOnlyPaths=/opt/edge1-management-interface /var/lib/wwcx-ava-office-manager
+ReadOnlyPaths=/opt/wwcx-ava-office /var/lib/wwcx-ava-office-manager
 
 [Install]
 WantedBy=multi-user.target
