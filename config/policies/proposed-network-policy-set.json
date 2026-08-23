@@ -1,0 +1,68 @@
+{
+  "contract": "wwcx.proposed-network-policy-set.v1",
+  "status": "proposed",
+  "activation_authorized": false,
+  "legal_review_required": true,
+  "effective_version": null,
+  "private_network": {
+    "namespace": "network-YYYY-NN",
+    "acceptance_required": true,
+    "default_acceptance_days": 30,
+    "enforcement_authorized": false,
+    "policies": [
+      {
+        "id": "network-access-and-acceptable-use",
+        "title": "Network Access & Acceptable Use Policy",
+        "path": "docs/policies/network-access/network-access-and-acceptable-use.md",
+        "active": false
+      },
+      {
+        "id": "privacy-security-monitoring-and-logging",
+        "title": "Privacy, Security Monitoring & Logging Notice",
+        "path": "docs/policies/network-access/privacy-security-monitoring-and-logging.md",
+        "active": false
+      },
+      {
+        "id": "device-registration-and-credential-lifecycle",
+        "title": "Device Registration & Credential Lifecycle Policy",
+        "path": "docs/policies/network-access/device-registration-and-credential-lifecycle.md",
+        "active": false
+      },
+      {
+        "id": "network-enforcement-and-incident-response",
+        "title": "Network Enforcement, Quarantine & Incident Response Policy",
+        "path": "docs/policies/network-access/network-enforcement-and-incident-response.md",
+        "active": false
+      }
+    ]
+  },
+  "guest_network": {
+    "namespace": "guest-YYYY-NN",
+    "architecture_status": "proposed",
+    "separate_segment_required": true,
+    "private_network_access": false,
+    "wireguard_registration": false,
+    "account_required_by_default": false,
+    "acceptance_required": true,
+    "proposed_session_lifetime_minutes": 720,
+    "proposed_idle_timeout_minutes": 60,
+    "enforcement_authorized": false,
+    "policies": [
+      {
+        "id": "guest-network-and-captive-portal",
+        "title": "Guest Network & Captive Portal Terms",
+        "path": "docs/policies/network-access/guest-network-and-captive-portal.md",
+        "active": false
+      }
+    ],
+    "architecture": "docs/guest-captive-portal-architecture.md"
+  },
+  "boundaries": {
+    "auto_accept_user_policy": false,
+    "tls_interception": false,
+    "guest_to_private_bridging": false,
+    "guest_policy_satisfies_private_policy": false,
+    "private_policy_satisfies_guest_policy": false,
+    "production_network_changes_in_this_proposal": false
+  }
+}
