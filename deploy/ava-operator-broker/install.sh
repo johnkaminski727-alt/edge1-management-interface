@@ -3,7 +3,7 @@ set -eu
 MODE=dry-run
 [ "${1:-}" = "--apply" ] && MODE=apply
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-VERSION=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf source)
+VERSION=$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD 2>/dev/null || printf source)
 TARGET="/opt/wwcx-ava-operator-broker/releases/$VERSION"
 printf 'mode=%s\nsource=%s\ntarget=%s\n' "$MODE" "$ROOT" "$TARGET"
 [ "$MODE" = apply ] || exit 0
