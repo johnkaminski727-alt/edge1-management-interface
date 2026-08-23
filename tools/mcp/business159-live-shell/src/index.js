@@ -17,8 +17,10 @@ const TIMEOUT_MS = Math.min(Number(process.env.BUSINESS159_TIMEOUT_MS || 30000),
 const MAX_OUTPUT_BYTES = Math.min(Number(process.env.BUSINESS159_MAX_OUTPUT_BYTES || 32000), 262144);
 const ALLOW_DEPLOY = process.env.BUSINESS159_ALLOW_DEPLOY === '1';
 const ALLOW_FILESYSTEM = process.env.BUSINESS159_ALLOW_FILESYSTEM === '1';
+const ALLOW_MAILBOX_MUTATIONS = process.env.BUSINESS159_ALLOW_MAILBOX_MUTATIONS === '1';
 const ENABLE_RAW_SHELL = process.env.BUSINESS159_ENABLE_RAW_SHELL === '1';
 const MAX_STAGE_BYTES = Math.min(Number(process.env.BUSINESS159_MAX_STAGE_BYTES || 24576), 65536);
+const MAIL_DOMAINS = new Set((process.env.BUSINESS159_MAIL_DOMAINS || 'ww.cx,bigbird.ww.cx,staging.ww.cx').split(',').map(value => value.trim().toLowerCase()).filter(Boolean));
 
 function shellQuote(value) {
   return `'${String(value).replaceAll("'", `'"'"'`)}'`;
@@ -132,6 +134,28 @@ function auditShell(event, stageId, relativePath = '') {
   return `mkdir -p ${shellQuote(OPERATOR_ROOT)}; chmod 700 ${shellQuote(OPERATOR_ROOT)}; printf '%s\\t%s\\t%s\\t%s\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ${shellQuote(safeEvent)} ${shellQuote(stageId)} ${shellQuote(safePath)} >> ${shellQuote(`${OPERATOR_ROOT}/audit.jsonl`)}`;
 }
 
+function validMailboxLocal(value) {
+  return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/.test(value);
+}
+
+function validMailDomain(value) {
+  return typeof value === 'string' && MAIL_DOMAINS.has(value.toLowerCase());
+}
+
+function validEmailAddress(value) {
+  return typeof value === 'string' && value.length <= 254 && /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(value);
+}
+
+function mailAuditShell(event, subject) {
+  const safeEvent = String(event).replace(/[^a-z0-9._-]/gi, '_');
+  const safeSubject = String(subject).replace(/[^A-Za-z0-9._+@-]/g, '_');
+  return `mkdir -p ${shellQuote(OPERATOR_ROOT)}; chmod 700 ${shellQuote(OPERATOR_ROOT)}; printf '%s\\t%s\\t%s\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ${shellQuote(safeEvent)} ${shellQuote(safeSubject)} >> ${shellQuote(`${OPERATOR_ROOT}/mail-audit.jsonl`)}`;
+}
+
+function mailboxPolicyError() {
+  return { content: [{ type: 'text', text: 'Business159 mailbox mutations are disabled by policy (BUSINESS159_ALLOW_MAILBOX_MUTATIONS=0).' }], isError: true };
+}
+
 const INSPECTIONS = {
   overview: `printf 'time_utc='; date -u +%Y-%m-%dT%H:%M:%SZ; printf 'hostname='; hostname -f; printf 'principal='; id -un; printf 'home='; printf '%s\\n' "$HOME"; uptime`,
   resources: `df -Pk "$HOME" ${shellQuote(PUBLIC_ROOT)} 2>/dev/null || df -Pk "$HOME"; df -Pi "$HOME" 2>/dev/null || true; if command -v quota >/dev/null 2>&1; then quota -s 2>/dev/null || true; fi`,
@@ -164,6 +188,89 @@ function createServer() {
   server.registerTool('business159.cron_state', { description: 'Return the account crontab with connector redaction and output limits.', inputSchema: z.object({}) }, async () => fixedRead('business159.cron_state', INSPECTIONS.cron));
   server.registerTool('business159.git_state', { description: 'Return repository branch/dirty/head/origin state without fetching or changing it.', inputSchema: z.object({}) }, async () => fixedRead('business159.git_state', INSPECTIONS.git));
   server.registerTool('business159.mail_state', { description: 'Return bounded mail capability/config-path state without queue contents or credentials.', inputSchema: z.object({}) }, async () => fixedRead('business159.mail_state', INSPECTIONS.mail));
+  server.registerTool('business159.mail_domain_list', {
+    description: 'List cPanel mail domains and report which domains are approved for bounded mailbox mutations.',
+    inputSchema: z.object({})
+  }, async () => fixedRead('business159.mail_domain_list', `command -v uapi >/dev/null; uapi --output=json Email list_mail_domains`, { approvedDomains: [...MAIL_DOMAINS] }));
+
+  server.registerTool('business159.mailbox_list', {
+    description: 'List mailbox addresses, login suspension state, and bounded disk/quota metadata without message contents or credentials.',
+    inputSchema: z.object({ includeDisk: z.boolean().default(true) })
+  }, async ({ includeDisk }) => fixedRead('business159.mailbox_list', `command -v uapi >/dev/null; uapi --output=json Email ${includeDisk ? 'list_pops_with_disk' : 'list_pops'}`, { includeDisk }));
+
+  server.registerTool('business159.forwarder_list', {
+    description: 'List account-level email forwarders without inspecting mailbox contents.',
+    inputSchema: z.object({})
+  }, async () => fixedRead('business159.forwarder_list', `command -v uapi >/dev/null; uapi --output=json Email list_forwarders`));
+
+  server.registerTool('business159.mailbox_create', {
+    description: 'Create one mailbox on an approved WW.CX mail domain using a remotely generated password that is never returned. Requires BUSINESS159_ALLOW_MAILBOX_MUTATIONS=1.',
+    inputSchema: z.object({ localPart: z.string().min(1).max(64), domain: z.string().min(1).max(253), quotaMiB: z.number().int().min(1).max(10240).default(1024) })
+  }, async ({ localPart, domain, quotaMiB }) => {
+    if (!ALLOW_MAILBOX_MUTATIONS) return mailboxPolicyError();
+    const normalizedDomain = domain.toLowerCase();
+    if (!validMailboxLocal(localPart) || !validMailDomain(normalizedDomain)) return { content: [{ type: 'text', text: 'Mailbox name or domain is outside the approved policy.' }], isError: true };
+    const address = `${localPart}@${normalizedDomain}`;
+    const command = `command -v uapi >/dev/null; password=$(openssl rand -base64 48 | tr -d '\\r\\n' | tr '/+' '_-'); test "\${#password}" -ge 32; uapi --output=json Email add_pop email=${shellQuote(localPart)} domain=${shellQuote(normalizedDomain)} password="$password" quota=${shellQuote(quotaMiB)}; unset password; ${mailAuditShell('mailbox_create', address)}`;
+    const result = await runSsh(guard(command));
+    return payload('business159.mailbox_create', result, { mutation: true, address, quotaMiB, passwordReturned: false });
+  });
+
+  server.registerTool('business159.mailbox_quota_set', {
+    description: 'Set one approved mailbox quota in MiB. Requires BUSINESS159_ALLOW_MAILBOX_MUTATIONS=1.',
+    inputSchema: z.object({ localPart: z.string().min(1).max(64), domain: z.string().min(1).max(253), quotaMiB: z.number().int().min(1).max(10240) })
+  }, async ({ localPart, domain, quotaMiB }) => {
+    if (!ALLOW_MAILBOX_MUTATIONS) return mailboxPolicyError();
+    const normalizedDomain = domain.toLowerCase();
+    if (!validMailboxLocal(localPart) || !validMailDomain(normalizedDomain)) return { content: [{ type: 'text', text: 'Mailbox name or domain is outside the approved policy.' }], isError: true };
+    const address = `${localPart}@${normalizedDomain}`;
+    const command = `command -v uapi >/dev/null; uapi --output=json Email edit_pop_quota email=${shellQuote(localPart)} domain=${shellQuote(normalizedDomain)} quota=${shellQuote(quotaMiB)}; ${mailAuditShell('mailbox_quota_set', address)}`;
+    const result = await runSsh(guard(command));
+    return payload('business159.mailbox_quota_set', result, { mutation: true, address, quotaMiB });
+  });
+
+  server.registerTool('business159.mailbox_access_set', {
+    description: 'Enable or suspend mailbox login, incoming, or outgoing access on an approved domain. Requires BUSINESS159_ALLOW_MAILBOX_MUTATIONS=1.',
+    inputSchema: z.object({ localPart: z.string().min(1).max(64), domain: z.string().min(1).max(253), channel: z.enum(['login', 'incoming', 'outgoing']), enabled: z.boolean() })
+  }, async ({ localPart, domain, channel, enabled }) => {
+    if (!ALLOW_MAILBOX_MUTATIONS) return mailboxPolicyError();
+    const normalizedDomain = domain.toLowerCase();
+    if (!validMailboxLocal(localPart) || !validMailDomain(normalizedDomain)) return { content: [{ type: 'text', text: 'Mailbox name or domain is outside the approved policy.' }], isError: true };
+    const address = `${localPart}@${normalizedDomain}`;
+    const fn = `${enabled ? 'unsuspend' : 'suspend'}_${channel}`;
+    const command = `command -v uapi >/dev/null; uapi --output=json Email ${fn} email=${shellQuote(localPart)} domain=${shellQuote(normalizedDomain)}; ${mailAuditShell(`mailbox_${fn}`, address)}`;
+    const result = await runSsh(guard(command));
+    return payload('business159.mailbox_access_set', result, { mutation: true, address, channel, enabled });
+  });
+
+  server.registerTool('business159.forwarder_create', {
+    description: 'Create one forwarder from an approved WW.CX mail domain to a syntactically valid destination. Requires BUSINESS159_ALLOW_MAILBOX_MUTATIONS=1.',
+    inputSchema: z.object({ localPart: z.string().min(1).max(64), domain: z.string().min(1).max(253), destination: z.string().min(3).max(254) })
+  }, async ({ localPart, domain, destination }) => {
+    if (!ALLOW_MAILBOX_MUTATIONS) return mailboxPolicyError();
+    const normalizedDomain = domain.toLowerCase();
+    if (!validMailboxLocal(localPart) || !validMailDomain(normalizedDomain) || !validEmailAddress(destination)) return { content: [{ type: 'text', text: 'Forwarder source or destination is outside the approved policy.' }], isError: true };
+    const address = `${localPart}@${normalizedDomain}`;
+    const command = `command -v uapi >/dev/null; uapi --output=json Email add_forwarder email=${shellQuote(localPart)} domain=${shellQuote(normalizedDomain)} fwdopt=fwd fwdemail=${shellQuote(destination)}; ${mailAuditShell('forwarder_create', address)}`;
+    const result = await runSsh(guard(command));
+    return payload('business159.forwarder_create', result, { mutation: true, address, destination });
+  });
+
+  server.registerTool('business159.mail_delivery_test', {
+    description: 'Send a fixed non-secret delivery probe to one mailbox on an approved WW.CX mail domain. Requires BUSINESS159_ALLOW_MAILBOX_MUTATIONS=1.',
+    inputSchema: z.object({ localPart: z.string().min(1).max(64), domain: z.string().min(1).max(253) })
+  }, async ({ localPart, domain }) => {
+    if (!ALLOW_MAILBOX_MUTATIONS) return mailboxPolicyError();
+    const normalizedDomain = domain.toLowerCase();
+    if (!validMailboxLocal(localPart) || !validMailDomain(normalizedDomain)) return { content: [{ type: 'text', text: 'Delivery-test recipient is outside the approved policy.' }], isError: true };
+    const address = `${localPart}@${normalizedDomain}`;
+    const probeId = randomUUID();
+    const body = `From: operator-probe@ww.cx\\nTo: ${address}\\nSubject: WW.CX mailbox delivery probe ${probeId}\\nX-WWCX-Probe-ID: ${probeId}\\n\\nAutomated bounded delivery test. No reply is required.\\n`;
+    const encoded = Buffer.from(body, 'utf8').toString('base64');
+    const command = `command -v sendmail >/dev/null; printf '%s' ${shellQuote(encoded)} | base64 -d | sendmail -t -i; ${mailAuditShell('mail_delivery_test', address)}`;
+    const result = await runSsh(guard(command));
+    return payload('business159.mail_delivery_test', result, { mutation: true, address, probeId });
+  });
   server.registerTool('business159.deployment_status', { description: 'Return bounded deployment workspace/current-release metadata.', inputSchema: z.object({}) }, async () => fixedRead('business159.deployment_status', INSPECTIONS.deployment));
   server.registerTool('business159.edge1_bridge_status', { description: 'Return freshness/integrity metadata for the Edge1 operations snapshot received on Business159.', inputSchema: z.object({}) }, async () => fixedRead('business159.edge1_bridge_status', INSPECTIONS.bridge));
   server.registerTool('business159.config_digest', { description: 'Return SHA-256 digests for selected Business159 deployment/operator files without file contents.', inputSchema: z.object({}) }, async () => fixedRead('business159.config_digest', INSPECTIONS.config));
