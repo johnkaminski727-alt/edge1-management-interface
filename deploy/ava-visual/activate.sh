@@ -3,11 +3,13 @@ set -euo pipefail
 
 REPO=/opt/edge1-management-interface
 REF=origin/main
+QUEUE_ENV=''
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo) REPO="$2"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
+    --queue-env) QUEUE_ENV="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -15,6 +17,8 @@ done
 
 ROOT=/opt/wwcx/ava-visual
 UNIT=/etc/systemd/system/ava-visual-worker.service
+DROPIN_DIR=/etc/systemd/system/ava-visual-worker.service.d
+DROPIN="$DROPIN_DIR/queue-env.conf"
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/ava-visual
 BACKUP_ROOT=/var/backups/wwcx-ava-visual
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -36,10 +40,23 @@ fi
 getent passwd bigbird-ai >/dev/null
 getent group bigbird-ai >/dev/null
 [[ -r /etc/bigbird-ai-gateway.env ]] || { echo "Private AI gateway environment is unavailable" >&2; exit 1; }
-[[ -r /etc/wwcx/private-ai-browser-worker.env ]] || { echo "browser worker environment is unavailable" >&2; exit 1; }
 grep -q '^OPENAI_API_KEY=' /etc/bigbird-ai-gateway.env || { echo "OPENAI_API_KEY is not configured in the gateway environment" >&2; exit 1; }
-grep -q '^BB_BROWSER_WORKER_SECRET=' /etc/wwcx/private-ai-browser-worker.env || { echo "queue signing secret is not configured" >&2; exit 1; }
-grep -q '^BB_BROWSER_WORKER_KEY_ID=' /etc/wwcx/private-ai-browser-worker.env || { echo "queue key id is not configured" >&2; exit 1; }
+
+if [[ -z "$QUEUE_ENV" ]]; then
+  candidates=(/etc/wwcx/private-ai-browser-worker.env /etc/wwcx/bigbird-ai-poller.env /etc/bigbird-ai-poller.env)
+  while IFS= read -r candidate; do candidates+=("$candidate"); done < <(
+    systemctl cat bigbird-ai-poller.service 2>/dev/null | sed -n -E 's/^[[:space:]]*EnvironmentFile=-?"?([^"[:space:]]+)"?.*/\1/p'
+  )
+  for candidate in "${candidates[@]}"; do
+    [[ "$candidate" =~ ^/[A-Za-z0-9_./-]+$ ]] || continue
+    [[ -r "$candidate" ]] || continue
+    if grep -q '^BB_BROWSER_WORKER_SECRET=' "$candidate" && grep -q '^BB_BROWSER_WORKER_KEY_ID=' "$candidate"; then QUEUE_ENV="$candidate"; break; fi
+  done
+fi
+[[ "$QUEUE_ENV" =~ ^/[A-Za-z0-9_./-]+$ ]] || { echo "no safe reusable queue environment path was identified" >&2; exit 1; }
+[[ -r "$QUEUE_ENV" ]] || { echo "queue worker environment is unavailable" >&2; exit 1; }
+grep -q '^BB_BROWSER_WORKER_SECRET=' "$QUEUE_ENV" || { echo "queue signing secret is not configured" >&2; exit 1; }
+grep -q '^BB_BROWSER_WORKER_KEY_ID=' "$QUEUE_ENV" || { echo "queue key id is not configured" >&2; exit 1; }
 
 EVIDENCE="$EVIDENCE_ROOT/$STAMP"
 BACKUP="$BACKUP_ROOT/$STAMP"
@@ -60,8 +77,9 @@ systemd-analyze verify "$STAGING/ava-visual-worker.service"
 
 PREV_CURRENT=''
 if [[ -L "$ROOT/current" ]]; then PREV_CURRENT=$(readlink -f "$ROOT/current" || true); fi
-PREV_UNIT=0; PREV_ACTIVE=0; PREV_ENABLED=0
+PREV_UNIT=0; PREV_DROPIN=0; PREV_ACTIVE=0; PREV_ENABLED=0
 if [[ -f "$UNIT" ]]; then cp -a "$UNIT" "$BACKUP/ava-visual-worker.service"; PREV_UNIT=1; fi
+if [[ -f "$DROPIN" ]]; then cp -a "$DROPIN" "$BACKUP/queue-env.conf"; PREV_DROPIN=1; fi
 if systemctl is-active --quiet ava-visual-worker.service 2>/dev/null; then PREV_ACTIVE=1; fi
 if systemctl is-enabled --quiet ava-visual-worker.service 2>/dev/null; then PREV_ENABLED=1; fi
 
@@ -80,7 +98,12 @@ chmod 0644 "$RELEASE"/*.py "$RELEASE/SOURCE_COMMIT" "$RELEASE/ava-visual-worker.
 ln -s "$RELEASE" "$ROOT/.current-$STAMP"
 mv -Tf "$ROOT/.current-$STAMP" "$ROOT/current"
 install -o root -g root -m 0644 "$RELEASE/ava-visual-worker.service" "$UNIT"
+mkdir -p "$DROPIN_DIR"
+printf '[Service]\nEnvironmentFile=%s\n' "$QUEUE_ENV" > "$DROPIN.tmp"
+install -o root -g root -m 0644 "$DROPIN.tmp" "$DROPIN"
+rm -f "$DROPIN.tmp"
 systemctl daemon-reload
+systemd-analyze verify "$UNIT"
 systemctl enable --now ava-visual-worker.service
 sleep 1
 systemctl is-enabled --quiet ava-visual-worker.service
@@ -90,24 +113,28 @@ systemctl is-active --quiet ava-visual-worker.service
   printf 'activated_at_utc=%s\n' "$STAMP"
   printf 'source_commit=%s\n' "$COMMIT"
   printf 'release=%s\n' "$RELEASE"
+  printf 'queue_environment_file=%s\n' "$QUEUE_ENV"
   printf 'previous_current=%s\n' "$PREV_CURRENT"
-  printf 'previous_unit=%s\nprevious_active=%s\nprevious_enabled=%s\n' "$PREV_UNIT" "$PREV_ACTIVE" "$PREV_ENABLED"
+  printf 'previous_unit=%s\nprevious_dropin=%s\nprevious_active=%s\nprevious_enabled=%s\n' "$PREV_UNIT" "$PREV_DROPIN" "$PREV_ACTIVE" "$PREV_ENABLED"
   systemctl show ava-visual-worker.service -p LoadState -p ActiveState -p SubState -p UnitFileState -p MainPID -p ExecMainStatus
 } > "$EVIDENCE/result.txt"
-sha256sum "$RELEASE"/*.py "$UNIT" > "$EVIDENCE/sha256-manifest.txt"
+sha256sum "$RELEASE"/*.py "$UNIT" "$DROPIN" > "$EVIDENCE/sha256-manifest.txt"
 
 cat > "$EVIDENCE/rollback.sh" <<ROLLBACK
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT='$ROOT'
 UNIT='$UNIT'
+DROPIN='$DROPIN'
 BACKUP='$BACKUP'
 PREV_CURRENT='$PREV_CURRENT'
 PREV_UNIT='$PREV_UNIT'
+PREV_DROPIN='$PREV_DROPIN'
 PREV_ACTIVE='$PREV_ACTIVE'
 PREV_ENABLED='$PREV_ENABLED'
 if [[ "\$PREV_CURRENT" != '' ]]; then ln -sfn "\$PREV_CURRENT" "\$ROOT/current"; else rm -f "\$ROOT/current"; fi
 if [[ "\$PREV_UNIT" == 1 ]]; then install -o root -g root -m 0644 "\$BACKUP/ava-visual-worker.service" "\$UNIT"; else systemctl disable --now ava-visual-worker.service || true; rm -f "\$UNIT"; fi
+if [[ "\$PREV_DROPIN" == 1 ]]; then mkdir -p "$(dirname "$DROPIN")"; install -o root -g root -m 0644 "\$BACKUP/queue-env.conf" "\$DROPIN"; else rm -f "\$DROPIN"; fi
 systemctl daemon-reload
 if [[ "\$PREV_UNIT" == 1 ]]; then
   if [[ "\$PREV_ENABLED" == 1 ]]; then systemctl enable ava-visual-worker.service; else systemctl disable ava-visual-worker.service || true; fi
