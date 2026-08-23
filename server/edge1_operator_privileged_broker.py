@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Minimal root broker for fixed Edge1 Operator privileged actions.
 
-This process exists so the loopback Operations API can remain an unprivileged
-service. It accepts one local Unix-socket protocol and one fixed action. It has no
-shell/argv/path/service-name inputs and no network listener.
+The unprivileged Operations API may request exactly one fixed process-control action
+over a local Unix socket. Caller identity, approved runtime, exact preconditions and
+root-side audit are all revalidated here before mutation.
 """
 from __future__ import annotations
 
+import grp
 import hashlib
 import json
 import os
@@ -23,7 +24,9 @@ from typing import Any
 
 SOCKET_PATH = Path("/run/edge1-operator-privileged/control.sock")
 AUDIT_PATH = Path("/var/lib/edge1-operator-privileged/audit.jsonl")
+APPROVAL_PATH = Path("/etc/wwcx-edge1-operator/telephony-console-control.json")
 ALLOWED_USER = "wwadmin"
+ALLOWED_GROUP = "wwadmin"
 ALLOWED_CGROUP = "edge1-operations-api.service"
 REPO = Path("/opt/edge1-management-interface")
 SOURCE_REL = "server/telephony_status_server.py"
@@ -85,9 +88,32 @@ def _source_matches_head() -> bool:
     return tracked.returncode == 0 and clean.returncode == 0
 
 
+def _load_approved_runtime() -> dict[str, Any]:
+    try:
+        st = APPROVAL_PATH.stat()
+    except OSError as exc:
+        raise RuntimeError("approved Telephony runtime marker is unavailable") from exc
+    if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or (st.st_mode & 0o022):
+        raise RuntimeError("approved Telephony runtime marker permissions are unsafe")
+    if st.st_size < 2 or st.st_size > 4096:
+        raise RuntimeError("approved Telephony runtime marker size is invalid")
+    try:
+        value = json.loads(APPROVAL_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError("approved Telephony runtime marker is invalid") from exc
+    expected = {"version", "service", "repo_head", "source_sha256"}
+    if not isinstance(value, dict) or set(value) != expected:
+        raise RuntimeError("approved Telephony runtime marker fields are invalid")
+    if value["version"] != 1 or value["service"] != TELEPHONY_SERVICE:
+        raise RuntimeError("approved Telephony runtime marker target is invalid")
+    if not isinstance(value["repo_head"], str) or not HEX40.fullmatch(value["repo_head"]):
+        raise RuntimeError("approved Telephony runtime commit is invalid")
+    if not isinstance(value["source_sha256"], str) or not HEX64.fullmatch(value["source_sha256"]):
+        raise RuntimeError("approved Telephony runtime digest is invalid")
+    return value
+
+
 def _validate_request(value: Any) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise BrokerRequestError("request must be an object")
     expected = {
         "version",
         "action",
@@ -96,7 +122,7 @@ def _validate_request(value: Any) -> dict[str, Any]:
         "expected_source_sha256",
         "expected_repo_head",
     }
-    if set(value) != expected:
+    if not isinstance(value, dict) or set(value) != expected:
         raise BrokerRequestError("request fields do not match protocol")
     if value["version"] != 1 or value["action"] != "telephony_console_reload":
         raise BrokerRequestError("unsupported privileged action")
@@ -117,8 +143,7 @@ def _peer_credentials(conn: socket.socket) -> tuple[int, int, int]:
 
 
 def _peer_is_operations_api(pid: int, uid: int) -> bool:
-    expected_uid = pwd.getpwnam(ALLOWED_USER).pw_uid
-    if uid != expected_uid or pid <= 1:
+    if uid != pwd.getpwnam(ALLOWED_USER).pw_uid or pid <= 1:
         return False
     try:
         cgroup = Path(f"/proc/{pid}/cgroup").read_text(encoding="utf-8", errors="replace")
@@ -150,7 +175,7 @@ def _audit_best_effort(record: dict[str, Any]) -> None:
 
 def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
     if not SOURCE.is_file() or not _source_matches_head():
-        raise RuntimeError("reviewed source unavailable or differs from HEAD")
+        raise RuntimeError("Telephony source is unavailable or differs from HEAD")
     if not _active(TELEPHONY_SERVICE):
         raise RuntimeError("telephony console inactive")
     if not _active(ASTERISK_SERVICE) or not _active(MESSAGING_SERVICE):
@@ -161,6 +186,7 @@ def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
     messaging_pid_before = _pid(MESSAGING_SERVICE)
     source_sha256 = _sha256(SOURCE)
     repo_head = _value(["git", "-C", str(REPO), "rev-parse", "HEAD"])
+    approved = _load_approved_runtime()
 
     if telephony_pid_before != request["expected_pid"]:
         raise RuntimeError("pid precondition changed")
@@ -168,6 +194,8 @@ def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("source precondition changed")
     if repo_head != request["expected_repo_head"]:
         raise RuntimeError("repository precondition changed")
+    if approved["repo_head"] != repo_head or approved["source_sha256"] != source_sha256:
+        raise RuntimeError("current Telephony source is not the approved runtime")
     if asterisk_pid_before <= 0 or messaging_pid_before <= 0:
         raise RuntimeError("dependency pid unavailable")
 
@@ -197,6 +225,7 @@ def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
         "status": "succeeded",
         "pid_before": telephony_pid_before,
         "pid_after": telephony_pid_after,
+        "approved_runtime": True,
         "asterisk_pid_unchanged": True,
         "messaging_pid_unchanged": True,
         "configuration_changed": False,
@@ -256,9 +285,6 @@ def _serve_connection(conn: socket.socket) -> None:
             raise BrokerRequestError("peer is not the Operations API")
         request = _receive_request(conn)
         request_id = request["request_id"]
-
-        # Privileged mutation is forbidden if the durable root-side audit trail is not
-        # writable. This intent record is fsynced before systemctl is invoked.
         _audit(_audit_record(started, request_id, pid, uid, gid, "authorized_attempt"))
         result = _execute_reload(request)
         _audit(_audit_record(
@@ -293,8 +319,7 @@ def _prepare_socket() -> socket.socket:
 
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     server.bind(str(SOCKET_PATH))
-    group = pwd.getpwnam(ALLOWED_USER).pw_gid
-    os.chown(SOCKET_PATH, 0, group)
+    os.chown(SOCKET_PATH, 0, grp.getgrnam(ALLOWED_GROUP).gr_gid)
     os.chmod(SOCKET_PATH, 0o660)
     server.listen(8)
     return server
