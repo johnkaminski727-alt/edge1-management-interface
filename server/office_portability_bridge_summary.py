@@ -15,7 +15,9 @@ import argparse
 import datetime as dt
 import json
 import os
+import socket
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 DEFAULT_AVA_URL = "http://127.0.0.1:8116/api/ava-office/summary"
@@ -40,6 +42,32 @@ def _fetch_json(url):
     if not isinstance(payload, dict):
         raise ValueError("summary response must be an object")
     return payload
+
+
+def _safe_failure(exc):
+    """Return a bounded failure class without leaking exception text or endpoint data."""
+    result = {"error": "summary_unavailable"}
+    if isinstance(exc, HTTPError):
+        result["error_class"] = "http_error"
+        code = getattr(exc, "code", None)
+        if isinstance(code, int) and not isinstance(code, bool) and 100 <= code <= 599:
+            result["http_status"] = code
+        return result
+    if isinstance(exc, (socket.timeout, TimeoutError)):
+        result["error_class"] = "timeout"
+        return result
+    if isinstance(exc, URLError):
+        reason = getattr(exc, "reason", None)
+        result["error_class"] = "timeout" if isinstance(reason, socket.timeout) else "connection_error"
+        return result
+    if isinstance(exc, OSError):
+        result["error_class"] = "connection_error"
+        return result
+    if isinstance(exc, (ValueError, TypeError, UnicodeError)):
+        result["error_class"] = "invalid_summary"
+        return result
+    result["error_class"] = "unexpected_error"
+    return result
 
 
 def _count_map(value):
@@ -76,13 +104,14 @@ def ava_summary(url=DEFAULT_AVA_URL, fetcher=None):
             "actions": _count_map(payload.get("actions", {})),
             "standing_instructions": _count(payload.get("standing_instructions", 0)),
         }
-    except Exception:
-        return {
+    except Exception as exc:
+        result = {
             "available": False,
             "mode": "read-only",
             "execution_enabled": False,
-            "error": "summary_unavailable",
         }
+        result.update(_safe_failure(exc))
+        return result
 
 
 def portability_summary(url=DEFAULT_PORT_URL, fetcher=None):
@@ -104,14 +133,15 @@ def portability_summary(url=DEFAULT_PORT_URL, fetcher=None):
             "submission_authorized": False,
             "cutover_authorized": False,
         }
-    except Exception:
-        return {
+    except Exception as exc:
+        result = {
             "available": False,
             "mode": "read-only",
             "submission_authorized": False,
             "cutover_authorized": False,
-            "error": "summary_unavailable",
         }
+        result.update(_safe_failure(exc))
+        return result
 
 
 def build_summary(ava_url=DEFAULT_AVA_URL, port_url=DEFAULT_PORT_URL, fetcher=None):
