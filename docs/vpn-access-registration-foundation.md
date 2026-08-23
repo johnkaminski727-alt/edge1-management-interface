@@ -131,3 +131,13 @@ WW.CX Account Settings now treats VPN devices as account-owned assets. The stabl
 Self-service is restricted to narrow scopes: `edge1.vpn.self.read`, `edge1.vpn.self.enroll`, `edge1.vpn.self.rename`, `edge1.vpn.self.revoke`, and `edge1.vpn.self.policy.accept`. Each account request uses a short-lived, one-time signed assertion and is checked against the device owner before any state change.
 
 No policy was activated or accepted as part of this integration. Registration enforcement remains disabled.
+
+## Draft policy and guest-access proposals (2026-08-23)
+
+A proposed policy pack now lives under `docs/policies/network-access/`, with a machine-readable non-active registry at `config/policies/proposed-network-policy-set.json`.
+
+The proposals cover acceptable use, privacy/logging, device credential lifecycle, quarantine/incident response, and a separate guest captive-portal policy. All are explicitly draft, require review before activation, and have `activation_authorized: false`.
+
+Guest access is intentionally designed as a separate trust domain. The proposed architecture in `docs/guest-captive-portal-architecture.md` uses a dedicated guest SSID/VLAN/subnet, internet-only egress, client isolation, a captive portal, its own guest-session store and `guest-*` policy namespace, and no bridge into WW.CX private/VPN device ownership.
+
+No production guest SSID, VLAN, route, firewall rule, DNS change, captive redirect, or policy activation is created by the proposal.
