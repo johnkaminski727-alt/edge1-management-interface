@@ -20,6 +20,78 @@
       }
     },
     {
+      "name": "edge1.services.read",
+      "capability": "edge1.services.read",
+      "scope": "edge1.status.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.network.addresses.read",
+      "capability": "edge1.network.addresses.read",
+      "scope": "edge1.network.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.network.routes.read",
+      "capability": "edge1.network.routes.read",
+      "scope": "edge1.network.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.disk.read",
+      "capability": "edge1.disk.read",
+      "scope": "edge1.status.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.apache.read",
+      "capability": "edge1.apache.read",
+      "scope": "edge1.services.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.asterisk.read",
+      "capability": "edge1.asterisk.read",
+      "scope": "edge1.telephony.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.bigbird.health.read",
+      "capability": "edge1.bigbird.health.read",
+      "scope": "edge1.bigbird.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.bigbird.tools.read",
+      "capability": "edge1.bigbird.tools.read",
+      "scope": "edge1.bigbird.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
+      "name": "edge1.config.digest.read",
+      "capability": "edge1.config.digest.read",
+      "scope": "edge1.config.digest.read",
+      "enabled": true,
+      "read_only": true,
+      "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}
+    },
+    {
       "name": "edge1.repository.status",
       "capability": "edge1.repository.status",
       "scope": "edge1.repository.read",

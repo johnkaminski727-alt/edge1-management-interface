@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "integration": "ava-operations-reader",
+  "mode": "read_only",
+  "module": "server.ava_operations_reader",
+  "dispatcher": "run",
+  "capability_profile": "integrations/ava-operations-reader/profile-v1.json",
+  "tools": [
+    {"name": "edge1.status.snapshot", "scope": "edge1.status.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.services.read", "scope": "edge1.status.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.network.addresses.read", "scope": "edge1.network.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.network.routes.read", "scope": "edge1.network.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.disk.read", "scope": "edge1.status.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.apache.read", "scope": "edge1.services.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.asterisk.read", "scope": "edge1.telephony.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.bigbird.health.read", "scope": "edge1.bigbird.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.bigbird.tools.read", "scope": "edge1.bigbird.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.repository.status", "scope": "edge1.repository.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.repository.head", "scope": "edge1.repository.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}},
+    {"name": "edge1.config.digest.read", "scope": "edge1.config.digest.read", "read_only": true, "input_schema": {"type": "object", "properties": {}, "additionalProperties": false}}
+  ]
+}

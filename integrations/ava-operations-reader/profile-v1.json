@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "profile": "ava-operations-reader",
+  "mode": "read_only",
+  "max_age_seconds": 60,
+  "capabilities": [
+    "edge1.status.snapshot",
+    "edge1.services.read",
+    "edge1.network.addresses.read",
+    "edge1.network.routes.read",
+    "edge1.disk.read",
+    "edge1.apache.read",
+    "edge1.asterisk.read",
+    "edge1.bigbird.health.read",
+    "edge1.bigbird.tools.read",
+    "edge1.repository.status",
+    "edge1.repository.head",
+    "edge1.config.digest.read"
+  ],
+  "forbidden_classes": [
+    "staged_write",
+    "staged_write_apply",
+    "privileged_action"
+  ]
+}
