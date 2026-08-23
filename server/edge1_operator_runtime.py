@@ -27,6 +27,8 @@ READ_ONLY_ACTIONS = {
     "disk_state": ("disk.state",),
     "bigbird_status": ("bigbird.health", "bigbird.tools"),
     "apache_status": ("apache.status",),
+    "ava_office_status": ("ava.office.health", "ava.office.summary"),
+    "number_portability_status": ("number_portability.health", "number_portability.summary"),
     "asterisk_status": ("asterisk.diagnostics",),
     "telephony_status": ("telephony.health",),
     "telephony_console_control_status": ("telephony.console.control_status",),
@@ -125,6 +127,12 @@ class Edge1OperatorRuntime:
 
     def apache_status(self) -> dict:
         return self._run_group("edge1.apache_status", "apache_status")
+
+    def ava_office_status(self) -> dict:
+        return self._run_group("edge1.ava_office_status", "ava_office_status")
+
+    def number_portability_status(self) -> dict:
+        return self._run_group("edge1.number_portability_status", "number_portability_status")
 
     def asterisk_status(self) -> dict:
         return self._run_group("edge1.asterisk_status", "asterisk_status")
