@@ -1,11 +1,13 @@
 #!/bin/bash
-set -Eeuo pipefail
+set -euo pipefail
 umask 077
 
 AUTHORIZATION=WWCX-EDGE1-OPERATOR-CONTROLS-DISABLED-001
 REPO=/opt/edge1-management-interface
 OPS_RUNTIME_ROOT=/opt/edge1-operations-api-runtimes
 OPERATOR_RUNTIME_ROOT=/opt/edge1-operator-mcp-runtimes
+OPERATOR_SERVICE_USER=edge1-operator
+OPERATOR_SERVICE_GROUP=edge1-operator
 APPROVAL_MARKER=/etc/wwcx-edge1-operator/telephony-console-control.json
 BROKER_INSTALL=deploy/edge1-operator/install-privileged-broker-v1.sh
 OPS_PIN=deploy/pin-edge1-operations-api-runtime.sh
@@ -35,6 +37,8 @@ cd "$REPO"
 for rel in "$BROKER_INSTALL" "$OPS_PIN" "$OPERATOR_PIN" "$LIVE_VALIDATOR" server/asterisk_process_identity.py; do
   [ -f "$REPO/$rel" ] || fail "required reviewed asset missing: $rel"
 done
+getent passwd "$OPERATOR_SERVICE_USER" >/dev/null || fail "Operator service user is unavailable"
+getent group "$OPERATOR_SERVICE_GROUP" >/dev/null || fail "Operator service group is unavailable"
 
 BEFORE_HEAD=$(git rev-parse HEAD)
 git fetch origin
@@ -72,6 +76,27 @@ prepare_worktree() {
 prepare_worktree "$OPS_RUNTIME"
 prepare_worktree "$OPERATOR_RUNTIME"
 
+# The script-wide umask is intentionally 077. Git worktrees created under that
+# umask are private to wwadmin, but edge1-operator-mcp.service runs as the
+# dedicated edge1-operator identity. Grant that group read/traverse only; do not
+# grant it write permission and do not expose the runtime to other users.
+sudo chgrp -R "$OPERATOR_SERVICE_GROUP" "$OPERATOR_RUNTIME"
+sudo chmod -R g+rX,o-rwx "$OPERATOR_RUNTIME"
+sudo -u "$OPERATOR_SERVICE_USER" test -x "$OPERATOR_RUNTIME" || fail "Operator service cannot traverse immutable runtime"
+for rel in \
+  server/edge1_operator_http.py \
+  server/edge1_operator_entrypoint.py \
+  server/edge1_operator_runtime.py \
+  server/edge1_operator_capabilities.py \
+  config/edge1-operator-capabilities.json
+do
+  sudo -u "$OPERATOR_SERVICE_USER" test -r "$OPERATOR_RUNTIME/$rel" \
+    || fail "Operator service cannot read immutable runtime asset: $rel"
+done
+sudo -u "$OPERATOR_SERVICE_USER" env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$OPERATOR_RUNTIME" \
+  python3 -c 'import server.edge1_operator_http' \
+  || fail "Operator service identity cannot import immutable runtime"
+
 ASTERISK_PID_BEFORE=$(PYTHONPATH="$REPO/server" python3 -c 'from asterisk_process_identity import resolve_asterisk_pid; print(resolve_asterisk_pid()[0])')
 MESSAGING_PID_BEFORE=$(systemctl show wwcx-messaging-gateway.service -p MainPID --value)
 TELEPHONY_PID_BEFORE=$(systemctl show wwcx-telephony-console.service -p MainPID --value)
@@ -97,18 +122,24 @@ rollback_all() {
 }
 trap rollback_all ERR INT TERM
 
-BROKER_OUT=$(sudo bash "$REPO/$BROKER_INSTALL" --expected-commit "$EXPECTED_COMMIT" --apply)
-printf '%s\n' "$BROKER_OUT"
+BROKER_LOG=$(mktemp)
+sudo bash "$REPO/$BROKER_INSTALL" --expected-commit "$EXPECTED_COMMIT" --apply | tee "$BROKER_LOG"
+BROKER_OUT=$(cat "$BROKER_LOG")
+rm -f "$BROKER_LOG"
 BROKER_ROLLBACK=$(printf '%s\n' "$BROKER_OUT" | awk -F= '$1 == "rollback" {print $2; exit}')
 [ -n "$BROKER_ROLLBACK" ] || fail "broker installer did not return rollback path"
 
-OPS_OUT=$(sudo sh "$REPO/$OPS_PIN" --runtime "$OPS_RUNTIME" --apply)
-printf '%s\n' "$OPS_OUT"
+OPS_LOG=$(mktemp)
+sudo sh "$REPO/$OPS_PIN" --runtime "$OPS_RUNTIME" --apply | tee "$OPS_LOG"
+OPS_OUT=$(cat "$OPS_LOG")
+rm -f "$OPS_LOG"
 OPS_ROLLBACK=$(printf '%s\n' "$OPS_OUT" | awk -F= '$1 == "rollback" {print $2; exit}')
 [ -n "$OPS_ROLLBACK" ] || fail "Operations API pin did not return rollback path"
 
-OPERATOR_OUT=$(sudo sh "$REPO/$OPERATOR_PIN" --runtime "$OPERATOR_RUNTIME" --apply)
-printf '%s\n' "$OPERATOR_OUT"
+OPERATOR_LOG=$(mktemp)
+sudo sh "$REPO/$OPERATOR_PIN" --runtime "$OPERATOR_RUNTIME" --apply | tee "$OPERATOR_LOG"
+OPERATOR_OUT=$(cat "$OPERATOR_LOG")
+rm -f "$OPERATOR_LOG"
 OPERATOR_ROLLBACK=$(printf '%s\n' "$OPERATOR_OUT" | awk -F= '$1 == "rollback" {print $2; exit}')
 [ -n "$OPERATOR_ROLLBACK" ] || fail "Operator MCP pin did not return rollback path"
 
