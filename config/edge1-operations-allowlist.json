@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "actions": {
     "repository.status": {"argv": ["git", "status", "--short", "--branch"], "mutating": false, "timeout_seconds": 30},
     "repository.head": {"argv": ["git", "rev-parse", "HEAD"], "mutating": false, "timeout_seconds": 30},
@@ -12,6 +12,10 @@
     "telephony.health": {"argv": ["curl", "-fsS", "http://127.0.0.1:8096/api/telephony/status"], "mutating": false, "timeout_seconds": 30},
     "telephony.console.control_status": {"argv": ["python3", "server/telephony_console_control_status.py"], "mutating": false, "timeout_seconds": 30},
     "telephony.console.reload_safe": {"typed_handler": "telephony_console_reload", "mutating": true, "mutation_gate": "telephony_safe_controls", "timeout_seconds": 60},
+    "ava.office.health": {"argv": ["curl", "-fsS", "http://127.0.0.1:8116/healthz"], "mutating": false, "timeout_seconds": 30},
+    "ava.office.summary": {"argv": ["curl", "-fsS", "http://127.0.0.1:8116/api/ava-office/summary"], "mutating": false, "timeout_seconds": 30},
+    "number_portability.health": {"argv": ["curl", "-fsS", "http://127.0.0.1:8117/healthz"], "mutating": false, "timeout_seconds": 30},
+    "number_portability.summary": {"argv": ["curl", "-fsS", "http://127.0.0.1:8117/api/portability/summary"], "mutating": false, "timeout_seconds": 30},
     "bigbird.health": {"argv": ["curl", "-fsS", "http://127.0.0.1:8787/v1/health"], "mutating": false, "timeout_seconds": 30},
     "bigbird.tools": {"argv": ["curl", "-fsS", "http://127.0.0.1:8787/v1/tools"], "mutating": false, "timeout_seconds": 30},
     "messaging.health": {"argv": ["curl", "-fsS", "http://127.0.0.1:58080/healthz"], "mutating": false, "timeout_seconds": 30},
