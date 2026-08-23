@@ -6,7 +6,6 @@ No handler accepts a command, path, service name, URL, or arbitrary argv from ca
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 import subprocess
 import time
@@ -67,6 +66,8 @@ def _health() -> bool:
 
 
 def _validate_reload(parameters: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(parameters, dict):
+        raise TypedActionValidationError("telephony reload parameters must be an object")
     expected = {"expected_pid", "expected_source_sha256", "expected_repo_head", "idempotency_key"}
     if set(parameters) != expected:
         raise TypedActionValidationError("telephony reload parameters do not match the fixed schema")
@@ -82,7 +83,7 @@ def _validate_reload(parameters: dict[str, Any]) -> dict[str, Any]:
         raise TypedActionValidationError("expected_repo_head must be a full lowercase commit SHA")
     if not isinstance(key, str) or not IDEMPOTENCY.fullmatch(key):
         raise TypedActionValidationError("idempotency_key format is invalid")
-    return parameters
+    return dict(parameters)
 
 
 def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
@@ -151,9 +152,19 @@ def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+TYPED_ACTION_VALIDATORS = {
+    "telephony_console_reload": _validate_reload,
+}
 TYPED_ACTION_HANDLERS = {
     "telephony_console_reload": telephony_console_reload,
 }
+
+
+def validate_typed_handler(name: str, parameters: dict[str, Any]) -> dict[str, Any]:
+    validator = TYPED_ACTION_VALIDATORS.get(name)
+    if validator is None:
+        raise TypedActionValidationError("unknown typed action handler")
+    return validator(parameters)
 
 
 def run_typed_handler(name: str, parameters: dict[str, Any]) -> dict[str, Any]:
