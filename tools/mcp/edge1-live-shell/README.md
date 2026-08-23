@@ -1,37 +1,35 @@
 # Edge1 Live Shell MCP Connector
 
-A guarded SSH-backed MCP sidecar for **attended escalation and fallback work** on Edge1. It is not the normal production ChatGPT Edge1 Operator.
+An SSH-backed MCP sidecar for trusted WW.CX agent operations on Edge1. It is designed for the authenticated tunnel/SSH environment where agents may need to inspect, create, update, move, copy, remove, chmod, restart, reconcile, and execute commands instead of being limited to the canonical read-only Operator surface.
 
-The canonical production Operator is the hardened `edge1-operator-mcp.service` described in `docs/edge1-operator/`. Its reviewed named tool contract is defined by `server/edge1_operator_mcp_protocol.py` and deliberately excludes generic shell execution. Prefer that Operator and the Secure MCP Tunnel transport for ordinary ChatGPT access.
+The hardened `edge1-operator-mcp.service` remains the normal low-risk production diagnostics interface. This sidecar is the explicit write-capable escalation/operator path.
 
-## Security model
+## Design
 
-- No credentials, private keys, tokens, hostnames, or private addresses are stored here.
-- SSH uses `BatchMode=yes` and strict host-key checking.
-- Read-only inspection is enabled by default.
-- Service restart, Cookie Monster mutation actions, Edge1 release mutations and raw shell are disabled by default.
-- Repositories and restartable services are allowlisted through environment variables.
-- Cookie Monster accepts only a fixed action enum; it accepts no path, URL, command, credential or arbitrary dataset.
-- Cookie Monster source sync and activation are pinned to one explicitly supplied reviewed Git commit, never an open-ended `origin/main` deployment.
-- Edge1 release reconciliation accepts only `status`, `reconcile`, or `rollback_last`; promotion identity is pinned to one exact environment-supplied commit and never comes from caller text.
-- Output is capped, timed out, and passed through basic secret redaction before being returned.
-- This sidecar must not be merged into, substituted for, or advertised as the canonical production `edge1-operator-mcp` tool surface.
+The connector does **not** store SSH keys, tokens, passwords, tunnel identifiers, or private addresses in the repository. OpenSSH configuration and credentials stay outside the repo. SSH always uses `BatchMode=yes` and `StrictHostKeyChecking=yes`.
 
-## Appropriate use
+The tool surface is intentionally capable:
 
-Use this component only when an attended, explicitly authorized task cannot be completed through the canonical named Operator tools or another narrower approved interface. Examples include bounded repository/service diagnosis from an already-authorized SSH connector host, the fixed Cookie Monster Alpha staging activation transaction, durable Edge1 control-plane release reconciliation, or a narrowly scoped service restart when its environment and sudo allowlist have been deliberately enabled.
+- structured filesystem read/write/update operations;
+- atomic replacement with optional SHA-256 compare-and-swap;
+- backup-first writes/moves/copies/removals by default;
+- arbitrary POSIX shell execution when enabled;
+- working-directory and stdin support;
+- optional sudo shell/filesystem execution when enabled and permitted remotely;
+- allowlisted service restarts;
+- the existing commit-pinned Cookie Monster and Edge1 release transactions;
+- bounded output, timeouts, and basic secret redaction.
 
-Do not attach this sidecar to the ordinary ChatGPT Edge1 custom app merely to gain generic command execution. `edge1_exec` being present here does not make generic shell part of the accepted production Operator contract.
+Capability gates exist so the same binary can run in read-only or full-operator mode. They are deployment configuration, not source limitations.
 
 ## Requirements
 
 - Node.js 20+
 - OpenSSH client
-- A working SSH alias `edge1` configured outside the repository
-- A least-privilege remote account
-- For service restart, only exact `sudo -n systemctl restart <allowlisted-service>` privileges for approved services
-- For Cookie Monster activation, a non-interactive sudo policy sufficient to invoke only the reviewed activation script, or an equivalent already-approved restricted elevation path
-- For release reconciliation, a non-interactive sudo policy sufficient to run the reviewed release-controller installer/controller and the controller's fixed service transaction; no generic root shell is required
+- working SSH alias `edge1` configured outside the repository
+- authenticated tunnel or equivalent trusted path to Edge1
+- remote account with the permissions needed for the intended work
+- optional non-interactive sudo policy for privileged work
 
 ## Install and test
 
@@ -42,87 +40,112 @@ npm run check
 npx @modelcontextprotocol/inspector node src/index.js
 ```
 
-Run `edge1_connection_test` first. It must return the expected Edge1 hostname and authenticated principal before any other sidecar operation.
+Run `edge1_capabilities` and `edge1_connection_test` before the first mutation in a session.
 
-## Environment
+## Trusted-tunnel full operator profile
+
+For John's authenticated Edge1 tunnel environment, the intended full-capability profile is:
 
 ```text
 EDGE1_SSH_ALIAS=edge1
-EDGE1_ALLOW_RESTARTS=0
-EDGE1_ALLOW_COOKIE_MONSTER=0
+EDGE1_ENABLE_FILE_MUTATIONS=1
+EDGE1_ENABLE_RAW_SHELL=1
+EDGE1_ALLOW_SUDO_SHELL=1
+EDGE1_ALLOW_RESTARTS=1
+EDGE1_ALLOW_COOKIE_MONSTER=1
+EDGE1_ALLOW_RELEASES=1
 EDGE1_COOKIE_MONSTER_TARGET_SHA=<reviewed-40-character-git-commit>
-EDGE1_ALLOW_RELEASES=0
 EDGE1_RELEASE_TARGET_SHA=<reviewed-40-character-git-commit>
-EDGE1_ENABLE_RAW_SHELL=0
-EDGE1_ALLOWED_SERVICES=bigbird-ai-gateway
+EDGE1_ALLOWED_SERVICES=edge1-operations-api,edge1-operator-mcp,bigbird-ai-gateway
 EDGE1_REPOSITORIES=edge1-interface=/opt/edge1-management-interface;bigbird-gateway=/opt/bigbird-ai-gateway
 EDGE1_TIMEOUT_MS=30000
-EDGE1_MAX_OUTPUT_BYTES=24000
+EDGE1_MAX_OUTPUT_BYTES=262144
+EDGE1_MAX_FILE_BYTES=8388608
 ```
 
-`EDGE1_COOKIE_MONSTER_TARGET_SHA` and `EDGE1_RELEASE_TARGET_SHA` are exact reviewed 40-character lowercase Git commits. They are deployment identities, not credentials. The sidecar refuses the corresponding commit-pinned mutation when a required target is missing or malformed.
+The SSH account and sudoers policy remain the final operating-system authority. `EDGE1_ALLOW_SUDO_SHELL=1` makes the MCP tools willing to request sudo; it does not bypass remote sudo policy.
 
-Keep private addresses and key paths in SSH configuration, never in these variables or the repository.
+## MCP tools
 
-## Sidecar MCP tools
+### `edge1_capabilities`
 
-- `edge1_connection_test`
-- `edge1_inspect`
-- `edge1_restart_service` (policy-gated; disabled by default)
-- `edge1_cookie_monster` (fixed Alpha lifecycle; mutations policy-gated)
-- `edge1_release` (durable source/runtime reconciliation; mutations policy-gated)
-- `edge1_exec` (attended/policy-gated; disabled by default)
+Reports the currently enabled profile so an agent can determine whether it has read-only, write, restart, release, or sudo authority.
 
-### Cookie Monster actions
+### `edge1_connection_test`
 
-`edge1_cookie_monster` accepts exactly one `action` value and no other execution authority:
+Returns remote hostname, authenticated principal, UID, and kernel identity.
 
-- `preflight` — run the activation script's read-only preflight through the approved elevation path;
-- `sync_sources` — require the allowlisted Edge1 repository to be clean on `main`, fetch `origin`, verify the pinned target is a commit reachable from `origin/main`, and fast-forward only to that exact target;
-- `activate` — first require the repository HEAD to equal the pinned target, then run the bounded root-only Alpha staging transaction from `deploy/cookie_monster_edge1_activate.py --apply`;
-- `rollback_last` — invoke the activation transaction's recorded rollback pointer.
+### `edge1_inspect`
 
-`sync_sources`, `activate`, and `rollback_last` all require:
+Provides convenient overview/resources/service/repository inspection.
+
+### `edge1_fs`
+
+Structured filesystem operator with actions:
+
+- `stat`
+- `list`
+- `read`
+- `write`
+- `append`
+- `mkdir`
+- `move`
+- `copy`
+- `remove`
+- `chmod`
+
+`stat`, `list`, and `read` are available whenever the SSH principal can perform them. Mutating actions require `EDGE1_ENABLE_FILE_MUTATIONS=1`.
+
+Writes use a temporary file in the destination directory, fsync it, and atomically replace the target. Existing targets are backed up by default as `.agent-backup-<UTC timestamp>`. Callers can pass `expectedSha256` to refuse stale updates. Binary content is supported through base64 encoding. `sudo=true` requires `EDGE1_ALLOW_SUDO_SHELL=1` plus matching remote sudo authority.
+
+Removal is intentionally available because this is a full operator surface; agents must still respect their task's destructive-action approval boundary.
+
+### `edge1_exec`
+
+Runs caller-supplied POSIX shell commands over authenticated SSH and supports:
+
+- command strings up to the configured limit;
+- optional `cwd`;
+- stdin payloads;
+- optional `sudo=true`.
+
+Requires `EDGE1_ENABLE_RAW_SHELL=1`. `sudo=true` additionally requires `EDGE1_ALLOW_SUDO_SHELL=1` and a remote sudo rule that allows the command.
+
+### `edge1_restart_service`
+
+Restarts one service from `EDGE1_ALLOWED_SERVICES` with `sudo -n systemctl restart`. Requires `EDGE1_ALLOW_RESTARTS=1`.
+
+### `edge1_cookie_monster`
+
+Preserves the narrower fixed Cookie Monster lifecycle (`preflight`, `sync_sources`, `activate`, `rollback_last`) for repeatable deployment work. Mutations stay commit-pinned.
+
+### `edge1_release`
+
+Preserves the durable release-controller lifecycle (`status`, `reconcile`, `rollback_last`). Reconcile remains pinned to `EDGE1_RELEASE_TARGET_SHA` so full shell capability does not weaken deterministic release promotion.
+
+## Agent operating model
+
+Use the structured tools when they express the job cleanly, and use `edge1_exec` when the task genuinely needs general shell access. The sidecar is not a substitute for task-level judgment: credentials should not be printed, destructive actions still need the appropriate authorization, and meaningful changes should retain validation/evidence.
+
+A typical agent flow is:
+
+1. `edge1_capabilities`
+2. `edge1_connection_test`
+3. inspect current state
+4. perform file/shell/service/release changes
+5. validate health, listeners, repository state, and changed files
+6. retain rollback/evidence
+
+## ChatGPT / agent architecture
+
+The expected topology is:
 
 ```text
-EDGE1_ALLOW_COOKIE_MONSTER=1
+Agent / ChatGPT
+    -> authenticated MCP connector host
+    -> edge1-live-shell MCP sidecar
+    -> OpenSSH through the existing trusted tunnel
+    -> Edge1
 ```
 
-`sync_sources` and `activate` additionally require a valid `EDGE1_COOKIE_MONSTER_TARGET_SHA`. Source sync refuses a dirty tree, refuses a non-`main` branch, fetches `origin`, proves the exact target is an ancestor of `origin/main`, and uses `git merge --ff-only <target>`. It does not deploy whatever `origin/main` happens to be at execution time and does not reset, clean, stash, rebase or force-push anything.
-
-The activation script itself restricts mutation to the canonical `/opt/edge1-management-interface` repository, fixed `alpha-staging` dataset and private runtime paths. Its minimized operator view is staged under `/var/lib/cookie-monster-alpha/operator-view`; it does not write the Apache-served `/var/www/edge1-status` boundary.
-
-### Edge1 release actions
-
-`edge1_release` accepts exactly:
-
-- `status` — read/publish the persistent release-controller status; if the controller is not installed yet, report that condition without mutating the host;
-- `reconcile` — bootstrap the durable controller from a temporary detached worktree at the exact pinned target, create/validate the dedicated source checkout, prepare the exact runtime release, atomically promote it, restart only the fixed managed control-plane services, run postflight and publish status;
-- `rollback_last` — return to the exact controller-recorded previous release, with no caller-supplied path or commit.
-
-`reconcile` and `rollback_last` require:
-
-```text
-EDGE1_ALLOW_RELEASES=1
-```
-
-`reconcile` also requires a valid `EDGE1_RELEASE_TARGET_SHA`. The target is fetched and verified as reachable from `origin/main`, but the command never deploys a moving `origin/main` tip. First bootstrap uses a temporary detached worktree so a detached or stale legacy runtime checkout does not have to be converted into the permanent source tree before the controller can install itself.
-
-After installation the permanent model is:
-
-```text
-/opt/edge1-management-source        mutable clean main source
-/opt/edge1-runtime/releases/<sha>   exact detached releases
-/opt/edge1-runtime/current          active pointer
-/opt/edge1-runtime/previous         exact rollback pointer
-```
-
-The release controller manages only `edge1-operations-api.service` and `edge1-operator-mcp.service` initially. It verifies Operations API root stability, mutation denial, service health, and loopback-only listeners and automatically attempts to restore the former release if promotion postflight fails.
-
-Keep `EDGE1_ENABLE_RAW_SHELL=0` while using either named mutation surface. The point is to complete attended operational work without widening the session to arbitrary command execution.
-
-## ChatGPT architecture
-
-For the permanent ChatGPT Operator, follow `docs/edge1-operator/14-secure-mcp-tunnel.md`: ChatGPT custom MCP app -> Secure MCP Tunnel -> loopback `edge1-operator-mcp`. Use `prompts/edge1-authenticated-operator.md` as the operator prompt.
-
-Treat this SSH sidecar as a separate escalation path and keep it detached unless an attended task specifically needs it.
+This gives agents a genuine remote operator rather than forcing every write-capable task through new one-off named tools. The canonical read-only Edge1 Operator can remain connected in parallel for routine diagnostics.
