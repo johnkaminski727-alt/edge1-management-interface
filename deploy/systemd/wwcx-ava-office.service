@@ -1,5 +1,5 @@
 [Unit]
-Description=WW.CX Number Portability Center read API
+Description=WW.CX Ava Office Manager read API
 After=network.target
 
 [Service]
@@ -7,7 +7,7 @@ Type=simple
 User=wwadmin
 Group=wwadmin
 WorkingDirectory=/opt/edge1-management-interface
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/number_portability_server.py --host 127.0.0.1 --port 8117 --database /var/lib/wwcx-portability/portability.sqlite3
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/ava_office_manager_server.py --host 127.0.0.1 --port 8116 --database /var/lib/wwcx-ava-office-manager/office-manager.sqlite3
 Restart=on-failure
 RestartSec=3
 UMask=0077
@@ -23,7 +23,7 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
-ReadOnlyPaths=/opt/edge1-management-interface /var/lib/wwcx-portability
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/wwcx-ava-office-manager
 
 [Install]
 WantedBy=multi-user.target
