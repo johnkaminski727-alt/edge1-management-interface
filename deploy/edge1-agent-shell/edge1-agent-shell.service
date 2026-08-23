@@ -1,0 +1,35 @@
+[Unit]
+Description=WW.CX Edge1 Agent Shell MCP
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/edge1-operator/mcp-token
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/edge1-agent-shell/current
+Environment=EDGE1_AGENT_SHELL_MODE=full
+Environment=EDGE1_AGENT_SHELL_HOST=127.0.0.1
+Environment=EDGE1_AGENT_SHELL_PORT=8114
+Environment=EDGE1_AGENT_SHELL_PATH=/mcp
+Environment=EDGE1_AGENT_SHELL_TOKEN_FILE=/etc/edge1-operator/mcp-token
+Environment=EDGE1_AGENT_SHELL_AUDIT_LOG=/var/log/wwcx-edge1-agent-shell/audit.jsonl
+Environment=EDGE1_AGENT_SHELL_TIMEOUT_MS=120000
+Environment=EDGE1_AGENT_SHELL_MAX_OUTPUT_BYTES=131072
+Environment=EDGE1_AGENT_SHELL_MAX_FILE_BYTES=4194304
+ExecStart=/usr/bin/node /opt/edge1-agent-shell/current/src/index.js
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=30
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=false
+PrivateTmp=false
+ProtectSystem=false
+ProtectHome=false
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
