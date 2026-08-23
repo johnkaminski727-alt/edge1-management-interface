@@ -17,9 +17,14 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from server.edge1_operations_typed_actions import (
+    TypedActionValidationError,
+    run_typed_handler,
+    validate_typed_handler,
+)
+
 
 def _configured_absolute_path(value):
-    """Return an absolute path without resolving a deploy-time symlink target."""
     path = Path(value).expanduser()
     if not path.is_absolute():
         path = Path.cwd() / path
@@ -32,6 +37,9 @@ ALLOWLIST_PATH = Path(os.environ.get("EDGE1_OPS_ALLOWLIST", str(ROOT / "config/e
 DB_PATH = Path(os.environ.get("EDGE1_OPS_DB", "/var/lib/edge1-operations-api/audit.sqlite3"))
 SECRET_FILE = Path(os.environ.get("EDGE1_OPS_SECRET_FILE", "/etc/edge1-operations-api.secret"))
 MUTATIONS_ENABLED = os.environ.get("EDGE1_OPS_MUTATIONS_ENABLED", "false").lower() == "true"
+MUTATION_GATE_ENV = {
+    "telephony_safe_controls": "EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED",
+}
 MAX_BODY = 16384
 MAX_CLOCK_SKEW = 300
 
@@ -40,14 +48,14 @@ def utcnow():
     return datetime.now(timezone.utc).isoformat()
 
 
-def ensure_root_stable():
-    """Fail closed if a release/symlink switch changed the configured repo target.
+def _gate_enabled(name):
+    env_name = MUTATION_GATE_ENV.get(name)
+    if env_name is None:
+        raise ValueError("unknown mutation gate")
+    return os.environ.get(env_name, "false").lower() == "true"
 
-    The API loads code and its default allowlist from one repository generation.
-    Continuing to execute actions after the configured root points at a different
-    generation can produce contradictory repository state or run old policy against
-    a new checkout. A service restart is therefore required after such a switch.
-    """
+
+def ensure_root_stable():
     try:
         current = ROOT_CONFIGURED.resolve(strict=True)
     except OSError as exc:
@@ -96,6 +104,16 @@ def connect_db():
         CREATE TABLE IF NOT EXISTS request_nonces (
             nonce TEXT PRIMARY KEY,
             created_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS operation_idempotency (
+            action TEXT NOT NULL,
+            idempotency_key TEXT NOT NULL,
+            request_hash TEXT NOT NULL,
+            response_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (action, idempotency_key)
         )
     """)
     conn.commit()
@@ -148,17 +166,28 @@ def authenticate(headers, method, path, body):
     return True, body_hash, actor
 
 
-def safe_action(name):
+def _action_config(name):
     ensure_root_stable()
     action = load_allowlist().get(name)
     if not action:
         raise KeyError("unknown action")
+    if not isinstance(action, dict):
+        raise ValueError("invalid action configuration")
+    return action
+
+
+def safe_action(name):
+    action = _action_config(name)
+    if "typed_handler" in action:
+        raise ValueError("typed action must use typed execution path")
+    if "mutation_gate" in action:
+        raise ValueError("fixed argv actions cannot declare dedicated mutation gates")
     argv = action.get("argv")
     if not isinstance(argv, list) or not argv or not all(isinstance(x, str) and x for x in argv):
         raise ValueError("invalid action argv")
     mutating = bool(action.get("mutating", False))
     if mutating and not MUTATIONS_ENABLED:
-        raise PermissionError("mutating actions are disabled")
+        raise PermissionError("legacy mutating actions are disabled")
     cwd = Path(action.get("cwd", str(ROOT))).resolve()
     if cwd != ROOT and ROOT not in cwd.parents:
         raise ValueError("action cwd escapes repository root")
@@ -166,6 +195,26 @@ def safe_action(name):
     if timeout < 1 or timeout > 900:
         raise ValueError("invalid action timeout")
     return argv, cwd, timeout, mutating
+
+
+def safe_typed_action(name):
+    action = _action_config(name)
+    handler = action.get("typed_handler")
+    if not isinstance(handler, str) or not handler or "argv" in action or "cwd" in action:
+        raise ValueError("invalid typed action configuration")
+    mutating = bool(action.get("mutating", False))
+    gate = action.get("mutation_gate")
+    if mutating:
+        if not isinstance(gate, str) or not gate:
+            raise ValueError("typed mutating action requires a dedicated mutation gate")
+        if not _gate_enabled(gate):
+            raise PermissionError(f"mutation gate {gate} is disabled")
+    elif gate is not None:
+        raise ValueError("read-only typed action cannot declare mutation gate")
+    timeout = int(action.get("timeout_seconds", 120))
+    if timeout < 1 or timeout > 900:
+        raise ValueError("invalid action timeout")
+    return handler, timeout, mutating
 
 
 def run_action(name, actor, body_hash):
@@ -197,8 +246,93 @@ def run_action(name, actor, body_hash):
         return {"event_id": event_id, "action": name, "status": "timed_out", "duration_ms": duration}
 
 
+def _idempotency_claim(action, key, request_hash):
+    conn = connect_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT request_hash, response_json FROM operation_idempotency WHERE action = ? AND idempotency_key = ?",
+            (action, key),
+        ).fetchone()
+        if row is not None:
+            if row[0] != request_hash:
+                raise TypedActionValidationError("idempotency key was already used with different parameters")
+            if not row[1]:
+                raise TypedActionValidationError("idempotent request is incomplete; reconcile state before retry")
+            payload = json.loads(row[1])
+            payload["idempotent_replay"] = True
+            conn.commit()
+            return payload
+        conn.execute(
+            "INSERT INTO operation_idempotency (action, idempotency_key, request_hash, response_json, created_at) VALUES (?, ?, ?, '', ?)",
+            (action, key, request_hash, utcnow()),
+        )
+        conn.commit()
+        return None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _idempotency_complete(action, key, request_hash, response):
+    encoded = json.dumps(response, sort_keys=True)
+    with connect_db() as conn:
+        cursor = conn.execute(
+            "UPDATE operation_idempotency SET response_json = ? WHERE action = ? AND idempotency_key = ? AND request_hash = ? AND response_json = ''",
+            (encoded, action, key, request_hash),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("idempotency completion state changed unexpectedly")
+        conn.commit()
+
+
+def run_typed_action(name, actor, body_hash, parameters):
+    handler, timeout, _ = safe_typed_action(name)
+    validated = validate_typed_handler(handler, parameters)
+    key = validated["idempotency_key"]
+    replay = _idempotency_claim(name, key, body_hash)
+    if replay is not None:
+        return replay
+
+    started = time.monotonic()
+    try:
+        result_payload = run_typed_handler(handler, validated)
+        duration = int((time.monotonic() - started) * 1000)
+        if duration > timeout * 1000:
+            raise RuntimeError("typed action exceeded configured timeout")
+        response = {
+            "action": name,
+            "status": "succeeded",
+            "exit_code": 0,
+            "duration_ms": duration,
+            "result": result_payload,
+            "idempotent_replay": False,
+        }
+        event_id = record_audit(actor, name, body_hash, "succeeded", 0, duration,
+                                json.dumps(result_payload, sort_keys=True), "")
+        response["event_id"] = event_id
+        _idempotency_complete(name, key, body_hash, response)
+        return response
+    except Exception as exc:
+        duration = int((time.monotonic() - started) * 1000)
+        event_id = record_audit(actor, name, body_hash, "failed", 1, duration, "", str(exc))
+        response = {
+            "event_id": event_id,
+            "action": name,
+            "status": "failed",
+            "exit_code": 1,
+            "duration_ms": duration,
+            "error": "typed action failed verification",
+            "idempotent_replay": False,
+        }
+        _idempotency_complete(name, key, body_hash, response)
+        return response
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "Edge1OperationsAPI/1"
+    server_version = "Edge1OperationsAPI/2"
 
     def send_json(self, status, payload):
         encoded = json.dumps(payload, sort_keys=True).encode()
@@ -231,6 +365,9 @@ class Handler(BaseHTTPRequestHandler):
                     "status": "ok",
                     "actions": len(actions),
                     "mutations_enabled": MUTATIONS_ENABLED,
+                    "mutation_gates": {
+                        name: _gate_enabled(name) for name in sorted(MUTATION_GATE_ENV)
+                    },
                     "repository_root_stable": True,
                 })
             except Exception as exc:
@@ -246,8 +383,15 @@ class Handler(BaseHTTPRequestHandler):
             except RuntimeError as exc:
                 self.send_json(503, {"error": str(exc), "repository_root_stable": False})
                 return
-            self.send_json(200, {"actions": [{"name": name, "mutating": bool(value.get("mutating"))}
-                                               for name, value in sorted(actions.items())]})
+            self.send_json(200, {"actions": [
+                {
+                    "name": name,
+                    "mutating": bool(value.get("mutating")),
+                    "typed": isinstance(value.get("typed_handler"), str),
+                    "mutation_gate": value.get("mutation_gate"),
+                }
+                for name, value in sorted(actions.items())
+            ]})
             return
         self.send_json(404, {"error": "not found"})
 
@@ -264,18 +408,30 @@ class Handler(BaseHTTPRequestHandler):
         if not ok:
             self.send_json(401, {"error": detail})
             return
-        if body not in (b"", b"{}", b"{}\n"):
-            self.send_json(400, {"error": "action parameters are not accepted"})
-            return
         name = self.path[len("/v1/actions/"):-len("/run")].strip("/")
         try:
-            result = run_action(name, actor, detail)
+            action = _action_config(name)
+            if "typed_handler" in action:
+                try:
+                    parameters = json.loads(body.decode("utf-8")) if body else {}
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    raise TypedActionValidationError("typed action body must be valid JSON")
+                result = run_typed_action(name, actor, detail, parameters)
+            else:
+                if body not in (b"", b"{}", b"{}\n"):
+                    self.send_json(400, {"error": "action parameters are not accepted"})
+                    return
+                result = run_action(name, actor, detail)
         except KeyError:
             self.send_json(404, {"error": "unknown action"})
             return
         except PermissionError as exc:
             event_id = record_audit(actor, name, detail, "denied", stderr=str(exc))
             self.send_json(403, {"error": str(exc), "event_id": event_id})
+            return
+        except TypedActionValidationError as exc:
+            event_id = record_audit(actor, name, detail, "denied", stderr=str(exc))
+            self.send_json(409, {"error": str(exc), "event_id": event_id})
             return
         except Exception as exc:
             event_id = record_audit(actor, name, detail, "error", stderr=str(exc))

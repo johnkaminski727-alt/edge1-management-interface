@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Edge1 Operator MCP adapter exposing named, read-only capabilities.
-
-Turn-ownership tools (agent.turn.status, agent.turn.handoff) are the only
-tools that accept parameters; every other tool remains strictly
-parameterless, preserving the existing contract exactly.
-"""
+"""Edge1 Operator MCP adapter exposing public host tools and internal turn tools."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,6 +24,9 @@ class MCPAdapter:
     def __init__(self, runtime: Any, turn_store: Any = None):
         self.runtime = runtime
         self.turn_store = turn_store
+        # Internal agent.turn.* tools remain available only to internal callers that
+        # already possess an adapter reference. edge1_operator_entrypoint.py publishes
+        # only PUBLIC_EDGE1_TOOL_NAMES and rejects hand-crafted calls outside that set.
         self._tools: dict[str, Callable[..., ToolResult]] = {
             "edge1.identity": self.identity,
             "edge1.health": self.health,
@@ -42,14 +40,21 @@ class MCPAdapter:
             "edge1.apache_status": self.apache_status,
             "edge1.asterisk_status": self.asterisk_status,
             "edge1.telephony_status": self.telephony_status,
+            "edge1.telephony_console_control_status": self.telephony_console_control_status,
+            "edge1.telephony_console_reload": self.telephony_console_reload,
             "edge1.messaging_status": self.messaging_status,
             "edge1.time_authority_status": self.time_authority_status,
             "edge1.git_state": self.git_state,
             "edge1.config_digest": self.config_digest,
+            "edge1.capabilities": self.capabilities,
             "agent.turn.status": self.turn_status,
             "agent.turn.handoff": self.turn_handoff,
         }
-        self._parameterized_tools = {"agent.turn.status", "agent.turn.handoff"}
+        self._parameterized_tools = {
+            "edge1.telephony_console_reload",
+            "agent.turn.status",
+            "agent.turn.handoff",
+        }
 
     def list_tools(self) -> list[str]:
         return sorted(self._tools)
@@ -63,6 +68,10 @@ class MCPAdapter:
             return ToolResult(name, "error", {"message": "parameters_not_accepted"})
         try:
             return handler(**kwargs) if accepts_params else handler()
+        except PermissionError:
+            return ToolResult(name, "error", {"message": "capability_denied"})
+        except TypeError:
+            return ToolResult(name, "error", {"message": "invalid_parameters"})
         except Exception:
             return ToolResult(name, "error", {"message": "runtime_error"})
 
@@ -105,6 +114,27 @@ class MCPAdapter:
     def telephony_status(self) -> ToolResult:
         return self._call("edge1.telephony_status", "telephony_status")
 
+    def telephony_console_control_status(self) -> ToolResult:
+        return self._call(
+            "edge1.telephony_console_control_status",
+            "telephony_console_control_status",
+        )
+
+    def telephony_console_reload(
+        self,
+        expected_pid: int,
+        expected_source_sha256: str,
+        expected_repo_head: str,
+        idempotency_key: str,
+    ) -> ToolResult:
+        data = self.runtime.telephony_console_reload(
+            expected_pid=expected_pid,
+            expected_source_sha256=expected_source_sha256,
+            expected_repo_head=expected_repo_head,
+            idempotency_key=idempotency_key,
+        )
+        return ToolResult("edge1.telephony_console_reload", "ok", data)
+
     def messaging_status(self) -> ToolResult:
         return self._call("edge1.messaging_status", "messaging_status")
 
@@ -116,6 +146,9 @@ class MCPAdapter:
 
     def config_digest(self) -> ToolResult:
         return self._call("edge1.config_digest", "config_digest")
+
+    def capabilities(self) -> ToolResult:
+        return self._call("edge1.capabilities", "capabilities")
 
     def turn_status(self, task_id: str, conversation_id: str) -> ToolResult:
         if self.turn_store is None:

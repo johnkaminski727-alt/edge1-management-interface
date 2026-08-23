@@ -46,12 +46,17 @@ esac
 [ -d "$RUNTIME" ] || { echo "runtime does not exist: $RUNTIME" >&2; exit 4; }
 [ -e "$RUNTIME/.git" ] || { echo "runtime is not a Git worktree: $RUNTIME" >&2; exit 5; }
 [ -f "$RUNTIME/server/edge1_operations_api.py" ] || { echo "operations API source missing" >&2; exit 6; }
+[ -f "$RUNTIME/server/edge1_operations_typed_actions.py" ] || { echo "typed Operations API handlers missing" >&2; exit 6; }
+[ -f "$RUNTIME/server/telephony_console_control_status.py" ] || { echo "Telephony control status helper missing" >&2; exit 6; }
 [ -f "$RUNTIME/config/edge1-operations-allowlist.json" ] || { echo "operations allowlist missing" >&2; exit 7; }
 
 REVISION=$(git -C "$RUNTIME" rev-parse HEAD)
 [ -z "$(git -C "$RUNTIME" status --porcelain)" ] || { echo "runtime worktree is not clean" >&2; exit 8; }
 
-python3 -m py_compile "$RUNTIME/server/edge1_operations_api.py"
+python3 -m py_compile \
+    "$RUNTIME/server/edge1_operations_api.py" \
+    "$RUNTIME/server/edge1_operations_typed_actions.py" \
+    "$RUNTIME/server/telephony_console_control_status.py"
 python3 -m json.tool "$RUNTIME/config/edge1-operations-allowlist.json" >/dev/null
 
 if [ "$MODE" = dry-run ]; then
@@ -105,9 +110,10 @@ trap 'rm -f "$TMP"' EXIT HUP INT TERM
 cat > "$TMP" <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/python3 $RUNTIME/server/edge1_operations_api.py
+ExecStart=/usr/bin/python3 -m server.edge1_operations_api
 WorkingDirectory=$RUNTIME
 Environment=EDGE1_OPS_ROOT=$RUNTIME
+Environment=EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false
 ReadOnlyPaths=$RUNTIME
 EOF
 install -o root -g root -m 0644 "$TMP" "$DROPIN"
@@ -149,7 +155,9 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 if data.get("status") != "ok":
     raise SystemExit("health status is not ok")
 if data.get("mutations_enabled") is not False:
-    raise SystemExit("mutations unexpectedly enabled")
+    raise SystemExit("legacy mutations unexpectedly enabled")
+if data.get("mutation_gates", {}).get("telephony_safe_controls") is not False:
+    raise SystemExit("Telephony safe-control gate unexpectedly enabled")
 if not isinstance(data.get("actions"), int) or data["actions"] < 1:
     raise SystemExit("invalid action count")
 PY
@@ -159,8 +167,9 @@ PID=$(systemctl show -p MainPID --value "$SERVICE")
 CWD=$(readlink "/proc/$PID/cwd")
 [ "$CWD" = "$RUNTIME" ] || { "$EVID/rollback.sh"; exit 23; }
 
-systemctl show -p ExecStart --value "$SERVICE" | grep -F "$RUNTIME/server/edge1_operations_api.py" >/dev/null
+systemctl show -p ExecStart --value "$SERVICE" | grep -F -- '-m server.edge1_operations_api' >/dev/null
 systemctl show -p Environment --value "$SERVICE" | tr ' ' '\n' | grep -F "EDGE1_OPS_ROOT=$RUNTIME" >/dev/null
+systemctl show -p Environment --value "$SERVICE" | tr ' ' '\n' | grep -F 'EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false' >/dev/null
 systemctl show -p NoNewPrivileges --value "$SERVICE" | grep -Fx yes >/dev/null
 ss -lnt | grep -F '127.0.0.1:8097' >/dev/null
 ! ss -lnt | grep -E '0\.0\.0\.0:8097|\[::\]:8097' >/dev/null
@@ -172,9 +181,12 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
     echo "pid=$PID"
     echo "process_cwd=$CWD"
     echo "readiness_attempt=$i"
+    echo "telephony_safe_controls_enabled=false"
 } > "$EVID/acceptance.txt"
 sha256sum \
     "$RUNTIME/server/edge1_operations_api.py" \
+    "$RUNTIME/server/edge1_operations_typed_actions.py" \
+    "$RUNTIME/server/telephony_console_control_status.py" \
     "$RUNTIME/config/edge1-operations-allowlist.json" \
     "$RUNTIME/server/control_surface_diagnostics.py" \
     "$DROPIN" > "$EVID/SHA256SUMS"
