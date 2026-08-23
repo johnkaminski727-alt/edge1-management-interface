@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ww.cx/schemas/edge1-operator-capabilities.schema.json",
+  "title": "WW.CX Edge1 Operator Capability Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "capabilities"],
+  "properties": {
+    "version": {"const": 1},
+    "capabilities": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enabled", "access", "required_scope", "tools"],
+        "properties": {
+          "enabled": {"type": "boolean"},
+          "access": {"enum": ["read", "write"]},
+          "required_scope": {"type": "string", "pattern": "^edge1\\.[a-z0-9_.-]+$"},
+          "tools": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^edge1\\.[a-z0-9_.-]+$"}
+          }
+        }
+      }
+    }
+  }
+}
