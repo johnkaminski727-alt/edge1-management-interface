@@ -97,6 +97,30 @@ def _audit(event: str, **fields: Any) -> None:
         handle.write(json.dumps(record, separators=(",", ":"), sort_keys=True) + "\n")
 
 
+def _decode_mcp_payload(raw: bytes, content_type: str = "") -> dict[str, Any]:
+    text = raw.decode("utf-8")
+    if not content_type.lower().startswith("text/event-stream"):
+        value = json.loads(text)
+        if not isinstance(value, dict):
+            raise ValueError("MCP response is not an object")
+        return value
+    data_lines: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("data:"):
+            data_lines.append(line[5:].lstrip())
+        elif not line.strip() and data_lines:
+            candidate = "\n".join(data_lines)
+            value = json.loads(candidate)
+            if isinstance(value, dict):
+                return value
+            data_lines = []
+    if data_lines:
+        value = json.loads("\n".join(data_lines))
+        if isinstance(value, dict):
+            return value
+    raise ValueError("MCP event stream contained no JSON object")
+
+
 def _mcp(url: str, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": arguments}}, separators=(",", ":")).encode()
     request = urllib.request.Request(url, data=body, method="POST", headers={
@@ -106,8 +130,11 @@ def _mcp(url: str, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
     })
     try:
         with urllib.request.urlopen(request, timeout=130) as response:
-            payload = json.loads(response.read(MAX_OUTPUT + 1).decode("utf-8"))
-    except (urllib.error.URLError, json.JSONDecodeError) as exc:
+            raw = response.read(MAX_OUTPUT + 1)
+            if len(raw) > MAX_OUTPUT:
+                raise RuntimeError("Edge1 operator response too large")
+            payload = _decode_mcp_payload(raw, response.headers.get("Content-Type", ""))
+    except (urllib.error.URLError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise RuntimeError("Edge1 operator transport unavailable") from exc
     if not isinstance(payload, dict) or not isinstance(payload.get("result"), dict):
         raise RuntimeError("Edge1 operator returned invalid response")
