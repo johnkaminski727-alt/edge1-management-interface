@@ -1,0 +1,30 @@
+[Unit]
+Description=WW.CX Ava private visual generation worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bigbird-ai
+Group=bigbird-ai
+WorkingDirectory=/opt/edge1-management-interface
+EnvironmentFile=-/etc/bigbird-ai-gateway.env
+EnvironmentFile=/etc/wwcx/private-ai-browser-worker.env
+Environment=BB_OPENAI_IMAGE_MODEL=gpt-image-2
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/ava_visual_worker.py
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
