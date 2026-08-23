@@ -14,29 +14,44 @@ The retry at merge `05793dac4eedc51ce1c0fc628794fb2b5dc28b3b` advanced past the 
 
 Post-failure read-only inspection verified:
 
-- primary checkout is clean `main` and has since advanced with unrelated reviewed work to `9518a7d969e5130766e5ea32615525f7e0500129`;
-- no failed services are present;
-- Operations API is healthy with 27 actions and `mutations_enabled=false`;
-- Operator MCP is active on its prior read-only generation;
-- `edge1-operator-privileged-broker.service` is active from the partial second attempt;
+- no failed services were present;
+- Operations API remained healthy with 27 actions and `mutations_enabled=false`;
+- Operator MCP remained on its prior read-only generation;
+- `edge1-operator-privileged-broker.service` remained active from the partial attempt because the installer failed before returning its rollback path;
 - no Telephony safe-control scope, Operations API safe gate, or approved Telephony runtime marker was activated by the commissioning workflow.
 
-The active broker by itself is not host-write authority. The fixed peer/cgroup check, Operator write scope, Operations API safe-control gate, and approved Telephony runtime marker remain independent conditions.
+PR #556 / merge `99a65db2a62b93339fd53ed1d49b0f77a8dd986c` fixed the broker readiness race by requiring a successful denial response rather than socket-path existence and armed an installer-wide rollback trap for post-activation failures.
 
-## Second root cause: socket-path readiness race and incomplete installer rollback coverage
+## Verified live state after third commissioning attempt
 
-The broker process creates the Unix socket by bind/chown/chmod and only then calls `listen()`. The installer treated `-S /run/edge1-operator-privileged/control.sock` as readiness, so it could observe the pathname in the short interval before `listen()` completed. Its next immediate `connect()` then failed with `ECONNREFUSED`.
+The next attended attempt ran against reviewed commit `1c5eab5aef4046d445347370e491b038208073e8`.
 
-That denial probe was also outside the installer's explicit rollback branches. Because the script used `set -e`, the failed command substitution exited the installer before it printed its rollback path or invoked its own rollback. This explains why the broker remains active after the orchestrator rolled back the later-known control-plane paths.
+Observed sequence:
 
-Retry hardening now requires:
+1. exact reviewed main fast-forwarded cleanly;
+2. immutable Operations API and Operator worktrees were prepared;
+3. privileged broker installation accepted;
+4. immutable Operations API runtime accepted;
+5. Operator MCP restart reached loopback readiness, but postcondition verification failed with `service working directory does not match immutable runtime`;
+6. Operator MCP rollback completed and listened again;
+7. commissioning rollback restored the Operations API runtime and privileged broker.
 
-1. broker readiness to mean an actual successful Unix-socket connection that returns the exact expected `request_denied` response to a non-Operations peer;
-2. repeated bounded connect/probe attempts rather than socket-path existence alone;
-3. an armed `EXIT` rollback trap covering every post-install/post-activation failure path;
-4. bounded service/journal/socket evidence capture before rollback;
-5. an explicit broker service restart after switching the immutable `current` release, including when a broker was already active;
-6. verification that the `current` symlink resolves to the reviewed release and the broker has a valid MainPID;
-7. all write activation controls remain absent/off.
+No write authority was activated and no Asterisk, Messaging Gateway, Telephony Console, Secure MCP Tunnel, call, SMS/MMS, or routing mutation was part of the attempt.
 
-No PBX restart, Messaging restart, Telephony Console restart, tunnel restart, call, SMS/MMS, routing change, or Operator write activation is part of this hardening.
+## Third root cause: runtime cwd must not depend only on systemd WorkingDirectory merge order
+
+`server/edge1_operator_http.py` does not call `chdir()`, so the runtime CWD mismatch is outside application behavior. The immutable pin previously supplied both a systemd `WorkingDirectory=$RUNTIME` and a module-mode Python `ExecStart`. A pre-existing or later systemd drop-in can still determine the effective `WorkingDirectory` property, while the service may become healthy enough to answer HTTP before the postcondition notices that mismatch.
+
+The hardened pin now makes the reviewed `ExecStart` itself enforce the process cwd with:
+
+`/usr/bin/env --chdir=$RUNTIME ... /usr/bin/python3 -m server.edge1_operator_http ...`
+
+This makes the Python import root and process cwd an execution property of the reviewed immutable command rather than relying solely on unit/drop-in merge order. The systemd `WorkingDirectory=$RUNTIME` setting remains as defense in depth.
+
+Additional hardening:
+
+- preflight proves `/usr/bin/env` supports `--chdir` before service mutation;
+- accepted state still requires `/proc/<pid>/cwd` to equal the exact immutable runtime;
+- effective capability manifest and read-only scope values are still verified from `/proc/<pid>/environ`;
+- failure evidence now records the observed process cwd when available;
+- no Telephony write scope, Operations API safe-control gate, approved Telephony runtime marker, legacy mutation gate, PBX restart, Messaging restart, Telephony Console restart, tunnel restart, call, SMS/MMS, or routing change is enabled by this hardening.
