@@ -72,7 +72,7 @@ python3 -m json.tool "$RUNTIME/config/edge1-operator-capabilities.json" >/dev/nu
 
 if [ "$MODE" = dry-run ]; then
     echo "Operator MCP runtime dry run passed. runtime=$RUNTIME revision=$REVISION"
-    echo "Read-only scopes will be explicit: $READ_SCOPES"
+    echo "Read-only scopes will be fixed in ExecStart: $READ_SCOPES"
     exit 0
 fi
 
@@ -112,16 +112,41 @@ exit 1
 EOF
 chmod 0700 "$EVID/rollback.sh"
 
+capture_failure_evidence() {
+    reason=$1
+    {
+        echo "runtime=$RUNTIME"
+        echo "revision=$REVISION"
+        echo "reason=$reason"
+        echo "read_scopes=$READ_SCOPES"
+    } > "$EVID/failure.txt"
+    systemctl show "$SERVICE" \
+        -p Id -p LoadState -p ActiveState -p SubState -p MainPID \
+        -p WorkingDirectory -p NoNewPrivileges -p ExecStart \
+        > "$EVID/service.failure.txt" 2>&1 || true
+    journalctl -u "$SERVICE" --since '-3 minutes' --no-pager -n 160 \
+        > "$EVID/journal.failure.txt" 2>&1 || true
+    chmod 0600 "$EVID/failure.txt" "$EVID/service.failure.txt" "$EVID/journal.failure.txt" 2>/dev/null || true
+}
+
+fail_after_apply() {
+    code=$1
+    reason=$2
+    capture_failure_evidence "$reason"
+    echo "ERROR: Operator MCP runtime pin failed: $reason" >&2
+    echo "failure_evidence=$EVID" >&2
+    "$EVID/rollback.sh" || true
+    exit "$code"
+}
+
 install -d -o root -g root -m 0755 "$DROPIN_DIR"
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT HUP INT TERM
 cat > "$TMP" <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/python3 -m server.edge1_operator_http --host 127.0.0.1 --port 8102
+ExecStart=/usr/bin/env EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json EDGE1_OPERATOR_SCOPES=$READ_SCOPES /usr/bin/python3 -m server.edge1_operator_http --host 127.0.0.1 --port 8102
 WorkingDirectory=$RUNTIME
-Environment=EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json
-Environment=EDGE1_OPERATOR_SCOPES=$READ_SCOPES
 ReadOnlyPaths=$RUNTIME
 EOF
 install -o root -g root -m 0644 "$TMP" "$DROPIN"
@@ -129,10 +154,12 @@ rm -f "$TMP"
 trap - EXIT HUP INT TERM
 
 systemctl daemon-reload
-systemd-analyze verify "$SERVICE"
+if ! systemd-analyze verify "$SERVICE" > "$EVID/systemd-verify.txt" 2>&1; then
+    cat "$EVID/systemd-verify.txt" >&2
+    fail_after_apply 19 "systemd unit verification failed"
+fi
 if ! systemctl restart "$SERVICE"; then
-    "$EVID/rollback.sh"
-    exit 20
+    fail_after_apply 20 "service restart failed"
 fi
 
 READY=0
@@ -146,20 +173,52 @@ while [ "$i" -le 20 ]; do
     sleep 1
     i=$((i + 1))
 done
-[ "$READY" -eq 1 ] || { "$EVID/rollback.sh"; exit 21; }
+[ "$READY" -eq 1 ] || fail_after_apply 21 "loopback MCP readiness did not return HTTP 401"
 
 PID=$(systemctl show -p MainPID --value "$SERVICE")
-[ "$PID" -gt 0 ] || { "$EVID/rollback.sh"; exit 22; }
-CWD=$(readlink "/proc/$PID/cwd")
-[ "$CWD" = "$RUNTIME" ] || { "$EVID/rollback.sh"; exit 23; }
-systemctl show -p ExecStart --value "$SERVICE" | grep -F -- '-m server.edge1_operator_http' >/dev/null
-ENVIRONMENT=$(systemctl show -p Environment --value "$SERVICE")
-printf '%s\n' "$ENVIRONMENT" | tr ' ' '\n' | grep -Fx "EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json" >/dev/null
-printf '%s\n' "$ENVIRONMENT" | tr ' ' '\n' | grep -Fx "EDGE1_OPERATOR_SCOPES=$READ_SCOPES" >/dev/null
-! printf '%s\n' "$ENVIRONMENT" | grep -F 'edge1.telephony.control.safe' >/dev/null
-systemctl show -p NoNewPrivileges --value "$SERVICE" | grep -Fx yes >/dev/null
-ss -lnt | grep -F '127.0.0.1:8102' >/dev/null
-! ss -lnt | grep -E '0\.0\.0\.0:8102|\[::\]:8102' >/dev/null
+case "$PID" in
+    ''|0|*[!0-9]*) fail_after_apply 22 "service MainPID is unavailable" ;;
+esac
+CWD=$(readlink "/proc/$PID/cwd" 2>/dev/null || true)
+[ "$CWD" = "$RUNTIME" ] || fail_after_apply 23 "service working directory does not match immutable runtime"
+if ! systemctl show -p ExecStart --value "$SERVICE" | grep -F -- '/usr/bin/env EDGE1_OPERATOR_CAPABILITIES=' >/dev/null; then
+    fail_after_apply 24 "fixed ExecStart capability environment is absent"
+fi
+if ! systemctl show -p ExecStart --value "$SERVICE" | grep -F -- '-m server.edge1_operator_http' >/dev/null; then
+    fail_after_apply 25 "Operator MCP module ExecStart is absent"
+fi
+if ! python3 - "$PID" "$RUNTIME" "$READ_SCOPES" <<'PY'
+from pathlib import Path
+import sys
+
+pid, runtime, scopes = sys.argv[1:]
+raw = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+env = {}
+for item in raw:
+    if b"=" not in item:
+        continue
+    key, value = item.split(b"=", 1)
+    env[key.decode("utf-8", "replace")] = value.decode("utf-8", "replace")
+expected_capabilities = runtime + "/config/edge1-operator-capabilities.json"
+if env.get("EDGE1_OPERATOR_CAPABILITIES") != expected_capabilities:
+    raise SystemExit("effective capability manifest path mismatch")
+if env.get("EDGE1_OPERATOR_SCOPES") != scopes:
+    raise SystemExit("effective Operator scope set mismatch")
+if "edge1.telephony.control.safe" in env.get("EDGE1_OPERATOR_SCOPES", ""):
+    raise SystemExit("write scope unexpectedly present")
+PY
+then
+    fail_after_apply 26 "effective process capability environment failed verification"
+fi
+if ! systemctl show -p NoNewPrivileges --value "$SERVICE" | grep -Fx yes >/dev/null; then
+    fail_after_apply 27 "NoNewPrivileges is not active"
+fi
+if ! ss -lnt | grep -F '127.0.0.1:8102' >/dev/null; then
+    fail_after_apply 28 "loopback MCP listener is absent"
+fi
+if ss -lnt | grep -E '0\.0\.0\.0:8102|\[::\]:8102' >/dev/null; then
+    fail_after_apply 29 "MCP listener is exposed outside loopback"
+fi
 
 systemctl cat "$SERVICE" > "$EVID/service.after.txt"
 {
@@ -169,6 +228,7 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
     echo "process_cwd=$CWD"
     echo "readiness_attempt=$i"
     echo "operator_scopes=$READ_SCOPES"
+    echo "capability_environment_source=fixed_execstart"
     echo "telephony_safe_control_scope_present=false"
 } > "$EVID/acceptance.txt"
 sha256sum \
@@ -181,7 +241,7 @@ sha256sum \
     "$RUNTIME/server/edge1_operator_operations_client.py" \
     "$RUNTIME/config/edge1-operator-capabilities.json" \
     "$DROPIN" > "$EVID/SHA256SUMS"
-chmod 0600 "$EVID/acceptance.txt" "$EVID/SHA256SUMS"
+chmod 0600 "$EVID/acceptance.txt" "$EVID/SHA256SUMS" "$EVID/systemd-verify.txt"
 
 echo "Immutable Operator MCP runtime accepted."
 echo "runtime=$RUNTIME"
