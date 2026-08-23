@@ -5,6 +5,7 @@ on:
     paths:
       - 'server/ava_office_manager.py'
       - 'server/ava_office_manager_server.py'
+      - 'server/ava_call_archive.py'
       - 'server/ava_appointment_workflow.py'
       - 'server/ava_attendant_session.py'
       - 'server/office_portability_bridge_summary.py'
@@ -16,9 +17,11 @@ on:
       - 'tests/test_ava_office_manager.py'
       - 'tests/test_ava_assistant_workflows.py'
       - 'tests/test_ava_office_manager_server.py'
+      - 'tests/test_ava_call_archive.py'
       - 'tests/test_ava_portability_commissioning.py'
       - 'tests/test_office_portability_bridge_summary.py'
       - 'docs/ava/office-manager-architecture.md'
+      - 'docs/ava/call-archive-read-adapter.md'
       - '.github/workflows/ava-office-manager.yml'
   push:
     branches:
@@ -26,6 +29,7 @@ on:
     paths:
       - 'server/ava_office_manager.py'
       - 'server/ava_office_manager_server.py'
+      - 'server/ava_call_archive.py'
       - 'server/ava_appointment_workflow.py'
       - 'server/ava_attendant_session.py'
       - 'server/office_portability_bridge_summary.py'
@@ -37,9 +41,11 @@ on:
       - 'tests/test_ava_office_manager.py'
       - 'tests/test_ava_assistant_workflows.py'
       - 'tests/test_ava_office_manager_server.py'
+      - 'tests/test_ava_call_archive.py'
       - 'tests/test_ava_portability_commissioning.py'
       - 'tests/test_office_portability_bridge_summary.py'
       - 'docs/ava/office-manager-architecture.md'
+      - 'docs/ava/call-archive-read-adapter.md'
       - '.github/workflows/ava-office-manager.yml'
 
 permissions:
@@ -58,12 +64,14 @@ jobs:
           python -m py_compile \
             server/ava_office_manager.py \
             server/ava_office_manager_server.py \
+            server/ava_call_archive.py \
             server/ava_appointment_workflow.py \
             server/ava_attendant_session.py \
             server/office_portability_bridge_summary.py \
             tests/test_ava_office_manager.py \
             tests/test_ava_assistant_workflows.py \
             tests/test_ava_office_manager_server.py \
+            tests/test_ava_call_archive.py \
             tests/test_ava_portability_commissioning.py \
             tests/test_office_portability_bridge_summary.py
       - name: Validate JSON contracts
@@ -77,4 +85,4 @@ jobs:
       - name: Validate browser JavaScript
         run: node --check src/web/ava-office/app.js
       - name: Run office manager tests
-        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server tests.test_ava_portability_commissioning tests.test_office_portability_bridge_summary
+        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server tests.test_ava_call_archive tests.test_ava_portability_commissioning tests.test_office_portability_bridge_summary
