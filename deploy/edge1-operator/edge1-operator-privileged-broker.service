@@ -7,8 +7,8 @@ Before=edge1-operations-api.service
 Type=simple
 User=root
 Group=wwadmin
-WorkingDirectory=/opt/edge1-management-interface
-ExecStart=/usr/bin/python3 -m server.edge1_operator_privileged_broker
+WorkingDirectory=/
+ExecStart=/usr/bin/python3 /usr/local/libexec/edge1-operator-privileged-broker/current/edge1_operator_privileged_broker.py
 Restart=on-failure
 RestartSec=3
 RuntimeDirectory=edge1-operator-privileged
@@ -36,6 +36,7 @@ MemoryDenyWriteExecute=true
 CapabilityBoundingSet=
 AmbientCapabilities=
 ReadOnlyPaths=/opt/edge1-management-interface
+ReadOnlyPaths=/usr/local/libexec/edge1-operator-privileged-broker
 
 [Install]
 WantedBy=multi-user.target
