@@ -42,5 +42,4 @@ jobs:
             server/edge1_operator_privileged_broker.py \
             tools/operator/validate_controls_disabled_live.py
       - name: Run disabled commissioning validation
-        working-directory: tests
-        run: python validate_edge1_operator_disabled_commissioning.py
+        run: python tests/validate_edge1_operator_disabled_commissioning.py
