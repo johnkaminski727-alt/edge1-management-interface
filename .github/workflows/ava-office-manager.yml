@@ -1,0 +1,37 @@
+name: Ava Office Manager
+
+on:
+  pull_request:
+    paths:
+      - 'server/ava_office_manager.py'
+      - 'config/ava-office-manager-policy.json'
+      - 'tests/test_ava_office_manager.py'
+      - 'docs/ava/office-manager-architecture.md'
+      - '.github/workflows/ava-office-manager.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/ava_office_manager.py'
+      - 'config/ava-office-manager-policy.json'
+      - 'tests/test_ava_office_manager.py'
+      - 'docs/ava/office-manager-architecture.md'
+      - '.github/workflows/ava-office-manager.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile foundation
+        run: python -m py_compile server/ava_office_manager.py tests/test_ava_office_manager.py
+      - name: Validate policy JSON
+        run: python -m json.tool config/ava-office-manager-policy.json >/dev/null
+      - name: Run office manager tests
+        run: python -m unittest -v tests.test_ava_office_manager
