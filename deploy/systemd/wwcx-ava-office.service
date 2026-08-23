@@ -1,0 +1,29 @@
+[Unit]
+Description=WW.CX Ava Office Manager read API
+After=network.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/ava_office_manager_server.py --host 127.0.0.1 --port 8116 --database /var/lib/wwcx-ava-office-manager/office-manager.sqlite3
+Restart=on-failure
+RestartSec=3
+UMask=0077
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/wwcx-ava-office-manager
+
+[Install]
+WantedBy=multi-user.target
