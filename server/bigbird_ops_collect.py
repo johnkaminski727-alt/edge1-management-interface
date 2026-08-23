@@ -11,6 +11,11 @@ import subprocess
 from collections import deque
 from pathlib import Path
 
+try:
+    from office_portability_bridge_summary import build_summary as build_office_portability_summary
+except ImportError:
+    build_office_portability_summary = None
+
 OUT = Path('/var/lib/bigbird/operations-center')
 SURICATA_SERVICE = os.environ.get('WWCX_SURICATA_SERVICE', 'wwcx-network-sensor-suricata.service')
 EVE = Path(os.environ.get('WWCX_SURICATA_EVE', '/var/log/wwcx-network-sensor/suricata/eve.json'))
@@ -311,10 +316,63 @@ def watched_paths():
     return result
 
 
+def office_portability():
+    if build_office_portability_summary is None:
+        return {
+            'ava_office': {'available': False, 'mode': 'read-only', 'execution_enabled': False},
+            'number_portability': {'available': False, 'mode': 'read-only', 'submission_authorized': False, 'cutover_authorized': False},
+            'privacy': {
+                'record_level_content_included': False,
+                'telephone_numbers_included': False,
+                'transcripts_or_audio_included': False,
+                'document_references_included': False,
+                'credentials_included': False,
+            },
+        }
+    try:
+        return build_office_portability_summary()
+    except Exception:
+        return {
+            'ava_office': {'available': False, 'mode': 'read-only', 'execution_enabled': False, 'error': 'summary_unavailable'},
+            'number_portability': {'available': False, 'mode': 'read-only', 'submission_authorized': False, 'cutover_authorized': False, 'error': 'summary_unavailable'},
+            'privacy': {
+                'record_level_content_included': False,
+                'telephone_numbers_included': False,
+                'transcripts_or_audio_included': False,
+                'document_references_included': False,
+                'credentials_included': False,
+            },
+        }
+
+
 def build_snapshot():
     now = dt.datetime.now(dt.timezone.utc)
     units = ['bigbird.service', 'bigbird-worker.service', 'nftables.service', 'unbound.service', 'wg-quick@wg0.service', SURICATA_SERVICE, 'bigbird-observatory.timer', 'bigbird-capture-prune.timer', 'bigbird-firewall-observability.service', 'bigbird-ops-push.timer']
-    return {'format': 'project-big-bird-operations-center-v1', 'project_version': '4.0.5', 'extension_release': 'v4.0.7-observability-r1', 'collector_release': COLLECTOR_RELEASE, 'generated_at': now.isoformat(), 'generated_unix': int(now.timestamp()), 'read_only': True, 'provisioning_locked': True, 'authoritative_dns_editing_locked': True, 'host': {'node': 'Edge1', 'hostname_fingerprint': hashlib.sha256(os.uname().nodename.encode()).hexdigest()[:16], 'kernel': os.uname().release}, 'services': [service(unit) for unit in units], 'firewall': firewall(), 'dns_cache': unbound(), 'vpn_devices': wireguard(), 'security': suricata(), 'automation': automation(), 'logs': logs(), 'changes_audit': {'watched_paths': watched_paths(), 'notice': 'Observability counters and empty managed block sets are installed. No web mutation endpoint exists.'}, 'settings': {'snapshot_interval_seconds': 120, 'browser_refresh_seconds': 45, 'stale_after_seconds': 360, 'write_controls': 'locked', 'firewall_control_release': 'guarded-control-pending', 'dyn_api_release': '4.0.6-reserved'}}
+    office = office_portability()
+    return {
+        'format': 'project-big-bird-operations-center-v1',
+        'project_version': '4.0.5',
+        'extension_release': 'v4.0.7-observability-r1',
+        'collector_release': COLLECTOR_RELEASE,
+        'generated_at': now.isoformat(),
+        'generated_unix': int(now.timestamp()),
+        'read_only': True,
+        'provisioning_locked': True,
+        'authoritative_dns_editing_locked': True,
+        'host': {'node': 'Edge1', 'hostname_fingerprint': hashlib.sha256(os.uname().nodename.encode()).hexdigest()[:16], 'kernel': os.uname().release},
+        'services': [service(unit) for unit in units],
+        'firewall': firewall(),
+        'dns_cache': unbound(),
+        'vpn_devices': wireguard(),
+        'security': suricata(),
+        'automation': automation(),
+        'logs': logs(),
+        'changes_audit': {'watched_paths': watched_paths(), 'notice': 'Observability counters and empty managed block sets are installed. No web mutation endpoint exists.'},
+        'settings': {'snapshot_interval_seconds': 120, 'browser_refresh_seconds': 45, 'stale_after_seconds': 360, 'write_controls': 'locked', 'firewall_control_release': 'guarded-control-pending', 'dyn_api_release': '4.0.6-reserved'},
+        'ava_office': office['ava_office'],
+        'number_portability': office['number_portability'],
+        'office_services_privacy': office['privacy'],
+    }
 
 
 def write_snapshot(snapshot, output_dir=None):
