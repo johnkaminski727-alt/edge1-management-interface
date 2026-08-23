@@ -17,10 +17,14 @@ class DisabledCommissioningTests(unittest.TestCase):
         self.assertIn("/opt/edge1-operator-mcp-runtimes/", OPERATOR_PIN)
         self.assertIn("WorkingDirectory=$RUNTIME", OPERATOR_PIN)
         self.assertIn(
-            "ExecStart=/usr/bin/env EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json "
+            "ExecStart=/usr/bin/env --chdir=$RUNTIME "
+            "EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json "
             "EDGE1_OPERATOR_SCOPES=$READ_SCOPES /usr/bin/python3 -m server.edge1_operator_http",
             OPERATOR_PIN,
         )
+        self.assertIn("/usr/bin/env --help", OPERATOR_PIN)
+        self.assertIn("'--chdir'", OPERATOR_PIN)
+        self.assertIn("cwd_enforcement=fixed_execstart_env_chdir", OPERATOR_PIN)
         scope_lines = [line for line in OPERATOR_PIN.splitlines() if line.startswith("READ_SCOPES=")]
         self.assertEqual(
             scope_lines,
@@ -54,6 +58,7 @@ class DisabledCommissioningTests(unittest.TestCase):
         self.assertIn("service.failure.txt", OPERATOR_PIN)
         self.assertIn("journal.failure.txt", OPERATOR_PIN)
         self.assertIn("failure_evidence=$EVID", OPERATOR_PIN)
+        self.assertIn('process_cwd=$(readlink', OPERATOR_PIN)
         self.assertNotIn("systemctl show -p Environment --value", OPERATOR_PIN)
 
     def test_operations_runtime_explicitly_leaves_safe_gate_off(self):
