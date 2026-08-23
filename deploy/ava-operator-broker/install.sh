@@ -19,10 +19,12 @@ rm -rf "$TARGET"
 install -d -m 0755 "$TARGET/server" "$TARGET/config"
 install -m 0644 "$ROOT/server/ava_operator_broker.py" "$TARGET/server/ava_operator_broker.py"
 install -m 0644 "$ROOT/server/ava_operator_policy.py" "$TARGET/server/ava_operator_policy.py"
+install -m 0755 "$ROOT/server/ava_admin_functions_sync.py" "$TARGET/server/ava_admin_functions_sync.py"
 install -m 0644 "$ROOT/config/ava-operator-parity.json" "$TARGET/config/ava-operator-parity.json"
 install -m 0755 "$ROOT/tools/ava_shellctl.py" /usr/local/sbin/ava-shellctl
 ln -sfn "$TARGET" /opt/wwcx-ava-operator-broker/current
 install -m 0644 "$ROOT/deploy/ava-operator-broker/wwcx-ava-operator-broker.service" /etc/systemd/system/wwcx-ava-operator-broker.service
+install -m 0644 "$ROOT/deploy/ava-operator-broker/wwcx-ava-admin-functions-sync.service" /etc/systemd/system/wwcx-ava-admin-functions-sync.service
 systemctl daemon-reload
 systemctl enable wwcx-ava-operator-broker.service >/dev/null
 systemctl restart wwcx-ava-operator-broker.service
@@ -32,3 +34,5 @@ until curl -fsS http://127.0.0.1:8118/healthz; do
   [ "$i" -ge 20 ] && exit 1
   sleep 0.25
 done
+systemctl enable wwcx-ava-admin-functions-sync.service >/dev/null
+systemctl restart wwcx-ava-admin-functions-sync.service

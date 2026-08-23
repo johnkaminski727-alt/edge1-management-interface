@@ -38,6 +38,18 @@ class AvaOperatorBrokerTests(unittest.TestCase):
         self.assertEqual(value["status"], "completed")
         self.assertIn("git rev-parse", call.call_args.args[0])
 
+    def test_admin_gate_set_requires_confirmation_and_preserves_generation(self):
+        expiry = int(time.time()) + 900
+        denied = broker.invoke("shell.gate.set", {"host":"edge1","enabled":True,"expires_at_unix":expiry,"actor":"Admin","generation":7}, False)
+        self.assertEqual(denied["status"], "denied")
+        enabled = broker.invoke("shell.gate.set", {"host":"edge1","enabled":True,"expires_at_unix":expiry,"actor":"Admin","generation":7}, True)
+        self.assertEqual(enabled["status"], "completed")
+        self.assertTrue(enabled["result"]["enabled"])
+        self.assertEqual(enabled["result"]["generation"], 7)
+        disabled = broker.invoke("shell.gate.set", {"host":"edge1","enabled":False,"actor":"Admin","generation":8}, True)
+        self.assertEqual(disabled["status"], "completed")
+        self.assertFalse(disabled["result"]["enabled"])
+
     def test_raw_shell_denied_without_confirmation(self):
         self.enable_gate("edge1")
         with patch.object(broker, "_mcp") as call:
