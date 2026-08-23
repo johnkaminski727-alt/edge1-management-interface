@@ -17,6 +17,18 @@
       "category": "Developer Tools"
     },
     {
+      "name": "edge1-agent-shell",
+      "source": {
+        "source": "local",
+        "path": "./plugins/edge1-agent-shell"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
       "name": "wwcx-business159-authenticated-operator",
       "source": {
         "source": "local",
