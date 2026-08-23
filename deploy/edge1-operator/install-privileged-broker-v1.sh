@@ -11,6 +11,7 @@ ROOT=/usr/local/libexec/edge1-operator-privileged-broker
 RELEASES=$ROOT/releases
 CURRENT=$ROOT/current
 UNIT=/etc/systemd/system/$SERVICE
+SOCKET=/run/edge1-operator-privileged/control.sock
 EVID_ROOT=/var/lib/wwcx-deployment-evidence/operator-privileged-broker
 MODE=dry-run
 EXPECTED_COMMIT=
@@ -145,31 +146,32 @@ echo 'Privileged broker rollback complete.'
 EOF
 chmod 0700 "$EVID/rollback.sh"
 
-systemctl daemon-reload
-systemd-analyze verify "$SERVICE"
-if ! systemctl enable --now "$SERVICE"; then
-  "$EVID/rollback.sh"
-  exit 22
-fi
-
-READY=0
-for _ in $(seq 1 20); do
-  if [ -S /run/edge1-operator-privileged/control.sock ]; then
-    READY=1
-    break
+rollback_armed=1
+rollback_on_exit() {
+  status=$?
+  if [ "${rollback_armed:-0}" -eq 1 ]; then
+    rollback_armed=0
+    echo "Privileged broker install failed; capturing bounded evidence and rolling back." >&2
+    systemctl show "$SERVICE" -p Id -p LoadState -p ActiveState -p SubState -p MainPID -p ExecMainStatus > "$EVID/service.failure.txt" 2>&1 || true
+    journalctl -u "$SERVICE" -n 80 --no-pager > "$EVID/journal.failure.txt" 2>&1 || true
+    if [ -e "$SOCKET" ]; then
+      stat -c 'mode=%a owner=%U:%G type=%F' "$SOCKET" > "$EVID/socket.failure.txt" 2>&1 || true
+    fi
+    echo "evidence=$EVID" >&2
+    echo "rollback=$EVID/rollback.sh" >&2
+    "$EVID/rollback.sh" || true
   fi
-  sleep 0.5
-done
-[ "$READY" -eq 1 ] || { "$EVID/rollback.sh"; exit 23; }
+  exit "$status"
+}
+trap rollback_on_exit EXIT
 
-systemctl is-active --quiet "$SERVICE" || { "$EVID/rollback.sh"; exit 24; }
-MODE=$(stat -c '%a' /run/edge1-operator-privileged/control.sock)
-OWNER=$(stat -c '%U:%G' /run/edge1-operator-privileged/control.sock)
-[ "$MODE" = 660 ] || { echo "unexpected socket mode $MODE" >&2; "$EVID/rollback.sh"; exit 25; }
-[ "$OWNER" = root:wwadmin ] || { echo "unexpected socket owner $OWNER" >&2; "$EVID/rollback.sh"; exit 26; }
+probe_peer_denial() {
+  python3 - "$SOCKET" <<'PY'
+import json
+import socket
+import sys
 
-DENIAL=$(python3 - <<'PY'
-import json, socket
+path = sys.argv[1]
 request = {
     "version": 1,
     "action": "telephony_console_reload",
@@ -178,24 +180,74 @@ request = {
     "expected_source_sha256": "0" * 64,
     "expected_repo_head": "0" * 40,
 }
-s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-s.settimeout(3)
-s.connect('/run/edge1-operator-privileged/control.sock')
-s.sendall((json.dumps(request, sort_keys=True) + '\n').encode())
-s.shutdown(socket.SHUT_WR)
-print(s.recv(4096).decode().strip())
+try:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(1.0)
+        client.connect(path)
+        client.sendall((json.dumps(request, sort_keys=True) + "\n").encode())
+        client.shutdown(socket.SHUT_WR)
+        raw = client.recv(4096).decode().strip()
+except (OSError, TimeoutError):
+    raise SystemExit(1)
+try:
+    value = json.loads(raw)
+except (TypeError, json.JSONDecodeError):
+    raise SystemExit(1)
+expected = {"version": 1, "status": "error", "error": "request_denied"}
+raise SystemExit(0 if value == expected else 1)
 PY
-)
-python3 - "$DENIAL" <<'PY'
-import json, sys
-value = json.loads(sys.argv[1])
-assert value == {"version": 1, "status": "error", "error": "request_denied"}, value
-PY
+}
+
+systemctl daemon-reload
+systemd-analyze verify "$SERVICE"
+systemctl enable "$SERVICE" >/dev/null
+# Always restart, even when the broker was already active. This guarantees the
+# process now serving the socket loaded the newly selected immutable release.
+systemctl restart "$SERVICE"
+
+READY=0
+READINESS_ATTEMPT=0
+for attempt in $(seq 1 40); do
+  READINESS_ATTEMPT=$attempt
+  if systemctl is-active --quiet "$SERVICE" && [ -S "$SOCKET" ] && probe_peer_denial; then
+    READY=1
+    break
+  fi
+  sleep 0.25
+done
+if [ "$READY" -ne 1 ]; then
+  echo "broker did not become connectable with the expected peer-denial response" >&2
+  exit 23
+fi
+
+MODE=$(stat -c '%a' "$SOCKET")
+OWNER=$(stat -c '%U:%G' "$SOCKET")
+if [ "$MODE" != 660 ]; then
+  echo "unexpected socket mode $MODE" >&2
+  exit 25
+fi
+if [ "$OWNER" != root:wwadmin ]; then
+  echo "unexpected socket owner $OWNER" >&2
+  exit 26
+fi
+CURRENT_RELEASE=$(readlink -f "$CURRENT")
+if [ "$CURRENT_RELEASE" != "$RELEASE" ]; then
+  echo "current broker release does not resolve to reviewed release" >&2
+  exit 27
+fi
+BROKER_PID=$(systemctl show "$SERVICE" -p MainPID --value)
+if ! [[ "$BROKER_PID" =~ ^[1-9][0-9]*$ ]]; then
+  echo "broker MainPID is unavailable" >&2
+  exit 28
+fi
 
 systemctl cat "$SERVICE" > "$EVID/service.after.txt"
 {
   echo "commit=$EXPECTED_COMMIT"
   echo "release=$RELEASE"
+  echo "current_release=$CURRENT_RELEASE"
+  echo "broker_pid=$BROKER_PID"
+  echo "readiness_attempt=$READINESS_ATTEMPT"
   echo "source_sha256=$SOURCE_SHA"
   echo "helper_sha256=$HELPER_SHA"
   echo "unit_sha256=$UNIT_SHA"
@@ -207,6 +259,9 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
 } > "$EVID/acceptance.txt"
 sha256sum "$RELEASE/edge1_operator_privileged_broker.py" "$RELEASE/asterisk_process_identity.py" "$UNIT" > "$EVID/SHA256SUMS"
 chmod 0600 "$EVID/acceptance.txt" "$EVID/SHA256SUMS"
+
+rollback_armed=0
+trap - EXIT
 
 echo "Privileged broker installation accepted."
 echo "service=$SERVICE"
