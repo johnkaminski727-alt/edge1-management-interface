@@ -74,7 +74,8 @@ printf 'commit=%s\nasterisk_pid=%s\nmessaging_pid=%s\ntelephony_pid=%s\n' \
   "$HEAD" "$ASTERISK_PID_BEFORE" "$MESSAGING_PID_BEFORE" "$TELEPHONY_PID_BEFORE" \
   > "$EVIDENCE_DIR/before.txt"
 
-ss -lntup | awk '$5 ~ /:8096$/ {print $1, $5}' > "$EVIDENCE_DIR/telephony-listener-before.txt"
+ss -lntup | awk '$4 ~ /:8096$/ {print $1, $4}' > "$EVIDENCE_DIR/telephony-listener-before.txt"
+[ -s "$EVIDENCE_DIR/telephony-listener-before.txt" ] || fail "telephony console listener is absent before reconciliation"
 if grep -Ev '127\.0\.0\.1:8096|\[::1\]:8096|::1:8096' "$EVIDENCE_DIR/telephony-listener-before.txt" | grep . >/dev/null 2>&1; then
   fail "telephony console port 8096 is exposed outside loopback"
 fi
@@ -142,7 +143,8 @@ TELEPHONY_PID_AFTER=$(systemctl show "$TELEPHONY_SERVICE" -p MainPID --value)
 [ "$ASTERISK_PID_AFTER" = "$ASTERISK_PID_BEFORE" ] || fail "Asterisk PID changed unexpectedly"
 [ "$MESSAGING_PID_AFTER" = "$MESSAGING_PID_BEFORE" ] || fail "Messaging Gateway PID changed unexpectedly"
 
-ss -lntup | awk '$5 ~ /:8096$/ {print $1, $5}' > "$EVIDENCE_DIR/telephony-listener-after.txt"
+ss -lntup | awk '$4 ~ /:8096$/ {print $1, $4}' > "$EVIDENCE_DIR/telephony-listener-after.txt"
+[ -s "$EVIDENCE_DIR/telephony-listener-after.txt" ] || fail "telephony console listener is absent after restart"
 if grep -Ev '127\.0\.0\.1:8096|\[::1\]:8096|::1:8096' "$EVIDENCE_DIR/telephony-listener-after.txt" | grep . >/dev/null 2>&1; then
   fail "telephony console port 8096 is exposed outside loopback after restart"
 fi
