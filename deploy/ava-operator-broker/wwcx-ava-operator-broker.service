@@ -1,0 +1,27 @@
+[Unit]
+Description=WW.CX Ava authenticated operator broker
+After=network-online.target edge1-agent-shell.service business159-secure-mcp-tunnel.service
+Wants=network-online.target
+Requires=edge1-agent-shell.service business159-secure-mcp-tunnel.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/wwcx-ava-operator-broker/current
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=AVA_OPERATOR_ROOT=/opt/wwcx-ava-operator-broker/current
+Environment=AVA_OPERATOR_POLICY=/opt/wwcx-ava-operator-broker/current/config/ava-operator-parity.json
+ExecStart=/usr/bin/python3 /opt/wwcx-ava-operator-broker/current/server/ava_operator_broker.py --host 127.0.0.1 --port 8118 --token /etc/ava-operator/broker-token
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=false
+ProtectHome=false
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadOnlyPaths=/opt/wwcx-ava-operator-broker /etc/edge1-operator /etc/business159-operator /usr/local/libexec/business159-tunnel
+ReadWritePaths=/var/log/wwcx-ava-operator-broker
+
+[Install]
+WantedBy=multi-user.target
