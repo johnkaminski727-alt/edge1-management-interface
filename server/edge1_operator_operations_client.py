@@ -114,8 +114,9 @@ class Edge1OperationsClient:
     def list_actions(self) -> dict:
         return self._request("GET", "/v1/actions")
 
-    def run_action(self, action_name: str) -> dict:
+    def run_action(self, action_name: str, parameters: dict | None = None) -> dict:
         if action_name not in self.allowed_actions:
             raise OperationsClientError("action is not exposed by the Edge1 Operator")
         path = f"/v1/actions/{quote(action_name, safe='')}/run"
-        return self._request("POST", path, body=b"{}")
+        body = json.dumps(parameters or {}, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return self._request("POST", path, body=body)
