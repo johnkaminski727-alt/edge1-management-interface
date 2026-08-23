@@ -101,8 +101,9 @@ class AvaOfficeManagerTests(unittest.TestCase):
     def test_unknown_capability_fails_closed(self) -> None:
         decision = self.store.evaluate_action("vendor.unspecified.magic", {})
         self.assertEqual(decision.authority, "restricted")
-        self.assertEqual(decision.authorization, "confirmation_required")
+        self.assertEqual(decision.authorization, "blocked")
         self.assertFalse(decision.executable)
+        self.assertIn("no commissioned control-plane rule", decision.reason)
 
     def test_invalid_state_transition_is_rejected(self) -> None:
         item = self.store.create_work_item(
@@ -131,6 +132,9 @@ class AvaOfficeManagerTests(unittest.TestCase):
         blocked = enabled.evaluate_action("financial.transfer", {"amount_minor": 1})
         self.assertEqual(blocked.authorization, "blocked")
         self.assertFalse(blocked.executable)
+        unknown = enabled.evaluate_action("provider.uncommissioned.action", {})
+        self.assertEqual(unknown.authorization, "blocked")
+        self.assertFalse(unknown.executable)
 
 
 if __name__ == "__main__":
