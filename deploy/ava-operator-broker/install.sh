@@ -24,7 +24,8 @@ install -m 0755 "$ROOT/tools/ava_shellctl.py" /usr/local/sbin/ava-shellctl
 ln -sfn "$TARGET" /opt/wwcx-ava-operator-broker/current
 install -m 0644 "$ROOT/deploy/ava-operator-broker/wwcx-ava-operator-broker.service" /etc/systemd/system/wwcx-ava-operator-broker.service
 systemctl daemon-reload
-systemctl enable --now wwcx-ava-operator-broker.service
+systemctl enable wwcx-ava-operator-broker.service >/dev/null
+systemctl restart wwcx-ava-operator-broker.service
 i=0
 until curl -fsS http://127.0.0.1:8118/healthz; do
   i=$((i + 1))
