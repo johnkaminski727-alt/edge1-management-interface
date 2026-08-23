@@ -10,6 +10,7 @@ WorkingDirectory=/opt/edge1-management-interface
 ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/number_portability_server.py --host 127.0.0.1 --port 8117 --database /var/lib/wwcx-portability/portability.sqlite3
 Restart=on-failure
 RestartSec=3
+UMask=0077
 IPAddressDeny=any
 IPAddressAllow=localhost
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
@@ -22,7 +23,7 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
-ReadOnlyPaths=/opt/edge1-management-interface
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/wwcx-portability
 
 [Install]
 WantedBy=multi-user.target
