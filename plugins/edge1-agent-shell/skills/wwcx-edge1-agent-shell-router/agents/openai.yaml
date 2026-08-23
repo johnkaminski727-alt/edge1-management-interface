@@ -1,0 +1,11 @@
+interface:
+  display_name: WW.CX Edge1 Agent Shell Router
+  short_description: Route trusted Edge1 changes to the full private Agent Shell
+  default_prompt: Inspect Edge1, make the requested change, verify it, and preserve rollback evidence.
+dependencies:
+  tools:
+  - type: mcp
+    value: edge1
+    description: WW.CX Edge1 app carrying both the ordinary Operator and private Agent Shell channels
+policy:
+  allow_implicit_invocation: true
