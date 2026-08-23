@@ -119,7 +119,7 @@ class AvaOfficeManagerTests(unittest.TestCase):
         policy = load_policy(policy_path)
         self.assertFalse(policy["execution_enabled"])
         self.assertEqual(policy["autonomy_level"], "routine")
-        self.assertIn("contract.sign", policy["blocked_prefixes"])
+        self.assertIn("contract", policy["blocked_prefixes"])
         self.assertIn("telephony.originate", policy["always_confirm_prefixes"])
 
     def test_policy_with_execution_enabled_still_preserves_hard_gates(self) -> None:
