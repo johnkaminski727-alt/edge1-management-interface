@@ -17,10 +17,11 @@
 <main class="ops-page" id="operations-workspace">
 <section class="panel">
 <h1>WW.CX Edge1 Operations Center</h1>
-<nav class="ops-nav" aria-label="Operations sections"><a href="#health">Health</a><a href="#communications">Communications</a><a href="#network">Network</a><a href="#operations">Operations modules</a><a href="#reports">Reports</a></nav>
+<nav class="ops-nav" aria-label="Operations sections"><a href="#health">Health</a><a href="#communications">Communications</a><a href="#network">Network</a><a href="#vpn-registration">VPN Registration</a><a href="#operations">Operations modules</a><a href="#reports">Reports</a></nav>
 <p>Read-only infrastructure operations visibility.</p>
 </section>
 <section class="safety-banner" aria-label="Operator safety state"><strong>Safety boundary</strong>Navigation does not grant authorization. Mutations and production communications traffic remain unauthorized. Unknown or unavailable telemetry is never shown as healthy.</section>
+<section class="panel"><h2>VPN Access Registration</h2><div id="vpn-registration" class="grid">Loading...</div></section>
 <section class="panel"><h2>Overall Operations Health</h2><div id="health" class="grid">Loading...</div></section>
 <section class="panel"><h2>Current Conditions</h2><div id="overview" class="grid">Loading...</div></section>
 <section class="panel"><h2>Data Freshness</h2><div id="freshness" class="grid">Loading...</div></section>
@@ -53,8 +54,8 @@ async function safeJson(file){try{const response=await fetch(`./${file}`,{cache:
 function renderCards(id,cards){document.getElementById(id).innerHTML=cards.join("")||card("Status","Unavailable","warning")}
 const binaryState=(condition,yes,no)=>condition===true?[yes,"good"]:condition===false?[no,"warning"]:["Unknown","warning"];
 async function load(){
-const [security,wallet,mining,health,timeline,summary,automation,correlation,report,version,inventory,network,telephony,messaging,carrier,incidents,incidentHistory]=await Promise.all([
-"security-operations.json","bitcoin-wallet.json","bitcoin-mining.json","operations-health.json","operations-timeline.json","daily-summary.json","operations-automation.json","operations-correlation.json","reports/index.json","operations-version.json","operations-inventory.json","operations-network.json","operations-telephony.json","operations-messaging.json","operations-carrier.json","operations-incidents.json","operations-incident-history.json"
+const [security,wallet,mining,health,timeline,summary,automation,correlation,report,version,inventory,network,telephony,messaging,carrier,incidents,incidentHistory,vpnRegistration]=await Promise.all([
+"security-operations.json","bitcoin-wallet.json","bitcoin-mining.json","operations-health.json","operations-timeline.json","daily-summary.json","operations-automation.json","operations-correlation.json","reports/index.json","operations-version.json","operations-inventory.json","operations-network.json","operations-telephony.json","operations-messaging.json","operations-carrier.json","operations-incidents.json","operations-incident-history.json","vpn-access-registration.json"
 ].map(safeJson));
 const checks=Array.isArray(health.checks)?health.checks:[];
 const overall=health.overall==="healthy"?["Operational","good"]:health.overall?["Attention Required","warning"]:["Unknown","warning"];
@@ -70,6 +71,15 @@ renderCards("communications",[card("Telephony",telephonyState[0],telephonyState[
 renderCards("inventory",[card("Host",inventory.host||"Unknown",inventory.host?"neutral":"warning"),card("Kernel",inventory.kernel||"Unknown",inventory.kernel?"neutral":"warning"),card("Modules",Array.isArray(inventory.modules)&&inventory.modules.length?inventory.modules.join(", "):"Unknown",Array.isArray(inventory.modules)&&inventory.modules.length?"neutral":"warning")]);
 renderCards("release",[card("Branch",version.branch||"Unknown",version.branch?"neutral":"warning"),card("Commit",version.commit||"Unknown",version.commit?"neutral":"warning"),card("Repository",version.dirty===false?"Clean":version.dirty===true?"Changes detected":"Unknown",version.dirty===false?"good":"warning")]);
 renderCards("network",[card("Interfaces",Array.isArray(network.interfaces)&&network.interfaces.length?network.interfaces.join(", "):"Unknown",Array.isArray(network.interfaces)&&network.interfaces.length?"neutral":"warning"),card("WireGuard",network.wireguard_available===true?"Available":network.wireguard_available===false?"Unavailable":"Unknown",network.wireguard_available===true?"good":"warning"),card("DNS Visibility",network.resolver?"Available":"Unknown",network.resolver?"good":"warning")]);
+const registrationCounts=vpnRegistration.device_counts||{};
+renderCards("vpn-registration",[
+card("Policy State",vpnRegistration.enforcement_active===true?"Enforcement active":vpnRegistration.enforcement_active===false?"Observation only":"Unknown",vpnRegistration.enforcement_active===false?"good":"warning"),
+card("Active Policy",vpnRegistration.active_policy?.version||"Not configured",vpnRegistration.active_policy?"neutral":"warning"),
+card("Registered Devices",registrationCounts.registered??"unknown",Number.isFinite(registrationCounts.registered)?"neutral":"warning"),
+card("Pending / Expired / Policy update",`${registrationCounts.pending??0} / ${registrationCounts.expired??0} / ${registrationCounts.policy_update_required??0}`,(registrationCounts.pending||registrationCounts.expired||registrationCounts.policy_update_required)?"warning":"neutral"),
+card("Exempt Devices",registrationCounts.exempt??"unknown",Number.isFinite(registrationCounts.exempt)?"neutral":"warning"),
+card("Quarantined Devices",registrationCounts.quarantined??"unknown",registrationCounts.quarantined?"warning":"neutral")
+]);
 const activeIncidents=Array.isArray(incidents.active_incidents)?incidents.active_incidents:[];
 renderCards("incidents",activeIncidents.length?activeIncidents.map(item=>card(item.component||"Incident",`${item.severity||"unknown"}: ${item.detail||""}`,"warning")):[card("Incidents",incidents.active_incidents?"No active incidents":"Unknown",incidents.active_incidents?"good":"warning")]);
 const timers=Array.isArray(automation.timers)?automation.timers:[];

@@ -28,6 +28,8 @@ class OperationsApiTests(unittest.TestCase):
             "EDGE1_OPS_SECRET_FILE": str(self.secret),
             "EDGE1_OPS_DB": str(self.db),
             "EDGE1_OPS_MUTATIONS_ENABLED": "false",
+            "EDGE1_VPN_REGISTRATION_WRITES_ENABLED": "false",
+            "EDGE1_VPN_REGISTRATION_DAYS": "30",
         })
         spec = importlib.util.spec_from_file_location("edge1_ops_test", MODULE_PATH)
         self.module = importlib.util.module_from_spec(spec)
@@ -85,6 +87,12 @@ class OperationsApiTests(unittest.TestCase):
         self.module.ROOT_CONFIGURED = missing
         with self.assertRaisesRegex(RuntimeError, "unavailable"):
             self.module.ensure_root_stable()
+
+    def test_vpn_registration_is_non_enforcing_and_write_disabled_by_default(self):
+        summary = self.module.registration_store().summary()
+        self.assertFalse(summary["enforcement_active"])
+        self.assertFalse(self.module._gate_enabled("vpn_registration"))
+        self.assertEqual(summary["registration_period_days"], 30)
 
 
 if __name__ == "__main__":

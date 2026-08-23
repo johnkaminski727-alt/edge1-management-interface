@@ -22,6 +22,7 @@ from server.edge1_operations_typed_actions import (
     run_typed_handler,
     validate_typed_handler,
 )
+from server.vpn_access_registration import RegistrationStore
 
 
 def _configured_absolute_path(value):
@@ -39,7 +40,9 @@ SECRET_FILE = Path(os.environ.get("EDGE1_OPS_SECRET_FILE", "/etc/edge1-operation
 MUTATIONS_ENABLED = os.environ.get("EDGE1_OPS_MUTATIONS_ENABLED", "false").lower() == "true"
 MUTATION_GATE_ENV = {
     "telephony_safe_controls": "EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED",
+    "vpn_registration": "EDGE1_VPN_REGISTRATION_WRITES_ENABLED",
 }
+VPN_REGISTRATION_DAYS = int(os.environ.get("EDGE1_VPN_REGISTRATION_DAYS", "30"))
 MAX_BODY = 16384
 MAX_CLOCK_SKEW = 300
 
@@ -118,6 +121,10 @@ def connect_db():
     """)
     conn.commit()
     return conn
+
+
+def registration_store():
+    return RegistrationStore(DB_PATH, registration_days=VPN_REGISTRATION_DAYS)
 
 
 def record_audit(actor, action, body_hash, status, exit_code=None, duration_ms=None, stdout="", stderr=""):
@@ -356,11 +363,129 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("request body too large")
         return self.rfile.read(length)
 
+    def read_json_body(self):
+        body = self.read_body()
+        try:
+            payload = json.loads(body or b"{}")
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("request body must be valid JSON") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("request body must be a JSON object")
+        return body, payload
+
+    def authenticate_request(self, method, body=b""):
+        ok, detail, actor = authenticate(self.headers, method, self.path, body)
+        if not ok:
+            self.send_json(401, {"error": detail})
+            return None
+        return detail, actor
+
+    def vpn_registration_write_allowed(self, actor):
+        if _gate_enabled("vpn_registration"):
+            return True
+        event_id = registration_store().record_event(
+            actor,
+            "registration.write_denied",
+            details={"path": self.path, "reason": "registration writes are disabled"},
+        )
+        self.send_json(403, {
+            "error": "VPN registration writes are disabled",
+            "event_id": event_id,
+            "enforcement_active": False,
+        })
+        return False
+
+    def handle_vpn_registration_get(self):
+        if self.authenticate_request("GET") is None:
+            return
+        store = registration_store()
+        if self.path == "/v1/vpn-access/summary":
+            self.send_json(200, store.summary())
+        elif self.path == "/v1/vpn-access/devices":
+            self.send_json(200, {"devices": store.list_devices()})
+        elif self.path == "/v1/vpn-access/policies":
+            self.send_json(200, {"policies": store.list_policies()})
+        elif self.path == "/v1/vpn-access/audit":
+            self.send_json(200, {"events": store.audit_events()})
+        else:
+            self.send_json(404, {"error": "not found"})
+
+    def handle_vpn_registration_post(self):
+        try:
+            body, payload = self.read_json_body()
+        except ValueError as exc:
+            self.send_json(400, {"error": str(exc)})
+            return
+        authenticated = self.authenticate_request("POST", body)
+        if authenticated is None:
+            return
+        _, actor = authenticated
+        if not self.vpn_registration_write_allowed(actor):
+            return
+        store = registration_store()
+        try:
+            if self.path == "/v1/vpn-access/policies":
+                result = store.create_policy(
+                    version=payload.get("version", ""), title=payload.get("title", ""),
+                    notice=payload.get("notice", ""), actor=actor,
+                    privacy_url=payload.get("privacy_url", ""),
+                    terms_url=payload.get("terms_url", ""),
+                    effective_at=payload.get("effective_at"),
+                    activate=payload.get("activate", True),
+                )
+            elif self.path == "/v1/vpn-access/devices":
+                result = store.upsert_device(
+                    peer_public_key=payload.get("peer_public_key", ""),
+                    assigned_addresses=payload.get("assigned_addresses", []),
+                    display_name=payload.get("display_name", ""),
+                    owner=payload.get("owner", ""), actor=actor,
+                )
+            elif self.path == "/v1/vpn-access/acceptances":
+                result = store.accept_policy(
+                    device_id=payload.get("device_id", ""), actor=actor,
+                    policy_version=payload.get("policy_version"),
+                    source=payload.get("source", "portal"),
+                )
+            elif self.path == "/v1/vpn-access/exemptions":
+                result = store.add_exemption(
+                    device_id=payload.get("device_id", ""),
+                    exemption_type=payload.get("exemption_type", ""),
+                    reason=payload.get("reason", ""), approved_by=actor,
+                    expires_at=payload.get("expires_at"),
+                )
+            elif self.path == "/v1/vpn-access/exemptions/revoke":
+                result = store.revoke_exemption(payload.get("exemption_id", ""), actor)
+            elif self.path == "/v1/vpn-access/quarantine":
+                result = store.set_quarantine(
+                    device_id=payload.get("device_id", ""),
+                    quarantined=payload.get("quarantined"), actor=actor,
+                    reason=payload.get("reason", ""),
+                )
+            elif self.path == "/v1/vpn-access/policy-flags":
+                result = store.set_policy_flags(
+                    device_id=payload.get("device_id", ""),
+                    flags=payload.get("flags", {}), actor=actor,
+                )
+            else:
+                self.send_json(404, {"error": "not found"})
+                return
+        except KeyError as exc:
+            self.send_json(404, {"error": str(exc.args[0])})
+            return
+        except sqlite3.IntegrityError:
+            self.send_json(409, {"error": "registration record conflicts with existing state"})
+            return
+        except (TypeError, ValueError) as exc:
+            self.send_json(400, {"error": str(exc)})
+            return
+        self.send_json(200, {"result": result, "enforcement_active": False})
+
     def do_GET(self):
         if self.path == "/healthz":
             try:
                 actions = load_allowlist()
                 connect_db().close()
+                registration_store()
                 self.send_json(200, {
                     "status": "ok",
                     "actions": len(actions),
@@ -369,9 +494,13 @@ class Handler(BaseHTTPRequestHandler):
                         name: _gate_enabled(name) for name in sorted(MUTATION_GATE_ENV)
                     },
                     "repository_root_stable": True,
+                    "vpn_enforcement_active": False,
                 })
             except Exception as exc:
                 self.send_json(503, {"status": "error", "detail": str(exc), "repository_root_stable": False})
+            return
+        if self.path.startswith("/v1/vpn-access/"):
+            self.handle_vpn_registration_get()
             return
         if self.path == "/v1/actions":
             ok, detail, actor = authenticate(self.headers, "GET", self.path, b"")
@@ -396,6 +525,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {"error": "not found"})
 
     def do_POST(self):
+        if self.path.startswith("/v1/vpn-access/"):
+            self.handle_vpn_registration_post()
+            return
         if not self.path.startswith("/v1/actions/") or not self.path.endswith("/run"):
             self.send_json(404, {"error": "not found"})
             return

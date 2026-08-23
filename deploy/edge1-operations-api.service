@@ -12,6 +12,8 @@ Environment=EDGE1_OPS_HOST=127.0.0.1
 Environment=EDGE1_OPS_PORT=8097
 Environment=EDGE1_OPS_MUTATIONS_ENABLED=false
 Environment=EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false
+Environment=EDGE1_VPN_REGISTRATION_WRITES_ENABLED=false
+Environment=EDGE1_VPN_REGISTRATION_DAYS=30
 ExecStart=/usr/bin/python3 -m server.edge1_operations_api
 Restart=on-failure
 RestartSec=3

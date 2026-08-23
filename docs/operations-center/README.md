@@ -11,6 +11,7 @@ It is separate from Store Admin and administrative control surfaces.
 - Security Operations
 - Mining Operations
 - Bitcoin Operations
+- VPN Access Registration summary
 
 ## Deployment
 
@@ -41,6 +42,14 @@ Bitcoin:
 Mining:
 
 `/var/www/edge1-status/mining-operations.json`
+
+VPN registration:
+
+`/var/www/edge1-status/vpn-access-registration.json`
+
+The VPN registration export is aggregate-only and always reports whether
+enforcement is active. Detailed device and acceptance records remain behind
+the authenticated loopback Operations API.
 
 ## Web Exposure
 

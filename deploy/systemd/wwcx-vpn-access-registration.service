@@ -1,0 +1,22 @@
+[Unit]
+Description=WW.CX VPN access registration status exporter
+After=edge1-operations-api.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/vpn_access_registration_exporter.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/edge1-management-interface /var/lib/edge1-operations-api
+ReadWritePaths=/var/www/edge1-status
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
