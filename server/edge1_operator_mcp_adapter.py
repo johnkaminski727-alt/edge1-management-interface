@@ -38,6 +38,8 @@ class MCPAdapter:
             "edge1.bigbird_status": self.bigbird_status,
             "edge1.operations_status": self.operations_status,
             "edge1.apache_status": self.apache_status,
+            "edge1.ava_office_status": self.ava_office_status,
+            "edge1.number_portability_status": self.number_portability_status,
             "edge1.asterisk_status": self.asterisk_status,
             "edge1.telephony_status": self.telephony_status,
             "edge1.telephony_console_control_status": self.telephony_console_control_status,
@@ -107,6 +109,12 @@ class MCPAdapter:
 
     def apache_status(self) -> ToolResult:
         return self._call("edge1.apache_status", "apache_status")
+
+    def ava_office_status(self) -> ToolResult:
+        return self._call("edge1.ava_office_status", "ava_office_status")
+
+    def number_portability_status(self) -> ToolResult:
+        return self._call("edge1.number_portability_status", "number_portability_status")
 
     def asterisk_status(self) -> ToolResult:
         return self._call("edge1.asterisk_status", "asterisk_status")
