@@ -7,6 +7,7 @@ on:
       - 'server/ava_office_manager_server.py'
       - 'server/ava_appointment_workflow.py'
       - 'server/ava_attendant_session.py'
+      - 'server/office_portability_bridge_summary.py'
       - 'config/ava-office-manager-policy.json'
       - 'schemas/ava/call-record.schema.json'
       - 'deploy/systemd/wwcx-ava-office.service'
@@ -16,6 +17,7 @@ on:
       - 'tests/test_ava_assistant_workflows.py'
       - 'tests/test_ava_office_manager_server.py'
       - 'tests/test_ava_portability_commissioning.py'
+      - 'tests/test_office_portability_bridge_summary.py'
       - 'docs/ava/office-manager-architecture.md'
       - '.github/workflows/ava-office-manager.yml'
   push:
@@ -26,6 +28,7 @@ on:
       - 'server/ava_office_manager_server.py'
       - 'server/ava_appointment_workflow.py'
       - 'server/ava_attendant_session.py'
+      - 'server/office_portability_bridge_summary.py'
       - 'config/ava-office-manager-policy.json'
       - 'schemas/ava/call-record.schema.json'
       - 'deploy/systemd/wwcx-ava-office.service'
@@ -35,6 +38,7 @@ on:
       - 'tests/test_ava_assistant_workflows.py'
       - 'tests/test_ava_office_manager_server.py'
       - 'tests/test_ava_portability_commissioning.py'
+      - 'tests/test_office_portability_bridge_summary.py'
       - 'docs/ava/office-manager-architecture.md'
       - '.github/workflows/ava-office-manager.yml'
 
@@ -56,10 +60,12 @@ jobs:
             server/ava_office_manager_server.py \
             server/ava_appointment_workflow.py \
             server/ava_attendant_session.py \
+            server/office_portability_bridge_summary.py \
             tests/test_ava_office_manager.py \
             tests/test_ava_assistant_workflows.py \
             tests/test_ava_office_manager_server.py \
-            tests/test_ava_portability_commissioning.py
+            tests/test_ava_portability_commissioning.py \
+            tests/test_office_portability_bridge_summary.py
       - name: Validate JSON contracts
         run: |
           python -m json.tool config/ava-office-manager-policy.json >/dev/null
@@ -71,4 +77,4 @@ jobs:
       - name: Validate browser JavaScript
         run: node --check src/web/ava-office/app.js
       - name: Run office manager tests
-        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server tests.test_ava_portability_commissioning
+        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server tests.test_ava_portability_commissioning tests.test_office_portability_bridge_summary
