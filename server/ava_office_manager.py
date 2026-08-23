@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Durable workflow and authority foundation for the WW.CX Ava office manager.
+"""Durable workflow and fail-closed authority core for the WW.CX Ava office manager.
 
-This module intentionally performs no external side effects.  It stores work, standing
-instructions, cross-channel references and action proposals, then evaluates each action
-against an explicit policy.  Provider adapters (calendar, mail, telephony, purchasing,
-etc.) must remain separate and may execute only after their own control plane is enabled.
+This module deliberately performs no provider or PBX side effects. It stores work,
+standing instructions, linked cross-channel artifacts and proposed actions. External
+execution belongs to separately commissioned adapters/control planes.
 """
 from __future__ import annotations
 
@@ -22,32 +21,15 @@ from pathlib import Path
 from typing import Any, Iterator
 
 SCHEMA_VERSION = 1
-WORK_STATES = {
-    "new",
-    "working",
-    "waiting_external",
-    "needs_owner",
-    "scheduled",
-    "completed",
-    "cancelled",
-}
+WORK_STATES = {"new", "working", "waiting_external", "needs_owner", "scheduled", "completed", "cancelled"}
 WORK_PRIORITIES = {"low", "normal", "high", "urgent"}
 INSTRUCTION_EFFECTS = {"deny", "require_confirmation", "prefer"}
-ACTION_STATUSES = {"proposed", "awaiting_confirmation", "authorized", "approved", "blocked", "completed", "failed", "cancelled"}
 AUTHORITY_ORDER = {"observe": 1, "prepare": 2, "routine": 3, "conditional": 4, "restricted": 5}
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._:-]{7,127}$")
 CAPABILITY_RE = re.compile(r"^[a-z][a-z0-9_.:-]{2,127}$")
 FORBIDDEN_KEYS = {
-    "password",
-    "passwd",
-    "secret",
-    "api_key",
-    "apikey",
-    "token",
-    "authorization",
-    "private_key",
-    "credential",
-    "credentials",
+    "password", "passwd", "secret", "api_key", "apikey", "token", "authorization",
+    "private_key", "credential", "credentials",
 }
 
 DEFAULT_POLICY: dict[str, Any] = {
@@ -79,26 +61,11 @@ DEFAULT_POLICY: dict[str, Any] = {
         {"prefix": "emergency", "authority": "restricted"},
     ],
     "always_confirm_prefixes": [
-        "calendar.event.cancel",
-        "telephony.originate",
-        "purchasing.commit",
-        "travel.book",
-        "financial",
-        "legal",
-        "contract",
-        "credential",
-        "destructive",
-        "emergency",
+        "calendar.event.cancel", "telephony.originate", "purchasing.commit", "travel.book",
     ],
     "blocked_prefixes": [
-        "financial.transfer",
-        "contract.sign",
-        "credential.export",
-        "destructive.delete_irrecoverable",
-        "emergency.call",
-        "telephony.route.change",
-        "telephony.number.port",
-        "telephony.stir_shaken.sign",
+        "financial", "legal", "contract", "credential", "destructive", "emergency",
+        "telephony.route.change", "telephony.number.port", "telephony.stir_shaken.sign",
     ],
 }
 
@@ -152,6 +119,10 @@ def _new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex}"
 
 
+def _prefix_match(capability: str, prefix: str) -> bool:
+    return capability == prefix or capability.startswith(prefix + ".")
+
+
 def _reject_sensitive(value: Any, path: str = "parameters") -> None:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -179,7 +150,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
     rules = policy.get("capability_rules")
     if not isinstance(rules, list) or not rules:
         raise OfficeManagerError("office-manager capability_rules must be a non-empty list")
-    normalized_rules: list[dict[str, str]] = []
+    normalized: list[dict[str, str]] = []
     for rule in rules:
         if not isinstance(rule, dict):
             raise OfficeManagerError("office-manager capability rule must be an object")
@@ -189,7 +160,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
             raise OfficeManagerError("office-manager capability rule prefix is invalid")
         if authority not in AUTHORITY_ORDER:
             raise OfficeManagerError("office-manager capability rule authority is invalid")
-        normalized_rules.append({"prefix": prefix, "authority": authority})
+        normalized.append({"prefix": prefix, "authority": authority})
     for name in ("always_confirm_prefixes", "blocked_prefixes"):
         values = policy.get(name, [])
         if not isinstance(values, list) or any(not isinstance(v, str) or not CAPABILITY_RE.fullmatch(v) for v in values):
@@ -198,7 +169,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "version": 1,
         "autonomy_level": autonomy,
         "execution_enabled": bool(policy["execution_enabled"]),
-        "capability_rules": normalized_rules,
+        "capability_rules": normalized,
         "always_confirm_prefixes": list(policy.get("always_confirm_prefixes", [])),
         "blocked_prefixes": list(policy.get("blocked_prefixes", [])),
     }
@@ -207,20 +178,15 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
 def load_policy(path: str | Path | None = None) -> dict[str, Any]:
     if path is None:
         return validate_policy(dict(DEFAULT_POLICY))
-    raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    return validate_policy(raw)
+    return validate_policy(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
-def _prefix_match(capability: str, prefix: str) -> bool:
-    return capability == prefix or capability.startswith(prefix + ".")
-
-
-def _required_authority(capability: str, policy: dict[str, Any]) -> str:
+def _required_authority(capability: str, policy: dict[str, Any]) -> tuple[str, bool]:
     matches = [rule for rule in policy["capability_rules"] if _prefix_match(capability, rule["prefix"])]
     if not matches:
-        return "restricted"
+        return "restricted", False
     matches.sort(key=lambda rule: len(rule["prefix"]), reverse=True)
-    return str(matches[0]["authority"])
+    return str(matches[0]["authority"]), True
 
 
 class OfficeManagerStore:
@@ -337,15 +303,7 @@ class OfficeManagerStore:
         with self._lock, self.connect() as conn:
             row = conn.execute("SELECT event_hash FROM audit ORDER BY id DESC LIMIT 1").fetchone()
             previous = str(row["event_hash"]) if row else "0" * 64
-            record = {
-                "created_at_utc": now,
-                "actor": actor,
-                "event_type": event_type,
-                "object_type": object_type,
-                "object_id": object_id,
-                "detail": detail,
-                "previous_hash": previous,
-            }
+            record = {"created_at_utc": now, "actor": actor, "event_type": event_type, "object_type": object_type, "object_id": object_id, "detail": detail, "previous_hash": previous}
             event_hash = hashlib.sha256(_canonical(record).encode("ascii")).hexdigest()
             conn.execute(
                 "INSERT INTO audit(created_at_utc,actor,event_type,object_type,object_id,detail_json,previous_hash,event_hash) VALUES(?,?,?,?,?,?,?,?)",
@@ -364,33 +322,14 @@ class OfficeManagerStore:
                 detail = json.loads(row["detail_json"])
             except json.JSONDecodeError:
                 return False
-            record = {
-                "created_at_utc": row["created_at_utc"],
-                "actor": row["actor"],
-                "event_type": row["event_type"],
-                "object_type": row["object_type"],
-                "object_id": row["object_id"],
-                "detail": detail,
-                "previous_hash": previous,
-            }
+            record = {"created_at_utc": row["created_at_utc"], "actor": row["actor"], "event_type": row["event_type"], "object_type": row["object_type"], "object_id": row["object_id"], "detail": detail, "previous_hash": previous}
             expected = hashlib.sha256(_canonical(record).encode("ascii")).hexdigest()
             if expected != row["event_hash"]:
                 return False
             previous = expected
         return True
 
-    def create_work_item(
-        self,
-        *,
-        title: str,
-        desired_outcome: str,
-        source_channel: str,
-        source_ref: str | None = None,
-        priority: str = "normal",
-        owner: str = "john",
-        due_at_utc: str | None = None,
-        actor: str = "ava",
-    ) -> dict[str, Any]:
+    def create_work_item(self, *, title: str, desired_outcome: str, source_channel: str, source_ref: str | None = None, priority: str = "normal", owner: str = "john", due_at_utc: str | None = None, actor: str = "ava") -> dict[str, Any]:
         title = _clean_text(title, "title", maximum=512)
         desired_outcome = _clean_text(desired_outcome, "desired_outcome", maximum=4000)
         source_channel = _clean_text(source_channel, "source_channel", maximum=64).lower()
@@ -468,22 +407,11 @@ class OfficeManagerStore:
         artifact_id = _new_id("artifact")
         now = utc_now()
         with self._lock, self.connect() as conn:
-            conn.execute(
-                "INSERT INTO artifacts(id,work_item_id,kind,ref,label,created_at_utc) VALUES(?,?,?,?,?,?)",
-                (artifact_id, item_id, kind, ref, label, now),
-            )
+            conn.execute("INSERT INTO artifacts(id,work_item_id,kind,ref,label,created_at_utc) VALUES(?,?,?,?,?,?)", (artifact_id, item_id, kind, ref, label, now))
         self._audit(actor, "artifact.linked", "work_item", item_id, {"artifact_id": artifact_id, "kind": kind})
         return {"id": artifact_id, "work_item_id": item_id, "kind": kind, "ref": ref, "label": label, "created_at_utc": now}
 
-    def add_standing_instruction(
-        self,
-        *,
-        domain: str,
-        statement: str,
-        effect: str,
-        priority: int = 100,
-        actor: str = "john",
-    ) -> dict[str, Any]:
+    def add_standing_instruction(self, *, domain: str, statement: str, effect: str, priority: int = 100, actor: str = "john") -> dict[str, Any]:
         domain = _clean_text(domain, "instruction domain", maximum=128).lower()
         if not CAPABILITY_RE.fullmatch(domain):
             raise OfficeManagerError("instruction domain is invalid")
@@ -495,26 +423,19 @@ class OfficeManagerStore:
         instruction_id = _new_id("instruction")
         now = utc_now()
         with self._lock, self.connect() as conn:
-            conn.execute(
-                "INSERT INTO standing_instructions(id,domain,statement,effect,priority,enabled,created_at_utc,updated_at_utc) VALUES(?,?,?,?,?,1,?,?)",
-                (instruction_id, domain, statement, effect, priority, now, now),
-            )
+            conn.execute("INSERT INTO standing_instructions(id,domain,statement,effect,priority,enabled,created_at_utc,updated_at_utc) VALUES(?,?,?,?,?,1,?,?)", (instruction_id, domain, statement, effect, priority, now, now))
         self._audit(actor, "instruction.created", "standing_instruction", instruction_id, {"domain": domain, "effect": effect, "priority": priority})
         return {"id": instruction_id, "domain": domain, "statement": statement, "effect": effect, "priority": priority, "enabled": True, "created_at_utc": now, "updated_at_utc": now}
 
     def list_standing_instructions(self, *, capability: str | None = None) -> list[dict[str, Any]]:
-        sql = "SELECT * FROM standing_instructions WHERE enabled=1"
-        params: list[Any] = []
-        if capability is not None:
-            if not CAPABILITY_RE.fullmatch(capability):
-                raise OfficeManagerError("capability is invalid")
-            rows: list[sqlite3.Row]
-            with self.connect() as conn:
-                rows = conn.execute(sql + " ORDER BY priority DESC,created_at_utc,id").fetchall()
-            return [dict(row) for row in rows if _prefix_match(capability, str(row["domain"]))]
+        sql = "SELECT * FROM standing_instructions WHERE enabled=1 ORDER BY priority DESC,created_at_utc,id"
         with self.connect() as conn:
-            rows = conn.execute(sql + " ORDER BY priority DESC,created_at_utc,id", params).fetchall()
-        return [dict(row) for row in rows]
+            rows = conn.execute(sql).fetchall()
+        if capability is None:
+            return [dict(row) for row in rows]
+        if not CAPABILITY_RE.fullmatch(capability):
+            raise OfficeManagerError("capability is invalid")
+        return [dict(row) for row in rows if _prefix_match(capability, str(row["domain"]))]
 
     def evaluate_action(self, capability: str, parameters: dict[str, Any] | None = None) -> AuthorityDecision:
         if not isinstance(capability, str) or not CAPABILITY_RE.fullmatch(capability):
@@ -526,45 +447,31 @@ class OfficeManagerStore:
         if len(_canonical(params).encode("ascii")) > 32768:
             raise OfficeManagerError("action parameters are too large")
 
-        authority = _required_authority(capability, self.policy)
-        blocked = any(_prefix_match(capability, prefix) for prefix in self.policy["blocked_prefixes"])
-        always_confirm = any(_prefix_match(capability, prefix) for prefix in self.policy["always_confirm_prefixes"])
+        authority, matched = _required_authority(capability, self.policy)
         instructions = self.list_standing_instructions(capability=capability)
-
         if any(row["effect"] == "deny" for row in instructions):
             return AuthorityDecision(capability, authority, "blocked", False, "standing instruction denies this capability")
-        if blocked:
+        if not matched:
+            return AuthorityDecision(capability, "restricted", "blocked", False, "unknown capability has no commissioned control-plane rule")
+        if authority == "restricted":
+            return AuthorityDecision(capability, authority, "blocked", False, "restricted capability requires a separate explicit authorization path")
+        if any(_prefix_match(capability, prefix) for prefix in self.policy["blocked_prefixes"]):
             return AuthorityDecision(capability, authority, "blocked", False, "capability is behind an explicit hard gate")
-        if always_confirm or any(row["effect"] == "require_confirmation" for row in instructions):
+        if any(_prefix_match(capability, prefix) for prefix in self.policy["always_confirm_prefixes"]) or any(row["effect"] == "require_confirmation" for row in instructions):
             return AuthorityDecision(capability, authority, "confirmation_required", False, "explicit confirmation is required")
 
-        configured = AUTHORITY_ORDER[self.policy["autonomy_level"]]
-        required = AUTHORITY_ORDER[authority]
-        if required > configured:
+        if AUTHORITY_ORDER[authority] > AUTHORITY_ORDER[self.policy["autonomy_level"]]:
             return AuthorityDecision(capability, authority, "confirmation_required", False, "configured autonomy does not cover this action")
 
-        executable = bool(self.policy["execution_enabled"] and authority not in {"observe", "prepare"})
-        reason = "authorized by policy"
         if authority == "observe":
-            executable = False
-            reason = "read-only observation is authorized"
-        elif authority == "prepare":
-            executable = False
-            reason = "preparation is authorized; no external action is implied"
-        elif not self.policy["execution_enabled"]:
-            reason = "authorized in principle but the external execution gate is disabled"
-        return AuthorityDecision(capability, authority, "allowed", executable, reason)
+            return AuthorityDecision(capability, authority, "allowed", False, "read-only observation is authorized")
+        if authority == "prepare":
+            return AuthorityDecision(capability, authority, "allowed", False, "preparation is authorized; no external action is implied")
+        if not self.policy["execution_enabled"]:
+            return AuthorityDecision(capability, authority, "allowed", False, "authorized in principle but the external execution gate is disabled")
+        return AuthorityDecision(capability, authority, "allowed", True, "authorized by policy and execution gate")
 
-    def propose_action(
-        self,
-        *,
-        capability: str,
-        summary: str,
-        parameters: dict[str, Any] | None = None,
-        work_item_id: str | None = None,
-        requested_by: str = "ava",
-        actor: str = "ava",
-    ) -> dict[str, Any]:
+    def propose_action(self, *, capability: str, summary: str, parameters: dict[str, Any] | None = None, work_item_id: str | None = None, requested_by: str = "ava", actor: str = "ava") -> dict[str, Any]:
         if work_item_id is not None:
             self.get_work_item(work_item_id)
         summary = _clean_text(summary, "action summary", maximum=2000)
@@ -572,12 +479,7 @@ class OfficeManagerStore:
         params = {} if parameters is None else parameters
         decision = self.evaluate_action(capability, params)
         proposal_id = _new_id("action")
-        if decision.authorization == "blocked":
-            status = "blocked"
-        elif decision.authorization == "confirmation_required":
-            status = "awaiting_confirmation"
-        else:
-            status = "authorized"
+        status = "blocked" if decision.authorization == "blocked" else ("awaiting_confirmation" if decision.authorization == "confirmation_required" else "authorized")
         now = utc_now()
         with self._lock, self.connect() as conn:
             conn.execute(
@@ -603,16 +505,16 @@ class OfficeManagerStore:
         proposal = self.get_action_proposal(proposal_id)
         if proposal["status"] != "awaiting_confirmation":
             raise OfficeManagerError("only an action awaiting confirmation may be approved")
-        decision = self.evaluate_action(proposal["capability"], proposal["parameters"])
-        if decision.authorization == "blocked":
-            raise OfficeManagerError("the action is now blocked by policy")
+        authority, matched = _required_authority(proposal["capability"], self.policy)
+        if not matched or authority == "restricted" or any(_prefix_match(proposal["capability"], prefix) for prefix in self.policy["blocked_prefixes"]):
+            raise OfficeManagerError("the action is blocked and cannot be approved here")
+        if any(row["effect"] == "deny" for row in self.list_standing_instructions(capability=proposal["capability"])):
+            raise OfficeManagerError("the action is now blocked by a standing instruction")
+        executable = bool(self.policy["execution_enabled"] and authority not in {"observe", "prepare", "restricted"})
         now = utc_now()
-        executable = bool(self.policy["execution_enabled"] and proposal["authority_class"] not in {"observe", "prepare"})
+        reason = "explicit owner approval recorded; external execution gate " + ("enabled" if executable else "disabled")
         with self._lock, self.connect() as conn:
-            conn.execute(
-                "UPDATE action_proposals SET authorization='approved',executable=?,reason=?,status='approved',updated_at_utc=? WHERE id=?",
-                (1 if executable else 0, "explicit owner approval recorded; external execution gate " + ("enabled" if executable else "disabled"), now, proposal_id),
-            )
+            conn.execute("UPDATE action_proposals SET authorization='approved',executable=?,reason=?,status='approved',updated_at_utc=? WHERE id=?", (1 if executable else 0, reason, now, proposal_id))
         self._audit(actor, "action.approved", "action_proposal", proposal_id, {"executable": executable})
         return self.get_action_proposal(proposal_id)
 
