@@ -486,7 +486,7 @@ class OfficeManagerStore:
                 "INSERT INTO action_proposals(id,work_item_id,capability,summary,parameters_json,requested_by,authority_class,authorization,executable,reason,status,created_at_utc,updated_at_utc) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (proposal_id, work_item_id, capability, summary, _canonical(params), requested_by, decision.authority, decision.authorization, 1 if decision.executable else 0, decision.reason, status, now, now),
             )
-        self._audit(actor, "action.proposed", "action_proposal", proposal_id, {"capability": capability, "authorization": decision.authorization, "executable": decision.executable, "work_item_id": work_item_id})
+        self._audit(actor, "action.proposed", "action_proposal", proposal_id, {"capability": capability, "policy_decision": decision.authorization, "executable": decision.executable, "work_item_id": work_item_id})
         return self.get_action_proposal(proposal_id)
 
     def get_action_proposal(self, proposal_id: str) -> dict[str, Any]:
