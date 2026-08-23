@@ -21,17 +21,20 @@ UNIT_SOURCE="$REPO_ROOT/deploy/systemd/$SERVICE"
 UNIT_TARGET="/etc/systemd/system/$SERVICE"
 DATA_DIR=/var/lib/wwcx-portability
 DATABASE="$DATA_DIR/portability.sqlite3"
+RUNTIME_ROOT=/opt/wwcx-number-portability
+RELEASES="$RUNTIME_ROOT/releases"
+CURRENT="$RUNTIME_ROOT/current"
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/number-portability
 
 python3 -m py_compile "$REPO_ROOT/server/number_portability_center.py" "$REPO_ROOT/server/number_portability_server.py"
 HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf unknown)
-BRANCH=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || printf unknown)
+BRANCH=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)
 DIRTY=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null || printf unknown)
 
 echo "Number Portability Center read-only commissioning preflight"
 echo "  mode: $MODE"
 echo "  repository: $REPO_ROOT"
-echo "  branch: $BRANCH"
+echo "  branch: ${BRANCH:-detached}"
 echo "  commit: $HEAD"
 echo "  start requested: $START"
 
@@ -39,30 +42,15 @@ if [ "$MODE" != apply ]; then
     echo "Dry run only. No files or services changed."
     exit 0
 fi
-if [ "$(id -u)" -ne 0 ]; then
-    echo "--apply requires root" >&2
-    exit 3
-fi
-if [ -z "$EXPECTED_COMMIT" ]; then
-    echo "--apply requires --expected-commit=SHA" >&2
-    exit 4
-fi
-case "$EXPECTED_COMMIT" in
-    *[!0-9a-f]*|'') echo "expected commit must be lowercase hexadecimal" >&2; exit 4 ;;
-esac
-if [ ${#EXPECTED_COMMIT} -ne 40 ] || [ "$HEAD" != "$EXPECTED_COMMIT" ]; then
-    echo "expected commit mismatch" >&2
-    exit 4
-fi
-if [ "$BRANCH" != main ] || [ -n "$DIRTY" ]; then
-    echo "apply requires a clean main-branch checkout" >&2
-    exit 4
-fi
-if [ ! -f "$UNIT_SOURCE" ]; then
-    echo "missing service unit: $UNIT_SOURCE" >&2
-    exit 4
-fi
+if [ "$(id -u)" -ne 0 ]; then echo "--apply requires root" >&2; exit 3; fi
+if [ -z "$EXPECTED_COMMIT" ]; then echo "--apply requires --expected-commit=SHA" >&2; exit 4; fi
+case "$EXPECTED_COMMIT" in *[!0-9a-f]*|'') echo "expected commit must be lowercase hexadecimal" >&2; exit 4 ;; esac
+if [ ${#EXPECTED_COMMIT} -ne 40 ] || [ "$HEAD" != "$EXPECTED_COMMIT" ]; then echo "expected commit mismatch" >&2; exit 4; fi
+if [ -n "$DIRTY" ]; then echo "apply requires a clean checkout" >&2; exit 4; fi
+if [ -n "$BRANCH" ] && [ "$BRANCH" != main ]; then echo "apply requires main or a detached exact-commit checkout" >&2; exit 4; fi
+if [ ! -f "$UNIT_SOURCE" ]; then echo "missing service unit: $UNIT_SOURCE" >&2; exit 4; fi
 
+RELEASE="$RELEASES/$HEAD"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE="$EVIDENCE_ROOT/$STAMP"
 install -d -m 0700 "$EVIDENCE"
@@ -72,26 +60,43 @@ WAS_ENABLED=0
 WAS_ACTIVE=0
 HAD_UNIT=0
 CREATED_DB=0
+CREATED_RELEASE=0
+PREVIOUS_RUNTIME=
 systemctl is-enabled --quiet "$SERVICE" 2>/dev/null && WAS_ENABLED=1 || true
 systemctl is-active --quiet "$SERVICE" 2>/dev/null && WAS_ACTIVE=1 || true
 [ -f "$UNIT_TARGET" ] && { HAD_UNIT=1; cp -a "$UNIT_TARGET" "$EVIDENCE/unit.before"; }
+if [ -L "$CURRENT" ]; then PREVIOUS_RUNTIME=$(readlink -f "$CURRENT" || true); fi
+printf '%s\n' "$PREVIOUS_RUNTIME" > "$EVIDENCE/runtime.before"
 
 rollback() {
     rc=$?
     trap - EXIT INT TERM
     echo "Number Portability commissioning failed; restoring prior service state." >&2
-    if [ "$HAD_UNIT" -eq 1 ]; then
-        cp -a "$EVIDENCE/unit.before" "$UNIT_TARGET"
+    if [ -n "$PREVIOUS_RUNTIME" ] && [ -d "$PREVIOUS_RUNTIME" ]; then
+        ln -sfn "$PREVIOUS_RUNTIME" "$CURRENT.rollback"
+        mv -Tf "$CURRENT.rollback" "$CURRENT"
     else
-        rm -f "$UNIT_TARGET"
+        rm -f "$CURRENT"
     fi
+    if [ "$HAD_UNIT" -eq 1 ]; then cp -a "$EVIDENCE/unit.before" "$UNIT_TARGET"; else rm -f "$UNIT_TARGET"; fi
     systemctl daemon-reload || true
     if [ "$WAS_ENABLED" -eq 1 ]; then systemctl enable "$SERVICE" >/dev/null 2>&1 || true; else systemctl disable "$SERVICE" >/dev/null 2>&1 || true; fi
     if [ "$WAS_ACTIVE" -eq 1 ]; then systemctl restart "$SERVICE" >/dev/null 2>&1 || true; else systemctl stop "$SERVICE" >/dev/null 2>&1 || true; fi
     if [ "$CREATED_DB" -eq 1 ]; then rm -f "$DATABASE" "$DATABASE-wal" "$DATABASE-shm"; fi
+    if [ "$CREATED_RELEASE" -eq 1 ]; then rm -rf "$RELEASE"; fi
     exit "$rc"
 }
 trap rollback EXIT INT TERM
+
+install -d -m 0755 -o root -g root "$RUNTIME_ROOT" "$RELEASES"
+if [ ! -d "$RELEASE" ]; then install -d -m 0755 -o root -g root "$RELEASE"; CREATED_RELEASE=1; fi
+install -m 0555 -o root -g root "$REPO_ROOT/server/number_portability_server.py" "$RELEASE/number_portability_server.py"
+install -m 0444 -o root -g root "$REPO_ROOT/server/number_portability_center.py" "$RELEASE/number_portability_center.py"
+cmp -s "$REPO_ROOT/server/number_portability_server.py" "$RELEASE/number_portability_server.py"
+cmp -s "$REPO_ROOT/server/number_portability_center.py" "$RELEASE/number_portability_center.py"
+ln -sfn "$RELEASE" "$CURRENT.new"
+mv -Tf "$CURRENT.new" "$CURRENT"
+[ "$(readlink -f "$CURRENT")" = "$RELEASE" ]
 
 install -d -m 0750 -o wwadmin -g wwadmin "$DATA_DIR"
 if [ ! -f "$DATABASE" ]; then
@@ -138,6 +143,8 @@ else
     echo "Installed but not started; activation remains explicit." > "$EVIDENCE/service-status.txt"
 fi
 
-sha256sum "$UNIT_TARGET" "$DATABASE" > "$EVIDENCE/installed-files.sha256"
+printf '%s\n' "$(readlink -f "$CURRENT")" > "$EVIDENCE/runtime.after"
+sha256sum "$UNIT_TARGET" "$DATABASE" "$RELEASE/number_portability_server.py" "$RELEASE/number_portability_center.py" > "$EVIDENCE/installed-files.sha256"
 trap - EXIT INT TERM
-echo "Number Portability commissioning completed. Evidence: $EVIDENCE"
+echo "Number Portability commissioning completed. Runtime: $RELEASE"
+echo "Evidence: $EVIDENCE"
