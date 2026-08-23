@@ -10,6 +10,7 @@ on:
       - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
       - 'deploy/ava-visual-worker.service'
+      - 'deploy/ava-visual/**'
       - 'docs/private-ai-browser-interface.md'
       - 'docs/ava-imagination-visuals.md'
       - '.github/workflows/private-ai-browser-worker-validation.yml'
@@ -23,6 +24,7 @@ on:
       - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
       - 'deploy/ava-visual-worker.service'
+      - 'deploy/ava-visual/**'
       - 'docs/private-ai-browser-interface.md'
       - 'docs/ava-imagination-visuals.md'
       - '.github/workflows/private-ai-browser-worker-validation.yml'
@@ -44,10 +46,17 @@ jobs:
         run: python -m unittest tests.test_private_ai_browser_worker tests.test_ava_visual_generator
       - name: Verify Ava visual systemd unit
         run: systemd-analyze verify deploy/ava-visual-worker.service
+      - name: Validate immutable activation helper
+        run: |
+          sh -n deploy/ava-visual/activate.sh
+          sh deploy/ava-visual/activate.sh --dry-run --repo "$PWD" --ref HEAD
+          grep -F 'WorkingDirectory=/opt/wwcx/ava-visual/current' deploy/ava-visual-worker.service
+          grep -F 'ExecStart=/usr/bin/python3 /opt/wwcx/ava-visual/current/ava_visual_worker.py' deploy/ava-visual-worker.service
+          ! grep -E 'git[[:space:]]+(checkout|reset|pull|clean)' deploy/ava-visual/activate.sh
       - name: Enforce private gateway and credential boundaries
         run: |
           grep -F 'http://127.0.0.1:8787/v1/chat' server/private_ai_browser_worker.py
           ! grep -E '0\.0\.0\.0:8787|https?://[^"[:space:]]+:8787' server/private_ai_browser_worker.py | grep -v '127.0.0.1:8787'
           grep -F 'OPENAI_API_KEY' server/ava_visual_generator.py server/ava_visual_worker.py
           grep -F 'EnvironmentFile=-/etc/bigbird-ai-gateway.env' deploy/ava-visual-worker.service
-          ! grep -R -E 'sk-[A-Za-z0-9_-]{20,}' server/ava_visual_generator.py server/ava_visual_worker.py deploy/ava-visual-worker.service
+          ! grep -R -E 'sk-[A-Za-z0-9_-]{20,}' server/ava_visual_generator.py server/ava_visual_worker.py deploy/ava-visual-worker.service deploy/ava-visual/activate.sh
