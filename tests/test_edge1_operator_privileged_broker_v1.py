@@ -116,6 +116,17 @@ class PrivilegedBrokerV1Tests(unittest.TestCase):
         self.assertNotIn("EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=true", INSTALLER)
         self.assertNotIn("EDGE1_OPS_MUTATIONS_ENABLED=true", INSTALLER)
 
+    def test_installer_readiness_is_connectable_and_transactional(self):
+        self.assertIn("SOCKET=/run/edge1-operator-privileged/control.sock", INSTALLER)
+        self.assertIn("trap rollback_on_exit EXIT", INSTALLER)
+        self.assertIn("probe_peer_denial()", INSTALLER)
+        self.assertIn("for attempt in $(seq 1 40); do", INSTALLER)
+        self.assertIn('&& [ -S "$SOCKET" ] && probe_peer_denial; then', INSTALLER)
+        self.assertIn('systemctl restart "$SERVICE"', INSTALLER)
+        self.assertIn("journal.failure.txt", INSTALLER)
+        self.assertIn("socket.failure.txt", INSTALLER)
+        self.assertNotIn("systemctl enable --now", INSTALLER)
+
     def test_root_side_audit_is_required_before_execute(self):
         class FakeConn:
             def __init__(self):
