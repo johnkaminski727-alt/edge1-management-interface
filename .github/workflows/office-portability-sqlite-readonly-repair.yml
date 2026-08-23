@@ -1,0 +1,28 @@
+name: Office Portability SQLite Read-Only Repair
+
+on:
+  pull_request:
+    paths:
+      - 'server/ava_office_manager.py'
+      - 'server/number_portability_center.py'
+      - 'deploy/repair-office-portability-readonly-sqlite.sh'
+      - 'tests/test_office_portability_sqlite_readonly_compat.py'
+      - '.github/workflows/office-portability-sqlite-readonly-repair.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile affected modules
+        run: python -m py_compile server/ava_office_manager.py server/number_portability_center.py
+      - name: Validate repair shell
+        run: bash -n deploy/repair-office-portability-readonly-sqlite.sh
+      - name: Run SQLite compatibility tests
+        run: python -m unittest -v tests.test_office_portability_sqlite_readonly_compat
