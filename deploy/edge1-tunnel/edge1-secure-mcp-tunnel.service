@@ -1,7 +1,7 @@
 [Unit]
 Description=WW.CX Edge1 Secure MCP Tunnel
-After=network-online.target edge1-operator-mcp.service
-Wants=network-online.target
+After=network-online.target edge1-operator-mcp.service edge1-agent-shell.service
+Wants=network-online.target edge1-agent-shell.service
 Requires=edge1-operator-mcp.service
 
 [Service]
