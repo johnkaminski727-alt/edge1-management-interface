@@ -5,22 +5,26 @@ on:
     paths:
       - 'server/number_portability_center.py'
       - 'server/number_portability_server.py'
+      - 'server/office_portability_bridge_summary.py'
       - 'deploy/systemd/wwcx-number-portability.service'
       - 'deploy/number-portability/**'
       - 'src/web/number-portability/**'
       - 'tests/test_number_portability_center.py'
       - 'tests/test_ava_portability_commissioning.py'
+      - 'tests/test_office_portability_bridge_summary.py'
       - '.github/workflows/number-portability-center.yml'
   push:
     branches: [main]
     paths:
       - 'server/number_portability_center.py'
       - 'server/number_portability_server.py'
+      - 'server/office_portability_bridge_summary.py'
       - 'deploy/systemd/wwcx-number-portability.service'
       - 'deploy/number-portability/**'
       - 'src/web/number-portability/**'
       - 'tests/test_number_portability_center.py'
       - 'tests/test_ava_portability_commissioning.py'
+      - 'tests/test_office_portability_bridge_summary.py'
       - '.github/workflows/number-portability-center.yml'
 
 permissions:
@@ -38,7 +42,7 @@ jobs:
         with:
           node-version: '24'
       - name: Compile Python
-        run: python -m py_compile server/number_portability_center.py server/number_portability_server.py tests/test_number_portability_center.py tests/test_ava_portability_commissioning.py
+        run: python -m py_compile server/number_portability_center.py server/number_portability_server.py server/office_portability_bridge_summary.py tests/test_number_portability_center.py tests/test_ava_portability_commissioning.py tests/test_office_portability_bridge_summary.py
       - name: Validate commissioning shell
         run: |
           sh -n deploy/number-portability/commission-read-only.sh
@@ -46,4 +50,4 @@ jobs:
       - name: Validate browser JavaScript
         run: node --check src/web/number-portability/app.js
       - name: Run tests
-        run: python -m unittest -v tests.test_number_portability_center tests.test_ava_portability_commissioning
+        run: python -m unittest -v tests.test_number_portability_center tests.test_ava_portability_commissioning tests.test_office_portability_bridge_summary
