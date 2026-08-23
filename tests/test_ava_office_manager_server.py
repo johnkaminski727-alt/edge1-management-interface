@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
+import json
+import socket
 import tempfile
+import threading
 import unittest
+import urllib.request
 from pathlib import Path
 
 from server.ava_office_manager import OfficeManagerStore
@@ -32,9 +37,35 @@ class AvaOfficeReadModelTests(unittest.TestCase):
             work_item_id=item["id"],
         )
         self.model = AvaOfficeReadModel(self.db)
+        self.archive = Path(self.tmp.name) / "call-archive"
+        (self.archive / "manifests").mkdir(parents=True)
+        (self.archive / "transcripts").mkdir()
+        transcript = b"Caller: Please call me back about the equipment return.\n"
+        (self.archive / "transcripts" / "transcript-0001.txt").write_bytes(transcript)
+        manifest = {
+            "schema_version": 1,
+            "call_ref": "call-0001",
+            "started_at_utc": "2026-08-23T09:00:00Z",
+            "direction": "inbound",
+            "caller_ref": "contact-jane",
+            "disposition": "voicemail",
+            "transcript_ref": "transcript-0001",
+            "segments": [{"kind": "voicemail", "transcript_ref": "transcript-0001"}],
+            "integrity": {
+                "manifest_sha256": "a" * 64,
+                "transcript_sha256": hashlib.sha256(transcript).hexdigest(),
+            },
+        }
+        (self.archive / "manifests" / "call-0001.json").write_text(json.dumps(manifest), encoding="utf-8")
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
+
+    @staticmethod
+    def _free_port() -> int:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("127.0.0.1", 0))
+            return int(sock.getsockname()[1])
 
     def test_summary_and_bounded_views(self) -> None:
         health = self.model.health()
@@ -59,7 +90,39 @@ class AvaOfficeReadModelTests(unittest.TestCase):
 
     def test_wildcard_listener_is_rejected(self) -> None:
         with self.assertRaises(AvaOfficeReadError):
-            build_server("0.0.0.0", 8116, self.db)
+            build_server("0.0.0.0", 8116, self.db, self.archive)
+
+    def test_call_archive_is_bound_to_loopback_server(self) -> None:
+        server = build_server("127.0.0.1", self._free_port(), self.db, self.archive)
+        try:
+            self.assertEqual(server.RequestHandlerClass.call_archive.root, self.archive)
+            self.assertEqual(server.RequestHandlerClass.call_archive.voicemails()[0]["call_ref"], "call-0001")
+        finally:
+            server.server_close()
+
+    def test_call_and_transcript_endpoints_are_read_only(self) -> None:
+        server = build_server("127.0.0.1", self._free_port(), self.db, self.archive)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_port}"
+        try:
+            with urllib.request.urlopen(base + "/api/ava-office/voicemails?limit=5", timeout=2) as response:
+                payload = json.load(response)
+            self.assertEqual(payload["items"][0]["call_ref"], "call-0001")
+            self.assertNotIn("text", payload["items"][0])
+            with urllib.request.urlopen(base + "/api/ava-office/transcript?call_ref=call-0001", timeout=2) as response:
+                transcript = json.load(response)
+            self.assertIn("equipment return", transcript["text"])
+            self.assertTrue(transcript["sha256_verified"])
+            self.assertFalse(transcript["audio_exposed"])
+            request = urllib.request.Request(base + "/api/ava-office/calls", data=b"{}", method="POST")
+            with self.assertRaises(urllib.error.HTTPError) as blocked:
+                urllib.request.urlopen(request, timeout=2)
+            self.assertEqual(blocked.exception.code, 405)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
 
 
 class AvaOfficeUiTests(unittest.TestCase):
