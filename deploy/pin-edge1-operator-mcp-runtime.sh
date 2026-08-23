@@ -60,6 +60,7 @@ for rel in \
 
 REVISION=$(git -C "$RUNTIME" rev-parse HEAD)
 [ -z "$(git -C "$RUNTIME" status --porcelain)" ] || { echo "runtime worktree is not clean" >&2; exit 7; }
+/usr/bin/env --help 2>&1 | grep -F -- '--chdir' >/dev/null || { echo "/usr/bin/env lacks required --chdir support" >&2; exit 8; }
 python3 -m py_compile \
     "$RUNTIME/server/edge1_operator_http.py" \
     "$RUNTIME/server/edge1_operator_entrypoint.py" \
@@ -72,7 +73,7 @@ python3 -m json.tool "$RUNTIME/config/edge1-operator-capabilities.json" >/dev/nu
 
 if [ "$MODE" = dry-run ]; then
     echo "Operator MCP runtime dry run passed. runtime=$RUNTIME revision=$REVISION"
-    echo "Read-only scopes will be fixed in ExecStart: $READ_SCOPES"
+    echo "Read-only scopes and process cwd will be fixed in ExecStart: $READ_SCOPES"
     exit 0
 fi
 
@@ -119,6 +120,12 @@ capture_failure_evidence() {
         echo "revision=$REVISION"
         echo "reason=$reason"
         echo "read_scopes=$READ_SCOPES"
+        pid=$(systemctl show -p MainPID --value "$SERVICE" 2>/dev/null || true)
+        echo "main_pid=$pid"
+        case "$pid" in
+            ''|0|*[!0-9]*) ;;
+            *) echo "process_cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || true)" ;;
+        esac
     } > "$EVID/failure.txt"
     systemctl show "$SERVICE" \
         -p Id -p LoadState -p ActiveState -p SubState -p MainPID \
@@ -145,7 +152,7 @@ trap 'rm -f "$TMP"' EXIT HUP INT TERM
 cat > "$TMP" <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/env EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json EDGE1_OPERATOR_SCOPES=$READ_SCOPES /usr/bin/python3 -m server.edge1_operator_http --host 127.0.0.1 --port 8102
+ExecStart=/usr/bin/env --chdir=$RUNTIME EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json EDGE1_OPERATOR_SCOPES=$READ_SCOPES /usr/bin/python3 -m server.edge1_operator_http --host 127.0.0.1 --port 8102
 WorkingDirectory=$RUNTIME
 ReadOnlyPaths=$RUNTIME
 EOF
@@ -181,8 +188,8 @@ case "$PID" in
 esac
 CWD=$(readlink "/proc/$PID/cwd" 2>/dev/null || true)
 [ "$CWD" = "$RUNTIME" ] || fail_after_apply 23 "service working directory does not match immutable runtime"
-if ! systemctl show -p ExecStart --value "$SERVICE" | grep -F -- '/usr/bin/env EDGE1_OPERATOR_CAPABILITIES=' >/dev/null; then
-    fail_after_apply 24 "fixed ExecStart capability environment is absent"
+if ! systemctl show -p ExecStart --value "$SERVICE" | grep -F -- "/usr/bin/env --chdir=$RUNTIME EDGE1_OPERATOR_CAPABILITIES=" >/dev/null; then
+    fail_after_apply 24 "fixed ExecStart cwd/capability environment is absent"
 fi
 if ! systemctl show -p ExecStart --value "$SERVICE" | grep -F -- '-m server.edge1_operator_http' >/dev/null; then
     fail_after_apply 25 "Operator MCP module ExecStart is absent"
@@ -229,6 +236,7 @@ systemctl cat "$SERVICE" > "$EVID/service.after.txt"
     echo "readiness_attempt=$i"
     echo "operator_scopes=$READ_SCOPES"
     echo "capability_environment_source=fixed_execstart"
+    echo "cwd_enforcement=fixed_execstart_env_chdir"
     echo "telephony_safe_control_scope_present=false"
 } > "$EVID/acceptance.txt"
 sha256sum \
