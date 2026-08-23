@@ -180,7 +180,46 @@ def shell_gate_status(host: str) -> dict[str, Any]:
         "remaining_seconds": max(0, expires - now),
         "actor": str(value.get("actor", ""))[:128],
         "ticket": str(value.get("ticket", ""))[:128],
+        "source": str(value.get("source", ""))[:128],
+        "generation": max(0, int(value.get("generation", 0))) if str(value.get("generation", "0")).isdigit() else 0,
     }
+
+
+def set_shell_gate(host: str, *, enabled: bool, expires_at_unix: int | None, actor: str, generation: int = 0) -> dict[str, Any]:
+    if host not in SHELL_HOSTS:
+        raise ValueError("unknown shell host")
+    SHELL_GATE_DIR.mkdir(parents=True, exist_ok=True)
+    os.chmod(SHELL_GATE_DIR, 0o700)
+    path = SHELL_GATE_DIR / f"{host}.json"
+    if not enabled:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        return shell_gate_status(host)
+    now = int(time.time())
+    if not isinstance(expires_at_unix, int) or expires_at_unix <= now or expires_at_unix > now + 14400:
+        raise ValueError("shell gate expiry must be within the next 240 minutes")
+    actor = actor.strip()[:128]
+    if not actor:
+        raise ValueError("shell gate actor is required")
+    value = {
+        "version": 2, "host": host, "enabled_at_unix": now,
+        "expires_at_unix": expires_at_unix, "actor": actor,
+        "ticket": "admin-functions", "source": "wwcx-admin-functions",
+        "generation": max(0, int(generation)),
+    }
+    tmp = path.with_name(f".{host}.{uuid.uuid4().hex}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, separators=(",", ":"), sort_keys=True)
+            handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
+        os.replace(tmp, path); os.chmod(path, 0o600)
+    finally:
+        try: tmp.unlink()
+        except FileNotFoundError: pass
+    return shell_gate_status(host)
 
 
 def _business159(command: str, *, timeout: int = 30) -> dict[str, Any]:
@@ -214,6 +253,16 @@ def invoke(capability: str, arguments: dict[str, Any], confirmed: bool) -> dict[
             result = shell_gate_status(host)
         except ValueError as exc:
             return {"request_id": request_id, "status": "error", "decision": decision, "error": str(exc)}
+        return {"request_id": request_id, "status": "completed", "decision": decision, "result": result}
+
+    if capability == "shell.gate.set":
+        host = str(arguments.get("host", ""))
+        try:
+            result = set_shell_gate(host, enabled=bool(arguments.get("enabled", False)), expires_at_unix=arguments.get("expires_at_unix"), actor=str(arguments.get("actor", "")), generation=int(arguments.get("generation", 0)))
+        except (ValueError, TypeError) as exc:
+            _audit("failed", request_id=request_id, capability=capability, classification=decision["classification"], error_type=type(exc).__name__)
+            return {"request_id": request_id, "status": "error", "decision": decision, "error": str(exc)[:200]}
+        _audit("shell_gate_set", request_id=request_id, capability=capability, classification=decision["classification"], host=host, enabled=bool(result.get("enabled")), expires_at_unix=result.get("expires_at_unix"), generation=result.get("generation", 0))
         return {"request_id": request_id, "status": "completed", "decision": decision, "result": result}
 
     shell_host = "edge1" if capability == "edge1.shell.exec" else "business159" if capability == "business159.shell.exec" else None

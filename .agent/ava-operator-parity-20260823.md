@@ -29,5 +29,11 @@ Live activation evidence:
 Unrestricted shell gate extension (2026-08-23):
 - independent `edge1` and `business159` raw-shell TTL gates; disabled by default; maximum enable window 240 minutes;
 - root-only `ava-shellctl` lifecycle with enable/status/disable and audit entries;
-- raw shell requires both server gate and exact authorization derived from the original user message, never retrieved context;
+- raw shell is now controlled by the authenticated WW.CX Admin Functions panel plus the root-owned broker TTL gate; chat authorization phrases are retired;
 - gateway tool exposure remains host-specific; raw-shell tools are absent while gates are closed.
+
+Admin Functions panel extension (2026-08-23):
+- WW.CX stores desired shell/routine-action state and audit events;
+- Edge1 synchronizes shell desired state over the existing signed worker channel;
+- no privileged Edge1 credential is placed on Business159 or in the browser;
+- live gateway shell exposure follows broker gate state and no longer requires a chat phrase.

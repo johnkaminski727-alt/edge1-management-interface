@@ -45,6 +45,10 @@
       "class": "observe"
     },
     {
+      "prefix": "shell.gate.set",
+      "class": "conditional"
+    },
+    {
       "prefix": "edge1.read",
       "class": "observe"
     },

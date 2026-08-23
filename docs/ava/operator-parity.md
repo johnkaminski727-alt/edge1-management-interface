@@ -20,4 +20,4 @@ The Ava-facing broker must expose typed capability names and structured argument
 
 ## Attended unrestricted shells
 
-Two dormant raw-shell escape hatches are available for attended troubleshooting: root-backed Edge1 and account-level Business159. They require an independent root-controlled TTL gate plus an exact authorization phrase derived only from the original WW.CX admin message. See `docs/ava/unrestricted-shell-gates.md`.
+Two dormant raw-shell escape hatches are available for attended troubleshooting: root-backed Edge1 and account-level Business159. Authenticated administrators enable them from Ava's Admin Functions panel for a bounded TTL; Edge1 reconciles the signed desired state into root-owned broker gates. See `docs/ava/unrestricted-shell-gates.md`.

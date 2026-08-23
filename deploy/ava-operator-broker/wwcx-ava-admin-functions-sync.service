@@ -1,0 +1,30 @@
+[Unit]
+Description=WW.CX Ava admin functions synchronizer
+After=network-online.target wwcx-ava-operator-broker.service
+Wants=network-online.target
+Requires=wwcx-ava-operator-broker.service
+
+[Service]
+Type=simple
+User=bigbird-ai
+Group=bigbird-ai
+EnvironmentFile=/etc/bigbird-ai-worker.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/wwcx-ava-operator-broker/current/server/ava_admin_functions_sync.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
