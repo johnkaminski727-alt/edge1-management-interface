@@ -4,6 +4,9 @@
 Secrets are read only from environment variables. They are never accepted on the
 command line or logged. The browser talks only to the WW.CX web queue; this worker
 runs on Edge1 and is the only component that signs requests for 127.0.0.1:8787.
+
+Ava Agent Controller v1 adds bounded planning, optional source routing, progress
+telemetry, and result verification without granting scopes or host-write authority.
 """
 from __future__ import annotations
 
@@ -20,6 +23,14 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
+
+from ava_agent_controller import (
+    AgentControllerError,
+    build_plan,
+    prepare_gateway_request,
+    progress_payload,
+    verify_gateway_result,
+)
 
 QUEUE_URL = os.environ.get("BB_BROWSER_QUEUE_URL", "https://ww.cx/api/bigbird-ai-worker.php")
 GATEWAY_URL = os.environ.get("BB_BROWSER_GATEWAY_URL", "http://127.0.0.1:8787/v1/chat")
@@ -102,7 +113,7 @@ def queue_headers(body: bytes, secret: str, key_id: str, url: str) -> tuple[dict
         "X-BB-Nonce": nonce,
         "X-BB-Body-SHA256": digest,
         "X-BB-Signature": signature,
-        "User-Agent": "wwcx-private-ai-browser-worker/1",
+        "User-Agent": "wwcx-private-ai-browser-worker/2",
     }, nonce)
 
 
@@ -135,6 +146,20 @@ def queue_call(action_payload: dict[str, Any], secret: str, key_id: str) -> dict
     return verify_queue_response(post(QUEUE_URL, body, headers, 20.0, MAX_QUEUE_RESPONSE), nonce, secret)
 
 
+def publish_progress(request_id: str, progress: dict[str, Any], queue_secret: str, queue_key_id: str) -> bool:
+    payload = {
+        "action": "progress",
+        "worker_id": WORKER_ID,
+        "request_id": request_id,
+        "progress": progress,
+    }
+    try:
+        response = queue_call(payload, queue_secret, queue_key_id)
+    except WorkerError:
+        return False
+    return response.get("status") == "accepted"
+
+
 def gateway_headers(body: bytes, secret: str, key_id: str, url: str) -> dict[str, str]:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != 8787 or parsed.path != "/v1/chat":
@@ -151,7 +176,7 @@ def gateway_headers(body: bytes, secret: str, key_id: str, url: str) -> dict[str
         "X-BB-Nonce": nonce,
         "X-BB-Body-Sha256": digest,
         "X-BB-Signature": signature,
-        "User-Agent": "wwcx-private-ai-browser-worker/1",
+        "User-Agent": "wwcx-private-ai-browser-worker/2",
     }
 
 
@@ -194,14 +219,48 @@ def process_once(queue_secret: str, queue_key_id: str, gateway_secret: str, gate
     if str(gateway_request.get("request_id", "")) != request_id:
         complete(request_id, "failed", queue_secret, queue_key_id, error_code="gateway_rejected")
         return DEFAULT_POLL_SECONDS
+
     try:
-        result = gateway_call(gateway_request, gateway_secret, gateway_key_id)
-        if str(result.get("request_id", "")) != request_id:
-            raise WorkerError("gateway response request identifier mismatch")
+        plan = build_plan(gateway_request)
+        prepared_request = prepare_gateway_request(gateway_request, plan)
+        publish_progress(
+            request_id,
+            progress_payload(plan, "planning", "Ava has a bounded read-only plan for this request.", "understand"),
+            queue_secret,
+            queue_key_id,
+        )
+        publish_progress(
+            request_id,
+            progress_payload(plan, "gathering", "Gathering only the approved context needed for the answer."),
+            queue_secret,
+            queue_key_id,
+        )
+        started = time.monotonic()
+        result = gateway_call(prepared_request, gateway_secret, gateway_key_id)
+        elapsed_ms = max(0, int((time.monotonic() - started) * 1000))
+        publish_progress(
+            request_id,
+            progress_payload(plan, "verifying", "Checking the answer, evidence, and read-only boundary.", "verify"),
+            queue_secret,
+            queue_key_id,
+        )
+        trace = verify_gateway_result(request_id, result, plan)
+        trace["gateway_duration_ms"] = elapsed_ms
+        result = dict(result)
+        result["agent_trace"] = trace
+        publish_progress(
+            request_id,
+            progress_payload(plan, "complete", "Ava finished and verified this response.", "verify"),
+            queue_secret,
+            queue_key_id,
+        )
         complete(request_id, "completed", queue_secret, queue_key_id, result=result)
-    except WorkerError as exc:
+    except (WorkerError, AgentControllerError) as exc:
         message = str(exc)
-        code = "gateway_unavailable" if "transport unavailable" in message.lower() else "gateway_rejected"
+        if isinstance(exc, AgentControllerError):
+            code = "agent_controller_rejected"
+        else:
+            code = "gateway_unavailable" if "transport unavailable" in message.lower() else "gateway_rejected"
         complete(request_id, "failed", queue_secret, queue_key_id, error_code=code)
     return 0.1
 
