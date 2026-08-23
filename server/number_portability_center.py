@@ -98,7 +98,10 @@ class PortabilityStore:
     def _initialize(self) -> None:
         with self._lock, self.connect() as conn:
             if str(self.path) != ":memory:":
-                conn.execute("PRAGMA journal_mode=WAL")
+                # The companion read API is intentionally sandboxed against filesystem
+                # writes. WAL mode requires writable -wal/-shm sidecars for real reads,
+                # so use the rollback journal for this low-volume administrative store.
+                conn.execute("PRAGMA journal_mode=DELETE")
                 conn.execute("PRAGMA synchronous=NORMAL")
             conn.executescript("""
             CREATE TABLE IF NOT EXISTS port_cases(
