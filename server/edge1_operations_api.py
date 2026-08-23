@@ -20,11 +20,11 @@ from pathlib import Path
 from server.edge1_operations_typed_actions import (
     TypedActionValidationError,
     run_typed_handler,
+    validate_typed_handler,
 )
 
 
 def _configured_absolute_path(value):
-    """Return an absolute path without resolving a deploy-time symlink target."""
     path = Path(value).expanduser()
     if not path.is_absolute():
         path = Path.cwd() / path
@@ -56,7 +56,6 @@ def _gate_enabled(name):
 
 
 def ensure_root_stable():
-    """Fail closed if a release/symlink switch changed the configured repo target."""
     try:
         current = ROOT_CONFIGURED.resolve(strict=True)
     except OSError as exc:
@@ -247,44 +246,59 @@ def run_action(name, actor, body_hash):
         return {"event_id": event_id, "action": name, "status": "timed_out", "duration_ms": duration}
 
 
-def _idempotency_lookup(action, key, request_hash):
-    with connect_db() as conn:
+def _idempotency_claim(action, key, request_hash):
+    conn = connect_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT request_hash, response_json FROM operation_idempotency WHERE action = ? AND idempotency_key = ?",
             (action, key),
         ).fetchone()
-    if row is None:
-        return None
-    if row[0] != request_hash:
-        raise TypedActionValidationError("idempotency key was already used with different parameters")
-    payload = json.loads(row[1])
-    payload["idempotent_replay"] = True
-    return payload
-
-
-def _idempotency_store(action, key, request_hash, response):
-    with connect_db() as conn:
+        if row is not None:
+            if row[0] != request_hash:
+                raise TypedActionValidationError("idempotency key was already used with different parameters")
+            if not row[1]:
+                raise TypedActionValidationError("idempotent request is incomplete; reconcile state before retry")
+            payload = json.loads(row[1])
+            payload["idempotent_replay"] = True
+            conn.commit()
+            return payload
         conn.execute(
-            "INSERT INTO operation_idempotency (action, idempotency_key, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
-            (action, key, request_hash, json.dumps(response, sort_keys=True), utcnow()),
+            "INSERT INTO operation_idempotency (action, idempotency_key, request_hash, response_json, created_at) VALUES (?, ?, ?, '', ?)",
+            (action, key, request_hash, utcnow()),
         )
+        conn.commit()
+        return None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _idempotency_complete(action, key, request_hash, response):
+    encoded = json.dumps(response, sort_keys=True)
+    with connect_db() as conn:
+        cursor = conn.execute(
+            "UPDATE operation_idempotency SET response_json = ? WHERE action = ? AND idempotency_key = ? AND request_hash = ? AND response_json = ''",
+            (encoded, action, key, request_hash),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("idempotency completion state changed unexpectedly")
         conn.commit()
 
 
 def run_typed_action(name, actor, body_hash, parameters):
     handler, timeout, _ = safe_typed_action(name)
-    if not isinstance(parameters, dict):
-        raise TypedActionValidationError("typed action body must be a JSON object")
-    key = parameters.get("idempotency_key")
-    if not isinstance(key, str):
-        raise TypedActionValidationError("typed action requires idempotency_key")
-    replay = _idempotency_lookup(name, key, body_hash)
+    validated = validate_typed_handler(handler, parameters)
+    key = validated["idempotency_key"]
+    replay = _idempotency_claim(name, key, body_hash)
     if replay is not None:
         return replay
 
     started = time.monotonic()
     try:
-        result_payload = run_typed_handler(handler, parameters)
+        result_payload = run_typed_handler(handler, validated)
         duration = int((time.monotonic() - started) * 1000)
         if duration > timeout * 1000:
             raise RuntimeError("typed action exceeded configured timeout")
@@ -299,10 +313,8 @@ def run_typed_action(name, actor, body_hash, parameters):
         event_id = record_audit(actor, name, body_hash, "succeeded", 0, duration,
                                 json.dumps(result_payload, sort_keys=True), "")
         response["event_id"] = event_id
-        _idempotency_store(name, key, body_hash, response)
+        _idempotency_complete(name, key, body_hash, response)
         return response
-    except TypedActionValidationError:
-        raise
     except Exception as exc:
         duration = int((time.monotonic() - started) * 1000)
         event_id = record_audit(actor, name, body_hash, "failed", 1, duration, "", str(exc))
@@ -315,7 +327,7 @@ def run_typed_action(name, actor, body_hash, parameters):
             "error": "typed action failed verification",
             "idempotent_replay": False,
         }
-        _idempotency_store(name, key, body_hash, response)
+        _idempotency_complete(name, key, body_hash, response)
         return response
 
 
