@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from asterisk_process_identity import resolve_asterisk_pid
+
 SOCKET_PATH = Path("/run/edge1-operator-privileged/control.sock")
 AUDIT_PATH = Path("/var/lib/edge1-operator-privileged/audit.jsonl")
 APPROVAL_PATH = Path("/etc/wwcx-edge1-operator/telephony-console-control.json")
@@ -182,7 +184,7 @@ def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("dependency inactive")
 
     telephony_pid_before = _pid(TELEPHONY_SERVICE)
-    asterisk_pid_before = _pid(ASTERISK_SERVICE)
+    asterisk_pid_before, asterisk_pid_source = resolve_asterisk_pid()
     messaging_pid_before = _pid(MESSAGING_SERVICE)
     source_sha256 = _sha256(SOURCE)
     repo_head = _value(["git", "-C", str(REPO), "rev-parse", "HEAD"])
@@ -211,7 +213,7 @@ def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
         time.sleep(0.5)
 
     telephony_pid_after = _pid(TELEPHONY_SERVICE)
-    asterisk_pid_after = _pid(ASTERISK_SERVICE)
+    asterisk_pid_after, asterisk_pid_source_after = resolve_asterisk_pid()
     messaging_pid_after = _pid(MESSAGING_SERVICE)
     if not active or telephony_pid_after <= 0 or telephony_pid_after == telephony_pid_before:
         raise RuntimeError("telephony console process did not rotate cleanly")
@@ -226,6 +228,9 @@ def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
         "pid_before": telephony_pid_before,
         "pid_after": telephony_pid_after,
         "approved_runtime": True,
+        "asterisk_pid": asterisk_pid_before,
+        "asterisk_pid_source_before": asterisk_pid_source,
+        "asterisk_pid_source_after": asterisk_pid_source_after,
         "asterisk_pid_unchanged": True,
         "messaging_pid_unchanged": True,
         "configuration_changed": False,
