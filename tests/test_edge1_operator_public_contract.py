@@ -28,6 +28,8 @@ EXPECTED = (
     "edge1.bigbird_status",
     "edge1.operations_status",
     "edge1.apache_status",
+    "edge1.ava_office_status",
+    "edge1.number_portability_status",
     "edge1.asterisk_status",
     "edge1.telephony_status",
     "edge1.telephony_console_control_status",
@@ -53,7 +55,7 @@ class Edge1OperatorPublicContractTests(unittest.TestCase):
         names = tuple(tool["name"] for tool in MODULE.TOOLS)
         self.assertEqual(names, EXPECTED)
         self.assertEqual(MODULE.PUBLIC_EDGE1_TOOL_NAMES, EXPECTED)
-        self.assertEqual(len(set(names)), 19)
+        self.assertEqual(len(set(names)), 21)
         self.assertNotIn("agent.turn.status", names)
         self.assertNotIn("agent.turn.handoff", names)
 
@@ -83,6 +85,13 @@ class Edge1OperatorPublicContractTests(unittest.TestCase):
                 else:
                     self.assertEqual(tool["access"], "read")
                     self.assertEqual(tool["annotations"], read_annotations)
+
+    def test_office_status_tools_are_parameterless_read_only(self):
+        for name in ("edge1.ava_office_status", "edge1.number_portability_status"):
+            tool = next(item for item in MODULE.TOOLS if item["name"] == name)
+            self.assertEqual(tool["access"], "read")
+            self.assertEqual(tool["inputSchema"]["properties"], {})
+            self.assertFalse(tool["inputSchema"]["additionalProperties"])
 
     def test_public_dispatch_rejects_internal_turn_tools_even_when_called_directly(self):
         operator, _runtime = build_operator(runtime=FakeRuntime(), turn_store=object())

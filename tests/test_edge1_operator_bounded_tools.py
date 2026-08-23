@@ -17,7 +17,7 @@ class FakeClient:
     def health(self):
         return {
             "status": "ok",
-            "actions": 20,
+            "actions": 31,
             "mutations_enabled": False,
             "mutation_gates": {"telephony_safe_controls": False},
         }
@@ -50,14 +50,33 @@ def test_runtime_maps_tools_to_fixed_actions():
     assert client.actions == list(READ_ONLY_ACTIONS["network_state"])
 
 
+def test_office_status_maps_only_to_fixed_loopback_read_actions():
+    client = FakeClient()
+    runtime = Edge1OperatorRuntime(client=client)
+    ava = runtime.ava_office_status()
+    assert [item["action"] for item in ava["results"]] == ["ava.office.health", "ava.office.summary"]
+    portability = runtime.number_portability_status()
+    assert [item["action"] for item in portability["results"]] == ["number_portability.health", "number_portability.summary"]
+    assert client.actions == [
+        "ava.office.health",
+        "ava.office.summary",
+        "number_portability.health",
+        "number_portability.summary",
+    ]
+
+
 def test_adapter_rejects_arbitrary_parameters_on_read_tools():
     adapter = MCPAdapter(Edge1OperatorRuntime(client=FakeClient()))
     names = adapter.list_tools()
     assert "edge1.exec" not in names
     assert "edge1.inventory" in names
     assert "edge1.config_digest" in names
+    assert "edge1.ava_office_status" in names
+    assert "edge1.number_portability_status" in names
     assert "edge1.telephony_console_reload" in names
     assert adapter.call_tool("edge1.health").status == "ok"
+    assert adapter.call_tool("edge1.ava_office_status").status == "ok"
+    assert adapter.call_tool("edge1.number_portability_status").status == "ok"
     denied = adapter.call_tool("edge1.network_state", command="ip addr")
     assert denied.status == "error"
     assert denied.payload == {"message": "parameters_not_accepted"}
@@ -82,6 +101,14 @@ def test_read_only_tool_actions_are_non_mutating_in_allowlist():
         for action in action_group:
             assert action in actions
             assert actions[action]["mutating"] is False
+    for action in (
+        "ava.office.health",
+        "ava.office.summary",
+        "number_portability.health",
+        "number_portability.summary",
+    ):
+        assert actions[action]["argv"][0:2] == ["curl", "-fsS"]
+        assert actions[action]["mutating"] is False
     assert actions["repository.fetch"]["mutating"] is True
     assert actions["security.rules.reload"]["mutating"] is True
     assert actions["telephony.console.reload_safe"]["mutating"] is True
