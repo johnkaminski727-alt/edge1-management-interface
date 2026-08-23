@@ -17,8 +17,12 @@ class DisabledCommissioningTests(unittest.TestCase):
         self.assertIn("/opt/edge1-operator-mcp-runtimes/", OPERATOR_PIN)
         self.assertIn("WorkingDirectory=$RUNTIME", OPERATOR_PIN)
         self.assertIn("EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json", OPERATOR_PIN)
-        self.assertIn("READ_SCOPES=edge1.status.read,edge1.telephony.read,edge1.messaging.read", OPERATOR_PIN)
-        self.assertNotIn("edge1.telephony.control.safe", OPERATOR_PIN)
+        scope_lines = [line for line in OPERATOR_PIN.splitlines() if line.startswith("READ_SCOPES=")]
+        self.assertEqual(
+            scope_lines,
+            ["READ_SCOPES=edge1.status.read,edge1.telephony.read,edge1.messaging.read"],
+        )
+        self.assertIn("! printf '%s\\n' \"$ENVIRONMENT\" | grep -F 'edge1.telephony.control.safe'", OPERATOR_PIN)
 
     def test_operations_runtime_explicitly_leaves_safe_gate_off(self):
         self.assertIn("EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false", OPS_PIN)
