@@ -16,13 +16,45 @@ class DisabledCommissioningTests(unittest.TestCase):
     def test_operator_runtime_is_immutable_and_read_scoped(self):
         self.assertIn("/opt/edge1-operator-mcp-runtimes/", OPERATOR_PIN)
         self.assertIn("WorkingDirectory=$RUNTIME", OPERATOR_PIN)
-        self.assertIn("EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json", OPERATOR_PIN)
+        self.assertIn(
+            "ExecStart=/usr/bin/env EDGE1_OPERATOR_CAPABILITIES=$RUNTIME/config/edge1-operator-capabilities.json "
+            "EDGE1_OPERATOR_SCOPES=$READ_SCOPES /usr/bin/python3 -m server.edge1_operator_http",
+            OPERATOR_PIN,
+        )
         scope_lines = [line for line in OPERATOR_PIN.splitlines() if line.startswith("READ_SCOPES=")]
         self.assertEqual(
             scope_lines,
             ["READ_SCOPES=edge1.status.read,edge1.telephony.read,edge1.messaging.read"],
         )
-        self.assertIn("! printf '%s\\n' \"$ENVIRONMENT\" | grep -F 'edge1.telephony.control.safe'", OPERATOR_PIN)
+        self.assertIn('/proc/{pid}/environ', OPERATOR_PIN)
+        self.assertIn('effective Operator scope set mismatch', OPERATOR_PIN)
+        self.assertIn('write scope unexpectedly present', OPERATOR_PIN)
+        self.assertNotIn("EDGE1_OPERATOR_SCOPES=edge1.telephony.control.safe", OPERATOR_PIN)
+
+    def test_operator_worktree_is_readable_by_service_but_not_group_writable(self):
+        self.assertIn("OPERATOR_SERVICE_USER=edge1-operator", COMMISSION)
+        self.assertIn("OPERATOR_SERVICE_GROUP=edge1-operator", COMMISSION)
+        self.assertIn('sudo chgrp -R "$OPERATOR_SERVICE_GROUP" "$OPERATOR_RUNTIME"', COMMISSION)
+        self.assertIn('sudo chmod -R g+rX,o-rwx "$OPERATOR_RUNTIME"', COMMISSION)
+        self.assertIn('sudo -u "$OPERATOR_SERVICE_USER" test -x "$OPERATOR_RUNTIME"', COMMISSION)
+        self.assertIn('sudo -u "$OPERATOR_SERVICE_USER" test -r "$OPERATOR_RUNTIME/$rel"', COMMISSION)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", COMMISSION)
+        self.assertNotIn('chmod -R g+w', COMMISSION)
+        self.assertNotIn('chmod -R a+w', COMMISSION)
+
+    def test_failed_child_output_is_visible_and_err_trap_is_not_inherited(self):
+        self.assertIn("set -euo pipefail", COMMISSION)
+        self.assertNotIn("set -Eeuo pipefail", COMMISSION)
+        for token in ("BROKER_LOG=$(mktemp)", "OPS_LOG=$(mktemp)", "OPERATOR_LOG=$(mktemp)"):
+            self.assertIn(token, COMMISSION)
+        self.assertIn('| tee "$OPERATOR_LOG"', COMMISSION)
+
+    def test_operator_pin_captures_safe_failure_evidence(self):
+        self.assertIn("capture_failure_evidence()", OPERATOR_PIN)
+        self.assertIn("service.failure.txt", OPERATOR_PIN)
+        self.assertIn("journal.failure.txt", OPERATOR_PIN)
+        self.assertIn("failure_evidence=$EVID", OPERATOR_PIN)
+        self.assertNotIn("systemctl show -p Environment --value", OPERATOR_PIN)
 
     def test_operations_runtime_explicitly_leaves_safe_gate_off(self):
         self.assertIn("EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED=false", OPS_PIN)
