@@ -6,6 +6,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import socket
 import subprocess
 import urllib.request
@@ -23,6 +24,13 @@ ANALYTICS_ROUTE_MAP = {
     "/api/telephony/analytics/health": "/api/telephony/platform/health",
     "/api/telephony/analytics/calls": "/api/telephony/platform/calls/summary",
     "/api/telephony/analytics/interconnects": "/api/telephony/platform/interconnects/summary",
+}
+ASTERISK_READ_ONLY_COMMANDS = {
+    "channels": "core show channels count",
+    "endpoints": "pjsip show endpoints",
+    "contacts": "pjsip show contacts",
+    "registrations": "pjsip show registrations",
+    "transports": "pjsip show transports",
 }
 
 INTERCONNECT_REGISTRY = REPO_ROOT / "data/registry/interconnect/interconnect-registry.json"
@@ -131,10 +139,65 @@ def service_record(name: str, role: str, port: int | None = None, health_url: st
     }
 
 
-def asterisk_record() -> dict[str, Any]:
+def _asterisk_cli(command: str) -> str | None:
+    """Run one fixed read-only Asterisk CLI command and return bounded stdout."""
+    if command not in ASTERISK_READ_ONLY_COMMANDS.values():
+        raise ValueError("unsupported Asterisk read-only command")
+    try:
+        result = subprocess.run(
+            ["asterisk", "-rx", command],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout[:250_000]
+
+
+def _asterisk_counter(output: str | None, label: str) -> int:
+    if not output:
+        return 0
+    match = re.search(rf"^\s*(\d+)\s+{re.escape(label)}\s*$", output, re.MULTILINE)
+    return int(match.group(1)) if match else 0
+
+
+def _pjsip_object_count(output: str | None, marker: str) -> int:
+    if not output:
+        return 0
+    summaries = re.findall(r"^\s*Objects found:\s*(\d+)\s*$", output, re.MULTILINE)
+    if summaries:
+        return int(summaries[-1])
+    prefix = f"{marker}:"
+    return sum(1 for line in output.splitlines() if line.lstrip().startswith(prefix))
+
+
+def asterisk_snapshot() -> dict[str, int | bool]:
+    """Return privacy-minimized aggregate PBX/PJSIP counts from fixed local CLI reads."""
+    outputs = {
+        name: _asterisk_cli(command)
+        for name, command in ASTERISK_READ_ONLY_COMMANDS.items()
+    }
+    return {
+        "cli_available": any(value is not None for value in outputs.values()),
+        "active_channels": _asterisk_counter(outputs["channels"], "active channels"),
+        "active_calls": _asterisk_counter(outputs["channels"], "active calls"),
+        "calls_processed": _asterisk_counter(outputs["channels"], "calls processed"),
+        "endpoints": _pjsip_object_count(outputs["endpoints"], "Endpoint"),
+        "contacts": _pjsip_object_count(outputs["contacts"], "Contact"),
+        "outbound_registrations": _pjsip_object_count(outputs["registrations"], "Registration"),
+        "transports": _pjsip_object_count(outputs["transports"], "Transport"),
+    }
+
+
+def asterisk_record(snapshot: dict[str, int | bool]) -> dict[str, Any]:
     process = process_running("asterisk")
     udp = udp_listener_present(5060)
-    healthy = process and udp
+    cli_available = bool(snapshot.get("cli_available"))
+    healthy = process and udp and cli_available
     return {
         "id": "asterisk",
         "name": "Asterisk PBX",
@@ -142,40 +205,42 @@ def asterisk_record() -> dict[str, Any]:
         "status": "healthy" if healthy else ("degraded" if process else "critical"),
         "latency_ms": None,
         "last_checked": utc_now(),
-        "details": {"process_running": process, "udp_5060_listening": udp},
+        "details": {
+            "process_running": process,
+            "udp_5060_listening": udp,
+            "read_only_cli_available": cli_available,
+            "active_channels": snapshot.get("active_channels", 0),
+            "active_calls": snapshot.get("active_calls", 0),
+            "endpoints": snapshot.get("endpoints", 0),
+            "contacts": snapshot.get("contacts", 0),
+            "outbound_registrations": snapshot.get("outbound_registrations", 0),
+            "transports": snapshot.get("transports", 0),
+        },
     }
-
-
-def asterisk_snapshot() -> tuple[int, int]:
-    """Return active call and endpoint counts when the local CLI is permitted."""
-    try:
-        channels = subprocess.run(["asterisk", "-rx", "core show channels concise"], capture_output=True, text=True, timeout=2, check=False)
-        endpoints = subprocess.run(["asterisk", "-rx", "pjsip show endpoints"], capture_output=True, text=True, timeout=2, check=False)
-        channel_lines = [line for line in channels.stdout.splitlines() if line.strip()]
-        active_calls = len(channel_lines) // 2
-        registrations = sum(1 for line in endpoints.stdout.splitlines() if line.lstrip().startswith("Endpoint:"))
-        return active_calls, registrations
-    except (OSError, subprocess.TimeoutExpired):
-        return 0, 0
 
 
 def status_payload() -> dict[str, Any]:
     fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    pbx = asterisk_snapshot()
     services = [
-        asterisk_record(),
+        asterisk_record(pbx),
         service_record("wwcx-numbering-node.service", "Numbering intelligence", 8093, "http://127.0.0.1:8093/healthz"),
         service_record("bigbird-ai-gateway.service", "Big Bird API gateway"),
     ]
     messaging_port = int(os.environ.get("WWCX_MESSAGING_PORT", "58080"))
     messaging_url = os.environ.get("WWCX_MESSAGING_HEALTH_URL", f"http://127.0.0.1:{messaging_port}/healthz")
     services.append(service_record("wwcx-messaging-gateway.service", "SMS and MMS gateway", messaging_port, messaging_url))
-    active_calls, registrations = asterisk_snapshot()
     healthy_count = sum(1 for item in services if item["status"] == "healthy")
     critical_count = sum(1 for item in services if item["status"] == "critical")
     interconnects = sip_interconnect_snapshot()
     metrics = {
-        "active_calls": active_calls,
-        "registrations": registrations,
+        "active_calls": pbx["active_calls"],
+        "active_channels": pbx["active_channels"],
+        "registrations": pbx["contacts"],
+        "pbx_endpoints": pbx["endpoints"],
+        "pbx_contacts": pbx["contacts"],
+        "pbx_outbound_registrations": pbx["outbound_registrations"],
+        "pbx_transports": pbx["transports"],
         "messages_queued": None,
         "trunks_healthy": sum(1 for item in interconnects if item["status"] == "healthy"),
         "trunks_total": len(interconnects),
