@@ -55,3 +55,17 @@ Additional hardening:
 - effective capability manifest and read-only scope values are still verified from `/proc/<pid>/environ`;
 - failure evidence now records the observed process cwd when available;
 - no Telephony write scope, Operations API safe-control gate, approved Telephony runtime marker, legacy mutation gate, PBX restart, Messaging restart, Telephony Console restart, tunnel restart, call, SMS/MMS, or routing change is enabled by this hardening.
+
+## Repeated exact-main guard stops
+
+After the CWD hardening merged, subsequent attended commands correctly stopped before mutation whenever `origin/main` advanced between review and execution. The observed intervening commits were Ava Office / Number Portability read-only runtime work and did not alter Operator-control paths. The exact equality guard was safe but forced repeated manual commit chasing.
+
+The commissioning wrapper is therefore being extended with a `--reviewed-control-base` mode. In this mode it:
+
+1. fetches current `origin/main`;
+2. requires the reviewed base to be an ancestor of current `origin/main`;
+3. compares a fixed fail-closed set of Operator, Operations API, broker, Telephony-control, validation, and deployment paths between the reviewed base and current `origin/main`;
+4. refuses commissioning and requires fresh review if any protected control-plane path changed;
+5. otherwise resolves the current `origin/main` as the deploy commit and proceeds with the same immutable runtime, rollback, read-only scope, safe-gate-off, and protected-service PID invariants.
+
+This removes unrelated-main race churn without weakening the control-plane review boundary. Exact `--expected-commit` mode remains available and unchanged.
