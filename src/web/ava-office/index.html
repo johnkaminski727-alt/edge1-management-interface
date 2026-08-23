@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101418">
+  <title>Ava Office | WW.CX</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to Ava Office</a>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">WW.CX</p>
+      <h1>Ava Office</h1>
+      <p class="subtitle">Work, calls, appointments and decisions in one place.</p>
+    </div>
+    <div class="mode" aria-label="Current authority mode"><span></span>Read-only foundation</div>
+  </header>
+
+  <main id="main" class="shell">
+    <section class="status-card" aria-labelledby="status-heading">
+      <div>
+        <p class="eyebrow">Assistant status</p>
+        <h2 id="status-heading">Your office at a glance</h2>
+      </div>
+      <p id="connection-status" class="status-text" role="status">Connecting to Ava Office…</p>
+      <div class="metrics" id="metrics" aria-live="polite">
+        <article><strong id="metric-active">—</strong><span>Active work</span></article>
+        <article><strong id="metric-needs-you">—</strong><span>Needs you</span></article>
+        <article><strong id="metric-waiting">—</strong><span>Waiting</span></article>
+        <article><strong id="metric-scheduled">—</strong><span>Scheduled</span></article>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Ava Office views">
+      <button type="button" class="active" data-view="work">Work</button>
+      <button type="button" data-view="decisions">Needs You</button>
+      <button type="button" data-view="calls">Calls</button>
+      <button type="button" data-view="appointments">Appointments</button>
+      <button type="button" data-view="instructions">Instructions</button>
+    </nav>
+
+    <section class="view active" data-panel="work" aria-labelledby="work-heading">
+      <div class="section-heading"><div><p class="eyebrow">Delegated work</p><h2 id="work-heading">Work queue</h2></div><button type="button" id="refresh-work" class="secondary">Refresh</button></div>
+      <div class="filters" aria-label="Work filters">
+        <button type="button" class="active" data-state="">All</button>
+        <button type="button" data-state="working">Working</button>
+        <button type="button" data-state="waiting_external">Waiting</button>
+        <button type="button" data-state="needs_owner">Needs you</button>
+        <button type="button" data-state="scheduled">Scheduled</button>
+      </div>
+      <div id="work-list" class="card-list" aria-live="polite"></div>
+    </section>
+
+    <section class="view" data-panel="decisions" aria-labelledby="decisions-heading">
+      <div class="section-heading"><div><p class="eyebrow">Owner decisions</p><h2 id="decisions-heading">Needs You</h2></div></div>
+      <p class="section-note">Actions shown here are proposals only. This read-only dashboard cannot approve or execute them.</p>
+      <div id="decision-list" class="card-list" aria-live="polite"></div>
+    </section>
+
+    <section class="view" data-panel="calls" aria-labelledby="calls-heading">
+      <div class="section-heading"><div><p class="eyebrow">Receptionist</p><h2 id="calls-heading">Calls &amp; voicemail</h2></div></div>
+      <article class="empty-feature">
+        <span class="feature-icon">☎</span>
+        <h3>Attendant control plane not commissioned</h3>
+        <p>The receptionist state machine, protected call-record contract, recording/transcription model and warm-transfer workflow exist in source. Live answering, recording, transfer and origination remain disabled until separately commissioned.</p>
+        <div class="call-actions" aria-label="Future warm transfer actions">
+          <button type="button" disabled>Accept</button><button type="button" disabled>Decline</button><button type="button" disabled>Voicemail</button><button type="button" disabled>Ask Ava</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="view" data-panel="appointments" aria-labelledby="appointments-heading">
+      <div class="section-heading"><div><p class="eyebrow">Arrangements</p><h2 id="appointments-heading">Appointments</h2></div></div>
+      <article class="empty-feature">
+        <span class="feature-icon">▦</span>
+        <h3>Negotiation workflow ready for adapters</h3>
+        <p>Ava can now model availability lookup, bounded time offers, external selection and calendar creation as typed intentions. Provider calendar reads and writes remain disconnected from this foundation.</p>
+      </article>
+    </section>
+
+    <section class="view" data-panel="instructions" aria-labelledby="instructions-heading">
+      <div class="section-heading"><div><p class="eyebrow">Standing policy</p><h2 id="instructions-heading">Instructions</h2></div></div>
+      <p class="section-note">Examples: “Don’t schedule before 10,” “Always screen sales calls,” or “Require confirmation before cancelling appointments.”</p>
+      <div id="instruction-list" class="card-list" aria-live="polite"></div>
+    </section>
+
+    <section class="safety-card" aria-label="Authority boundary">
+      <strong>Planning is separate from execution.</strong>
+      <p>Unknown capabilities fail closed. External execution is disabled in the shipped policy. Financial, legal, contract, credential, destructive and emergency actions do not execute through this generic office-manager path.</p>
+    </section>
+  </main>
+</body>
+</html>

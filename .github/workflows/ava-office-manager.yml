@@ -1,0 +1,63 @@
+name: Ava Office Manager
+
+on:
+  pull_request:
+    paths:
+      - 'server/ava_office_manager.py'
+      - 'server/ava_office_manager_server.py'
+      - 'server/ava_appointment_workflow.py'
+      - 'server/ava_attendant_session.py'
+      - 'config/ava-office-manager-policy.json'
+      - 'schemas/ava/call-record.schema.json'
+      - 'src/web/ava-office/**'
+      - 'tests/test_ava_office_manager.py'
+      - 'tests/test_ava_assistant_workflows.py'
+      - 'tests/test_ava_office_manager_server.py'
+      - 'docs/ava/office-manager-architecture.md'
+      - '.github/workflows/ava-office-manager.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/ava_office_manager.py'
+      - 'server/ava_office_manager_server.py'
+      - 'server/ava_appointment_workflow.py'
+      - 'server/ava_attendant_session.py'
+      - 'config/ava-office-manager-policy.json'
+      - 'schemas/ava/call-record.schema.json'
+      - 'src/web/ava-office/**'
+      - 'tests/test_ava_office_manager.py'
+      - 'tests/test_ava_assistant_workflows.py'
+      - 'tests/test_ava_office_manager_server.py'
+      - 'docs/ava/office-manager-architecture.md'
+      - '.github/workflows/ava-office-manager.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile foundation
+        run: |
+          python -m py_compile \
+            server/ava_office_manager.py \
+            server/ava_office_manager_server.py \
+            server/ava_appointment_workflow.py \
+            server/ava_attendant_session.py \
+            tests/test_ava_office_manager.py \
+            tests/test_ava_assistant_workflows.py \
+            tests/test_ava_office_manager_server.py
+      - name: Validate JSON contracts
+        run: |
+          python -m json.tool config/ava-office-manager-policy.json >/dev/null
+          python -m json.tool schemas/ava/call-record.schema.json >/dev/null
+      - name: Validate browser JavaScript
+        run: node --check src/web/ava-office/app.js
+      - name: Run office manager tests
+        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server
