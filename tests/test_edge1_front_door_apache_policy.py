@@ -32,6 +32,7 @@ class Edge1FrontDoorApachePolicyTests(unittest.TestCase):
             "/edge1-status/",
             "/edge1-ops/",
             "/api/operations/",
+            "/api/timekeeping/utc",
             "/mcp/wwcx-timekeeping",
             "/api/electrum-watch/healthz",
             "/admin/",
@@ -48,6 +49,7 @@ class Edge1FrontDoorApachePolicyTests(unittest.TestCase):
         for path in (
             "/edge1-status/",
             "/api/operations/",
+            "/api/timekeeping/utc",
             "/mcp/wwcx-timekeeping/healthz",
             "/api/electrum-watch/v1/wallet/info",
             "/admin/",
