@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1118"><title>Number Portability Center | WW.CX</title>
+<link rel="stylesheet" href="./styles.css"><script src="./app.js" defer></script>
+</head>
+<body>
+<main class="shell">
+<header><div><p class="eyebrow">WW.CX Telecom Operations</p><h1>Number Portability Center</h1><p class="subtitle">Port-in and port-out case management, evidence, FOC tracking and cutover readiness.</p></div><span class="mode">Submission & cutover locked</span></header>
+<section class="notice"><strong>Preparation is not a port.</strong> This surface can organize and review porting work. Carrier submission, number activation, routing cutover and port completion require a separately commissioned production control path.</section>
+<section class="stats" id="stats"><div><span>Cases</span><strong id="case-count">—</strong></div><div><span>Numbers</span><strong id="number-count">—</strong></div><div><span>Documents</span><strong id="document-count">—</strong></div></section>
+<nav class="tabs" aria-label="Porting views"><button class="active" data-filter="">All cases</button><button data-filter="collecting_documents">Documents</button><button data-filter="ready_for_review">Review</button><button data-filter="awaiting_approval">Needs approval</button><button data-filter="approved_for_submission">Ready to submit</button></nav>
+<section class="grid"><div><div class="section-heading"><div><p class="eyebrow">Port queue</p><h2>Cases</h2></div><button id="refresh">Refresh</button></div><div id="status" class="status">Loading…</div><ol id="cases" class="cases"></ol></div><aside><p class="eyebrow">Case details</p><h2 id="detail-title">Select a case</h2><div id="detail" class="detail"><p>Number list, carrier context, document inventory, FOC and cutover fields appear here.</p></div><div class="actions"><button disabled>Submit port</button><button disabled>Schedule cutover</button><button disabled>Complete port</button></div><p class="hint">Production actions remain disabled until the porting control plane is separately authorized and commissioned.</p></aside></section>
+</main>
+</body></html>
