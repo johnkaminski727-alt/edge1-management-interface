@@ -134,6 +134,13 @@ def _audit(record: dict[str, Any]) -> None:
         os.close(fd)
 
 
+def _audit_best_effort(record: dict[str, Any]) -> None:
+    try:
+        _audit(record)
+    except Exception:
+        pass
+
+
 def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
     if not SOURCE.is_file():
         raise RuntimeError("reviewed source unavailable")
@@ -216,41 +223,57 @@ def _send(conn: socket.socket, payload: dict[str, Any]) -> None:
     conn.sendall(data)
 
 
+def _audit_record(started: str, request_id: str, pid: int, uid: int, gid: int, status: str, error: str | None = None, **extra: Any) -> dict[str, Any]:
+    return {
+        "schema": "wwcx.edge1-operator-privileged.audit.v1",
+        "started_at": started,
+        "recorded_at": utcnow(),
+        "request_id": request_id,
+        "action": "telephony_console_reload",
+        "peer_pid": pid,
+        "peer_uid": uid,
+        "peer_gid": gid,
+        "status": status,
+        "error": error,
+        **extra,
+    }
+
+
 def _serve_connection(conn: socket.socket) -> None:
     started = utcnow()
     pid = uid = gid = -1
     request_id = "unknown"
-    status = "denied"
-    error = None
     try:
         pid, uid, gid = _peer_credentials(conn)
         if not _peer_is_operations_api(pid, uid):
             raise BrokerRequestError("peer is not the Operations API")
         request = _receive_request(conn)
         request_id = request["request_id"]
+
+        # Privileged mutation is forbidden if the durable root-side audit trail is not
+        # writable. This intent record is fsynced before systemctl is invoked.
+        _audit(_audit_record(started, request_id, pid, uid, gid, "authorized_attempt"))
         result = _execute_reload(request)
-        status = "succeeded"
+        _audit(_audit_record(
+            started,
+            request_id,
+            pid,
+            uid,
+            gid,
+            "succeeded",
+            pid_before=result["pid_before"],
+            pid_after=result["pid_after"],
+        ))
         _send(conn, result)
-    except BrokerRequestError as exc:
-        error = "request_denied"
-        _send(conn, {"version": 1, "status": "error", "error": error})
+    except BrokerRequestError:
+        _audit_best_effort(_audit_record(started, request_id, pid, uid, gid, "denied", "request_denied"))
+        _send(conn, {"version": 1, "status": "error", "error": "request_denied"})
     except Exception:
-        error = "action_failed"
-        status = "failed"
-        _send(conn, {"version": 1, "status": "error", "error": error, "request_id": request_id})
-    finally:
-        _audit({
-            "schema": "wwcx.edge1-operator-privileged.audit.v1",
-            "started_at": started,
-            "completed_at": utcnow(),
-            "request_id": request_id,
-            "action": "telephony_console_reload",
-            "peer_pid": pid,
-            "peer_uid": uid,
-            "peer_gid": gid,
-            "status": status,
-            "error": error,
-        })
+        # If the first strict audit write failed, no mutation occurred. If an error
+        # happened after the intent record, that durable record still proves the
+        # attempted privileged action even if this completion write also fails.
+        _audit_best_effort(_audit_record(started, request_id, pid, uid, gid, "failed", "action_failed"))
+        _send(conn, {"version": 1, "status": "error", "error": "action_failed", "request_id": request_id})
 
 
 def _prepare_socket() -> socket.socket:
