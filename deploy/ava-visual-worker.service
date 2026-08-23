@@ -7,11 +7,12 @@ Wants=network-online.target
 Type=simple
 User=bigbird-ai
 Group=bigbird-ai
-WorkingDirectory=/opt/edge1-management-interface
+WorkingDirectory=/opt/wwcx/ava-visual/current
 EnvironmentFile=-/etc/bigbird-ai-gateway.env
 EnvironmentFile=/etc/wwcx/private-ai-browser-worker.env
 Environment=BB_OPENAI_IMAGE_MODEL=gpt-image-2
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/ava_visual_worker.py
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/wwcx/ava-visual/current/ava_visual_worker.py
 Restart=on-failure
 RestartSec=5s
 NoNewPrivileges=true
