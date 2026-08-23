@@ -16,6 +16,7 @@ done
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+repo_git() { git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" "$@"; }
 SERVICE=wwcx-number-portability.service
 UNIT_SOURCE="$REPO_ROOT/deploy/systemd/$SERVICE"
 UNIT_TARGET="/etc/systemd/system/$SERVICE"
@@ -27,9 +28,9 @@ CURRENT="$RUNTIME_ROOT/current"
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/number-portability
 
 python3 -m py_compile "$REPO_ROOT/server/number_portability_center.py" "$REPO_ROOT/server/number_portability_server.py"
-HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || printf unknown)
-BRANCH=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)
-DIRTY=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null || printf unknown)
+HEAD=$(repo_git rev-parse HEAD 2>/dev/null || printf unknown)
+BRANCH=$(repo_git branch --show-current 2>/dev/null || true)
+DIRTY=$(repo_git status --porcelain 2>/dev/null || printf unknown)
 
 echo "Number Portability Center read-only commissioning preflight"
 echo "  mode: $MODE"
