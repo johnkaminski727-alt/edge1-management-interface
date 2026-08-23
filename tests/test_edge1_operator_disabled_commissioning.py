@@ -46,6 +46,27 @@ class DisabledCommissioningTests(unittest.TestCase):
         self.assertNotIn('chmod -R g+w', COMMISSION)
         self.assertNotIn('chmod -R a+w', COMMISSION)
 
+    def test_reviewed_control_base_tolerates_only_unrelated_main_drift(self):
+        self.assertIn("--reviewed-control-base", COMMISSION)
+        self.assertIn('git merge-base --is-ancestor "$REVIEWED_CONTROL_BASE" "$REMOTE"', COMMISSION)
+        self.assertIn('CONTROL_DIFF=$(git diff --name-only "$REVIEWED_CONTROL_BASE..$REMOTE" --', COMMISSION)
+        for protected in (
+            "deploy/edge1-operator",
+            "deploy/pin-edge1-operator-mcp-runtime.sh",
+            "deploy/pin-edge1-operations-api-runtime.sh",
+            "config/edge1-operator-capabilities.json",
+            "config/edge1-operations-allowlist.json",
+            "server/edge1_operator_http.py",
+            "server/edge1_operations_api.py",
+            "server/edge1_operations_typed_actions.py",
+            "server/asterisk_process_identity.py",
+            "tools/operator",
+        ):
+            self.assertIn(protected, COMMISSION)
+        self.assertIn('fail "fresh control-plane review is required"', COMMISSION)
+        self.assertIn("resolved_deploy_commit=$DEPLOY_COMMIT", COMMISSION)
+        self.assertIn("EXPECTED_COMMIT=$DEPLOY_COMMIT", COMMISSION)
+
     def test_failed_child_output_is_visible_and_err_trap_is_not_inherited(self):
         self.assertIn("set -euo pipefail", COMMISSION)
         self.assertNotIn("set -Eeuo pipefail", COMMISSION)
