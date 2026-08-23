@@ -20,6 +20,8 @@ COLLECTOR_LIVE=/usr/local/libexec/bigbird-ops-collect.py
 SUMMARY_LIVE=/usr/local/libexec/office_portability_bridge_summary.py
 PUSH_SERVICE=bigbird-ops-push.service
 SNAPSHOT=/var/lib/bigbird/operations-center/latest.json
+AVA_SUMMARY_URL=http://127.0.0.1:8116/api/ava-office/summary
+PORT_SUMMARY_URL=http://127.0.0.1:8117/api/portability/summary
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/office-portability-bridge
 
 python3 -m py_compile "$COLLECTOR_SOURCE" "$SUMMARY_SOURCE"
@@ -51,6 +53,51 @@ EVIDENCE="$EVIDENCE_ROOT/$STAMP"
 BACKUP="$EVIDENCE/backups"
 install -d -m 0700 "$EVIDENCE" "$BACKUP"
 printf '%s\n' "$HEAD" > "$EVIDENCE/repository-commit.txt"
+
+printf '=== VERIFY LOOPBACK AGGREGATE SOURCES ===\n'
+python3 - "$AVA_SUMMARY_URL" "$PORT_SUMMARY_URL" "$EVIDENCE/loopback-summaries.json" <<'PY'
+import json
+import pathlib
+import sys
+import urllib.request
+
+ava_url, port_url, output_path = sys.argv[1:4]
+
+def fetch(url):
+    request = urllib.request.Request(url, headers={'Accept': 'application/json'})
+    with urllib.request.urlopen(request, timeout=2.0) as response:
+        raw = response.read(65537)
+        assert response.status == 200
+    assert len(raw) <= 65536
+    payload = json.loads(raw.decode('utf-8'))
+    assert isinstance(payload, dict)
+    return payload
+
+ava = fetch(ava_url)
+portability = fetch(port_url)
+assert ava.get('mode') == 'read-only'
+assert portability.get('mode') == 'read-only'
+assert portability.get('submission_authorized') is False
+assert portability.get('cutover_authorized') is False
+summary = {
+    'ava': {
+        'mode': ava.get('mode'),
+        'work_items': ava.get('work_items', {}),
+        'actions': ava.get('actions', {}),
+        'standing_instructions': ava.get('standing_instructions', 0),
+    },
+    'number_portability': {
+        'mode': portability.get('mode'),
+        'cases': portability.get('cases', {}),
+        'numbers': portability.get('numbers', 0),
+        'documents': portability.get('documents', 0),
+        'submission_authorized': False,
+        'cutover_authorized': False,
+    },
+}
+pathlib.Path(output_path).write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+print(json.dumps(summary, sort_keys=True))
+PY
 
 HAD_COLLECTOR=0
 HAD_SUMMARY=0
@@ -93,6 +140,13 @@ assert data['provisioning_locked'] is True
 assert data['authoritative_dns_editing_locked'] is True
 assert isinstance(data['ava_office'], dict)
 assert isinstance(data['number_portability'], dict)
+assert data['ava_office'].get('available') is True
+assert data['ava_office'].get('mode') == 'read-only'
+assert data['ava_office'].get('execution_enabled') is False
+assert data['number_portability'].get('available') is True
+assert data['number_portability'].get('mode') == 'read-only'
+assert data['number_portability'].get('submission_authorized') is False
+assert data['number_portability'].get('cutover_authorized') is False
 privacy = data['office_services_privacy']
 for key in (
     'record_level_content_included',
@@ -102,16 +156,18 @@ for key in (
     'credentials_included',
 ):
     assert privacy[key] is False
-assert data['ava_office'].get('execution_enabled') is False
-assert data['number_portability'].get('submission_authorized') is False
-assert data['number_portability'].get('cutover_authorized') is False
 summary = {
     'ok': True,
-    'ava_available': bool(data['ava_office'].get('available')),
-    'portability_available': bool(data['number_portability'].get('available')),
+    'ava_available': True,
+    'ava_work_items': data['ava_office'].get('work_items', {}),
+    'ava_actions': data['ava_office'].get('actions', {}),
+    'portability_available': True,
+    'portability_cases': data['number_portability'].get('cases', {}),
+    'portability_numbers': data['number_portability'].get('numbers', 0),
+    'portability_documents': data['number_portability'].get('documents', 0),
     'privacy': privacy,
 }
-out.write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')
+out.write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8')
 print(json.dumps(summary, sort_keys=True))
 PY
 

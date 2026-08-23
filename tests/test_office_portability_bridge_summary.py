@@ -1,79 +1,116 @@
 import json
-from pathlib import Path
-import tempfile
 import unittest
 
-from server.ava_office_manager import OfficeManagerStore
-from server.number_portability_center import PortabilityStore
-from server.office_portability_bridge_summary import build_summary
+from server.office_portability_bridge_summary import (
+    DEFAULT_AVA_URL,
+    DEFAULT_PORT_URL,
+    build_summary,
+)
 
 
 class OfficePortabilityBridgeTests(unittest.TestCase):
-    def test_missing_databases_fail_closed(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            payload = build_summary(root / "missing-ava.sqlite3", root / "missing-port.sqlite3")
+    def test_unavailable_loopback_services_fail_closed(self):
+        def unavailable(_url):
+            raise OSError("loopback service unavailable")
+
+        payload = build_summary(fetcher=unavailable)
         self.assertFalse(payload["ava_office"]["available"])
         self.assertFalse(payload["ava_office"]["execution_enabled"])
         self.assertFalse(payload["number_portability"]["available"])
         self.assertFalse(payload["number_portability"]["submission_authorized"])
         self.assertFalse(payload["number_portability"]["cutover_authorized"])
 
-    def test_bridge_contains_counts_not_record_content(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            ava_path = root / "ava.sqlite3"
-            port_path = root / "port.sqlite3"
+    def test_bridge_contains_only_sanitized_aggregate_fields(self):
+        responses = {
+            DEFAULT_AVA_URL: {
+                "mode": "read-only",
+                "work_items": {"new": 1, "completed": 3},
+                "actions": {"blocked": 2},
+                "standing_instructions": 4,
+                "title": "Sensitive dentist appointment",
+                "desired_outcome": "Call private clinic",
+            },
+            DEFAULT_PORT_URL: {
+                "mode": "read-only",
+                "cases": {"draft": 1},
+                "numbers": 1,
+                "documents": 1,
+                "submission_authorized": False,
+                "cutover_authorized": False,
+                "customer_ref": "SECRET-CUSTOMER-REF",
+                "number": "3065551212",
+                "carrier": "Secret Carrier",
+                "document_reference": "private/loa-secret.pdf",
+            },
+        }
 
-            office = OfficeManagerStore(ava_path)
-            office.create_work_item(
-                title="Sensitive dentist appointment",
-                desired_outcome="Call private clinic and arrange appointment",
-                source_channel="phone",
-                source_ref="call-secret-ref",
-            )
-            office.add_standing_instruction(
-                domain="calendar.event.create",
-                statement="Prefer private afternoons",
-                effect="prefer",
-            )
-
-            ports = PortabilityStore(port_path)
-            case = ports.create_case(
-                direction="inbound",
-                customer_ref="SECRET-CUSTOMER-REF",
-                numbers=["3065551212"],
-                losing_carrier="Secret Carrier",
-            )
-            ports.add_document(
-                case["id"],
-                document_type="loa",
-                reference="private/loa-secret.pdf",
-            )
-
-            payload = build_summary(ava_path, port_path)
-            encoded = json.dumps(payload, sort_keys=True)
+        payload = build_summary(fetcher=lambda url: responses[url])
+        encoded = json.dumps(payload, sort_keys=True)
 
         self.assertTrue(payload["ava_office"]["available"])
         self.assertEqual(payload["ava_office"]["work_items"].get("new"), 1)
-        self.assertEqual(payload["ava_office"]["standing_instructions"], 1)
+        self.assertEqual(payload["ava_office"]["standing_instructions"], 4)
+        self.assertFalse(payload["ava_office"]["execution_enabled"])
         self.assertTrue(payload["number_portability"]["available"])
         self.assertEqual(payload["number_portability"]["cases"].get("draft"), 1)
         self.assertEqual(payload["number_portability"]["numbers"], 1)
         self.assertEqual(payload["number_portability"]["documents"], 1)
+        self.assertFalse(payload["number_portability"]["submission_authorized"])
+        self.assertFalse(payload["number_portability"]["cutover_authorized"])
         self.assertFalse(payload["privacy"]["record_level_content_included"])
 
         for forbidden in (
             "Sensitive dentist appointment",
             "private clinic",
-            "call-secret-ref",
-            "Prefer private afternoons",
             "SECRET-CUSTOMER-REF",
             "3065551212",
             "Secret Carrier",
             "private/loa-secret.pdf",
         ):
             self.assertNotIn(forbidden, encoded)
+
+    def test_portability_authority_flags_cannot_be_promoted_by_source(self):
+        responses = {
+            DEFAULT_AVA_URL: {
+                "mode": "read-only",
+                "work_items": {},
+                "actions": {},
+                "standing_instructions": 0,
+            },
+            DEFAULT_PORT_URL: {
+                "mode": "read-only",
+                "cases": {},
+                "numbers": 0,
+                "documents": 0,
+                "submission_authorized": True,
+                "cutover_authorized": False,
+            },
+        }
+        payload = build_summary(fetcher=lambda url: responses[url])
+        self.assertFalse(payload["number_portability"]["available"])
+        self.assertFalse(payload["number_portability"]["submission_authorized"])
+        self.assertFalse(payload["number_portability"]["cutover_authorized"])
+
+    def test_invalid_aggregate_values_fail_closed(self):
+        responses = {
+            DEFAULT_AVA_URL: {
+                "mode": "read-only",
+                "work_items": {"new": -1},
+                "actions": {},
+                "standing_instructions": 0,
+            },
+            DEFAULT_PORT_URL: {
+                "mode": "read-only",
+                "cases": {},
+                "numbers": 0,
+                "documents": 0,
+                "submission_authorized": False,
+                "cutover_authorized": False,
+            },
+        }
+        payload = build_summary(fetcher=lambda url: responses[url])
+        self.assertFalse(payload["ava_office"]["available"])
+        self.assertFalse(payload["ava_office"]["execution_enabled"])
 
 
 if __name__ == "__main__":
