@@ -24,6 +24,78 @@
       "enabled": true
     },
     {
+      "name": "edge1.services.read",
+      "class": "read",
+      "scope": "edge1.status.read",
+      "backend": "operations_api",
+      "action": "system.services",
+      "enabled": true
+    },
+    {
+      "name": "edge1.network.addresses.read",
+      "class": "read",
+      "scope": "edge1.network.read",
+      "backend": "operations_api",
+      "action": "network.addresses",
+      "enabled": true
+    },
+    {
+      "name": "edge1.network.routes.read",
+      "class": "read",
+      "scope": "edge1.network.read",
+      "backend": "operations_api",
+      "action": "network.routes",
+      "enabled": true
+    },
+    {
+      "name": "edge1.disk.read",
+      "class": "read",
+      "scope": "edge1.status.read",
+      "backend": "operations_api",
+      "action": "disk.state",
+      "enabled": true
+    },
+    {
+      "name": "edge1.apache.read",
+      "class": "read",
+      "scope": "edge1.services.read",
+      "backend": "operations_api",
+      "action": "apache.status",
+      "enabled": true
+    },
+    {
+      "name": "edge1.asterisk.read",
+      "class": "read",
+      "scope": "edge1.telephony.read",
+      "backend": "operations_api",
+      "action": "asterisk.diagnostics",
+      "enabled": true
+    },
+    {
+      "name": "edge1.bigbird.health.read",
+      "class": "read",
+      "scope": "edge1.bigbird.read",
+      "backend": "operations_api",
+      "action": "bigbird.health",
+      "enabled": true
+    },
+    {
+      "name": "edge1.bigbird.tools.read",
+      "class": "read",
+      "scope": "edge1.bigbird.read",
+      "backend": "operations_api",
+      "action": "bigbird.tools",
+      "enabled": true
+    },
+    {
+      "name": "edge1.config.digest.read",
+      "class": "read",
+      "scope": "edge1.config.digest.read",
+      "backend": "operations_api",
+      "action": "config.digest",
+      "enabled": true
+    },
+    {
       "name": "edge1.repository.status",
       "class": "read",
       "scope": "edge1.repository.read",
