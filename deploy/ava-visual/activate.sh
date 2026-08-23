@@ -18,13 +18,13 @@ UNIT=/etc/systemd/system/ava-visual-worker.service
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/ava-visual
 BACKUP_ROOT=/var/backups/wwcx-ava-visual
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+SOURCE_FILES=(ava_visual_worker.py ava_visual_generator.py private_ai_browser_worker.py ava_agent_controller.py)
 
 [[ -d "$REPO/.git" || -f "$REPO/.git" ]] || { echo "repository unavailable: $REPO" >&2; exit 1; }
 git -C "$REPO" cat-file -e "$REF^{commit}"
 COMMIT=$(git -C "$REPO" rev-parse "$REF^{commit}")
-for path in server/ava_visual_worker.py server/ava_visual_generator.py server/private_ai_browser_worker.py deploy/ava-visual-worker.service; do
-  git -C "$REPO" cat-file -e "$REF:$path"
-done
+for name in "${SOURCE_FILES[@]}"; do git -C "$REPO" cat-file -e "$REF:server/$name"; done
+git -C "$REPO" cat-file -e "$REF:deploy/ava-visual-worker.service"
 
 if [[ "$DRY_RUN" == 1 ]]; then
   printf 'mode=dry-run\nrepo=%s\nref=%s\ncommit=%s\nruntime_root=%s\nunit=%s\n' "$REPO" "$REF" "$COMMIT" "$ROOT" "$UNIT"
@@ -46,17 +46,16 @@ BACKUP="$BACKUP_ROOT/$STAMP"
 STAGING="$ROOT/releases/.staging-$STAMP"
 RELEASE="$ROOT/releases/$COMMIT"
 mkdir -p "$EVIDENCE" "$BACKUP" "$ROOT/releases"
-chmod 0750 "$EVIDENCE" "$BACKUP" "$ROOT" "$ROOT/releases"
+chmod 0750 "$EVIDENCE" "$BACKUP"
+chmod 0755 "$ROOT" "$ROOT/releases"
 mkdir "$STAGING"
 trap 'rm -rf "$STAGING"' EXIT
 
-for name in ava_visual_worker.py ava_visual_generator.py private_ai_browser_worker.py; do
-  git -C "$REPO" show "$REF:server/$name" > "$STAGING/$name"
-done
+for name in "${SOURCE_FILES[@]}"; do git -C "$REPO" show "$REF:server/$name" > "$STAGING/$name"; done
 git -C "$REPO" show "$REF:deploy/ava-visual-worker.service" > "$STAGING/ava-visual-worker.service"
 printf '%s\n' "$COMMIT" > "$STAGING/SOURCE_COMMIT"
-chmod 0644 "$STAGING"/*.py "$STAGING/ava-visual-worker.service "$STAGING/SOURCE_COMMIT"
-python3 -m py_compile "$STAGING/ava_visual_worker.py" "$STAGING/ava_visual_generator.py" "$STAGING/private_ai_browser_worker.py"
+chmod 0644 "$STAGING"/*.py "$STAGING/ava-visual-worker.service" "$STAGING/SOURCE_COMMIT"
+python3 -m py_compile "$STAGING"/*.py
 systemd-analyze verify "$STAGING/ava-visual-worker.service"
 
 PREV_CURRENT=''
@@ -67,7 +66,7 @@ if systemctl is-active --quiet ava-visual-worker.service 2>/dev/null; then PREV_
 if systemctl is-enabled --quiet ava-visual-worker.service 2>/dev/null; then PREV_ENABLED=1; fi
 
 if [[ -e "$RELEASE" ]]; then
-  for name in ava_visual_worker.py ava_visual_generator.py private_ai_browser_worker.py SOURCE_COMMIT; do
+  for name in "${SOURCE_FILES[@]}" SOURCE_COMMIT; do
     cmp -s "$STAGING/$name" "$RELEASE/$name" || { echo "existing immutable release differs: $RELEASE" >&2; exit 1; }
   done
 else
@@ -76,7 +75,7 @@ else
 fi
 chown -R root:root "$RELEASE"
 chmod 0755 "$RELEASE"
-chmod 0644 "$RELEASE"/*.py "$RELEASE/SOURCE_COMMIT"
+chmod 0644 "$RELEASE"/*.py "$RELEASE/SOURCE_COMMIT" "$RELEASE/ava-visual-worker.service"
 
 ln -s "$RELEASE" "$ROOT/.current-$STAMP"
 mv -Tf "$ROOT/.current-$STAMP" "$ROOT/current"
@@ -95,7 +94,7 @@ systemctl is-active --quiet ava-visual-worker.service
   printf 'previous_unit=%s\nprevious_active=%s\nprevious_enabled=%s\n' "$PREV_UNIT" "$PREV_ACTIVE" "$PREV_ENABLED"
   systemctl show ava-visual-worker.service -p LoadState -p ActiveState -p SubState -p UnitFileState -p MainPID -p ExecMainStatus
 } > "$EVIDENCE/result.txt"
-sha256sum "$RELEASE/ava_visual_worker.py" "$RELEASE/ava_visual_generator.py" "$RELEASE/private_ai_browser_worker.py" "$UNIT" > "$EVIDENCE/sha256-manifest.txt"
+sha256sum "$RELEASE"/*.py "$UNIT" > "$EVIDENCE/sha256-manifest.txt"
 
 cat > "$EVIDENCE/rollback.sh" <<ROLLBACK
 #!/usr/bin/env bash
@@ -107,12 +106,12 @@ PREV_CURRENT='$PREV_CURRENT'
 PREV_UNIT='$PREV_UNIT'
 PREV_ACTIVE='$PREV_ACTIVE'
 PREV_ENABLED='$PREV_ENABLED'
-if [[ \"\$PREV_CURRENT\" != '' ]]; then ln -sfn \"\$PREV_CURRENT\" \"\$ROOT/current\"; else rm -f \"\$ROOT/current\"; fi
-if [[ \"\$PREV_UNIT\" == 1 ]]; then install -o root -g root -m 0644 \"\$BACKUP/ava-visual-worker.service\" \"\$UNIT\"; else systemctl disable --now ava-visual-worker.service || true; rm -f \"\$UNIT\"; fi
+if [[ "\$PREV_CURRENT" != '' ]]; then ln -sfn "\$PREV_CURRENT" "\$ROOT/current"; else rm -f "\$ROOT/current"; fi
+if [[ "\$PREV_UNIT" == 1 ]]; then install -o root -g root -m 0644 "\$BACKUP/ava-visual-worker.service" "\$UNIT"; else systemctl disable --now ava-visual-worker.service || true; rm -f "\$UNIT"; fi
 systemctl daemon-reload
-if [[ \"\$PREV_UNIT\" == 1 ]]; then
-  if [[ \"\$PREV_ENABLED\" == 1 ]]; then systemctl enable ava-visual-worker.service; else systemctl disable ava-visual-worker.service || true; fi
-  if [[ \"\$PREV_ACTIVE\" == 1 ]]; then systemctl restart ava-visual-worker.service; else systemctl stop ava-visual-worker.service || true; fi
+if [[ "\$PREV_UNIT" == 1 ]]; then
+  if [[ "\$PREV_ENABLED" == 1 ]]; then systemctl enable ava-visual-worker.service; else systemctl disable ava-visual-worker.service || true; fi
+  if [[ "\$PREV_ACTIVE" == 1 ]]; then systemctl restart ava-visual-worker.service; else systemctl stop ava-visual-worker.service || true; fi
 fi
 ROLLBACK
 chmod 0700 "$EVIDENCE/rollback.sh"
