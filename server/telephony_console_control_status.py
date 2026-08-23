@@ -9,13 +9,18 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/opt/edge1-management-interface")
-SOURCE = REPO / "server" / "telephony_status_server.py"
+SOURCE_REL = "server/telephony_status_server.py"
+SOURCE = REPO / SOURCE_REL
 SERVICE = "wwcx-telephony-console.service"
 HEALTH_URL = "http://127.0.0.1:8096/healthz"
 
 
+def _command(argv: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(argv, capture_output=True, text=True, check=False, timeout=5)
+
+
 def _run(argv: list[str]) -> str:
-    result = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=5)
+    result = _command(argv)
     if result.returncode != 0:
         return ""
     return result.stdout.strip()
@@ -27,6 +32,12 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _source_matches_head() -> bool:
+    tracked = _command(["git", "-C", str(REPO), "ls-files", "--error-unmatch", SOURCE_REL])
+    clean = _command(["git", "-C", str(REPO), "diff", "--quiet", "HEAD", "--", SOURCE_REL])
+    return tracked.returncode == 0 and clean.returncode == 0
 
 
 def _health() -> bool:
@@ -50,6 +61,7 @@ def snapshot() -> dict[str, object]:
         "pid": pid,
         "repo_head": repo_head,
         "source_sha256": source_sha256,
+        "source_matches_head": _source_matches_head(),
         "loopback_health": _health(),
         "control": "telephony_console_reload",
         "mutates_asterisk": False,
