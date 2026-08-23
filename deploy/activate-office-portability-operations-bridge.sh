@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+repo_git() { git -c safe.directory="$ROOT" -C "$ROOT" "$@"; }
 EXPECTED_COMMIT=""
 MODE=dry-run
 for arg in "$@"; do
@@ -22,9 +23,9 @@ SNAPSHOT=/var/lib/bigbird/operations-center/latest.json
 EVIDENCE_ROOT=/var/lib/wwcx-deployment-evidence/office-portability-bridge
 
 python3 -m py_compile "$COLLECTOR_SOURCE" "$SUMMARY_SOURCE"
-HEAD="$(git -C "$ROOT" rev-parse HEAD)"
-BRANCH="$(git -C "$ROOT" branch --show-current || true)"
-DIRTY="$(git -C "$ROOT" status --porcelain)"
+HEAD="$(repo_git rev-parse HEAD)"
+BRANCH="$(repo_git branch --show-current || true)"
+DIRTY="$(repo_git status --porcelain)"
 
 echo "Office/Portability signed snapshot bridge preflight"
 echo "  mode: $MODE"

@@ -39,6 +39,7 @@ class CommissioningGuardrailTests(unittest.TestCase):
             self.assertIn("apply requires a clean checkout", script)
             self.assertIn("main or a detached exact-commit checkout", script)
             self.assertIn("expected commit mismatch", script)
+            self.assertIn('git -c safe.directory="$REPO_ROOT"', script)
             self.assertIn(runtime_root, script)
             self.assertIn('RELEASE="$RELEASES/$HEAD"', script)
             self.assertIn('mv -Tf "$CURRENT.new" "$CURRENT"', script)
@@ -52,6 +53,8 @@ class CommissioningGuardrailTests(unittest.TestCase):
         self.assertIn("main or a detached exact-commit checkout", script)
         self.assertIn("expected commit mismatch", script)
         self.assertIn("apply requires clean working tree", script)
+        self.assertIn('git -c safe.directory="$ROOT"', script)
+        self.assertNotIn("git config --global", script)
 
     def test_commissioning_does_not_enable_external_action_planes(self):
         combined = (
