@@ -70,6 +70,14 @@ class BrowserWorkerTests(unittest.TestCase):
         self.assertNotIn("print(queue_secret", source)
         self.assertNotIn("print(gateway_secret", source)
 
+    def test_progress_is_optional_for_old_queue(self) -> None:
+        original = worker.queue_call
+        worker.queue_call = lambda *args, **kwargs: (_ for _ in ()).throw(worker.WorkerError("queue returned HTTP 400"))
+        try:
+            self.assertFalse(worker.publish_progress("a" * 32, {"phase": "planning"}, "q" * 32, "worker-key"))
+        finally:
+            worker.queue_call = original
+
 
 if __name__ == "__main__":
     unittest.main()
