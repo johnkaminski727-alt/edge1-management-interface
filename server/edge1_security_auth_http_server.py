@@ -18,6 +18,7 @@ LOOPBACKS = {"127.0.0.1", "::1"}
 class Handler(BaseHTTPRequestHandler):
     adapter: Edge1SecurityAuthHttpAdapter
     server_version = "Edge1SecurityAuth/1"
+    protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt: str, *args: Any) -> None:
         return
@@ -43,8 +44,13 @@ class Handler(BaseHTTPRequestHandler):
             )
             response = self.adapter.handle(request)
         self.send_response(response.status)
+        has_length = False
         for key, value in response.headers:
+            if key.lower() == "content-length":
+                has_length = True
             self.send_header(key, value)
+        if not has_length:
+            self.send_header("Content-Length", str(len(response.body)))
         self.end_headers()
         if response.body:
             self.wfile.write(response.body)
