@@ -6,8 +6,10 @@ on:
       - 'server/number_portability_center.py'
       - 'server/number_portability_server.py'
       - 'deploy/systemd/wwcx-number-portability.service'
+      - 'deploy/number-portability/**'
       - 'src/web/number-portability/**'
       - 'tests/test_number_portability_center.py'
+      - 'tests/test_ava_portability_commissioning.py'
       - '.github/workflows/number-portability-center.yml'
   push:
     branches: [main]
@@ -15,8 +17,10 @@ on:
       - 'server/number_portability_center.py'
       - 'server/number_portability_server.py'
       - 'deploy/systemd/wwcx-number-portability.service'
+      - 'deploy/number-portability/**'
       - 'src/web/number-portability/**'
       - 'tests/test_number_portability_center.py'
+      - 'tests/test_ava_portability_commissioning.py'
       - '.github/workflows/number-portability-center.yml'
 
 permissions:
@@ -34,8 +38,12 @@ jobs:
         with:
           node-version: '24'
       - name: Compile Python
-        run: python -m py_compile server/number_portability_center.py server/number_portability_server.py tests/test_number_portability_center.py
+        run: python -m py_compile server/number_portability_center.py server/number_portability_server.py tests/test_number_portability_center.py tests/test_ava_portability_commissioning.py
+      - name: Validate commissioning shell
+        run: |
+          sh -n deploy/number-portability/commission-read-only.sh
+          sh deploy/number-portability/commission-read-only.sh --dry-run
       - name: Validate browser JavaScript
         run: node --check src/web/number-portability/app.js
       - name: Run tests
-        run: python -m unittest -v tests.test_number_portability_center
+        run: python -m unittest -v tests.test_number_portability_center tests.test_ava_portability_commissioning
