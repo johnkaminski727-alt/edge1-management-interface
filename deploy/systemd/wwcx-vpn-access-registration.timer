@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh WW.CX VPN access registration status
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=60s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

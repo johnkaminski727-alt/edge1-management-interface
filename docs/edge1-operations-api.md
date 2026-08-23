@@ -15,6 +15,9 @@ Provide BigBird and approved operators with a narrow, auditable Edge1 execution 
 - Commands are complete fixed argv arrays loaded from a root-controlled allowlist.
 - Request parameters are not accepted.
 - Mutating actions require both an allowlist flag and `EDGE1_OPS_MUTATIONS_ENABLED=true`.
+- VPN registration state writes use a separate
+  `EDGE1_VPN_REGISTRATION_WRITES_ENABLED=true` gate and never enable network
+  enforcement.
 - The supplied systemd unit starts with mutations disabled and no Linux capabilities.
 - `NoNewPrivileges=yes` remains enabled in production.
 - Output is bounded before storage and response.
@@ -107,6 +110,9 @@ The manifest under `integrations/bigbird-edge1-operations/` enables only read an
 ## Public SQL server boundary
 
 The Operations API does not connect to a public SQL listener. Its default audit store is local SQLite under `/var/lib/edge1-operations-api`.
+
+The same local database contains isolated VPN registration foundation tables.
+See [`vpn-access-registration-foundation.md`](vpn-access-registration-foundation.md).
 
 Before any PostgreSQL backend is enabled:
 
