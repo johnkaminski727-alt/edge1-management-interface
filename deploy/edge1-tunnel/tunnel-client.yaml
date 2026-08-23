@@ -18,9 +18,11 @@ mcp:
   server_urls:
     - channel: main
       url: http://127.0.0.1:8102/mcp
+    - channel: agent-shell
+      url: http://127.0.0.1:8114/mcp
   extra_headers:
     Authorization: env:EDGE1_MCP_AUTHORIZATION
   discovery_extra_headers:
     Authorization: env:EDGE1_MCP_AUTHORIZATION
   connection_max_ttl: 10m
-  max_concurrent_requests: 4
+  max_concurrent_requests: 6
