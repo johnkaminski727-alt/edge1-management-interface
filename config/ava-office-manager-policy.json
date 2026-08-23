@@ -30,20 +30,15 @@
     "calendar.event.cancel",
     "telephony.originate",
     "purchasing.commit",
-    "travel.book",
+    "travel.book"
+  ],
+  "blocked_prefixes": [
     "financial",
     "legal",
     "contract",
     "credential",
     "destructive",
-    "emergency"
-  ],
-  "blocked_prefixes": [
-    "financial.transfer",
-    "contract.sign",
-    "credential.export",
-    "destructive.delete_irrecoverable",
-    "emergency.call",
+    "emergency",
     "telephony.route.change",
     "telephony.number.port",
     "telephony.stir_shaken.sign"
