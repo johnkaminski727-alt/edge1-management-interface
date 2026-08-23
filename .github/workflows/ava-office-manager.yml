@@ -9,10 +9,13 @@ on:
       - 'server/ava_attendant_session.py'
       - 'config/ava-office-manager-policy.json'
       - 'schemas/ava/call-record.schema.json'
+      - 'deploy/systemd/wwcx-ava-office.service'
+      - 'deploy/ava-office/**'
       - 'src/web/ava-office/**'
       - 'tests/test_ava_office_manager.py'
       - 'tests/test_ava_assistant_workflows.py'
       - 'tests/test_ava_office_manager_server.py'
+      - 'tests/test_ava_portability_commissioning.py'
       - 'docs/ava/office-manager-architecture.md'
       - '.github/workflows/ava-office-manager.yml'
   push:
@@ -25,10 +28,13 @@ on:
       - 'server/ava_attendant_session.py'
       - 'config/ava-office-manager-policy.json'
       - 'schemas/ava/call-record.schema.json'
+      - 'deploy/systemd/wwcx-ava-office.service'
+      - 'deploy/ava-office/**'
       - 'src/web/ava-office/**'
       - 'tests/test_ava_office_manager.py'
       - 'tests/test_ava_assistant_workflows.py'
       - 'tests/test_ava_office_manager_server.py'
+      - 'tests/test_ava_portability_commissioning.py'
       - 'docs/ava/office-manager-architecture.md'
       - '.github/workflows/ava-office-manager.yml'
 
@@ -52,12 +58,17 @@ jobs:
             server/ava_attendant_session.py \
             tests/test_ava_office_manager.py \
             tests/test_ava_assistant_workflows.py \
-            tests/test_ava_office_manager_server.py
+            tests/test_ava_office_manager_server.py \
+            tests/test_ava_portability_commissioning.py
       - name: Validate JSON contracts
         run: |
           python -m json.tool config/ava-office-manager-policy.json >/dev/null
           python -m json.tool schemas/ava/call-record.schema.json >/dev/null
+      - name: Validate commissioning shell
+        run: |
+          sh -n deploy/ava-office/commission-read-only.sh
+          sh deploy/ava-office/commission-read-only.sh --dry-run
       - name: Validate browser JavaScript
         run: node --check src/web/ava-office/app.js
       - name: Run office manager tests
-        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server
+        run: python -m unittest -v tests.test_ava_office_manager tests.test_ava_assistant_workflows tests.test_ava_office_manager_server tests.test_ava_portability_commissioning
