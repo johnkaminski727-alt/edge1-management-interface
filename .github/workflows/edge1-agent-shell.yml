@@ -1,0 +1,73 @@
+name: Edge1 Agent Shell
+
+on:
+  pull_request:
+    paths:
+      - 'tools/mcp/edge1-agent-shell/**'
+      - 'deploy/edge1-agent-shell/**'
+      - 'deploy/edge1-tunnel/tunnel-client.yaml'
+      - 'deploy/edge1-tunnel/edge1-secure-mcp-tunnel.service'
+      - 'tests/test_edge1_agent_shell.py'
+      - '.github/workflows/edge1-agent-shell.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/mcp/edge1-agent-shell/**'
+      - 'deploy/edge1-agent-shell/**'
+      - 'deploy/edge1-tunnel/tunnel-client.yaml'
+      - 'deploy/edge1-tunnel/edge1-secure-mcp-tunnel.service'
+      - 'tests/test_edge1_agent_shell.py'
+      - '.github/workflows/edge1-agent-shell.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Agent Shell dependencies
+        working-directory: tools/mcp/edge1-agent-shell
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Syntax check
+        working-directory: tools/mcp/edge1-agent-shell
+        run: npm run check
+      - name: Verify MCP imports
+        working-directory: tools/mcp/edge1-agent-shell
+        run: node -e "Promise.all([import('@modelcontextprotocol/server'), import('@modelcontextprotocol/node'), import('zod/v4')]).then(() => console.error('imports ok'))"
+      - name: Validate Agent Shell contract
+        run: python3 -m unittest -v tests.test_edge1_agent_shell
+      - name: Validate deployment shell
+        run: sh -n deploy/edge1-agent-shell/install-edge1-agent-shell.sh
+      - name: Start loopback service and verify health
+        working-directory: tools/mcp/edge1-agent-shell
+        run: |
+          set -eu
+          token_file="$RUNNER_TEMP/edge1-agent-shell-token"
+          printf '%s\n' 'ci-only-agent-shell-token-0123456789abcdef0123456789abcdef' > "$token_file"
+          chmod 600 "$token_file"
+          EDGE1_AGENT_SHELL_TOKEN_FILE="$token_file" \
+          EDGE1_AGENT_SHELL_AUDIT_LOG="$RUNNER_TEMP/agent-shell-audit.jsonl" \
+          EDGE1_AGENT_SHELL_PORT=18114 \
+          node src/index.js >"$RUNNER_TEMP/agent-shell.out" 2>"$RUNNER_TEMP/agent-shell.err" &
+          pid=$!
+          trap 'kill "$pid" >/dev/null 2>&1 || true' EXIT
+          i=0
+          while [ "$i" -lt 20 ]; do
+            if curl -fsS "http://127.0.0.1:18114/healthz" | grep -F '"status":"ok"' >/dev/null; then
+              break
+            fi
+            i=$((i + 1))
+            sleep 0.25
+          done
+          curl -fsS "http://127.0.0.1:18114/healthz" | grep -F '"mode":"full"'
+          test -s "$RUNNER_TEMP/agent-shell.err"
+      - name: Secret-pattern scan
+        run: |
+          ! grep -RniE '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})' \
+            tools/mcp/edge1-agent-shell deploy/edge1-agent-shell tests/test_edge1_agent_shell.py
