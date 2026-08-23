@@ -26,7 +26,8 @@ AUDIT_PATH = Path("/var/lib/edge1-operator-privileged/audit.jsonl")
 ALLOWED_USER = "wwadmin"
 ALLOWED_CGROUP = "edge1-operations-api.service"
 REPO = Path("/opt/edge1-management-interface")
-SOURCE = REPO / "server" / "telephony_status_server.py"
+SOURCE_REL = "server/telephony_status_server.py"
+SOURCE = REPO / SOURCE_REL
 TELEPHONY_SERVICE = "wwcx-telephony-console.service"
 ASTERISK_SERVICE = "asterisk.service"
 MESSAGING_SERVICE = "wwcx-messaging-gateway.service"
@@ -76,6 +77,12 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _source_matches_head() -> bool:
+    tracked = _run(["git", "-C", str(REPO), "ls-files", "--error-unmatch", SOURCE_REL], timeout=5)
+    clean = _run(["git", "-C", str(REPO), "diff", "--quiet", "HEAD", "--", SOURCE_REL], timeout=5)
+    return tracked.returncode == 0 and clean.returncode == 0
 
 
 def _validate_request(value: Any) -> dict[str, Any]:
@@ -142,8 +149,8 @@ def _audit_best_effort(record: dict[str, Any]) -> None:
 
 
 def _execute_reload(request: dict[str, Any]) -> dict[str, Any]:
-    if not SOURCE.is_file():
-        raise RuntimeError("reviewed source unavailable")
+    if not SOURCE.is_file() or not _source_matches_head():
+        raise RuntimeError("reviewed source unavailable or differs from HEAD")
     if not _active(TELEPHONY_SERVICE):
         raise RuntimeError("telephony console inactive")
     if not _active(ASTERISK_SERVICE) or not _active(MESSAGING_SERVICE):
@@ -269,9 +276,6 @@ def _serve_connection(conn: socket.socket) -> None:
         _audit_best_effort(_audit_record(started, request_id, pid, uid, gid, "denied", "request_denied"))
         _send(conn, {"version": 1, "status": "error", "error": "request_denied"})
     except Exception:
-        # If the first strict audit write failed, no mutation occurred. If an error
-        # happened after the intent record, that durable record still proves the
-        # attempted privileged action even if this completion write also fails.
         _audit_best_effort(_audit_record(started, request_id, pid, uid, gid, "failed", "action_failed"))
         _send(conn, {"version": 1, "status": "error", "error": "action_failed", "request_id": request_id})
 
