@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from server.ava_call_archive import AvaCallArchiveError, AvaCallArchiveReadModel
+from server.ava_call_archive import AvaCallArchiveError, AvaCallArchiveReadModel, manifest_sha256
 
 
 class AvaCallArchiveTests(unittest.TestCase):
@@ -35,9 +35,11 @@ class AvaCallArchiveTests(unittest.TestCase):
             "summary_ref": None,
             "segments": [{"segment_ref": "segment-0001", "kind": "voicemail", "privacy": "protected_evidence", "started_at_utc": "2026-08-23T09:00:10Z", "ended_at_utc": "2026-08-23T09:01:00Z", "audio_ref": "audio-0001", "transcript_ref": "transcript-0001"}],
             "events": [],
-            "integrity": {"manifest_sha256": "a" * 64, "recording_sha256": None, "transcript_sha256": hashlib.sha256(self.text).hexdigest()},
+            "integrity": {"manifest_sha256": "0" * 64, "recording_sha256": None, "transcript_sha256": hashlib.sha256(self.text).hexdigest()},
         }
-        (self.root / "manifests" / "call-0001.json").write_text(json.dumps(manifest), encoding="utf-8")
+        manifest["integrity"]["manifest_sha256"] = manifest_sha256(manifest)
+        self.manifest_path = self.root / "manifests" / "call-0001.json"
+        self.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         self.model = AvaCallArchiveReadModel(self.root)
 
     def tearDown(self) -> None:
@@ -65,6 +67,13 @@ class AvaCallArchiveTests(unittest.TestCase):
         (self.root / "transcripts" / "transcript-0001.txt").write_text("tampered", encoding="utf-8")
         with self.assertRaises(AvaCallArchiveError):
             self.model.transcript("call-0001")
+
+    def test_manifest_integrity_mismatch_fails_closed(self) -> None:
+        document = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        document["disposition"] = "answered"
+        self.manifest_path.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaises(AvaCallArchiveError):
+            self.model.manifest("call-0001")
 
     def test_reference_traversal_is_rejected(self) -> None:
         with self.assertRaises(AvaCallArchiveError):
