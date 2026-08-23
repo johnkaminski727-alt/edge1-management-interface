@@ -19,6 +19,13 @@ class AvaOperatorBrokerTests(unittest.TestCase):
         path.write_text(json.dumps({"expires_at_unix":int(time.time())+seconds,"actor":"test","ticket":"T1"}),encoding="utf-8")
         path.chmod(0o600)
 
+    def test_mcp_decoder_accepts_json_and_sse(self):
+        payload={"result":{"structuredContent":{"ok":True}}}
+        raw=json.dumps(payload).encode()
+        self.assertEqual(broker._decode_mcp_payload(raw,"application/json"),payload)
+        sse=("event: message\n"+"data: "+json.dumps(payload)+"\n\n").encode()
+        self.assertEqual(broker._decode_mcp_payload(sse,"text/event-stream"),payload)
+
     def test_edge1_read_maps_only_to_named_operator_tools(self):
         with patch.object(broker, "_mcp", return_value={"status":"ok"}) as call:
             value = broker.invoke("edge1.read.health", {}, False)
