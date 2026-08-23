@@ -26,7 +26,11 @@
       "enabled": true,
       "access": "read",
       "required_scope": "edge1.telephony.read",
-      "tools": ["edge1.asterisk_status", "edge1.telephony_status"]
+      "tools": [
+        "edge1.asterisk_status",
+        "edge1.telephony_status",
+        "edge1.telephony_console_control_status"
+      ]
     },
     "edge1.messaging.read": {
       "enabled": true,
