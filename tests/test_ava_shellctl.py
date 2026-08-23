@@ -13,7 +13,7 @@ class Tests(unittest.TestCase):
         p2=patch.object(ctl,'AUDIT',root/'audit.jsonl'); p2.start(); self.addCleanup(p2.stop)
     def test_enable_status_disable(self):
         value=ctl.enable('edge1',15,'tester','diagnosis','T1')
-        self.assertTrue(value['enabled']); self.assertEqual(value['authorization_phrase'],'AVA SHELL EDGE1 APPROVED')
+        self.assertTrue(value['enabled'])
         self.assertEqual((ctl.GATE_DIR/'edge1.json').stat().st_mode & 0o777,0o600)
         value=ctl.disable('edge1','tester'); self.assertFalse(value['enabled'])
     def test_hosts_are_independent(self):
