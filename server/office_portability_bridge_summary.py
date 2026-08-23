@@ -5,8 +5,11 @@ This module is intentionally read-only. It never returns work-item titles/outcom
 proposal parameters, telephone numbers, customer references, document references, or
 other record-level content. It is suitable for inclusion in the existing signed
 Edge1 -> Business159 operations snapshot.
+
+Keep this helper importable by the shared Operations Center collector's Python 3.6
+compatibility check. Newer application services may use newer language features; this
+small bridge deliberately does not.
 """
-from __future__ import annotations
 
 import argparse
 import datetime as dt
@@ -14,24 +17,23 @@ import json
 import os
 import sqlite3
 from pathlib import Path
-from typing import Any
 
 DEFAULT_AVA_DB = Path("/var/lib/wwcx-ava-office-manager/office-manager.sqlite3")
 DEFAULT_PORT_DB = Path("/var/lib/wwcx-portability/portability.sqlite3")
 
 
-def utc_now() -> str:
+def utc_now():
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def connect_ro(path: Path) -> sqlite3.Connection:
+def connect_ro(path):
     conn = sqlite3.connect("file:" + str(path.resolve()) + "?mode=ro", uri=True, timeout=3)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA query_only=ON")
     return conn
 
 
-def ava_summary(path: Path) -> dict[str, Any]:
+def ava_summary(path):
     if not path.is_file():
         return {"available": False, "mode": "read-only", "execution_enabled": False}
     try:
@@ -52,7 +54,7 @@ def ava_summary(path: Path) -> dict[str, Any]:
         return {"available": False, "mode": "read-only", "execution_enabled": False, "error": "database_unavailable"}
 
 
-def portability_summary(path: Path) -> dict[str, Any]:
+def portability_summary(path):
     if not path.is_file():
         return {"available": False, "mode": "read-only", "submission_authorized": False, "cutover_authorized": False}
     try:
@@ -74,7 +76,7 @@ def portability_summary(path: Path) -> dict[str, Any]:
         return {"available": False, "mode": "read-only", "submission_authorized": False, "cutover_authorized": False, "error": "database_unavailable"}
 
 
-def build_summary(ava_db: Path = DEFAULT_AVA_DB, port_db: Path = DEFAULT_PORT_DB) -> dict[str, Any]:
+def build_summary(ava_db=DEFAULT_AVA_DB, port_db=DEFAULT_PORT_DB):
     return {
         "format": "wwcx-office-services-summary-v1",
         "generated_at": utc_now(),
@@ -90,16 +92,16 @@ def build_summary(ava_db: Path = DEFAULT_AVA_DB, port_db: Path = DEFAULT_PORT_DB
     }
 
 
-def write_atomic(path: Path, payload: dict[str, Any]) -> None:
+def write_atomic(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_bytes(encoded)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, path)
+    os.chmod(str(tmp), 0o600)
+    os.replace(str(tmp), str(path))
 
 
-def main() -> int:
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ava-database", type=Path, default=DEFAULT_AVA_DB)
     parser.add_argument("--portability-database", type=Path, default=DEFAULT_PORT_DB)

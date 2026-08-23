@@ -1,0 +1,40 @@
+name: Office Portability Operations Bridge
+
+on:
+  pull_request:
+    paths:
+      - 'server/bigbird_ops_collect.py'
+      - 'server/office_portability_bridge_summary.py'
+      - 'deploy/activate-office-portability-operations-bridge.sh'
+      - 'tests/test_bigbird_ops_office_portability.py'
+      - 'tests/test_office_portability_bridge_summary.py'
+      - '.github/workflows/office-portability-bridge.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/bigbird_ops_collect.py'
+      - 'server/office_portability_bridge_summary.py'
+      - 'deploy/activate-office-portability-operations-bridge.sh'
+      - 'tests/test_bigbird_ops_office_portability.py'
+      - 'tests/test_office_portability_bridge_summary.py'
+      - '.github/workflows/office-portability-bridge.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile bridge
+        run: python -m py_compile server/bigbird_ops_collect.py server/office_portability_bridge_summary.py tests/test_bigbird_ops_office_portability.py tests/test_office_portability_bridge_summary.py
+      - name: Validate activation shell
+        run: |
+          bash -n deploy/activate-office-portability-operations-bridge.sh
+          bash deploy/activate-office-portability-operations-bridge.sh --dry-run
+      - name: Run bridge tests
+        run: python -m unittest -v tests.test_bigbird_ops_office_portability tests.test_office_portability_bridge_summary
