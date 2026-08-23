@@ -37,12 +37,22 @@ ALLOWLIST_PATH = Path(os.environ.get("EDGE1_OPS_ALLOWLIST", str(ROOT / "config/e
 DB_PATH = Path(os.environ.get("EDGE1_OPS_DB", "/var/lib/edge1-operations-api/audit.sqlite3"))
 SECRET_FILE = Path(os.environ.get("EDGE1_OPS_SECRET_FILE", "/etc/edge1-operations-api.secret"))
 MUTATIONS_ENABLED = os.environ.get("EDGE1_OPS_MUTATIONS_ENABLED", "false").lower() == "true"
+MUTATION_GATE_ENV = {
+    "telephony_safe_controls": "EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED",
+}
 MAX_BODY = 16384
 MAX_CLOCK_SKEW = 300
 
 
 def utcnow():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _gate_enabled(name):
+    env_name = MUTATION_GATE_ENV.get(name)
+    if env_name is None:
+        raise ValueError("unknown mutation gate")
+    return os.environ.get(env_name, "false").lower() == "true"
 
 
 def ensure_root_stable():
@@ -171,12 +181,14 @@ def safe_action(name):
     action = _action_config(name)
     if "typed_handler" in action:
         raise ValueError("typed action must use typed execution path")
+    if "mutation_gate" in action:
+        raise ValueError("fixed argv actions cannot declare dedicated mutation gates")
     argv = action.get("argv")
     if not isinstance(argv, list) or not argv or not all(isinstance(x, str) and x for x in argv):
         raise ValueError("invalid action argv")
     mutating = bool(action.get("mutating", False))
     if mutating and not MUTATIONS_ENABLED:
-        raise PermissionError("mutating actions are disabled")
+        raise PermissionError("legacy mutating actions are disabled")
     cwd = Path(action.get("cwd", str(ROOT))).resolve()
     if cwd != ROOT and ROOT not in cwd.parents:
         raise ValueError("action cwd escapes repository root")
@@ -192,8 +204,14 @@ def safe_typed_action(name):
     if not isinstance(handler, str) or not handler or "argv" in action or "cwd" in action:
         raise ValueError("invalid typed action configuration")
     mutating = bool(action.get("mutating", False))
-    if mutating and not MUTATIONS_ENABLED:
-        raise PermissionError("mutating actions are disabled")
+    gate = action.get("mutation_gate")
+    if mutating:
+        if not isinstance(gate, str) or not gate:
+            raise ValueError("typed mutating action requires a dedicated mutation gate")
+        if not _gate_enabled(gate):
+            raise PermissionError(f"mutation gate {gate} is disabled")
+    elif gate is not None:
+        raise ValueError("read-only typed action cannot declare mutation gate")
     timeout = int(action.get("timeout_seconds", 120))
     if timeout < 1 or timeout > 900:
         raise ValueError("invalid action timeout")
@@ -266,10 +284,10 @@ def run_typed_action(name, actor, body_hash, parameters):
 
     started = time.monotonic()
     try:
-        # Handler code is fixed by repository policy. It receives validated typed data,
-        # never a command, path, service name, URL, SQL statement, or arbitrary argv.
         result_payload = run_typed_handler(handler, parameters)
         duration = int((time.monotonic() - started) * 1000)
+        if duration > timeout * 1000:
+            raise RuntimeError("typed action exceeded configured timeout")
         response = {
             "action": name,
             "status": "succeeded",
@@ -335,6 +353,9 @@ class Handler(BaseHTTPRequestHandler):
                     "status": "ok",
                     "actions": len(actions),
                     "mutations_enabled": MUTATIONS_ENABLED,
+                    "mutation_gates": {
+                        name: _gate_enabled(name) for name in sorted(MUTATION_GATE_ENV)
+                    },
                     "repository_root_stable": True,
                 })
             except Exception as exc:
@@ -355,6 +376,7 @@ class Handler(BaseHTTPRequestHandler):
                     "name": name,
                     "mutating": bool(value.get("mutating")),
                     "typed": isinstance(value.get("typed_handler"), str),
+                    "mutation_gate": value.get("mutation_gate"),
                 }
                 for name, value in sorted(actions.items())
             ]})
