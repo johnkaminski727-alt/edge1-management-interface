@@ -221,8 +221,12 @@ def process_once(queue_secret: str, queue_key_id: str, gateway_secret: str, gate
         return DEFAULT_POLL_SECONDS
 
     try:
-        plan = build_plan(gateway_request)
-        prepared_request = prepare_gateway_request(gateway_request, plan)
+        controller_request = dict(gateway_request)
+        agent_options = claim.get("agent_options")
+        if isinstance(agent_options, dict) and agent_options.get("auto_route") is True:
+            controller_request["agent_auto_route"] = True
+        plan = build_plan(controller_request)
+        prepared_request = prepare_gateway_request(controller_request, plan)
         publish_progress(
             request_id,
             progress_payload(plan, "planning", "Ava has a bounded read-only plan for this request.", "understand"),
