@@ -50,19 +50,44 @@ def load_json_file(path: Path) -> dict[str, Any]:
     return {}
 
 
+def _carrier_lifecycle_map(registry: dict[str, Any]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for carrier in registry.get("carriers", []):
+        carrier_id = carrier.get("id")
+        if isinstance(carrier_id, str) and carrier_id:
+            status = carrier.get("status")
+            result[carrier_id] = status if isinstance(status, str) and status else "unknown"
+    return result
+
+
+def _peer_is_configured(peer: dict[str, Any], carrier_lifecycle: str) -> bool:
+    endpoint = peer.get("endpoint")
+    return (
+        isinstance(endpoint, str)
+        and bool(endpoint.strip())
+        and endpoint.strip().lower() != "pending"
+        and carrier_lifecycle not in {"planned", "pending"}
+    )
+
+
 def sip_interconnect_snapshot() -> list[dict[str, Any]]:
     registry = load_json_file(INTERCONNECT_REGISTRY)
     health = load_json_file(PEER_STATUS)
     peers = health.get("peers", {})
+    carrier_lifecycle = _carrier_lifecycle_map(registry)
     result = []
     for peer in registry.get("sip_peers", []):
-        state = peers.get(peer.get("id"), {})
-        options = state.get("sip_options", {})
+        carrier_status = carrier_lifecycle.get(peer.get("carrier_id"), "unknown")
+        applicable = _peer_is_configured(peer, carrier_status)
+        state = peers.get(peer.get("id"), {}) if isinstance(peers, dict) else {}
+        options = state.get("sip_options", {}) if isinstance(state, dict) else {}
         result.append({
             "name": peer.get("id"),
-            "status": state.get("status", "unknown"),
-            "latency_ms": options.get("latency_ms"),
-            "success_rate": 100 if options.get("response_code") == 200 else 0,
+            "status": state.get("status", "unknown") if applicable else "planned",
+            "lifecycle": carrier_status,
+            "health_check_applicable": applicable,
+            "latency_ms": options.get("latency_ms") if applicable else None,
+            "success_rate": 100 if applicable and options.get("response_code") == 200 else (0 if applicable else None),
             "active_calls": 0,
             "endpoint": peer.get("endpoint"),
         })
@@ -233,6 +258,7 @@ def status_payload() -> dict[str, Any]:
     healthy_count = sum(1 for item in services if item["status"] == "healthy")
     critical_count = sum(1 for item in services if item["status"] == "critical")
     interconnects = sip_interconnect_snapshot()
+    operational_interconnects = [item for item in interconnects if item.get("health_check_applicable")]
     metrics = {
         "active_calls": pbx["active_calls"],
         "active_channels": pbx["active_channels"],
@@ -242,8 +268,9 @@ def status_payload() -> dict[str, Any]:
         "pbx_outbound_registrations": pbx["outbound_registrations"],
         "pbx_transports": pbx["transports"],
         "messages_queued": None,
-        "trunks_healthy": sum(1 for item in interconnects if item["status"] == "healthy"),
-        "trunks_total": len(interconnects),
+        "trunks_healthy": sum(1 for item in operational_interconnects if item["status"] == "healthy"),
+        "trunks_total": len(operational_interconnects),
+        "trunks_planned": sum(1 for item in interconnects if not item.get("health_check_applicable")),
         "critical_alerts": critical_count,
     }
     payload = {
@@ -268,17 +295,31 @@ def status_payload() -> dict[str, Any]:
     return payload
 
 
+def _peer_acceptance_rows(registry: dict[str, Any], health: dict[str, Any]) -> list[dict[str, Any]]:
+    carrier_lifecycle = _carrier_lifecycle_map(registry)
+    health_peers = health.get("peers", {}) if isinstance(health.get("peers", {}), dict) else {}
+    rows: list[dict[str, Any]] = []
+    for peer in registry.get("sip_peers", []):
+        peer_id = peer.get("id")
+        lifecycle = carrier_lifecycle.get(peer.get("carrier_id"), "unknown")
+        applicable = _peer_is_configured(peer, lifecycle)
+        state = health_peers.get(peer_id, {}) if isinstance(peer_id, str) else {}
+        options = state.get("sip_options", {}) if isinstance(state, dict) else {}
+        rows.append({
+            "peer": peer_id,
+            "status": state.get("status", "unknown") if applicable else "planned",
+            "options": options.get("response_code") if applicable else None,
+            "latency_ms": options.get("latency_ms") if applicable else None,
+            "health_check_applicable": applicable,
+            "lifecycle": lifecycle,
+        })
+    return rows
+
+
 def acceptance_payload() -> dict[str, Any]:
     registry = load_json_file(INTERCONNECT_REGISTRY)
     health = load_json_file(PEER_STATUS)
-    peers = []
-    for peer, state in health.get("peers", {}).items():
-        peers.append({
-            "peer": peer,
-            "status": state.get("status"),
-            "options": state.get("sip_options", {}).get("response_code"),
-            "latency_ms": state.get("sip_options", {}).get("latency_ms"),
-        })
+    peers = _peer_acceptance_rows(registry, health)
     return {
         "platform": "Edge1 SIP Interconnect",
         "carrier_count": len(registry.get("carriers", [])),
@@ -297,17 +338,28 @@ def acceptance_payload() -> dict[str, Any]:
 def carrier_lifecycle_payload() -> dict[str, object]:
     registry = load_json_file(INTERCONNECT_REGISTRY)
     health = load_json_file(PEER_STATUS)
+    health_peers = health.get("peers", {}) if isinstance(health.get("peers", {}), dict) else {}
+    peer_definitions = registry.get("sip_peers", [])
     carriers = []
     for carrier in registry.get("carriers", []):
         carrier_id = carrier.get("id")
+        lifecycle = carrier.get("status", "unknown")
         peer_states = []
-        for peer, state in health.get("peers", {}).items():
-            if peer.startswith(carrier_id):
-                peer_states.append({"peer": peer, "status": state.get("status")})
+        for peer in peer_definitions:
+            if peer.get("carrier_id") != carrier_id:
+                continue
+            peer_id = peer.get("id")
+            applicable = _peer_is_configured(peer, lifecycle if isinstance(lifecycle, str) else "unknown")
+            state = health_peers.get(peer_id, {}) if isinstance(peer_id, str) else {}
+            peer_states.append({
+                "peer": peer_id,
+                "status": state.get("status", "unknown") if applicable else "planned",
+                "health_check_applicable": applicable,
+            })
         carriers.append({
             "id": carrier_id,
             "name": carrier.get("name"),
-            "status": carrier.get("status"),
+            "status": lifecycle,
             "sip_peers": peer_states,
         })
     return {"carriers": carriers}
