@@ -1,0 +1,28 @@
+[Unit]
+Description=WW.CX Number Portability Center read API
+After=network.target
+
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/number_portability_server.py --host 127.0.0.1 --port 8117 --database /var/lib/wwcx-portability/portability.sqlite3
+Restart=on-failure
+RestartSec=3
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/opt/edge1-management-interface
+
+[Install]
+WantedBy=multi-user.target
