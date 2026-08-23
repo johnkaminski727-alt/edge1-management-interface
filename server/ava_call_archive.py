@@ -11,7 +11,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{3,127}$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
@@ -22,6 +22,20 @@ MAX_LIMIT = 100
 
 class AvaCallArchiveError(RuntimeError):
     pass
+
+
+def canonical_manifest_bytes(document: Mapping[str, Any]) -> bytes:
+    """Canonical hash representation with manifest_sha256 omitted."""
+    clone = json.loads(json.dumps(document))
+    integrity = clone.get("integrity")
+    if not isinstance(integrity, dict):
+        raise AvaCallArchiveError("call manifest integrity metadata is invalid")
+    integrity.pop("manifest_sha256", None)
+    return (json.dumps(clone, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def manifest_sha256(document: Mapping[str, Any]) -> str:
+    return hashlib.sha256(canonical_manifest_bytes(document)).hexdigest()
 
 
 class AvaCallArchiveReadModel:
@@ -82,8 +96,11 @@ class AvaCallArchiveReadModel:
         if not started or direction not in {"inbound", "outbound", "internal"}:
             raise AvaCallArchiveError("call manifest is incomplete")
         integrity = doc.get("integrity")
-        if not isinstance(integrity, dict) or not SHA256_RE.fullmatch(str(integrity.get("manifest_sha256", ""))):
+        if not isinstance(integrity, dict):
             raise AvaCallArchiveError("call manifest integrity metadata is invalid")
+        expected = str(integrity.get("manifest_sha256", ""))
+        if not SHA256_RE.fullmatch(expected) or manifest_sha256(doc) != expected:
+            raise AvaCallArchiveError("call manifest integrity check failed")
         return doc
 
     def manifest(self, call_ref: str) -> dict[str, Any]:
