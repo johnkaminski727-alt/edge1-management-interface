@@ -48,8 +48,8 @@ jobs:
         run: systemd-analyze verify deploy/ava-visual-worker.service
       - name: Validate immutable activation helper
         run: |
-          bash -n deploy/ava-visual/activate.sh
-          bash deploy/ava-visual/activate.sh --dry-run --repo "$PWD" --ref HEAD
+          sh -n deploy/ava-visual/activate.sh
+          sh deploy/ava-visual/activate.sh --dry-run --repo "$PWD" --ref HEAD
           grep -F 'WorkingDirectory=/opt/wwcx/ava-visual/current' deploy/ava-visual-worker.service
           grep -F 'ExecStart=/usr/bin/python3 /opt/wwcx/ava-visual/current/ava_visual_worker.py' deploy/ava-visual-worker.service
           ! grep -E 'git[[:space:]]+(checkout|reset|pull|clean)' deploy/ava-visual/activate.sh
