@@ -4,21 +4,27 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
 import subprocess
 import urllib.request
 from pathlib import Path
 
 REPO = Path("/opt/edge1-management-interface")
-SOURCE = REPO / "server" / "telephony_status_server.py"
+SOURCE_REL = "server/telephony_status_server.py"
+SOURCE = REPO / SOURCE_REL
+APPROVAL_PATH = Path("/etc/wwcx-edge1-operator/telephony-console-control.json")
 SERVICE = "wwcx-telephony-console.service"
 HEALTH_URL = "http://127.0.0.1:8096/healthz"
 
 
+def _command(argv: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(argv, capture_output=True, text=True, check=False, timeout=5)
+
+
 def _run(argv: list[str]) -> str:
-    result = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=5)
-    if result.returncode != 0:
-        return ""
-    return result.stdout.strip()
+    result = _command(argv)
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _sha256(path: Path) -> str:
@@ -27,6 +33,30 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _source_matches_head() -> bool:
+    tracked = _command(["git", "-C", str(REPO), "ls-files", "--error-unmatch", SOURCE_REL])
+    clean = _command(["git", "-C", str(REPO), "diff", "--quiet", "HEAD", "--", SOURCE_REL])
+    return tracked.returncode == 0 and clean.returncode == 0
+
+
+def _approved_runtime_matches(repo_head: str, source_sha256: str) -> bool:
+    try:
+        st = APPROVAL_PATH.stat()
+        if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or (st.st_mode & 0o022) or st.st_size > 4096:
+            return False
+        value = json.loads(APPROVAL_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return (
+        isinstance(value, dict)
+        and set(value) == {"version", "service", "repo_head", "source_sha256"}
+        and value.get("version") == 1
+        and value.get("service") == SERVICE
+        and value.get("repo_head") == repo_head
+        and value.get("source_sha256") == source_sha256
+    )
 
 
 def _health() -> bool:
@@ -50,6 +80,8 @@ def snapshot() -> dict[str, object]:
         "pid": pid,
         "repo_head": repo_head,
         "source_sha256": source_sha256,
+        "source_matches_head": _source_matches_head(),
+        "approved_runtime_matches": _approved_runtime_matches(repo_head, source_sha256),
         "loopback_health": _health(),
         "control": "telephony_console_reload",
         "mutates_asterisk": False,
