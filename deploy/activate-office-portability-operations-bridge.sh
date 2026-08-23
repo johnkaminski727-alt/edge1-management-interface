@@ -54,6 +54,11 @@ BACKUP="$EVIDENCE/backups"
 install -d -m 0700 "$EVIDENCE" "$BACKUP"
 printf '%s\n' "$HEAD" > "$EVIDENCE/repository-commit.txt"
 
+# Capture only non-secret execution-boundary properties. Never capture Environment=.
+systemctl show "$PUSH_SERVICE" --no-pager \
+    --property=Id,User,Group,PrivateNetwork,IPAddressDeny,IPAddressAllow,RestrictAddressFamilies,ProtectSystem,ProtectHome,NoNewPrivileges,DynamicUser,NetworkNamespacePath \
+    > "$EVIDENCE/push-service-security.txt" || true
+
 printf '=== VERIFY LOOPBACK AGGREGATE SOURCES ===\n'
 python3 - "$AVA_SUMMARY_URL" "$PORT_SUMMARY_URL" "$EVIDENCE/loopback-summaries.json" <<'PY'
 import json
@@ -120,10 +125,24 @@ install -D -o root -g root -m 0700 "$COLLECTOR_SOURCE" "$COLLECTOR_LIVE"
 install -D -o root -g root -m 0600 "$SUMMARY_SOURCE" "$SUMMARY_LIVE"
 sha256sum "$COLLECTOR_LIVE" "$SUMMARY_LIVE" > "$EVIDENCE/runtime.sha256"
 
+SNAPSHOT_BEFORE_SHA=missing
+if [ -f "$SNAPSHOT" ]; then SNAPSHOT_BEFORE_SHA="$(sha256sum "$SNAPSHOT" | awk '{print $1}')"; fi
+printf 'before_sha256=%s\n' "$SNAPSHOT_BEFORE_SHA" > "$EVIDENCE/snapshot-freshness.txt"
+
 systemctl start "$PUSH_SERVICE"
+systemctl show "$PUSH_SERVICE" --no-pager \
+    --property=Result,ExecMainStatus,ExecMainStartTimestamp,ExecMainExitTimestamp \
+    > "$EVIDENCE/push-service-result.txt"
 [ "$(systemctl show "$PUSH_SERVICE" --property=Result --value)" = success ]
 [ "$(systemctl show "$PUSH_SERVICE" --property=ExecMainStatus --value)" = 0 ]
 [ -f "$SNAPSHOT" ]
+
+SNAPSHOT_AFTER_SHA="$(sha256sum "$SNAPSHOT" | awk '{print $1}')"
+printf 'after_sha256=%s\n' "$SNAPSHOT_AFTER_SHA" >> "$EVIDENCE/snapshot-freshness.txt"
+if [ "$SNAPSHOT_BEFORE_SHA" != missing ] && [ "$SNAPSHOT_BEFORE_SHA" = "$SNAPSHOT_AFTER_SHA" ]; then
+    echo "collector completed without producing a fresh snapshot" >&2
+    exit 6
+fi
 
 python3 - "$SNAPSHOT" "$EVIDENCE/acceptance.json" <<'PY'
 import json
@@ -158,6 +177,8 @@ for key in (
     assert privacy[key] is False
 summary = {
     'ok': True,
+    'generated_at': data.get('generated_at'),
+    'collector_release': data.get('collector_release'),
     'ava_available': True,
     'ava_work_items': data['ava_office'].get('work_items', {}),
     'ava_actions': data['ava_office'].get('actions', {}),
