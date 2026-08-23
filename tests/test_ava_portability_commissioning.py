@@ -48,6 +48,13 @@ class CommissioningGuardrailTests(unittest.TestCase):
             self.assertIn("loopback listener", script)
             self.assertIn("Dry run only. No files or services changed.", script)
 
+    def test_ava_runtime_packages_protected_call_archive_adapter(self):
+        script = self.read("deploy/ava-office/commission-read-only.sh")
+        self.assertIn('server/ava_call_archive.py', script)
+        self.assertIn('$RELEASE/ava_call_archive.py', script)
+        self.assertIn('cmp -s "$REPO_ROOT/server/ava_call_archive.py" "$RELEASE/ava_call_archive.py"', script)
+        self.assertIn('"$RELEASE/ava_call_archive.py" > "$EVIDENCE/installed-files.sha256"', script)
+
     def test_bridge_allows_only_main_or_pinned_detached_checkout(self):
         script = self.read("deploy/activate-office-portability-operations-bridge.sh")
         self.assertIn("main or a detached exact-commit checkout", script)
