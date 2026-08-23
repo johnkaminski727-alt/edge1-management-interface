@@ -1,6 +1,6 @@
 # VPN Access Registration Foundation
 
-Status: implemented in the repository; not deployed; enforcement intentionally absent
+Status: deployed on Edge1 as a registration-only pilot; enforcement intentionally absent
 
 ## Purpose
 
@@ -110,3 +110,16 @@ events, invalid input, and privacy-limited atomic export.
 
 Network enforcement requires a separate change, test plan, approval, and
 rollback procedure.
+
+## Edge1 pilot activation (2026-08-23)
+
+The registration-only pilot is active on Edge1 with:
+
+- `EDGE1_VPN_REGISTRATION_WRITES_ENABLED=true` while global operations mutations remain disabled;
+- `vpn_enforcement_active=false`;
+- the privacy-limited registration exporter enabled on a 60-second timer;
+- invite/enrollment devices synchronized into the registration API through authenticated HMAC requests;
+- revoked enrollment devices quarantined in registration state when they already have a registration record;
+- no active policy version yet, so enrolled devices remain `pending` until approved policy text is activated and accepted.
+
+The public invite route and protected admin route were exercised end-to-end. A reversible smoke enrollment added one WireGuard peer and revocation restored the original peer configuration.
