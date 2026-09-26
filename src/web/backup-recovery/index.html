@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edge1 | Backup & Recovery</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#dce8f4;background:#0c1724}
+*{box-sizing:border-box}body{margin:0}a{color:#89c5ff}header{padding:16px 25px;background:#14283a;border-bottom:1px solid #294055;display:flex;align-items:center;justify-content:space-between}
+.brand{font-weight:800;font-size:23px;letter-spacing:1px}.brand span{color:#6ad3bd}.shell{display:grid;grid-template-columns:215px 1fr;min-height:calc(100vh - 61px)}
+nav{background:#101f2e;padding:22px 12px;border-right:1px solid #294055}nav a{display:block;text-decoration:none;color:#bbcedc;padding:11px 14px;border-radius:8px;margin-bottom:7px}
+nav a.active{color:#fff;background:#185a77;border-left:3px solid #58d8c6}nav .aside{font-size:12px;color:#93aabe;padding:12px}
+main{max-width:1240px;width:100%;padding:32px 30px;margin:auto}
+h1{font-size:28px;margin:0 0 6px}h2{font-size:18px;margin:0 0 14px}p{color:#abc0d2;line-height:1.5}small,.muted{color:#9aafc0}
+.topline{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
+.chip{border-radius:30px;padding:6px 12px;border:1px solid #52758d;color:#b8def2;font-size:12px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:15px;margin:25px 0}
+.card,.panel{background:#142638;border:1px solid #28445b;border-radius:12px;padding:20px;box-shadow:0 8px 25px #0002}
+.metric{font-size:24px;font-weight:750;margin:12px 0 5px}.label{font-size:13px;color:#b8c8d6}
+.good{color:#69dec3}.warn{color:#f8cb75}.bad{color:#fa9696}.unknown{color:#abbcca}
+.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:#abc0d2;font-weight:600}td,th{padding:12px 8px;border-bottom:1px solid #2e455a}td{overflow-wrap:anywhere}
+.status{text-transform:capitalize;font-weight:600}
+.callout{background:#352c20;border:1px solid #967141;padding:16px;border-radius:9px;color:#ffdc9c;line-height:1.5}
+li{padding:5px 0;color:#c2d2df}button{padding:9px 14px;border-radius:7px;background:#216d82;border:1px solid #55a8be;color:#fff;cursor:pointer}
+button:hover{background:#297c96}.footer{margin-top:20px;font-size:12px;color:#8da5b8}
+@media(max-width:950px){.cards{grid-template-columns:repeat(2,minmax(120px,1fr))}.grid{grid-template-columns:1fr}}
+@media(max-width:620px){.shell{display:block}nav{display:flex;gap:4px;overflow-x:auto;padding:7px}nav a{white-space:nowrap}nav .aside{display:none}main{padding:20px 12px}.cards{grid-template-columns:1fr 1fr}.table-scroll{overflow:auto}}
+</style></head>
+<body><header><div class="brand">EDGE<span>1</span> <small> / WW.CX</small></div><span class="chip">Private operations · Read-only</span></header>
+<div class="shell"><nav aria-label="Main navigation"><a href="#" aria-disabled="true">Overview</a><a href="#" aria-disabled="true">Network</a><a href="#" aria-disabled="true">Firewall</a><a href="#" aria-disabled="true">DNS</a><a href="#" aria-disabled="true">Time authority</a><a href="#" aria-disabled="true">VPN</a><a class="active" href="/">Backup & Recovery</a><a href="#" aria-disabled="true">Audit history</a><div class="aside">Other sections are planned, not operational.</div></nav>
+<main><div class="topline"><div><h1>Backup & Recovery</h1><p>Encrypted off-site copies, integrity checks and tested recovery in one place.</p></div><button id="refresh" type="button">Refresh status</button></div>
+<div class="cards">
+<section class="card"><div class="label">Most recent backup</div><div class="metric" id="last">—</div><div class="muted" id="last-note">Awaiting manifest</div></section>
+<section class="card"><div class="label">Off-site uploads</div><div class="metric" id="uploaded">—</div><div class="muted">Reported in local manifests</div></section>
+<section class="card"><div class="label">Integrity verified</div><div class="metric" id="verified">—</div><div class="muted">Not inferred from upload</div></section>
+<section class="card"><div class="label">Restore tests passed</div><div class="metric" id="restored">—</div><div class="muted">Isolated restoration evidence</div></section>
+</div>
+<div class="grid"><section class="panel"><h2>Backup history</h2><p id="source" class="muted">Loading status…</p><div class="table-scroll"><table><thead><tr><th>Archive</th><th>Created (UTC)</th><th>Upload</th><th>Integrity</th><th>Restore</th></tr></thead><tbody id="history"><tr><td colspan="5">Awaiting status</td></tr></tbody></table></div></section>
+<section class="panel"><h2>Recovery readiness</h2><div class="callout" id="notice">No verified recovery claim until a test restore passes.</div>
+<h2 style="margin-top:24px">Critical backup coverage</h2><ul><li>System and network configuration</li><li>WireGuard, Tailscale and Chrony settings</li><li>AI gateway and private-library data</li><li>Application databases and service definitions</li><li>Encrypted secrets and recovery instructions</li></ul><p class="muted">Coverage is a checklist, not a claim that these items are backed up. Each requires a verified backup manifest.</p>
+</section></div><div class="footer">Read-only phase: this interface cannot initiate a backup, decrypt an archive, restore a system or change server configuration.</div></main></div>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=d=>new Date(d).toLocaleString("en-GB",{timeZone:"UTC",day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})+" UTC";
+const label=s=>({verified:"Verified",uploaded:"Uploaded",failed:"Failed",pending:"Pending",unknown:"Unknown"})[s]||"Unknown";
+const klass=s=>s==="verified"||s==="uploaded"?"good":s==="failed"?"bad":s==="pending"?"warn":"unknown";
+function setText(id,value){$(id).textContent=value}
+function render(data){
+const rows=Array.isArray(data.records)?data.records:[];
+setText("last",data.last_backup?fmt(data.last_backup):"No data");
+setText("last-note",rows.length?"Latest reported archive":"No local manifests loaded");
+setText("uploaded",rows.filter(r=>r.upload==="uploaded"||r.upload==="verified").length);
+setText("verified",rows.filter(r=>r.integrity==="verified").length);
+setText("restored",rows.filter(r=>r.restore_test==="verified").length);
+setText("source",rows.length?rows.length+" sanitized local manifest(s) — not a live Dropbox check":"No sanitized local manifests found; production status unknown.");
+$("history").replaceChildren();
+if(!rows.length){let tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.textContent="No backup status manifests found.";tr.append(td);$("history").append(tr);}
+for(const r of rows){const tr=document.createElement("tr");for(const value of [r.archive,fmt(r.created_at),r.upload,r.integrity,r.restore_test]){let td=document.createElement("td");td.textContent=["verified","uploaded","failed","pending","unknown"].includes(value)?label(value):value;if(["verified","uploaded","failed","pending","unknown"].includes(value))td.className="status "+klass(value);tr.append(td);}$("history").append(tr);}
+setText("notice",rows.some(r=>r.restore_test==="verified")?"At least one isolated restore test is reported as verified. Review its scope and date before relying on it.":"Restoration readiness is unverified. Uploaded archives alone do not establish recoverability.");
+}
+async function refresh(){setText("source","Checking local manifest API…");try{const response=await fetch("/api/backups/status",{cache:"no-store"});if(!response.ok)throw Error("HTTP "+response.status);render(await response.json());}catch(e){render({records:[],last_backup:null});setText("source","Local API unavailable; no live backup state is being shown.");}}
+$("refresh").addEventListener("click",refresh);refresh();
+</script></body></html>
