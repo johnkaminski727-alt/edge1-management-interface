@@ -1,0 +1,56 @@
+name: External NTS acceptance (independent runner)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/time-authority-external-nts-acceptance.yml'
+      - 'tools/time_authority/nts_ke_probe.py'
+      - 'docs/handoff/time-authority-runbook.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-nts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout read-only probe
+        uses: actions/checkout@v4
+
+      - name: Record independent network and time
+        run: |
+          date -u --iso-8601=seconds
+          getent ahostsv4 ntp.ww.cx
+          python3 -c 'import socket; print("Runner:", socket.gethostname())'
+
+      - name: Verify NTS-KE certificate and ALPN
+        run: |
+          python3 tools/time_authority/nts_ke_probe.py \
+            --server-name ntp.ww.cx \
+            --port 4460 \
+            --observer-id github-external-nts-20260926 \
+            --observer-host github-actions \
+            --timeout 15 \
+            --pretty
+
+      - name: Install isolated NTS-capable chrony client
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y chrony
+          sudo systemctl stop chrony.service || true
+          chronyd -v
+
+      - name: Verify fully authenticated external NTS exchange
+        shell: bash
+        run: |
+          set -euo pipefail
+          # -Q makes one measurement without changing the runner clock.
+          # -f /dev/null excludes all system/pool defaults. The only source
+          # requires NTS, thus a successful measurement exercises both the
+          # NTS-KE exchange and authenticated NTP packets.
+          timeout 150s sudo chronyd -Q -f /dev/null -t 120 \
+            'server ntp.ww.cx iburst nts maxsamples 1' 2>&1 | tee nts-client.log
+          grep -q 'System clock wrong by' nts-client.log
+          echo 'WW.CX independent authenticated NTS time exchange: PASS'
