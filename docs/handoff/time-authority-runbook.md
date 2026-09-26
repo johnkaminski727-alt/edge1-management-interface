@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The package records time-source reachability and performance from `edge1.ww.cx` and `business159.web-hosting.com`. It is deliberately read-only: it does not alter either system clock and does not yet replace Edge1's active `systemd-timesyncd` service.
+The read-only dashboard and collectors record time-source reachability and performance from `edge1.ww.cx` and `business159.web-hosting.com`. Separately, Edge1 operates a public Chrony NTP server with NTS-KE. On the rebuilt Debian 13 host as of 2026-09-26, Chrony replaced `systemd-timesyncd` and synchronized to the ISNIC stratum-1 network upstream, making Edge1 a stratum-2 server. The collectors do not set the clock; Chrony does.
 
 ## Registered sources
 
@@ -13,6 +13,7 @@ The package records time-source reachability and performance from `edge1.ww.cx` 
 | `netnod-mmo1` | `mmo1.ntp.se` | `194.58.204.20` | Netnod | Stratum 1 / PPS |
 | `nist-global` | `time.nist.gov` | dynamic (`132.163.97.1` and `.4` observed) | NIST | Stratum 1 / NIST |
 | `cloudflare-global` | `time.cloudflare.com` | `162.159.200.123` | Cloudflare | Stratum 1–4 |
+| `isnic-ht-time01` | `ht-time01.isnic.is` | `193.4.58.77` (observed) | ISNIC | GNSS-backed stratum 1 |
 
 DNS remains authoritative. Addresses are recorded per measurement because anycast and load-balanced services may change them.
 
@@ -40,6 +41,38 @@ sudo deploy/time-authority-edge1-smoke-test.sh
 ```
 
 The expected health identity is `service: edge1-time-authority` with `read_only: true`. A successful response from a different service is a port collision, not a successful Time Authority deployment.
+
+## September 26, 2026 rebuild: authoritative operating notes
+
+The rebuilt Edge1 public IPv4 is `89.126.248.191` (retired address `89.147.109.253`). Both `ntp.ww.cx` and `time.ww.cx` resolved to the new IPv4 after cutover. The external Windows Wi-Fi network verified TCP/4460, the Let's Encrypt certificate for `ntp.ww.cx`, TLS 1.3 with `ntske/1`, and three standard UDP/123 NTP responses. Business159 could query UDP/123 but its TCP/4460 attempts were refused; Windows' independent Wi-Fi connection succeeded. Do **not** classify the Business159 refusal as a global outage or change Edge1 firewall rules without packet evidence.
+
+**Service and security layout**:
+
+- `chrony.service`: public NTP UDP/123 and NTS-KE TCP/4460; certificate staged under `/etc/chrony/nts/`, owned by `root:_chrony` with mode 0640.
+- Dedicated Certbot lineage `/etc/letsencrypt/live/ntp.ww.cx/` issued using the standalone HTTP-01 authenticator. The ECDSA certificate issued 2026-09-26 expires 2026-12-25 UTC. `certbot.timer` is enabled; the guarded deploy hook is `/etc/letsencrypt/renewal-hooks/deploy/50-wwcx-ntp-chrony-nts`.
+- UFW is the active Edge1 firewall, backed by iptables-nft. The public inbound IPv4 rules on `ens3` scope TCP/80 (standalone ACME validation), UDP/123, and TCP/4460 to `89.126.248.191`. Preserve SSH and WireGuard rules. `nftables.service` is disabled and the previous bespoke `inet wwcxfw` ruleset does not exist. **Do not run old nftables firewall publisher or Apache-dependent certificate scripts on the rebuilt host** without a new implementation and review.
+- Dashboard stays private on `127.0.0.1:8101`, with the RTT collector scheduled every 15 minutes by `edge1-time-authority-collector.timer`. Chrony's six upstreams are Netnod ×3, NIST, Cloudflare, and ISNIC `ht-time01.isnic.is`. Preserve `minsources 3` and do not force ISNIC with `prefer`.
+
+**Certificate lifecycle acceptance already completed**: `sudo certbot renew --dry-run --run-deploy-hooks --cert-name ntp.ww.cx` succeeded. The hook staged the existing live certificate, restarted Chrony, waited for synchronization, and verified local NTP and local NTS TLS. The evidence directory is `/var/lib/wwcx-deployment-evidence/public-ntp-server/nts-renewal-20260926T173856Z`. A plain dry run without `--run-deploy-hooks` does **not** test the deployment hook.
+
+**ISNIC acceptance already completed**: guarded installer `deploy/install-time-authority-isnic-upstream-edge1.sh` installed `/etc/chrony/conf.d/wwcx-isnic-upstream.conf` and preserved the other upstreams. It verified a synchronized stratum-1 ISNIC preflight, standard NTP, NTS listener and TLS `ntske/1`, and observed Edge1 at stratum 2. Evidence: `/var/lib/wwcx-deployment-evidence/public-ntp-server/isnic-upstream-20260926T174018Z`.
+
+**Collector catalog**: the six-source tracked register in `modules/time-authority/config/sources.json` is the default collector register and the dashboard's static `sources` metadata. The original historical baseline fixtures remain five-source snapshots. During rebuilding, a temporary systemd override was set for `edge1-time-authority-collector.service` at `/etc/systemd/system/edge1-time-authority-collector.service.d/20-six-sources.conf` to read `/etc/edge1-time-authority/sources.json`. On deployment, check both catalogs contain exactly the same six source IDs; remove the override only through a reviewed change. The live dashboard API confirmed six of six reachable and six of six expectations met at 17:42 UTC on 2026-09-26.
+
+**Outstanding acceptance**: verify a *full authenticated NTS time exchange* from an independent external NTS client, not just TLS/ALPN; resolve Business159's path-specific TCP/4460 refusal; reconcile its shared-host monitoring and status publication; separately investigate Windows WireGuard route-to-public-IP behavior if still reproducible. Do not alter production Chrony, UFW, DNS, or certificate state merely to satisfy the final documentation review.
+
+**Non-destructive read-only checks (run on Edge1)**:
+
+```bash
+sudo chronyc tracking
+sudo chronyc sources -v
+sudo ss -ltnup | grep -E ':(123|4460)\\b'
+sudo ufw status numbered
+systemctl is-active chrony.service edge1-time-authority-collector.timer edge1-time-authority-dashboard.service
+curl -fsS http://127.0.0.1:8101/healthz
+curl -fsS 'http://127.0.0.1:8101/api/time-authority/summary?limit=200' | python3 -m json.tool
+systemctl list-timers certbot.timer --no-pager
+```
 
 ## Shared-host installation
 
