@@ -67,15 +67,17 @@ class FakeNtpServer:
 
 def validate_catalogs() -> None:
     sources = collector.load_sources(ROOT / "modules" / "time-authority" / "config" / "sources.json")
-    assert len(sources) == 5
-    assert len({item["source_id"] for item in sources}) == 5
+    assert len(sources) == 6
+    assert len({item["source_id"] for item in sources}) == 6
     assert {item["server_name"] for item in sources} == {
-        "sth1.ntp.se", "sth2.ntp.se", "mmo1.ntp.se", "time.nist.gov", "time.cloudflare.com"
+        "sth1.ntp.se", "sth2.ntp.se", "mmo1.ntp.se", "time.nist.gov", "time.cloudflare.com", "ht-time01.isnic.is"
     }
 
     baseline = json.loads(
         (ROOT / "modules" / "time-authority" / "fixtures" / "baseline-measurements.json").read_text(encoding="utf-8")
     )
+    assert len(dashboard.source_catalog()) == 6
+
     assert len(baseline["records"]) == 10
     assert {item["observer_id"] for item in baseline["records"]} == {"edge1", "shared-host"}
 
