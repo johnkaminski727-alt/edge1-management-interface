@@ -1,0 +1,25 @@
+name: Backup recovery console validation
+on:
+  push:
+    branches:
+      - feature/backup-recovery-console-20260926
+  pull_request:
+    paths:
+      - 'server/backup_recovery_server.py'
+      - 'src/web/backup-recovery/**'
+      - 'tests/validate_backup_recovery.py'
+      - '.github/workflows/backup-recovery.yml'
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate backup API
+        run: python3 tests/validate_backup_recovery.py
+      - name: Compile server
+        run: python3 -m py_compile server/backup_recovery_server.py
