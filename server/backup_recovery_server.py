@@ -38,7 +38,7 @@ def sanitized_record(raw):
         return None
     def state(key):
         value = raw.get(key, "unknown")
-        return value if value in ALLOWED_STATES else "unknown"
+        return value if isinstance(value, str) and value in ALLOWED_STATES else "unknown"
     bytes_value = raw.get("size_bytes")
     if not isinstance(bytes_value, int) or isinstance(bytes_value, bool) or not 0 <= bytes_value <= 10**13:
         bytes_value = None
