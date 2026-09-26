@@ -8,7 +8,9 @@
       "region": "Stockholm, Sweden",
       "authority": "UTC(SP)",
       "expected_stratum": 1,
-      "expected_refids": ["PPS"],
+      "expected_refids": [
+        "PPS"
+      ],
       "transport": "NTPv4/UDP",
       "authentication": "none"
     },
@@ -19,7 +21,9 @@
       "region": "Stockholm, Sweden",
       "authority": "UTC(SP)",
       "expected_stratum": 1,
-      "expected_refids": ["PPS"],
+      "expected_refids": [
+        "PPS"
+      ],
       "transport": "NTPv4/UDP",
       "authentication": "none"
     },
@@ -30,7 +34,9 @@
       "region": "Malmo, Sweden",
       "authority": "UTC(SP)",
       "expected_stratum": 1,
-      "expected_refids": ["PPS"],
+      "expected_refids": [
+        "PPS"
+      ],
       "transport": "NTPv4/UDP",
       "authentication": "none"
     },
@@ -41,7 +47,9 @@
       "region": "United States, dynamic",
       "authority": "UTC(NIST)",
       "expected_stratum": 1,
-      "expected_refids": ["NIST"],
+      "expected_refids": [
+        "NIST"
+      ],
       "transport": "NTPv4/UDP",
       "authentication": "none"
     },
@@ -56,6 +64,20 @@
       "expected_refids": [],
       "transport": "NTPv4/UDP",
       "authentication": "NTS-capable; this RTT probe is unauthenticated"
+    },
+    {
+      "source_id": "isnic-ht-time01",
+      "server_name": "ht-time01.isnic.is",
+      "provider": "ISNIC",
+      "region": "Reykjavik, Iceland",
+      "authority": "ISNIC GNSS-backed time service",
+      "expected_stratum": 1,
+      "expected_refids": [],
+      "transport": "NTPv4/UDP",
+      "authentication": "none",
+      "reference_type_documented": "GNSS (GPS, GLONASS, Galileo)",
+      "documentation_url": "https://www.isnic.is/en/ntp",
+      "reference_history_url": "https://www.isnic.is/en/news/view?id=585"
     }
   ]
 }
