@@ -7,7 +7,9 @@ on:
     paths:
       - 'server/backup_recovery_server.py'
       - 'src/web/backup-recovery/**'
+      - 'tools/backup/**'
       - 'tests/validate_backup_recovery.py'
+      - 'tests/validate_backup_import.py'
       - '.github/workflows/backup-recovery.yml'
 jobs:
   unit:
@@ -19,7 +21,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate backup API
+      - name: Validate backup status API
         run: python3 tests/validate_backup_recovery.py
-      - name: Compile server
-        run: python3 -m py_compile server/backup_recovery_server.py
+      - name: Validate upload evidence importer
+        run: python3 tests/validate_backup_import.py
+      - name: Compile components
+        run: python3 -m py_compile server/backup_recovery_server.py tools/backup/import_rclone_listing.py
