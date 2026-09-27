@@ -17,10 +17,68 @@
 <main class="ops-page" id="operations-workspace">
 <section class="panel">
 <h1>WW.CX Edge1 Operations Center</h1>
-<nav class="ops-nav" aria-label="Operations sections"><a href="#health">Health</a><a href="#communications">Communications</a><a href="#network">Network</a><a href="#vpn-registration">VPN Registration</a><a href="#operations">Operations modules</a><a href="#reports">Reports</a></nav>
+
+<nav class="ops-nav" aria-label="Operations sections">
+<a href="#operations">Deployed modules</a>
+<a href="/edge1-status/security/">Security Operations</a>
+<a href="/edge1-status/security/correlation.html">
+Security Correlation</a>
+<a href="/edge1-status/network-defense/">
+Network Defense</a>
+<a href="#legacy-telemetry">Historical telemetry</a>
+</nav>
+
 <p>Read-only infrastructure operations visibility.</p>
 </section>
 <section class="safety-banner" aria-label="Operator safety state"><strong>Safety boundary</strong>Navigation does not grant authorization. Mutations and production communications traffic remain unauthorized. Unknown or unavailable telemetry is never shown as healthy.</section>
+
+
+<section class="panel" id="core-health">
+  <h2>System &amp; Network Health</h2>
+  <p id="core-freshness" class="muted">
+    Waiting for system observation...
+  </p>
+  <p>
+    <button type="button" id="core-refresh">
+      Refresh system status
+    </button>
+  </p>
+  <h2>System &amp; Network Health</h2>
+<div id="core-cards" class="grid">
+    Loading system observations...
+  </div>
+  <p class="muted">
+    Read-only service and interface observations.
+    DNS availability and network connectivity require
+    separate functional checks.
+  </p>
+</section>
+<section class="panel" id="crowdsec">
+  <h2>CrowdSec Network Protection</h2>
+  <p id="crowdsec-freshness" class="muted">
+    Waiting for security observation...
+  </p>
+  <p>
+    <button type="button" id="crowdsec-refresh">
+      Refresh security status
+    </button>
+  </p>
+  <div id="crowdsec-cards" class="grid">
+    Loading CrowdSec observations...
+  </div>
+  <p class="muted">
+    Read-only observations. This panel cannot change firewall rules.
+  </p>
+</section>
+
+<details class="panel" id="legacy-telemetry">
+<summary style="cursor:pointer;font-size:1.15rem;
+font-weight:700;padding:8px 0">
+Legacy &amp; Unconnected Telemetry
+</summary>
+<p>Historical integrations are not confirmed operational
+on this Edge1 installation. Unavailable does not mean
+healthy. The live monitoring sections above are independent.</p>
 <section class="panel"><h2>VPN Access Registration</h2><div id="vpn-registration" class="grid">Loading...</div></section>
 <section class="panel"><h2>Overall Operations Health</h2><div id="health" class="grid">Loading...</div></section>
 <section class="panel"><h2>Current Conditions</h2><div id="overview" class="grid">Loading...</div></section>
@@ -28,20 +86,21 @@
 <section class="panel"><h2>Reports &amp; Evidence</h2><div id="reports" class="grid">Loading...</div></section>
 <section class="panel"><h2>Incident Records</h2><div id="incidents" class="grid">Loading...</div><h2>Incident Context &amp; Changes</h2><div id="incident-context" class="grid">Loading...</div></section>
 <section class="panel"><h2>Automation Health</h2><div id="automation" class="grid">Loading...</div></section>
-<section class="panel"><h2>Daily Operations Summary</h2><div id="daily-summary" class="grid">Loading...</div><p><a href="/edge1-status/daily-summary.html">Open full daily report</a></p></section>
+<section class="panel"><h2>Daily Operations Summary</h2><div id="daily-summary" class="grid">Loading...</div><p><span>Full daily report not deployed.</span></p></section>
 <section class="panel"><h2>Recent Operations</h2><div id="timeline" class="grid">Loading...</div></section>
 <section class="panel"><h2>Communications</h2><div id="communications" class="grid">Loading...</div></section>
 <section class="panel"><h2>Operations Release</h2><div id="release" class="grid">Loading...</div></section>
 <section class="panel"><h2>Network Operations</h2><div id="network" class="grid">Loading...</div></section>
 <section class="panel"><h2>System Inventory</h2><div id="inventory" class="grid">Loading...</div></section>
+</details>
 <section id="operations" class="panel">
 <h2>Operations Modules</h2>
 <div class="grid">
 <a class="card module-card" href="/edge1-status/security/"><h3>Security Operations</h3><small>IDS health, alerts and validation.</small></a>
 <a class="card module-card" href="/edge1-status/security/correlation.html"><h3>Security Correlation</h3><small>Read-only cross-source investigative context.</small></a>
 <a class="card module-card" href="/edge1-status/network-defense/"><h3>Network &amp; DNS Defense</h3><small>Defense posture and staged DNS policy readiness.</small></a>
-<a class="card module-card" href="/edge1-status/bitcoin/"><h3>Bitcoin Operations</h3><small>Wallet and Bitcoin telemetry.</small></a>
-<a class="card module-card" href="/edge1-status/mining/"><h3>Mining Operations</h3><small>Mining telemetry and health.</small></a>
+
+
 </div>
 </section>
 </main>
@@ -94,5 +153,7 @@ renderCards("overview",[card("Security",securityHealth==="healthy"?"Healthy":sec
 load().catch(error=>{console.error(error);renderCards("overview",[card("Status","Unavailable","warning")])});
 setInterval(()=>load().catch(console.error),60000);
 </script>
+<script src="./crowdsec-dashboard.js" defer></script>
+<script src="./core-dashboard.js" defer></script>
 </body>
 </html>

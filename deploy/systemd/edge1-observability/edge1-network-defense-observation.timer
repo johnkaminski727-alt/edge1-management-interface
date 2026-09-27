@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Edge1 Network Defense observations
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+Persistent=true
+Unit=edge1-network-defense-observation.service
+
+[Install]
+WantedBy=timers.target

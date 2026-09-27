@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh sanitized Security Correlation
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+Unit=edge1-security-correlation-observation.service
+
+[Install]
+WantedBy=timers.target

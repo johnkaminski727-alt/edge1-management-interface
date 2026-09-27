@@ -1,0 +1,13 @@
+[Unit]
+Description=Read-only Edge1 core and network observation
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/edge1-core-observation
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status
+PrivateTmp=true
+TimeoutStartSec=60

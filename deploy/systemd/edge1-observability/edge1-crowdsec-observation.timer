@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Edge1 CrowdSec observations every two minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+Persistent=true
+Unit=edge1-crowdsec-observation.service
+
+[Install]
+WantedBy=timers.target

@@ -7,10 +7,35 @@
 <style>
 :root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#45b879;--warn:#d6a13c;--bad:#df6b6b;--info:#6aa9df}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3f6}.shell{width:min(1320px,100%);margin:auto;padding:24px}a{color:#9bcaf0}nav{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}nav a{text-decoration:none}nav a[aria-current=page]{color:#fff;font-weight:700}header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}h1{margin:0 0 8px;font-size:clamp(1.8rem,4vw,2.5rem)}h2{margin-top:0;font-size:1.2rem}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px}.card.good{border-color:var(--good)}.card.warning{border-color:var(--warn)}.card.bad{border-color:var(--bad)}.card.info{border-color:var(--info)}.label{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}.value{font-size:1.25rem;font-weight:750;margin-top:5px;overflow-wrap:anywhere}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 11px}.status:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--muted)}.status.good:before{background:var(--good)}.status.warning:before{background:var(--warn)}.status.bad:before{background:var(--bad)}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar .spacer{flex:1}button{font:inherit;background:var(--card);color:#eef3f6;border:1px solid var(--line);border-radius:8px;padding:9px 14px;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.muted,small{color:var(--muted)}.notice{border-left:4px solid var(--info);background:#101a22;padding:10px 14px}.error{display:none}.error.visible{display:block;border-color:var(--bad)}ul{margin-bottom:0}@media(max-width:760px){.shell{padding:16px}header{display:block}}
 </style>
+<link rel="stylesheet" href="/edge1-status/operator-shell/shell.css">
+<script src="/edge1-status/operator-shell/shell.js" defer data-registry="/edge1-status/operator-shell/navigation.json" data-module="network-defense"></script>
+
+<style>
+.edge1-skip {
+  position: fixed;
+  left: 12px;
+  top: -100px;
+  z-index: 500;
+  padding: 10px 14px;
+  background: #fff;
+  color: #111;
+  border-radius: 8px;
+}
+.edge1-skip:focus { top: 12px; }
+html.wwcx-shell-active .shell {
+  width: min(1380px, 100%);
+  margin-inline: auto;
+}
+html.wwcx-shell-active .panel {
+  border-radius: 16px;
+}
+</style>
 </head>
 <body>
-<div class="shell">
-<nav aria-label="Security modules"><a href="/edge1-status/security/">Security Operations</a><a href="/edge1-status/security/correlation.html">Correlation Center</a><a href="/edge1-status/network-defense/" aria-current="page">Network Defense</a><a href="/edge1-status/">Operations Center</a></nav>
+<a href="#main-content" class="edge1-skip">Skip to main content</a>
+<div id="wwcx-operator-shell"></div>
+<div class="shell" id="main-content">
+
 <header><div><h1>Network Defense</h1><p>Read-only visibility across IDS, DNS, reputation, firewall, Fail2ban, and proxy readiness.</p></div><div class="toolbar"><span id="connection-status" class="status">Connecting</span><span id="freshness" class="status">Freshness unknown</span></div></header>
 <div id="error-banner" class="panel error" role="alert"></div>
 <section class="panel"><div class="toolbar"><button id="refresh-button" type="button">Refresh</button><span class="spacer"></span><small id="last-checked">Not checked yet</small></div></section>
