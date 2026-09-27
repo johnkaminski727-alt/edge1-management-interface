@@ -75,8 +75,14 @@ def _diagnostic(name: str, state: str, observed: bool, enforcement: bool,
         if not isinstance(item, dict):
             continue
         available = item.get("available") is True
-        stale = item.get("stale") is True
-        checks.append({"name": key, "status": "stale" if stale else "available" if available else "unavailable"})
+        stale = item.get("stale")
+        status = "stale" if stale is True else (
+            "available" if available and stale is False else
+            "unavailable" if item.get("available") is False else "unverified")
+        checks.append({"name": key, "status": status})
+    if tone == "good" and (not checks or any(c["status"] != "available" for c in checks)):
+        tone = "neutral"
+        reason = "Exporter reports a positive component state, but supporting source freshness is not completely verified."
     return {"label": TITLES[name], "tone": tone, "reason": reason,
             "explanation": EXPLANATIONS[name], "source_checks": checks,
             "next_step": "Inspect read-only source timestamps and collector health; do not change production controls from this screen."}
