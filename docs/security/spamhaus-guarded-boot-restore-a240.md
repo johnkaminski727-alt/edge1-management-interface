@@ -45,6 +45,12 @@ The repository now contains `spamhaus_ownership_inspect.py` and offline tests th
 
 A244 initial repository-wide CI caught a truncated-candidate acceptance bug in the prototype, corrected by requiring balanced braces. The custom offline workflow was also corrected to use proper YAML line breaks and now exercises both ownership prototype modules. GitHub CI must pass on the final revision; prior success on earlier commits does not establish current acceptance.
 
+## Assignment 246 — Isolated create-only execution rehearsal (prepared, not run)
+
+The repository includes `tests/rehearse_spamhaus_ownership_netns.sh`, a single operator-run script for Edge1. It creates a **new network namespace**, verifies its namespace inode differs from the production host's before any nftables mutation, then attempts the syntactically approved create-only transaction **on a test table in that isolated namespace only**. It checks the resulting table comment, confirms a duplicate create is refused, deletes the isolated test table, then returns to a read-only verification that the production Spamhaus table exists. The temporary configuration is cleaned up by a shell exit trap. CI syntax-checks the script but cannot validate Edge1's real kernel namespace permissions or nft runtime behavior.
+
+This is an optional later operator step after review. If `sudo unshare --net` is unavailable, abort the rehearsal without fallback to the production namespace. **Do not substitute `sudo nft -f` directly on the host.** This rehearsal does not exercise systemd timers or resolve the ownership-check/delete race, so PR #607 remains draft afterward regardless of the syntax test's result.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
