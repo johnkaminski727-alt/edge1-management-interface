@@ -71,6 +71,12 @@ The operator executed `nft --check --file` on Edge1 using a **multiline** create
 
 The staged tagged-candidate generator, exact-output offline test, and isolated network-namespace rehearsal were updated to use the same operator-tested multiline statement. Before an operator runs the revised isolated execution script, pin the GitHub commit and verify its complete CI status. Neither this syntax gate nor a successful isolated create-only rehearsal resolves the separate non-atomic check/delete race. The production restore service remains disabled and the PR remains draft.
 
+## Assignment 246D — Isolated ownership execution rehearsal PASSED
+
+The operator fetched pinned commit `64f1dbd8c9fa805cdc185dfe1c824ae3ec63f93d` and executed `tests/rehearse_spamhaus_ownership_netns.sh` on Edge1's Debian 13 kernel. The actual operator transcript reports: network namespace isolation confirmed; create-only transaction and table comment verified; duplicate create refused; isolated test table deleted; production Spamhaus table present. An additional independent host read-only nft check confirmed the production table present; rehearsal exit status 0, interactive shell retained.
+
+This confirms the revised **multiline** create-only tagged statement functions in a separate nftables network namespace with Edge1's runtime. It does **not** establish race-free check/delete, test systemd transient timer behavior, demonstrate external acceptance, or authorize installing/enabling the current guarded service. Treat the ownership readback as a necessary integrity check, **not deletion authorization**. The separate time-of-check/time-of-use release blocker remains open and draft PR #607 must remain unmerged.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
