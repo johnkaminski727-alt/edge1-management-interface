@@ -113,10 +113,28 @@ class G3Tests(unittest.TestCase):
         self.assertTrue(diagnostic["read_only"])
         self.assertEqual(diagnostic["schema"], "edge1-security-triage-g3-1.v1")
         self.assertEqual(len(diagnostic["components"]), 7)
-        self.assertIn({"name":"security", "state":"stale"}, diagnostic["source_checks"])
+        self.assertIn({"name":"security", "state":"unavailable"}, diagnostic["source_checks"])
         self.assertIn({"name":"spamhaus_live_state", "state":"unavailable"}, diagnostic["source_checks"])
         self.assertNotIn("SECRET_ACCESS", json.dumps(diagnostic))
         self.assertNotIn("PRIVATE_ADDRESS", json.dumps(diagnostic))
+
+    def test_unavailable_and_stale_are_separate_source_states(self):
+        self.security_data["sources"] = {
+            "spamhaus": {"available": False, "stale": True},
+            "spamhaus_live_state": {"available": True, "stale": True},
+            "core_live": {"available": True, "stale": False},
+        }
+        self.dump()
+        view = summarize(self.core, self.security, now=self.now)
+        spamhaus = next(item for item in view["security"] if item["name"] == "spamhaus")
+        self.assertEqual(spamhaus["diagnostic"]["tone"], "warning")
+        self.assertIn({"name": "spamhaus", "status": "unavailable"},
+                      spamhaus["diagnostic"]["source_checks"])
+        self.assertIn({"name": "spamhaus_live_state", "status": "stale"},
+                      spamhaus["diagnostic"]["source_checks"])
+        triage = inspect(self.core, self.security, now=self.now)
+        self.assertIn({"name": "spamhaus", "state": "unavailable"}, triage["source_checks"])
+        self.assertIn({"name": "spamhaus_live_state", "state": "stale"}, triage["source_checks"])
 
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
