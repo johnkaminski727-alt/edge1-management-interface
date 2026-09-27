@@ -29,6 +29,12 @@ ssh -L 8767:127.0.0.1:8767 edge1 "python3 /opt/edge1-candidate-workspace-g2/edge
 
 In a separate authenticated Edge1 shell, retrieve the token privately with `cat /var/lib/edge1-candidate-workspace-g2/access-token` and enter it into the browser UI at `http://127.0.0.1:8767/`. Avoid pasting terminal output that contains the secret. The Python service binds only 127.0.0.1 and runs only until Ctrl+C stops it. No login session or listener is installed persistently.
 
+## Operator installation evidence — September 27, 2026
+
+The operator fetched pinned and CI-validated revision `3ee4a7e9fb72c4449f0a2f9ab4e0c0a2d5f4c59f` on Edge1 and used a temporary `git archive` extraction rather than switching the active production repository branch. The G2 `--check` and `--apply` preflights each passed all 18 regression tests: eight G1 validator tests, six persistent candidate-store tests and four loopback API tests. The installer confirmed the API's loopback-only design and absence of an Apply endpoint, then installed files to `/opt/edge1-candidate-workspace-g2` and private data to `/var/lib/edge1-candidate-workspace-g2` without starting a service. `--verify` passed package SHA-256 checks and access-token ownership/mode checks. The operator retained the interactive SSH shell.
+
+**Verified:** G2 local installation and test suite. **Not yet observed:** an actual Windows SSH tunnel, browser token authentication, browser candidate save/reload/discard, browser audit presentation or live observation rendering. No real Edge1 configuration changes or persistent background service were enabled. Do not publish the access token in incident evidence or chat logs.
+
 ## Tests and deferred G3 work
 
 CI compiles and tests the G1 model, G2 persistence and G2 loopback HTTP API using temporary directories and an ephemeral port. Negative tests cover unauthorized requests, forbidden Origins, conflicting edits, invalid fields, persistence, restart, discard and stale/absent core observation. CI checks the installer in **check-only mode** and browser JS syntax. These checks do not verify deployment on the actual Edge1 host; the operator's pinned installation and verification output are separate gates.
