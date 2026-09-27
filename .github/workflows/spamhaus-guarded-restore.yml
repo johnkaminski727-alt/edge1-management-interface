@@ -1,0 +1,34 @@
+name: Spamhaus guarded restore offline regressions
+on:
+  pull_request:
+    paths:
+      - 'tools/networking/spamhaus_*'
+      - 'tests/validate_spamhaus_*'
+      - 'deploy/systemd/edge1-spamhaus-restore.service'
+      - 'docs/security/spamhaus-*'
+      - '.github/workflows/spamhaus-guarded-restore.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-guard:
+    name: Python offline regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax check
+        run: python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py
+      - name: Guarded orchestration regressions
+        run: python3 tests/validate_spamhaus_guarded_boot_restore.py -v
+      - name: Proposed systemd unit static contract
+        run: python3 tests/validate_spamhaus_boot_restore_unit.py
+      - name: Independent recovery regressions
+        run: python3 tests/validate_spamhaus_scoped_recovery.py -v
+      - name: Existing pinned-candidate preflight regressions
+        run: python3 tests/validate_spamhaus_boot_preflight.py -v
