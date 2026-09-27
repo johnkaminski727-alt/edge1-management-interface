@@ -6,6 +6,7 @@
   const refresh = document.getElementById("core-refresh");
 
   if (!grid || !freshness || !refresh) return;
+  let lastObservedAt = null;
 
   const escapeText = value => String(value ?? "Unknown")
     .replaceAll("&", "&amp;")
@@ -33,6 +34,20 @@
     );
   }
 
+  function updateObservationAge() {
+    if (lastObservedAt === null) return;
+    const observed = Date.parse(lastObservedAt);
+    const seconds = Math.floor((Date.now() - observed) / 1000);
+    const current = Number.isFinite(observed) && seconds >= -60 && seconds <= 300;
+    freshness.textContent = current
+      ? "Last observed " + Math.max(0, seconds) + " seconds ago"
+      : "STALE — current health cannot be confirmed";
+    if (!current) {
+      grid.innerHTML = card("System health", "Not current", "warning",
+        "Cached observations have expired; refresh to verify current state.");
+    }
+  }
+
   async function loadCore() {
     refresh.disabled = true;
 
@@ -49,6 +64,7 @@
         throw Error("Unsupported observation");
       }
 
+      lastObservedAt = data.generated_at;
       const generated = Date.parse(data.generated_at);
       const seconds = Math.floor(
         (Date.now() - generated) / 1000
@@ -128,9 +144,11 @@
           "Routed IPv6 is not deployed"
         )
       ].join("");
+      updateObservationAge();
 
     } catch (error) {
       console.warn("Core observation:", error);
+      lastObservedAt = null;
       unavailable();
     } finally {
       refresh.disabled = false;
@@ -140,4 +158,8 @@
   refresh.addEventListener("click", loadCore);
   loadCore();
   setInterval(loadCore, 60000);
+  setInterval(updateObservationAge, 10000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") updateObservationAge();
+  });
 })();
