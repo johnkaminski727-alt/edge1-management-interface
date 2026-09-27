@@ -23,12 +23,19 @@ jobs:
         with:
           python-version: '3.11'
       - name: Syntax check
-        run: python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py tools/networking/spamhaus_ownership_candidate.py tests/validate_spamhaus_ownership_candidate.py tools/networking/spamhaus_ownership_inspect.py tests/validate_spamhaus_ownership_inspect.py
+        run: |
+          python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py
+          python3 -m py_compile tools/networking/spamhaus_ownership_candidate.py tests/validate_spamhaus_ownership_candidate.py
+          python3 -m py_compile tools/networking/spamhaus_ownership_inspect.py tests/validate_spamhaus_ownership_inspect.py
       - name: Guarded orchestration regressions
         run: python3 tests/validate_spamhaus_guarded_boot_restore.py -v
-      - name: Create-only owner-tagged candidate derivation (pure offline test)\n        run: python3 tests/validate_spamhaus_ownership_candidate.py -v\n      - name: Pure read-only rollback ownership classification\n        run: python3 tests/validate_spamhaus_ownership_inspect.py -v\n      - name: Proposed systemd unit static contract
+      - name: Create-only tagged candidate derivation
+        run: python3 tests/validate_spamhaus_ownership_candidate.py -v
+      - name: Read-only rollback ownership classification
+        run: python3 tests/validate_spamhaus_ownership_inspect.py -v
+      - name: Proposed systemd unit static contract
         run: python3 tests/validate_spamhaus_boot_restore_unit.py
       - name: Independent recovery regressions
         run: python3 tests/validate_spamhaus_scoped_recovery.py -v
-      - name: Existing pinned-candidate preflight regressions
+      - name: Pinned-candidate preflight regressions
         run: python3 tests/validate_spamhaus_boot_preflight.py -v
