@@ -24,7 +24,7 @@ preflight() {
             fail "Missing, empty or symlinked source: $file"
     done
     /usr/bin/python3 "$ROOT/tests/validate_edge1_candidate_workspace.py" -q
-    /usr/bin/grep -Fq 'OFFLINE · NO PRODUCTION CONNECTION' "$ROOT/src/web/operations-center/candidate-workspace-preview.html" ||
+    /usr/bin/grep -Fq 'LOCAL DEMO · OFFLINE · NO PRODUCTION CONNECTION' "$ROOT/src/web/operations-center/candidate-workspace-preview.html" ||
         fail "Offline-only UI warning missing"
     /usr/bin/python3 - "$ROOT/src/web/operations-center/candidate-workspace-preview.html" <<'PY'
 from pathlib import Path
