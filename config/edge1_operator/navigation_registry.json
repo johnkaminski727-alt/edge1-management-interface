@@ -73,12 +73,12 @@
       "sort_order": 50,
       "browser_route": "/edge1-status/bitcoin/",
       "runtime_route": "/edge1-status/bitcoin/",
-      "availability": "accepted_live",
+      "availability": "staged_disabled",
       "authorization": "existing_route_policy",
       "description": "Read-only Bitcoin wallet and backend telemetry.",
-      "palette": true,
+      "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_live"
+      "evidence_status": "repository_only_not_deployed"
     },
     {
       "id": "mining-operations",
@@ -87,12 +87,12 @@
       "sort_order": 60,
       "browser_route": "/edge1-status/mining/",
       "runtime_route": "/edge1-status/mining/",
-      "availability": "accepted_live",
+      "availability": "staged_disabled",
       "authorization": "existing_route_policy",
       "description": "Read-only mining telemetry and health.",
-      "palette": true,
+      "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_live"
+      "evidence_status": "repository_only_not_deployed"
     },
     {
       "id": "release-manager",

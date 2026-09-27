@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Edge1 core observations
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+Persistent=true
+Unit=edge1-core-observation.service
+
+[Install]
+WantedBy=timers.target

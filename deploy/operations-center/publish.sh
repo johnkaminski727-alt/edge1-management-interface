@@ -1,79 +1,106 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT="/opt/edge1-management-interface"
-SOURCE="$ROOT/src/web/operations-center/index.html"
-SHELL_ROOT="$ROOT/src/web/operator-shell"
-REGISTRY="$ROOT/config/edge1_operator/navigation_registry.json"
-DEST_ROOT="/var/www/edge1-status"
-DEST="/var/www/edge1-status/index.html"
-DEST_SHELL="$DEST_ROOT/operator-shell"
+ROOT=/opt/edge1-management-interface
+DEST=/var/www/edge1-status
 MODE="${1:-}"
 
-for path in "$SOURCE" "$SHELL_ROOT/shell.css" "$SHELL_ROOT/shell.js" "$REGISTRY"; do
-    if [ ! -f "$path" ]; then
-        echo "Missing source: $path" >&2
+declare -a FILES=(
+  "src/web/operations-center/index.html|index.html"
+  "src/web/operations-center/core-dashboard.js|core-dashboard.js"
+  "src/web/operations-center/crowdsec-dashboard.js|crowdsec-dashboard.js"
+  "src/web/security/index.html|security/index.html"
+  "src/web/security/correlation.html|security/correlation.html"
+  "src/web/security/crowdsec-dashboard.js|security/crowdsec-dashboard.js"
+  "src/web/network-defense/index.html|network-defense/index.html"
+  "src/web/operator-shell/shell.css|operator-shell/shell.css"
+  "src/web/operator-shell/shell.js|operator-shell/shell.js"
+  "config/edge1_operator/navigation_registry.json|operator-shell/navigation.json"
+)
+
+echo "=== Unified Operations Center preflight ==="
+for entry in "${FILES[@]}"; do
+    source="${entry%%|*}"
+    test -s "$ROOT/$source" || {
+        echo "STOP: Missing source: $source" >&2
         exit 1
-    fi
+    }
 done
 
 case "$MODE" in
     "")
-        echo "Operations Center publish preflight passed. Use --apply to publish the page and read-only operator shell assets."
+        echo "PASS: All ten deployment assets present."
+        echo "Use --apply for deployment."
         exit 0
         ;;
     --apply) ;;
-    *) echo "unknown argument: $MODE" >&2; exit 1 ;;
+    *)
+        echo "Usage: $0 [--apply]" >&2
+        exit 2
+        ;;
 esac
 
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BACKUP="/var/backups/wwcx-operations-center-$STAMP"
-sudo mkdir -p "$BACKUP" "$DEST_SHELL"
-
-backup_one() {
-    local source="$1" name="$2"
-    if sudo test -f "$source"; then
-        sudo cp -a "$source" "$BACKUP/$name"
-        printf '1\n' | sudo tee "$BACKUP/$name.present" >/dev/null
-    else
-        printf '0\n' | sudo tee "$BACKUP/$name.present" >/dev/null
-    fi
+test "$(id -u)" -eq 0 || {
+    echo "STOP: --apply requires root" >&2
+    exit 1
 }
 
-backup_one "$DEST" index.html
-backup_one "$DEST_SHELL/shell.css" shell.css
-backup_one "$DEST_SHELL/shell.js" shell.js
-backup_one "$DEST_SHELL/navigation.json" navigation.json
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+BACKUP="/var/backups/edge1-unified-publish-$STAMP"
+mkdir -p "$BACKUP/previous"
+chmod 0700 "$BACKUP"
 
-cat <<'ROLLBACK' | sudo tee "$BACKUP/rollback.sh" >/dev/null
+# Build the full backup before publishing any file.
+: >"$BACKUP/manifest"
+for entry in "${FILES[@]}"; do
+    source="${entry%%|*}"
+    relative="${entry#*|}"
+    target="$DEST/$relative"
+    if test -f "$target"; then
+        mkdir -p "$BACKUP/previous/$(dirname "$relative")"
+        cp -a "$target" "$BACKUP/previous/$relative"
+        printf 'present|%s\n' "$relative" >>"$BACKUP/manifest"
+    elif ! test -e "$target"; then
+        printf 'absent|%s\n' "$relative" >>"$BACKUP/manifest"
+    else
+        echo "STOP: Destination is not a regular file: $target" >&2
+        exit 1
+    fi
+done
+
+cat >"$BACKUP/rollback.sh" <<'ROLLBACK'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-DEST_ROOT="/var/www/edge1-status"
-DEST_SHELL="$DEST_ROOT/operator-shell"
-restore_one() {
-    local name="$1" dest="$2"
-    if [ "$(cat "$HERE/$name.present")" = "1" ]; then
-        install -m 0644 "$HERE/$name" "$dest"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+DEST=/var/www/edge1-status
+
+while IFS='|' read -r state relative; do
+    target="$DEST/$relative"
+    if [ "$state" = present ]; then
+        install -d -m 0755 "$(dirname "$target")"
+        install -m 0644 "$HERE/previous/$relative" "$target"
+    elif [ "$state" = absent ]; then
+        rm -f "$target"
     else
-        rm -f "$dest"
+        echo "Invalid rollback manifest" >&2
+        exit 1
     fi
-}
-mkdir -p "$DEST_SHELL"
-restore_one index.html "$DEST_ROOT/index.html"
-restore_one shell.css "$DEST_SHELL/shell.css"
-restore_one shell.js "$DEST_SHELL/shell.js"
-restore_one navigation.json "$DEST_SHELL/navigation.json"
-echo "Operations Center rollback restored from $HERE"
+done <"$HERE/manifest"
+
+echo "Previous interface restored: $HERE"
 ROLLBACK
-sudo chmod 0750 "$BACKUP/rollback.sh"
+chmod 0700 "$BACKUP/rollback.sh"
 
-sudo install -m 0644 "$SOURCE" "$DEST"
-sudo install -m 0644 "$SHELL_ROOT/shell.css" "$DEST_SHELL/shell.css"
-sudo install -m 0644 "$SHELL_ROOT/shell.js" "$DEST_SHELL/shell.js"
-sudo install -m 0644 "$REGISTRY" "$DEST_SHELL/navigation.json"
+echo "=== Publishing ten interface assets ==="
+for entry in "${FILES[@]}"; do
+    source="${entry%%|*}"
+    relative="${entry#*|}"
+    target="$DEST/$relative"
+    install -d -m 0755 "$(dirname "$target")"
+    install -m 0644 "$ROOT/$source" "$target"
+    echo "Published: $relative"
+done
 
-echo "Published Operations Center and operator shell assets."
-echo "destination=$DEST"
-echo "rollback_backup=$BACKUP"
-echo "rollback_script=$BACKUP/rollback.sh"
+echo "PASS: Unified interface published."
+echo "Rollback: $BACKUP/rollback.sh"
+echo "Runtime JSON snapshots and monitoring services were not changed."

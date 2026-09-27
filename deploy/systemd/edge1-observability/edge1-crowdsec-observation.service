@@ -1,0 +1,13 @@
+[Unit]
+Description=Read-only Edge1 CrowdSec observation
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/edge1-crowdsec-observation
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/edge1-status
+PrivateTmp=true
+TimeoutStartSec=75

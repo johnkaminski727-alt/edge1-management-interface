@@ -1,0 +1,14 @@
+[Unit]
+Description=Read-only Edge1 Network Defense integration
+After=edge1-core-observation.service edge1-crowdsec-observation.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/edge1-network-defense-observation
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/edge1-status/network-defense/data
+PrivateTmp=true
+TimeoutStartSec=110
