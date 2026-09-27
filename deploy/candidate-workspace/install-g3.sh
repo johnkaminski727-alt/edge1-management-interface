@@ -13,6 +13,7 @@ FILES=(
  "tools/operations/edge1_candidate_store.py"
  "tools/operations/edge1_candidate_api.py"
  "tools/operations/edge1_operations_view.py"
+ "tools/operations/edge1_host_metrics.py"
  "tools/operations/edge1_operations_api.py"
  "src/web/operations-center/operations-workspace-g3.html"
  "docs/operations-center/operations-workspace-g3.md"
@@ -87,11 +88,12 @@ install -m 0644 "$ROOT/tools/operations/edge1_candidate_workspace.py" "$stage/ed
 install -m 0644 "$ROOT/tools/operations/edge1_candidate_store.py" "$stage/edge1_candidate_store.py"
 install -m 0644 "$ROOT/tools/operations/edge1_candidate_api.py" "$stage/edge1_candidate_api.py"
 install -m 0644 "$ROOT/tools/operations/edge1_operations_view.py" "$stage/edge1_operations_view.py"
+install -m 0644 "$ROOT/tools/operations/edge1_host_metrics.py" "$stage/edge1_host_metrics.py"
 install -m 0644 "$ROOT/tools/operations/edge1_operations_api.py" "$stage/edge1_operations_api.py"
 install -m 0644 "$ROOT/src/web/operations-center/operations-workspace-g3.html" "$stage/index.html"
 install -m 0644 "$ROOT/docs/operations-center/operations-workspace-g3.md" "$stage/README.md"
 printf '%s\n' "$MARKER" >"$stage/INSTALL-ID"
-(cd "$stage" && sha256sum edge1_candidate_workspace.py edge1_candidate_store.py edge1_candidate_api.py edge1_operations_view.py edge1_operations_api.py index.html README.md >SHA256SUMS)
+(cd "$stage" && sha256sum edge1_candidate_workspace.py edge1_candidate_store.py edge1_candidate_api.py edge1_operations_view.py edge1_host_metrics.py edge1_operations_api.py index.html README.md >SHA256SUMS)
 if [[ -d "$DEST" ]]; then
  backup="$BACKUPS/$(date -u +%Y%m%dT%H%M%SZ)-$$"
  mv -- "$DEST" "$backup"
