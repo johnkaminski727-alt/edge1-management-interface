@@ -45,6 +45,8 @@ class Fake:
         if args[0] == m.SYSTEMD_RUN:
             return subprocess.CompletedProcess(args, 1 if self.arm_fail else 0, "", "")
         if args[:3] == [m.SYSTEMCTL, "show", m.TIMER]:
+            if "--property=Unit" in args:
+                return ok(args, m.SERVICE + "\n")
             return ok(args, "inactive\n" if self.timer_fail else "active\n")
         if args[:3] == [m.SYSTEMCTL, "show", m.SERVICE]:
             return ok(args, "path=" + m.PYTHON + " ; argv[]=" + m.PYTHON + " -B " + str(m.RECOVERY) + " --execute ;")
@@ -117,12 +119,22 @@ class GuardedTests(unittest.TestCase):
         self.assertFalse(any("stop" in c for c in f.commands))
 
     def test_rollback_failure_is_visible_not_silently_accepted(self):
-        # The timer executes the separately tested scoped-recovery program.
-        # Guarded restore intentionally cannot assert remote timer execution.
-        f = Fake()
-        self.invoke(f)
-        arm = next(c for c in f.commands if c[0] == m.SYSTEMD_RUN)
-        self.assertEqual(arm[-3:], ["-B", str(m.RECOVERY), "--execute"])
+        # The actual independently tested scoped recovery raises if deletion fails.
+        recovery_path = src.with_name("spamhaus_scoped_recovery.py")
+        recovery_spec = importlib.util.spec_from_file_location("scoped_recovery", recovery_path)
+        recovery = importlib.util.module_from_spec(recovery_spec)
+        recovery_spec.loader.exec_module(recovery)
+        commands = []
+        def failed_delete(args):
+            commands.append(args)
+            if args[1:4] == ["-j", "list", "tables"]:
+                return ok(args, json.dumps({"nftables": [{"table": {"family": "inet", "name": "bigbird_spamhaus"}}]}))
+            if args[1:] == ["delete", "table", "inet", "bigbird_spamhaus"]:
+                return subprocess.CompletedProcess(args, 1, "", "simulated delete failure")
+            raise AssertionError(args)
+        with self.assertRaises(RuntimeError):
+            recovery.recover(runner=failed_delete, execute=True)
+        self.assertTrue(any(args[1:4] == ["delete", "table", "inet"] for args in commands))
 
 if __name__ == "__main__":
     unittest.main()
