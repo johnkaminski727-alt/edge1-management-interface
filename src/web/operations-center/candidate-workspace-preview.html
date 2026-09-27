@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Edge1 candidate workspace G1 — offline preview</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0b1015;color:#eaf0f4}
+*{box-sizing:border-box}body{margin:0}.shell{max-width:1240px;margin:auto;padding:24px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid #384651;padding-bottom:20px}
+h1{margin:0}h2{margin-top:0}p{line-height:1.5;color:#bac8d2}.tag{border:1px solid #d6a956;color:#f2cf81;padding:5px 9px;border-radius:20px;font-size:.78rem}
+.layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:18px;margin-top:22px}
+.panel{background:#151d25;border:1px solid #3b4c58;border-radius:14px;padding:20px;margin-bottom:18px}
+.field{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:11px 0;border-bottom:1px solid #35444e}
+label{font-weight:600}input,select,button{font:inherit}input[type=number],select{max-width:175px;background:#111921;color:white;border:1px solid #647683;border-radius:8px;padding:9px}
+button{background:#28577a;color:white;border:1px solid #7d9db7;border-radius:8px;padding:10px 14px;cursor:pointer}button:focus,input:focus,select:focus{outline:3px solid #eac46f;outline-offset:2px}.secondary{background:#27343f}
+small,.muted{color:#aabac5}.changes{list-style:none;padding:0}.changes li{border-bottom:1px solid #33424e;padding:10px 0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b131a;border:1px solid #354957;padding:12px;border-radius:8px;max-height:430px;overflow:auto}
+nav a{display:block;color:#b9dfff;padding:9px 0}.status{border-left:4px solid #d9ad51;padding:10px;background:#23303a}
+@media(max-width:840px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="shell">
+<header><div><div class="tag">UNPUBLISHED DEMO · OFFLINE · NO PRODUCTION CONNECTION</div>
+<h1>Edge1 candidate workspace</h1><p>Review proposed display preferences before any future approved configuration workflow.</p></div>
+<div class="tag" id="status" role="status" aria-live="polite">No pending changes</div></header>
+<div class="status"><strong>Safety boundary:</strong> This preview uses local demonstration data only. It cannot read Edge1, save changes, apply configuration or execute ToolBox actions.</div>
+<div class="layout"><main>
+<section class="panel" aria-labelledby="edit-title"><h2 id="edit-title">Propose display preferences</h2>
+<div class="field"><label for="refresh">Dashboard refresh interval (seconds)</label><input id="refresh" type="number" min="10" max="3600" step="1" value="30"></div>
+<div class="field"><label for="vpn">Show VPN peers in inventory</label><input id="vpn" type="checkbox"></div>
+<div class="field"><label for="warnings">Show warning alerts</label><input id="warnings" type="checkbox" checked></div>
+<div class="field"><label for="max">Maximum alerts displayed</label><input id="max" type="number" min="1" max="48" step="1" value="20"></div>
+<p id="error" role="alert"></p>
+<button id="propose" type="button">Validate &amp; preview changes</button>
+<button id="discard" class="secondary" type="button">Discard candidate</button>
+</section>
+<section class="panel"><h2>Pending changes</h2><p id="base" class="muted"></p><ul id="changes" class="changes"><li>No pending changes.</li></ul>
+<h3>Human-readable difference</h3><pre id="diff">No differences.</pre>
+<p class="muted">Preview only; there is no Apply button or connection to a production server.</p></section>
+</main><aside class="panel"><h2>Contextual ToolBox</h2><p>Read-only orientation links from the existing Operations Center.</p>
+<nav aria-label="Read-only operations references">
+<a href="./index.html#core-health">System &amp; network health</a>
+<a href="./index.html#crowdsec">CrowdSec observation</a>
+<a href="./index.html#legacy-telemetry">Historical telemetry</a>
+<a href="./index.html#operations">Operations modules</a></nav>
+<h3>Validation checklist</h3><p id="checklist">No candidate changes yet.</p>
+<h3>Integration state</h3><p>Prototype only. No authentication, API route, durable audit history or authorized apply operation is implemented.</p></aside></div></div>
+<script>
+"use strict";
+(() => {
+  const original={refresh:30,vpn:false,warnings:true,max:20};
+  let candidate={...original};
+  const $=id=>document.getElementById(id);
+  const show=()=>{
+    $("refresh").value=candidate.refresh;$("vpn").checked=candidate.vpn;
+    $("warnings").checked=candidate.warnings;$("max").value=candidate.max;
+    const changes=Object.keys(original).filter(k=>candidate[k]!==original[k]);
+    $("status").textContent=changes.length?changes.length+" pending change(s)":"No pending changes";
+    $("changes").replaceChildren();
+    for(const key of changes){
+      const li=document.createElement("li");
+      li.textContent=key+": "+String(original[key])+" → "+String(candidate[key]);$("changes").append(li);
+    }
+    if(!changes.length){const li=document.createElement("li");li.textContent="No pending changes.";$("changes").append(li);}
+    $("diff").textContent=changes.length?changes.map(k=>"- "+k+": "+original[k]+"\n+ "+k+": "+candidate[k]).join("\n"):"No differences.";
+    $("checklist").textContent=changes.length?"Typed inputs validated. Running demo snapshot remains unchanged. No execution capability.":"No candidate changes yet.";
+    $("base").textContent="Running demo snapshot: unchanged. Candidate preview only.";
+  };
+  $("propose").addEventListener("click",()=>{
+    const refresh=Number($("refresh").value),max=Number($("max").value);
+    if(!Number.isInteger(refresh)||refresh<10||refresh>3600||!Number.isInteger(max)||max<1||max>48){
+      $("error").textContent="Enter a whole-number refresh interval from 10–3600 and alert limit from 1–48.";
+      return;
+    }
+    $("error").textContent="";
+    candidate={refresh,vpn:$("vpn").checked,warnings:$("warnings").checked,max};
+    show();
+  });
+  $("discard").addEventListener("click",()=>{candidate={...original};$("error").textContent="";show();});
+  show();
+})();
+</script></body></html>
