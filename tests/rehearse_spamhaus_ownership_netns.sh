@@ -10,7 +10,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 cat > "$work/owned.nft" <<'NFT'
-create table inet edge1_a246_probe { comment "edge1-a246-run:0123456789abcdef0123456789abcdef"; }
+create table inet edge1_a246_probe {
+    comment "edge1-a246-run:0123456789abcdef0123456789abcdef";
+}
 
 table inet edge1_a246_probe {
     set probe4 {
