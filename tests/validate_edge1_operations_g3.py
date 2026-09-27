@@ -79,8 +79,8 @@ class G3Tests(unittest.TestCase):
         self.dump()
         view = summarize(self.core, self.security, now=self.now)
         by_name = {item["name"]: item for item in view["security"]}
-        self.assertEqual(by_name["ids"]["diagnostic"]["tone"], "neutral")
-        self.assertEqual(by_name["spamhaus"]["diagnostic"]["tone"], "neutral")
+        self.assertEqual(by_name["ids"]["diagnostic"]["tone"], "warning")
+        self.assertEqual(by_name["spamhaus"]["diagnostic"]["tone"], "warning")
         self.assertEqual(by_name["dns"]["diagnostic"]["tone"], "good")
         self.assertEqual(by_name["firewall"]["diagnostic"]["tone"], "warning")
         self.assertEqual(by_name["fail2ban"]["diagnostic"]["tone"], "warning")
