@@ -1,0 +1,47 @@
+name: Edge1 candidate workspace G1
+on:
+  pull_request:
+    paths:
+      - 'tools/operations/edge1_candidate_workspace.py'
+      - 'tests/validate_edge1_candidate_workspace.py'
+      - 'src/web/operations-center/candidate-workspace-preview.html'
+      - 'docs/operations-center/candidate-workspace-g1.md'
+      - 'deploy/candidate-workspace/install-preview.sh'
+      - '.github/workflows/edge1-candidate-workspace.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python compilation
+        run: python3 -m py_compile tools/operations/edge1_candidate_workspace.py tests/validate_edge1_candidate_workspace.py
+      - name: Candidate-only validation and drift regressions
+        run: python3 tests/validate_edge1_candidate_workspace.py -v
+      - name: Local-only installer syntax and check-only preflight
+        run: |
+          bash -n deploy/candidate-workspace/install-preview.sh
+          bash deploy/candidate-workspace/install-preview.sh --check
+      - name: Offline HTML preview JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path("src/web/operations-center/candidate-workspace-preview.html").read_text()
+          code=re.search(r"<script>(.*?)</script>",text,re.S)
+          assert code and "fetch(" not in code.group(1)
+          assert "Apply" not in re.findall(r"<button.*?</button>",text,re.S).__str__()
+          Path("/tmp/edge1-candidate-preview.js").write_text(code.group(1))
+          PY
+          node --check /tmp/edge1-candidate-preview.js
