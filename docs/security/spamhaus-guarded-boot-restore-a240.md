@@ -51,6 +51,14 @@ The repository includes `tests/rehearse_spamhaus_ownership_netns.sh`, a single o
 
 This is an optional later operator step after review. If `sudo unshare --net` is unavailable, abort the rehearsal without fallback to the production namespace. **Do not substitute `sudo nft -f` directly on the host.** This rehearsal does not exercise systemd timers or resolve the ownership-check/delete race, so PR #607 remains draft afterward regardless of the syntax test's result.
 
+## Assignment 246 live rehearsal — FAILED SAFELY; original script retired
+
+The operator fetched the pinned draft revision `ddcdf57ee1e42b9c3d741b7c690b8417103a51bc` and ran the separate-netns rehearsal on Debian 13. New namespace isolation was **confirmed**. The test nft transaction did not error, but the JSON table-comment assertion failed; consequently the script exited early without completing the duplicate-create test, isolated-table deletion step or final read-only host verification. No production nft command was issued by that isolated step. The operator's SSH connection also closed; shell `set -e` can explain that on an uncaught nonzero exit, but service availability must be separately reconfirmed. Do not represent production connectivity or table health as verified after the failed command.
+
+Root-cause candidate: the A244 prototype attached the comment to a *second* `table inet ... { comment ... }` block after an initial **bare** `create table`. Parsing that block successfully does not prove it mutates the metadata of an already-created table. Debian nft's documented table grammar permits attaching the comment to the `create table ... { comment ... }` command itself. Updated the pure derivation tests and the isolated rehearsal to do so; this is **not a confirmed fix** until independently exercised on Edge1. The prior pinned rehearsal must not be rerun. Never fall back to applying the nft transaction in the production network namespace.
+
+The core race-free deletion/ownership release blocker remains unchanged even if the revised create syntax works. Do not merge, deploy or enable the proposed guarded service before an atomic-owner conditional deletion primitive or proven exclusive control over privileged writers exists.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
