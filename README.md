@@ -11,6 +11,10 @@ The project combines responsive browser tools, narrow API wrappers, service diag
 
 > **Public-repository boundary:** buildable source and sanitized documentation belong here. Credentials, private records, production databases, search indexes, personal information, and unredacted diagnostics do not.
 
+## Unified Operations Center (2026-09-27)
+
+The four accepted private pages share an operator navigation shell and read-only observation collectors. See the [unified Operations Center runbook](docs/operations/unified-operations-center-runbook-20260927.md) for routes, localhost access, ten-asset preflight/publish, post-publish verification, rollback and safety boundaries; the [release register](registers/unified-operations-center-release-20260927.md) records acceptance and open follow-ups. The accepted frontend matched the synchronized repository 10/10 in the final deployment-parity audit. This does not imply legacy telemetry is operational.
+
 ## Highlights
 
 - Responsive desktop, tablet, and phone interface
