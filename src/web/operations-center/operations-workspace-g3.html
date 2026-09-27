@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Edge1 G3 — operations & configuration workspace</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Arial;background:#0b1015;color:#edf3f7}*{box-sizing:border-box}body{margin:0}
+main{max-width:1180px;margin:auto;padding:26px 18px 60px}header{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center;border-bottom:1px solid #334651;padding-bottom:18px}
+h1{margin:6px 0;font-size:1.8rem}h2{margin-top:0}.muted{color:#b3c5ce}p{line-height:1.5}
+.badge{border:1px solid #cda652;border-radius:20px;padding:5px 10px;font-size:.8rem;color:#f5d793}
+.box{padding:18px;background:#15212a;border:1px solid #344a57;border-radius:12px;margin:16px 0}
+.layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:18px}
+.field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #34444f}
+input[type=number],input[type=password]{background:#0a151d;border:1px solid #708797;color:white;border-radius:6px;padding:10px;max-width:100%}input[type=number]{width:110px}input[type=password]{width:350px}
+button{background:#235775;border:1px solid #89aac0;color:white;border-radius:8px;padding:10px 14px;font:inherit;cursor:pointer;margin:5px 5px 5px 0}
+button:disabled{opacity:.45;cursor:not-allowed}button:focus,input:focus{outline:3px solid #d2ad5b;outline-offset:2px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0a151e;border:1px solid #354955;border-radius:8px;padding:14px;max-height:350px;overflow:auto}
+ul{padding-left:18px}li{margin:8px 0}.error{color:#ffb3a5}.ok{color:#8ee5b2}.warning{border-left:4px solid #dbb45b;padding:12px;background:#202b32}
+a{color:#addbff}#workspace[hidden],#login[hidden]{display:none}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.field{align-items:start}}
+
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{background:#1c313f}nav.tabs button[aria-selected=true]{background:#315f7e;border-color:#b2ddf2}
+.ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}.ops-card{background:#101d28;border:1px solid #3e5665;border-radius:10px;padding:15px}.ops-card h3{margin:0 0 7px;font-size:1rem}.ops-card strong{font-size:1.1rem}.ops-card small{display:block;color:#b3c5ce;margin-top:8px}.ops-card.problem{border-color:#dbb45b}.ops-card.good{border-color:#6cbb8b}
+.ops-list{width:100%;border-collapse:collapse}.ops-list th,.ops-list td{text-align:left;border-bottom:1px solid #39505d;padding:10px}.ops-list th{color:#b1c6d4}.ops-list td{overflow-wrap:anywhere}.panel-note{font-size:.9rem;color:#aec0ce}
+</style></head>
+<body><main>
+<header><div><span class="badge">G3 · LOCAL SSH ACCESS · OPERATIONS & SAVED CANDIDATES</span><h1>Edge1 operations console</h1><p class="muted">Live-read-only operational observations, network diagnostics, security posture and saved configuration proposals.</p></div><span id="summary" class="badge" role="status">Authentication required</span></header>
+<div class="warning"><strong>Read-only operational access; no live Apply capability.</strong> Candidate edits are saved on Edge1 for later review. They do not change the running configuration, DNS, routes or firewall.</div>
+<section id="login" class="box"><h2>Unlock local workspace</h2><p>Enter the private G2 token from the Edge1 local installation. The token stays in this browser tab's memory and is not saved.</p><label for="token">Access token</label><br><input id="token" type="password" autocomplete="off" spellcheck="false"><br><button id="connect">Connect to saved workspace</button><p id="login-error" role="alert" class="error"></p></section>
+<div id="workspace" hidden><nav class="tabs" aria-label="Workspace sections" id="g3-tabs"><button type="button" data-tab="overview" aria-selected="true">Overview</button><button type="button" data-tab="services" aria-selected="false">Services</button><button type="button" data-tab="network" aria-selected="false">Network</button><button type="button" data-tab="security" aria-selected="false">Security</button><button type="button" data-tab="candidate" aria-selected="false">Candidate settings</button><button type="button" data-tab="audit" aria-selected="false">Audit &amp; ToolBox</button></nav>
+<section class="box" id="g3-observation" aria-live="polite"><h2>Observation status</h2><p id="g3-freshness">No observations loaded.</p><button id="g3-refresh" type="button">Refresh observations</button><p class="panel-note">Observations are read-only. Unavailable and stale sources never count as healthy. Service state is not an end-to-end network test.</p></section>
+<section class="box" data-section="overview"><h2>Operations overview</h2><p class="panel-note">Host load, memory, disk and uptime are read on demand from the existing operating system; network/security observations have separate freshness checks.</p><div id="g3-overview" class="ops-grid"></div></section>
+<section class="box" data-section="services" hidden><h2>Core services</h2><p class="panel-note">Existing Edge1 monitoring snapshots; no service start, restart or stop controls.</p><div id="g3-services" class="ops-grid"></div></section>
+<section class="box" data-section="network" hidden><h2>Network and routing</h2><p class="panel-note">Interfaces and forwarding flags only; no IP addresses, peer identities or raw route dumps.</p><div id="g3-network" class="ops-grid"></div></section>
+<section class="box" data-section="security" hidden><h2>Security and network defense</h2><p class="panel-note">Observed telemetry is not proof of enforcement; Spamhaus rollback remains a separate draft security project.</p><div id="g3-security" class="ops-grid"></div></section>
+<section data-section="candidate" hidden><h2>Candidate configuration</h2><div class="layout"><div>
+<section class="box"><h2>Propose display settings</h2><p id="base" class="muted"></p>
+<div class="field"><label for="refresh">Dashboard refresh interval (10–3600 seconds)</label><input id="refresh" type="number" min="10" max="3600" step="1"></div>
+<div class="field"><label for="vpn">Show VPN peers in inventory</label><input id="vpn" type="checkbox"></div>
+<div class="field"><label for="warnings">Show warning alerts</label><input id="warnings" type="checkbox"></div>
+<div class="field"><label for="max">Maximum visible alerts (1–48)</label><input id="max" type="number" min="1" max="48" step="1"></div>
+<p class="muted">Changes to these four controls are saved as one-field proposals in sequence; another tab's conflicting changes stop the save.</p>
+<button id="save">Validate and save candidate</button><button id="discard">Discard saved candidate</button><button id="reload">Reload current candidate</button><p id="feedback" role="alert"></p>
+</section>
+<section class="box"><h2>Pending change review</h2><ul id="changes"></ul><h3>Running → candidate diff</h3><pre id="diff"></pre></section>
+</div><aside>
+<section class="box"><h2>Read-only Edge1 observation</h2><p id="observation">Observation not loaded.</p><button id="observe">Refresh observation</button><p class="muted">This is a freshness-checked operational summary, not a live configuration snapshot.</p></section>
+<section class="box"><h2>Local candidate audit</h2><ul id="audit"></ul><p class="muted">Local diagnostic audit, not immutable security evidence.</p></section>
+<section class="box"><h2>Contextual ToolBox</h2><p>Read-only operating references:</p><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/networking" target="_blank" rel="noopener noreferrer">Networking</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security</a></li></ul></section>
+</aside></div></section><section class="box" data-section="audit" hidden><h2>Audit and contextual ToolBox</h2><p>Candidate audit history and documentation appear in the Candidate settings sidebar; additional operational diagnostics are read-only.</p><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center operating manual</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security operations documentation</a></li></ul><p>Deployment, authenticated multi-user RBAC and Apply are not available in G3.</p></section></div>
+</main>
+<script>
+"use strict";
+(() => {
+  let token = "", state = null, busy = false;
+  const el = id => document.getElementById(id);
+  const notify = (text, error=false) => { el("feedback").textContent=text; el("feedback").className=error?"error":"ok"; };
+  async function api(path, body) {
+    const options = {cache:"no-store",headers:{"X-Edge1-Token":token}};
+    if(body !== undefined){options.method="POST";options.headers["Content-Type"]="application/json";options.body=JSON.stringify(body);}
+    const res = await fetch(path, options);
+    const response=await res.json();
+    if(!res.ok) throw new Error(response.error || "Request failed: "+res.status);
+    return response;
+  }
+  function render() {
+    if(!state)return;
+    const c=state.candidate;
+    el("refresh").value=c.dashboard.refresh_seconds; el("vpn").checked=c.inventory.show_vpn_peers;
+    el("warnings").checked=c.alerts.show_warnings;el("max").value=c.alerts.max_items;
+    el("summary").textContent=state.pending?state.changes.length+" saved pending changes":"No pending changes";
+    el("base").textContent="Demo running revision: "+state.base_revision.slice(0,16)+"… · Saved candidate revision: "+state.candidate_revision.slice(0,16)+"…";
+    el("changes").replaceChildren();
+    const items=state.changes.length?state.changes:[{path:"No pending changes"}];
+    for(const item of items){const li=document.createElement("li");li.textContent=item.running===undefined?item.path:item.path+": "+JSON.stringify(item.running)+" → "+JSON.stringify(item.candidate);el("changes").append(li);}
+    el("diff").textContent=state.diff||"No differences";
+  }
+  async function load() {
+    state=await api("/api/state");render();if(operations)renderOperations();
+    const log=await api("/api/audit");
+    el("audit").replaceChildren();
+    for(const item of log.events){const li=document.createElement("li");li.textContent=item.observed_utc+" · "+item.action+(item.path?" · "+item.path:"");el("audit").append(li);}
+    if(!log.events.length)el("audit").textContent="No candidate activity yet.";
+  }
+  async function observe(){
+    try{
+      const item=await api("/api/observation");
+      el("observation").textContent=item.available?(item.fresh?"CURRENT":"STALE")+" · "+item.active_service_count+"/"+item.service_count+" observed services active · "+item.generated_at:"Unavailable: "+item.reason;
+    }catch(err){el("observation").textContent="Unavailable: "+err.message;}
+  }
+
+  let operations = null;
+  const tabButtons=Array.from(document.querySelectorAll("#g3-tabs button"));
+  function switchTab(tab){
+    for(const button of tabButtons){button.setAttribute("aria-selected",String(button.dataset.tab===tab));}
+    for(const section of document.querySelectorAll("[data-section]")){section.hidden=section.dataset.section!==tab;}
+  }
+  for(const button of tabButtons){button.addEventListener("click",()=>switchTab(button.dataset.tab));}
+  function card(parent,title,value,description,style){
+    const article=document.createElement("article");article.className="ops-card "+(style||"");
+    const heading=document.createElement("h3");heading.textContent=title;article.append(heading);
+    const label=document.createElement("strong");label.textContent=value===undefined||value===null?"Unknown":String(value);article.append(label);
+    const small=document.createElement("small");small.textContent=description||"";article.append(small);parent.append(article);
+  }
+  function renderOperations(){
+    if(!operations)return;
+    const v=operations,core=v.sources.core,security=v.sources.network_defense;
+    el("g3-freshness").textContent="Core: "+core.reason+(core.age_seconds===null?"":" · "+core.age_seconds+"s old")+" | Network defense: "+security.reason+(security.age_seconds===null?"":" · "+security.age_seconds+"s old");
+    const overview=el("g3-overview");overview.replaceChildren();
+    card(overview,"Core services",v.summary.active_services===null?"Unavailable":v.summary.active_services+"/"+v.summary.observed_services,"Current observed services",core.fresh?"good":"problem");
+    card(overview,"Network interfaces",v.summary.interface_up===null?"Unavailable":v.summary.interface_up+" up","Existing interface observations",core.fresh?"good":"problem");
+    card(overview,"Network defense",v.summary.security_components_observed===null?"Unavailable":v.summary.security_components_observed+" components observed","Telemetry, not enforcement proof",security.fresh?"good":"problem");
+    card(overview,"Saved configuration",state?.pending?state.changes.length+" pending":"No pending changes","Display preferences only",state?.pending?"problem":"good");
+    const host=v.host||{};
+    card(overview,"CPU load",host.available?host.load_1m+" / "+host.cpu_count+" cores":"Unavailable","1-minute load average; not CPU utilization",host.available?"":"problem");
+    card(overview,"Memory",host.available?host.memory_used_percent+"% used":"Unavailable",host.available?host.memory_available_mib+" MiB available":"Kernel observation unavailable",host.available?"":"problem");
+    card(overview,"Root filesystem",host.available?host.root_disk_used_percent+"% used":"Unavailable",host.available?host.root_disk_available_gib+" GiB available":"Filesystem observation unavailable",host.available?"":"problem");
+    card(overview,"Uptime",host.available?Math.floor(host.uptime_seconds/3600)+" hours":"Unavailable","Observed kernel uptime",host.available?"":"problem");
+    const svc=el("g3-services");svc.replaceChildren();
+    for(const item of v.services){card(svc,item.name,item.state,item.observed?"Verified current observation":"No current verification",item.state==="active"?"good":"problem");}
+    if(!v.services.length)card(svc,"Service observation","Unavailable","Core snapshot missing or rejected","problem");
+    const net=el("g3-network");net.replaceChildren();
+    for(const item of v.interfaces){card(net,item.name,item.available===null?"Unknown":!item.available?"Unavailable":item.up?"Up":"Down","Interface state, not Internet reachability",item.up?"good":"problem");}
+    for(const key of ["ipv4_forwarding","ipv6_forwarding"]){const value=v.routing[key];card(net,key.replaceAll("_"," "),value===null?"Unknown":value===1?"Enabled":"Disabled","Kernel forwarding snapshot",value===null?"problem":"");}
+    const sec=el("g3-security");sec.replaceChildren();
+    for(const item of v.security){
+      const metrics=Object.entries(item.metrics).filter(([k,n])=>n!==null).map(([k,n])=>k.replaceAll("_"," ")+": "+n).join(" · ");
+      card(sec,item.name.replaceAll("_"," "),item.state+(item.enforcement_verified?" · enforcement observed":""),metrics||"No public aggregate metrics",item.observed?"good":"problem");
+    }
+    if(!v.security.length)card(sec,"Network defense","Unavailable","Missing or invalid snapshot","problem");
+  }
+  async function refreshOperations(){
+    el("g3-refresh").disabled=true;
+    try{operations=await api("/api/operations");renderOperations();}
+    catch(err){el("g3-freshness").textContent="Observations unavailable: "+err.message;}
+    finally{el("g3-refresh").disabled=false;}
+  }
+  el("g3-refresh").addEventListener("click",refreshOperations);
+
+  el("connect").addEventListener("click",async()=>{
+    const supplied=el("token").value.trim();
+    if(!/^[0-9a-f]{64}$/.test(supplied)){el("login-error").textContent="Enter the 64-character private token.";return;}
+    token=supplied;
+    try{
+      await load(); el("token").value="";el("login").hidden=true;el("workspace").hidden=false;
+      await observe();await refreshOperations();
+    }catch(err){token="";el("login-error").textContent=err.message;}
+  });
+  switchTab("overview");
+  el("reload").addEventListener("click",async()=>{try{await load();notify("Current saved candidate reloaded.");}catch(err){notify(err.message,true);}});
+  el("observe").addEventListener("click",observe);
+  el("save").addEventListener("click",async()=>{
+    if(busy || !state)return;
+    const rawRefresh=el("refresh").value,rawMax=el("max").value;
+    const refresh=Number(rawRefresh),max=Number(rawMax);
+    if(rawRefresh===""||rawMax===""||!Number.isInteger(refresh)||refresh<10||refresh>3600||!Number.isInteger(max)||max<1||max>48){
+      notify("Enter whole-number refresh 10–3600 and maximum alerts 1–48.",true);return;
+    }
+    const requested=[
+      ["dashboard","refresh_seconds",refresh],
+      ["inventory","show_vpn_peers",el("vpn").checked],
+      ["alerts","show_warnings",el("warnings").checked],
+      ["alerts","max_items",max],
+    ];
+    busy=true;el("save").disabled=true;el("discard").disabled=true;
+    try{
+      let changed=0;
+      for(const [section,field,value] of requested){
+        if(state.candidate[section][field]===value)continue;
+        state=await api("/api/propose",{expected_candidate_revision:state.candidate_revision,section,field,value});
+        changed++;
+      }
+      await load();notify(changed?changed+" candidate changes saved on Edge1.":"No changes to save.");
+    }catch(err){
+      notify("Save stopped: "+err.message+". Reload to inspect the latest saved candidate.",true);
+      // Do not silently reload: preserve the user's unsaved input after conflict.
+    }finally{busy=false;el("save").disabled=false;el("discard").disabled=false;}
+  });
+  el("discard").addEventListener("click",async()=>{
+    if(busy||!state)return;
+    busy=true;el("discard").disabled=true;
+    try{state=await api("/api/discard",{expected_candidate_revision:state.candidate_revision});await load();notify("Saved candidate discarded.");}
+    catch(err){notify("Discard refused: "+err.message,true);}
+    finally{busy=false;el("discard").disabled=false;}
+  });
+})();
+</script>
+</body></html>

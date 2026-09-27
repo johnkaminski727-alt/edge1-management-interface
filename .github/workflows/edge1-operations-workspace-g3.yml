@@ -1,0 +1,56 @@
+name: Edge1 operations workspace G3
+on:
+  pull_request:
+    paths:
+      - 'tools/operations/edge1_operations_*.py'
+      - 'tools/operations/edge1_candidate_*.py'
+      - 'tests/validate_edge1_operations_g3.py'
+      - 'src/web/operations-center/operations-workspace-g3.html'
+      - 'docs/operations-center/operations-workspace-g3.md'
+      - 'deploy/candidate-workspace/install-g3.sh'
+      - '.github/workflows/edge1-operations-workspace-g3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-operations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python and shell compilation
+        run: |
+          python3 -m py_compile tools/operations/edge1_candidate_workspace.py tools/operations/edge1_candidate_store.py tools/operations/edge1_candidate_api.py tools/operations/edge1_operations_view.py tools/operations/edge1_host_metrics.py tools/operations/edge1_operations_api.py tests/validate_edge1_operations_g3.py
+          bash -n deploy/candidate-workspace/install-g3.sh
+      - name: Candidate, HTTP and operations regressions
+        run: |
+          python3 tests/validate_edge1_candidate_workspace.py -v
+          python3 tests/validate_edge1_candidate_store.py -v
+          python3 tests/validate_edge1_candidate_api.py -v
+          python3 tests/validate_edge1_operations_g3.py -v
+      - name: G3 deployment preflight (no mutation)
+        run: bash deploy/candidate-workspace/install-g3.sh --check
+      - name: G3 standalone browser JS and structural checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path("src/web/operations-center/operations-workspace-g3.html").read_text()
+          script=re.search(r"<script>(.*?)</script>",html,re.S)
+          assert script and '"/api/operations"' in script.group(1)
+          assert '"/api/apply"' not in html and "localStorage" not in html
+          assert html.count("<script>")==html.count("</script>")==1
+          for tab in ("overview","services","network","security","candidate","audit"):
+              assert f'data-tab="{tab}"' in html
+              assert f'data-section="{tab}"' in html
+          Path("/tmp/g3-operations.js").write_text(script.group(1))
+          PY
+          node --check /tmp/g3-operations.js
