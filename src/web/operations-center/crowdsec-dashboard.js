@@ -6,6 +6,7 @@
   const refresh = document.getElementById("crowdsec-refresh");
 
   if (!grid || !freshness || !refresh) return;
+  let lastObservedAt = null;
 
   const escapeText = value => String(value ?? "Unknown")
     .replaceAll("&", "&amp;")
@@ -32,6 +33,20 @@
     );
   }
 
+  function updateObservationAge() {
+    if (lastObservedAt === null) return;
+    const observed = Date.parse(lastObservedAt);
+    const seconds = Math.floor((Date.now() - observed) / 1000);
+    const current = Number.isFinite(observed) && seconds >= -60 && seconds <= 300;
+    freshness.textContent = current
+      ? "Fresh observation: " + Math.max(0, seconds) + " seconds old"
+      : "STALE OR INVALID — current protection is unverified";
+    if (!current) {
+      grid.innerHTML = card("CrowdSec observation", "Not current", "warning",
+        "Cached observations have expired; refresh to verify current state.");
+    }
+  }
+
   async function loadCrowdSec() {
     refresh.disabled = true;
     try {
@@ -46,6 +61,7 @@
         throw Error("Unsupported snapshot format");
       }
 
+      lastObservedAt = data.generated_at;
       const observedAt = Date.parse(data.generated_at);
       const ageSeconds = Math.max(
         0, Math.floor((Date.now() - observedAt) / 1000)
@@ -113,7 +129,9 @@
           bouncerOK ? "good" : "warning",
           "Service and startup registration")
       ].join("");
+      updateObservationAge();
     } catch (error) {
+      lastObservedAt = null;
       unavailable("Snapshot unavailable or invalid");
     } finally {
       refresh.disabled = false;
@@ -123,4 +141,8 @@
   refresh.addEventListener("click", loadCrowdSec);
   loadCrowdSec();
   setInterval(loadCrowdSec, 60000);
+  setInterval(updateObservationAge, 10000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") updateObservationAge();
+  });
 })();
