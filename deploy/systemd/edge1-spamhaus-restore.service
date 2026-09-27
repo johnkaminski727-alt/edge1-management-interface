@@ -1,0 +1,26 @@
+[Unit]
+Description=Edge1 Spamhaus pinned-candidate restore
+Documentation=file:/opt/edge1-management-interface/docs/security/spamhaus-boot-restore-candidate-20260927.md
+Wants=network-online.target
+After=local-fs.target network-online.target chrony.service ufw.service crowdsec.service crowdsec-firewall-bouncer.service
+ConditionPathExists=/var/lib/edge1-spamhaus/boot-candidate/spamhaus-candidate.nft
+ConditionPathExists=/usr/local/libexec/edge1-spamhaus/spamhaus_boot_preflight.py
+ConditionPathExists=/usr/local/libexec/edge1-spamhaus/spamhaus_boot_restore.py
+ConditionPathExists=/usr/local/libexec/edge1-spamhaus/spamhaus_scoped_recovery.py
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/var/lib/edge1-spamhaus/boot-candidate
+ExecStartPre=/usr/bin/chronyc waitsync 30 0.1
+ExecStartPre=/usr/bin/python3 -B /usr/local/libexec/edge1-spamhaus/spamhaus_boot_preflight.py --stage /var/lib/edge1-spamhaus/boot-candidate --parser /usr/local/libexec/edge1-spamhaus/spamhaus_feed_candidate.py --recovery /usr/local/libexec/edge1-spamhaus/spamhaus_scoped_recovery.py
+ExecStart=/usr/bin/python3 -B /usr/local/libexec/edge1-spamhaus/spamhaus_boot_restore.py --candidate /var/lib/edge1-spamhaus/boot-candidate/spamhaus-candidate.nft --execute
+
+# Deliberately no [Install] section. This PR stages the executable restore path
+# for review and isolated testing only; it cannot be enabled by systemctl enable.
