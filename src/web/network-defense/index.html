@@ -90,8 +90,14 @@ function renderSources(){
   const entries=Object.entries(snapshot?.sources||{});
   const current=entries.filter(([name])=>CURRENT_COLLECTORS.has(name));
   const legacy=entries.filter(([name])=>!CURRENT_COLLECTORS.has(name));
-  const currentObserved=current.filter(([,x])=>x?.available===true&&!x?.stale).length;
-  const legacyObserved=legacy.filter(([,x])=>x?.available===true&&!x?.stale).length;
+  const isCurrent=([,x])=>{
+    const generatedAge=snapshotAgeSeconds();
+    const age=Number.isFinite(x?.age_seconds)&&generatedAge!==null?x.age_seconds+generatedAge:null;
+    const threshold=Number.isFinite(x?.stale_after_seconds)&&x.stale_after_seconds>0?x.stale_after_seconds:300;
+    return x?.available===true&&x?.stale!==true&&age!==null&&age<=threshold&&generatedAge<=STALE_AFTER_MS/1000;
+  };
+  const currentObserved=current.filter(isCurrent).length;
+  const legacyObserved=legacy.filter(isCurrent).length;
   const unavailable=entries.filter(([,x])=>x?.available!==true).length;
   el("source-overview").textContent=`${currentObserved}/${current.length} current collectors observed; ${legacyObserved}/${legacy.length} legacy feeds reported available; ${unavailable} inputs unconnected or unstaged. These counts are not service-health counts.`;
   el("current-sources").innerHTML=current.map(([name,x])=>sourcePresentation(name,x)).join("")||'<div class="muted">No current collector status was reported.</div>';
