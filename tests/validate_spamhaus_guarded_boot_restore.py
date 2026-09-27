@@ -112,6 +112,51 @@ class GuardedTests(unittest.TestCase):
         self.assertTrue(any(c[0] == m.SYSTEMD_RUN for c in f.commands))
         self.assertFalse(any("stop" in c for c in f.commands))
 
+    def test_rejects_wrong_payload_field(self):
+        f = Fake()
+        old = m.verify_restored_table
+        def wrong_field():
+            def runner(args, *, timeout=60):
+                result = f(args, timeout=timeout)
+                if args[:4] == [m.NFT, "-j", "list", "table"]:
+                    doc = json.loads(result.stdout)
+                    rule = next(e["rule"] for e in doc["nftables"] if "rule" in e)
+                    rule["expr"][0]["match"]["left"]["payload"]["field"] = "daddr"
+                    return ok(args, json.dumps(doc))
+                return result
+            with patch.object(m, "run", runner):
+                m.verify_restored_table()
+        with self.assertRaises(RuntimeError):
+            wrong_field()
+
+    def test_rejects_wrong_match_operator(self):
+        f = Fake()
+        def runner(args, *, timeout=60):
+            result = f(args, timeout=timeout)
+            if args[:4] == [m.NFT, "-j", "list", "table"]:
+                doc = json.loads(result.stdout)
+                rule = next(e["rule"] for e in doc["nftables"] if "rule" in e)
+                rule["expr"][0]["match"]["op"] = "!="
+                return ok(args, json.dumps(doc))
+            return result
+        with patch.object(m, "run", runner):
+            with self.assertRaises(RuntimeError):
+                m.verify_restored_table()
+
+    def test_rejects_missing_counter(self):
+        f = Fake()
+        def runner(args, *, timeout=60):
+            result = f(args, timeout=timeout)
+            if args[:4] == [m.NFT, "-j", "list", "table"]:
+                doc = json.loads(result.stdout)
+                rule = next(e["rule"] for e in doc["nftables"] if "rule" in e)
+                rule["expr"].pop(1)
+                return ok(args, json.dumps(doc))
+            return result
+        with patch.object(m, "run", runner):
+            with self.assertRaises(RuntimeError):
+                m.verify_restored_table()
+
     def test_incomplete_rules_leave_rollback_armed(self):
         f = Fake(invalid_table=True)
         with self.assertRaises(RuntimeError): self.invoke(f)
