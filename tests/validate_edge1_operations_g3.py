@@ -94,6 +94,7 @@ class G3Tests(unittest.TestCase):
         self.security_data["components"]["dns"] = {
             "state": "healthy", "observed": True,
             "metrics": {"recent_events": 2}}
+        self.security_data["sources"] = {}
         self.dump()
         view = summarize(self.core, self.security, now=self.now)
         item = next(x for x in view["security"] if x["name"] == "dns")
