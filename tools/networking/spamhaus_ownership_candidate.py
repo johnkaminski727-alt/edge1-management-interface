@@ -20,7 +20,7 @@ def new_run_id() -> str:
 
 
 def derive_owned_candidate(candidate: str, run_id: str) -> str:
-    """Insert a create-only guard and table comment into a validated candidate.
+    """Attach the ownership comment to CREATE itself, not the following table block.
 
     Only the canonical single-table form produced by the existing parser is
     accepted. The rendered output is not itself authorization for deployment.
@@ -36,10 +36,8 @@ def derive_owned_candidate(candidate: str, run_id: str) -> str:
     if "\x00" in candidate or OWNER_PREFIX in candidate or "delete table" in candidate:
         raise ValueError("Candidate includes disallowed control content")
     return (
-        "create table inet bigbird_spamhaus\n\n"
-        + HEADER
-        + '  comment "' + OWNER_PREFIX + run_id + '"\n'
-        + candidate[len(HEADER):]
+        'create table inet bigbird_spamhaus { comment "' + OWNER_PREFIX + run_id + '" }\n\n'
+        + candidate
     )
 
 
