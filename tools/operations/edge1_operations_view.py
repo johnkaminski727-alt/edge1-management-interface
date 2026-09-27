@@ -187,6 +187,12 @@ def summarize(core_path: Path, security_path: Path, *, now: datetime | None = No
                          if observed else {})
             source_records = security.get("sources") if isinstance(security.get("sources"), dict) else {}
             diagnostic = _diagnostic(name, state, observed, enforced, security_status["fresh"], source_records)
+            # A fresh parent aggregate may contain stale, missing, or unverified
+            # historical children; never display their counts as current.
+            if not diagnostic["source_checks"] or any(
+                item["status"] != "available" for item in diagnostic["source_checks"]
+            ):
+                sanitized = {}
             result["security"].append({"name": name, "state": state,
                 "observed": observed,
                 "enforcement_verified": enforced,
