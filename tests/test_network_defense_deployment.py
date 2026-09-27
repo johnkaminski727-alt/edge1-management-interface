@@ -111,16 +111,29 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
         self.assertNotRegex(self.service, r"ExecStart=.*server/network_defense_freshness_exporter\.py(?:\s|$)")
 
     def test_module_navigation_uses_authoritative_status_root(self):
-        expected = (
+        import json
+
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        expected = {
             "/edge1-status/",
             "/edge1-status/security/",
             "/edge1-status/security/correlation.html",
             "/edge1-status/network-defense/",
-        )
+        }
+        actual = {
+            module["browser_route"]
+            for module in registry["modules"]
+            if module.get("availability") == "accepted_live"
+        }
+        self.assertEqual(actual, expected)
+        for page in (self.operations, self.network, self.correlation):
+            self.assertIn("operator-shell", page)
+        # The main page exposes its links directly, and subpages load the
+        # same authoritative registry via the read-only shared operator shell.
         for token in expected:
             self.assertIn(token, self.operations)
-            self.assertIn(token, self.network)
-            self.assertIn(token, self.correlation)
+        self.assertIn("/edge1-status/operator-shell/navigation.json", self.network)
+        self.assertIn("/edge1-status/operator-shell/navigation.json", self.correlation)
 
     def test_deployment_verifies_read_only_dns_contract(self):
         for token in (
