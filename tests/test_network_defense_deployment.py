@@ -15,6 +15,7 @@ FAIL2BAN_WRAPPER = ROOT / "server" / "network_defense_fail2ban_exporter.py"
 OPERATIONS = ROOT / "src" / "web" / "operations-center" / "index.html"
 NETWORK = ROOT / "src" / "web" / "network-defense" / "index.html"
 CORRELATION = ROOT / "src" / "web" / "security" / "correlation.html"
+REGISTRY = ROOT / "config" / "edge1_operator" / "navigation_registry.json"
 
 
 class NetworkDefenseDeploymentTests(unittest.TestCase):
