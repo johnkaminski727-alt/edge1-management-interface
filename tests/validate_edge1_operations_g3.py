@@ -15,6 +15,7 @@ TOOL=Path(__file__).resolve().parents[1]/"tools/operations"
 sys.path.insert(0,str(TOOL))
 from edge1_operations_view import summarize
 from edge1_operations_api import G3Server
+from edge1_host_metrics import read_metrics
 from edge1_candidate_store import CandidateStore
 
 TOKEN="a"*64
@@ -96,6 +97,21 @@ class G3Tests(unittest.TestCase):
         self.assertFalse(view["sources"]["core"]["available"])
         self.assertFalse(view["sources"]["network_defense"]["available"])
 
+    def test_sanitized_host_metrics_and_invalid_source(self):
+        root=Path(self.temp.name)
+        load=root/"loadavg";mem=root/"meminfo";up=root/"uptime"
+        load.write_text("0.42 0.2 0.1 1/200 500\\n")
+        mem.write_text("MemTotal: 8192000 kB\\nMemAvailable: 4096000 kB\\nPrivateValue: DO_NOT_EXPORT\\n")
+        up.write_text("37200.0 0.0\\n")
+        result=read_metrics(loadavg=load,meminfo=mem,uptime=up,disk=str(root))
+        self.assertTrue(result["available"])
+        self.assertEqual(result["load_1m"],0.42)
+        self.assertEqual(result["memory_used_percent"],50.0)
+        self.assertEqual(result["uptime_seconds"],37200)
+        self.assertNotIn("DO_NOT_EXPORT",json.dumps(result))
+        load.write_text("bad input")
+        self.assertFalse(read_metrics(loadavg=load,meminfo=mem,uptime=up,disk=str(root))["available"])
+
     def test_api_requires_token_and_preserves_g2_candidate_routes(self):
         root=Path(self.temp.name)
         ui=root/"index.html";ui.write_text("<!doctype html><title>G3 test</title>")
@@ -115,6 +131,8 @@ class G3Tests(unittest.TestCase):
         status,view=request("/api/operations")
         self.assertEqual(status,200)
         self.assertEqual(view["schema"],"edge1-operations-g3.v1")
+        self.assertIn("host",view)
+        self.assertIn("memory_used_percent",view["host"])
         self.assertEqual(request("/api/state")[0],200)
         self.assertEqual(request("/api/apply")[0],404)
 
