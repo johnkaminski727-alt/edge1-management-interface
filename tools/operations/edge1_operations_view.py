@@ -80,9 +80,12 @@ def _diagnostic(name: str, state: str, observed: bool, enforcement: bool,
             "available" if available and stale is False else
             "unavailable" if item.get("available") is False else "unverified")
         checks.append({"name": key, "status": status})
-    if tone == "good" and (not checks or any(c["status"] != "available" for c in checks)):
+    if any(c["status"] in ("unavailable", "stale", "unverified") for c in checks):
+        tone = "warning"
+        reason = "At least one supporting source is unavailable, stale or unverified; inspect exporter evidence."
+    elif tone == "good" and not checks:
         tone = "neutral"
-        reason = "Exporter reports a positive component state, but supporting source freshness is not completely verified."
+        reason = "Exporter reports a positive component state, but no recognized supporting source record was supplied."
     return {"label": TITLES[name], "tone": tone, "reason": reason,
             "explanation": EXPLANATIONS[name], "source_checks": checks,
             "next_step": "Inspect read-only source timestamps and collector health; do not change production controls from this screen."}
