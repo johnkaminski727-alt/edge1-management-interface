@@ -64,6 +64,42 @@ class G3Tests(unittest.TestCase):
         for secret in ("SECRET","192.0.2.77","privatepeer","NEVER_EXPORT","foreign_component","unknown-hidden-service"):
             self.assertNotIn(secret,output)
 
+    def test_security_diagnostics_are_fail_closed_and_source_bounded(self):
+        self.security_data["sources"] = {
+            "network": {"available": True, "stale": False, "detail": "PRIVATE_KEY"},
+            "security": {"available": False, "stale": True, "detail": "PASSWORD"},
+            "spamhaus_live_state": {"available": False, "stale": False, "detail": "SECRET"},
+            "spamhaus": {"available": True, "stale": False},
+            "core_live": {"available": True, "stale": False},
+        }
+        self.security_data["components"]["dns"] = {
+            "state": "healthy", "observed": True, "enforcement_verified": False}
+        self.security_data["components"]["firewall"] = {
+            "state": "unknown", "observed": True, "enforcement_verified": False}
+        self.dump()
+        view = summarize(self.core, self.security, now=self.now)
+        by_name = {item["name"]: item for item in view["security"]}
+        self.assertEqual(by_name["ids"]["diagnostic"]["tone"], "neutral")
+        self.assertEqual(by_name["spamhaus"]["diagnostic"]["tone"], "neutral")
+        self.assertEqual(by_name["dns"]["diagnostic"]["tone"], "good")
+        self.assertEqual(by_name["firewall"]["diagnostic"]["tone"], "warning")
+        self.assertEqual(by_name["fail2ban"]["diagnostic"]["tone"], "warning")
+        self.assertTrue(any(check["status"] == "unavailable"
+                            for check in by_name["spamhaus"]["diagnostic"]["source_checks"]))
+        self.assertNotIn("PASSWORD", json.dumps(view))
+        self.assertNotIn("PRIVATE_KEY", json.dumps(view))
+        self.assertNotIn("SECRET", json.dumps(view))
+
+    def test_positive_state_without_source_proof_is_not_green(self):
+        self.security_data["components"]["dns"] = {
+            "state": "healthy", "observed": True,
+            "metrics": {"recent_events": 2}}
+        self.dump()
+        view = summarize(self.core, self.security, now=self.now)
+        item = next(x for x in view["security"] if x["name"] == "dns")
+        self.assertEqual(item["diagnostic"]["tone"], "neutral")
+        self.assertEqual(item["diagnostic"]["source_checks"], [])
+
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
         self.core_data["generated_at"]=older
@@ -77,6 +113,8 @@ class G3Tests(unittest.TestCase):
         self.assertIsNone(view["summary"]["security_components_observed"])
         self.assertTrue(all(x["state"]=="stale" for x in view["services"]))
         self.assertTrue(all(x["state"]=="stale" for x in view["security"]))
+        self.assertTrue(all(x["diagnostic"]["tone"]=="warning" for x in view["security"]))
+        self.assertTrue(all(x["metrics"]=={} for x in view["security"]))
         self.assertTrue(all(x["up"] is None for x in view["interfaces"]))
 
     def test_invalid_safety_contract_rejected(self):
