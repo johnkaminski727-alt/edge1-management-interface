@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-27 — CrowdSec dual-stack production acceptance
+
+- Reboot-validated separate Edge1 CrowdSec IPv4/IPv6 nftables blacklist sets, safe WireGuard guards, and ordered bootstrap → enforcement → bouncer startup alongside UFW.
+- Accepted set-only automatic dual-stack synchronization and input enforcement, tested enabled-state emergency rollback, and verified fresh WireGuard SSH under active protection and after production reboot.
+- Recorded operator-supplied acceptance evidence, recovery boundaries, remaining active-hook UFW reload verification, and explicit exclusion of forwarded VPN traffic in the sanitized [runbook](docs/security/crowdsec-dual-stack-production-acceptance-20260927.md) and [register](registers/crowdsec-production-acceptance-20260927.md).
+- Restricted full recovery evidence and production configuration details to the private operational workspace.
+
 ## 2026-07-18 — Time Authority rollout simulation
 
 - added an end-to-end, non-production simulation for both server installers;
