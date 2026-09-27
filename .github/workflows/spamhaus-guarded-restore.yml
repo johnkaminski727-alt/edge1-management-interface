@@ -23,10 +23,10 @@ jobs:
         with:
           python-version: '3.11'
       - name: Syntax check
-        run: python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py
+        run: python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py tools/networking/spamhaus_ownership_candidate.py tests/validate_spamhaus_ownership_candidate.py
       - name: Guarded orchestration regressions
         run: python3 tests/validate_spamhaus_guarded_boot_restore.py -v
-      - name: Proposed systemd unit static contract
+      - name: Create-only owner-tagged candidate derivation (pure offline test)\n        run: python3 tests/validate_spamhaus_ownership_candidate.py -v\n      - name: Proposed systemd unit static contract
         run: python3 tests/validate_spamhaus_boot_restore_unit.py
       - name: Independent recovery regressions
         run: python3 tests/validate_spamhaus_scoped_recovery.py -v
