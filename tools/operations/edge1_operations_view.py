@@ -23,6 +23,75 @@ STATES = {"healthy", "attention", "unavailable", "observed", "ready",
 SERVICE_STATES = {"active", "inactive", "failed", "activating", "unknown"}
 SOURCE_NAMES = ("core", "network_defense")
 
+SOURCE_KEYS = {
+    "ids": ("security", "correlation", "core_live"),
+    "dns": ("dns_policy", "network", "core_live"),
+    "spamhaus": ("spamhaus_live_state", "spamhaus", "spamhaus_feed"),
+    "firewall": ("nftables_live_state", "core_live"),
+    "fail2ban": ("fail2ban_live_state",),
+    "proxy": ("proxy",),
+    "network_sensor": ("network_sensor", "correlation"),
+}
+TITLES = {
+    "ids": "Intrusion detection (IDS)",
+    "dns": "DNS observation",
+    "spamhaus": "Spamhaus network reputation",
+    "firewall": "Firewall observation",
+    "fail2ban": "Fail2ban",
+    "proxy": "Proxy",
+    "network_sensor": "Passive network sensor",
+}
+EXPLANATIONS = {
+    "ids": "Intrusion-detection events and collector state; zero recent alerts does not establish the sensor is working.",
+    "dns": "Resolver and DNS-policy observations; healthy service state alone does not prove DNS queries succeed.",
+    "spamhaus": "Feed availability and separately verified nftables enforcement; unavailable telemetry does not prove the active firewall table is absent.",
+    "firewall": "Read-only firewall collector evidence; this view cannot establish every traffic path is protected.",
+    "fail2ban": "Fail2ban collector evidence; no recent ban events does not mean the service is inactive.",
+    "proxy": "Proxy telemetry only; not deployed and unavailable are different conditions.",
+    "network_sensor": "Passive sensor events and collector status; raw packet content is never exposed.",
+}
+
+
+def _diagnostic(name: str, state: str, observed: bool, enforcement: bool,
+                source_fresh: bool, sources: dict) -> dict:
+    """Bounded description of evidence, never raw collector output."""
+    if not source_fresh:
+        tone, reason = "warning", "Parent network-defense snapshot is stale; no current component status is confirmed."
+    elif state in ("unavailable", "unknown", "stale", "unexpected", "attention"):
+        tone, reason = "warning", "Component status requires inspection of upstream collector evidence."
+    elif state == "not_deployed":
+        tone, reason = "neutral", "Component is explicitly reported as not deployed."
+    elif not observed:
+        tone, reason = "warning", "No current positive observation for this component; state is not independently confirmed."
+    elif state == "active_verified" and enforcement:
+        tone, reason = "good", "Dedicated exporter reports verified enforcement; this is not an independent traffic-path test."
+    elif state == "healthy":
+        tone, reason = "good", "Exporter reports healthy and provides current observation; functional testing remains separate."
+    else:
+        tone, reason = "neutral", "Observation available; positive enforcement or end-to-end function is not established."
+    checks = []
+    for key in SOURCE_KEYS[name]:
+        item = sources.get(key)
+        if not isinstance(item, dict):
+            continue
+        available = item.get("available") is True
+        stale = item.get("stale")
+        status = ("unavailable" if item.get("available") is False else
+                  "stale" if stale is True else
+                  "available" if available and stale is False else
+                  "unverified")
+        checks.append({"name": key, "status": status})
+    if any(c["status"] in ("unavailable", "stale", "unverified") for c in checks):
+        tone = "warning"
+        reason = "At least one supporting source is unavailable, stale or unverified; inspect exporter evidence."
+    elif tone == "good" and not checks:
+        tone = "neutral"
+        reason = "Exporter reports a positive component state, but no recognized supporting source record was supplied."
+    return {"label": TITLES[name], "tone": tone, "reason": reason,
+            "explanation": EXPLANATIONS[name], "source_checks": checks,
+            "next_step": "Inspect read-only source timestamps and collector health; do not change production controls from this screen."}
+
+
 
 def _source(path: Path, *, core: bool, now: datetime) -> tuple[dict | None, dict]:
     result = {"available": False, "fresh": False, "generated_at": None,
@@ -112,10 +181,21 @@ def summarize(core_path: Path, security_path: Path, *, now: datetime | None = No
                 "ids": ("recent_alerts",), "dns": ("recent_events",),
                 "network_sensor": ("normalized_events", "network_events"),
             }
-            sanitized = {key: _int_or_none(metrics.get(key)) for key in allow_metrics.get(name, ())}
+            observed = item.get("observed") is True and security_status["fresh"]
+            enforced = item.get("enforcement_verified") is True and security_status["fresh"] and observed
+            sanitized = ({key: _int_or_none(metrics.get(key)) for key in allow_metrics.get(name, ())}
+                         if observed else {})
+            source_records = security.get("sources") if isinstance(security.get("sources"), dict) else {}
+            diagnostic = _diagnostic(name, state, observed, enforced, security_status["fresh"], source_records)
+            # A fresh parent aggregate may contain stale, missing, or unverified
+            # historical children; never display their counts as current.
+            if not diagnostic["source_checks"] or any(
+                item["status"] != "available" for item in diagnostic["source_checks"]
+            ):
+                sanitized = {}
             result["security"].append({"name": name, "state": state,
-                "observed": item.get("observed") is True and security_status["fresh"],
-                "enforcement_verified": item.get("enforcement_verified") is True and security_status["fresh"],
-                "metrics": sanitized})
+                "observed": observed,
+                "enforcement_verified": enforced,
+                "metrics": sanitized, "diagnostic": diagnostic})
         result["summary"]["security_components_observed"] = sum(item["observed"] for item in result["security"]) if security_status["fresh"] else None
     return result

@@ -18,7 +18,7 @@ a{color:#addbff}#workspace[hidden],#login[hidden]{display:none}
 @media(max-width:850px){.layout{grid-template-columns:1fr}.field{align-items:start}}
 
 nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{background:#1c313f}nav.tabs button[aria-selected=true]{background:#315f7e;border-color:#b2ddf2}
-.ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}.ops-card{background:#101d28;border:1px solid #3e5665;border-radius:10px;padding:15px}.ops-card h3{margin:0 0 7px;font-size:1rem}.ops-card strong{font-size:1.1rem}.ops-card small{display:block;color:#b3c5ce;margin-top:8px}.ops-card.problem{border-color:#dbb45b}.ops-card.good{border-color:#6cbb8b}
+.ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}.ops-card{background:#101d28;border:1px solid #3e5665;border-radius:10px;padding:15px}.ops-card h3{margin:0 0 7px;font-size:1rem}.ops-card strong{font-size:1.1rem}.ops-card small{display:block;color:#b3c5ce;margin-top:8px}.ops-card.problem{border-color:#dbb45b}.ops-card.good{border-color:#6cbb8b}.ops-card.neutral{border-color:#708797}.ops-card details{margin-top:12px;border-top:1px solid #425664;padding-top:10px}.ops-card summary{cursor:pointer;color:#b1d9f5;font-weight:600}.ops-card details p{margin:8px 0}.ops-card details ul{margin:8px 0;padding-left:18px}.ops-card details li{font-size:.9rem;color:#bccad3}
 .ops-list{width:100%;border-collapse:collapse}.ops-list th,.ops-list td{text-align:left;border-bottom:1px solid #39505d;padding:10px}.ops-list th{color:#b1c6d4}.ops-list td{overflow-wrap:anywhere}.panel-note{font-size:.9rem;color:#aec0ce}
 </style></head>
 <body><main>
@@ -122,8 +122,33 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
     for(const key of ["ipv4_forwarding","ipv6_forwarding"]){const value=v.routing[key];card(net,key.replaceAll("_"," "),value===null?"Unknown":value===1?"Enabled":"Disabled","Kernel forwarding snapshot",value===null?"problem":"");}
     const sec=el("g3-security");sec.replaceChildren();
     for(const item of v.security){
-      const metrics=Object.entries(item.metrics).filter(([k,n])=>n!==null).map(([k,n])=>k.replaceAll("_"," ")+": "+n).join(" · ");
-      card(sec,item.name.replaceAll("_"," "),item.state+(item.enforcement_verified?" · enforcement observed":""),metrics||"No public aggregate metrics",item.observed?"good":"problem");
+      const diagnostic=item.diagnostic||{};
+      const metrics=Object.entries(item.metrics||{}).filter(([k,n])=>n!==null).map(([k,n])=>k.replaceAll("_"," ")+": "+n).join(" · ");
+      const tone=["good","neutral","warning"].includes(diagnostic.tone)?diagnostic.tone:"warning";
+      const article=document.createElement("article");
+      article.className="ops-card "+(tone==="warning"?"problem":tone);
+      const heading=document.createElement("h3");
+      heading.textContent=diagnostic.label||item.name.replaceAll("_"," ");article.append(heading);
+      const state=document.createElement("strong");state.textContent=item.state+(item.enforcement_verified?" · verified enforcement observation":"");article.append(state);
+      const detail=document.createElement("small");
+      detail.textContent=metrics||"No validated aggregate metrics";article.append(detail);
+      const explain=document.createElement("p");
+      explain.className="panel-note";explain.textContent=diagnostic.reason||"Further observation needed";article.append(explain);
+      const more=document.createElement("details");
+      const summary=document.createElement("summary");summary.textContent="Evidence and next steps";more.append(summary);
+      for(const sentence of [diagnostic.explanation,diagnostic.next_step]){
+        if(sentence){const line=document.createElement("p");line.textContent=sentence;more.append(line);}
+      }
+      const checks=Array.isArray(diagnostic.source_checks)?diagnostic.source_checks:[];
+      const title=document.createElement("p");title.textContent="Recognized source checks:";more.append(title);
+      if(checks.length){
+        const list=document.createElement("ul");
+        for(const check of checks){const li=document.createElement("li");li.textContent=check.name+": "+check.status;list.append(li);}
+        more.append(list);
+      }else{
+        const note=document.createElement("p");note.textContent="No recognized source records were supplied. Review the network-defense exporter and source timestamps.";more.append(note);
+      }
+      article.append(more);sec.append(article);
     }
     if(!v.security.length)card(sec,"Network defense","Unavailable","Missing or invalid snapshot","problem");
   }
