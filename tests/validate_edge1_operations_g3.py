@@ -100,9 +100,9 @@ class G3Tests(unittest.TestCase):
     def test_sanitized_host_metrics_and_invalid_source(self):
         root=Path(self.temp.name)
         load=root/"loadavg";mem=root/"meminfo";up=root/"uptime"
-        load.write_text("0.42 0.2 0.1 1/200 500\\n")
-        mem.write_text("MemTotal: 8192000 kB\\nMemAvailable: 4096000 kB\\nPrivateValue: DO_NOT_EXPORT\\n")
-        up.write_text("37200.0 0.0\\n")
+        load.write_text("0.42 0.2 0.1 1/200 500\n")
+        mem.write_text("MemTotal: 8192000 kB\nMemAvailable: 4096000 kB\nPrivateValue: DO_NOT_EXPORT\n")
+        up.write_text("37200.0 0.0\n")
         result=read_metrics(loadavg=load,meminfo=mem,uptime=up,disk=str(root))
         self.assertTrue(result["available"])
         self.assertEqual(result["load_1m"],0.42)
