@@ -130,6 +130,20 @@ To close A248's journal-visibility evidence gap without touching the firewall, s
 
 This is **failure-injection of a harmless no-op service**, not firewall recovery and not evidence for a race-free watchdog. A service failure may create systemd/journal entries by design, but no restoration service is installed/enabled and no nftables command runs. Even if this test passes, the core per-run ownership-check/delete race, host recovery fault injection and independently authenticated positive acceptance remain deployment blockers.
 
+## Assignment 249 — Edge1 harmless timer failure and journal probe PASSED
+
+On September 27, the operator fetched pinned commit `33c8f257435f079c6c43b11292b8eae59f5d5477` and executed `tests/rehearse_spamhaus_systemd_failure_noop.sh` on Edge1. The harmless transient timer `edge1-spamhaus-a249-probe-65856.timer` was active and targeted its identically named service; `ExecStart` was `/usr/bin/false`. The independently triggered service reported `Result=exit-code`, `ExecMainStatus=1` and a positive execution timestamp. The root-readable journal included systemd's `Started`, `Main process exited ... status=1/FAILURE`, and `Failed with result 'exit-code'` messages at September 27 18:38:04 UTC. The script reported success, cleaned up only its probe units, the host production `inet bigbird_spamhaus` table remained present, and the SSH shell remained connected.
+
+A248 and A249 jointly verify Debian 13/systemd 257 transient no-op scheduling and positive/negative service-result visibility, including root journal evidence. This is **not** successful firewall rollback fault injection, isolated helper authorization, sandbox verification, or an approved persistent recovery service. Avoid using these transient test observations to justify production installation.
+
+## Assignment 250 — Proposed rollback implementation requirements (not yet approved)
+
+**Maintain the production safety boundary:** the currently staged helper still arms the original name-only `spamhaus_scoped_recovery.py --execute` against the shared `inet bigbird_spamhaus` table and MUST NOT be installed or used with `--execute`. The run-scoped table transformer and read-only inspector are prototypes, not wired into the guarded service.
+
+A reviewed implementation must bind every watchdog to an independently generated per-run table name and immutable run metadata. Its deletion command must be incapable of targeting the canonical `bigbird_spamhaus` table or a different run's name; an absent or foreign marker must refuse deletion and retain durable incident evidence. However, separate marker inspection followed by `nft delete table` is subject to time-of-check/time-of-use replacement by an uncooperative privileged writer. Either use a demonstrably atomic conditional primitive or explicitly establish and verify exclusive ownership of all privileged writers over the run-specific namespace before enabling automatic deletion. A file lock followed by a name-only delete is insufficient against writers that ignore the lock.
+
+Rehearse rollback in a separate network namespace with multiple run-owned tables, a simulated foreign replacement and failed deletion; verify the alarm/incident log persists and neither the canonical table nor another run's table is removed. Independently verify sandboxed systemd timer creation, exact target/command, behavior when the initiator dies, and externally authenticated acceptance bound to the run ID, boot ID, pinned candidate hash and expiration. Without verified external acceptance, keep the independent watchdog armed. A production install or reboot needs separate explicit approval.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
