@@ -187,6 +187,74 @@ class G3Tests(unittest.TestCase):
         item = next(x for x in old["security"] if x["name"] == "firewall")
         self.assertEqual(item["source_adapter"]["state"], "stale")
 
+    def test_current_firewall_and_fail2ban_detail_counts_are_bounded(self):
+        self.security_data["sources"] = {
+            "nftables_live_state": {"available": True, "stale": False},
+            "fail2ban_live_state": {"available": True, "stale": False},
+            "core_live": {"available": True, "stale": False}}
+        self.security_data["components"]["firewall"] = {
+            "state": "unknown", "observed": True, "enforcement_verified": False,
+            "metrics": {
+                "tables": 4, "chains": 9, "rules": 31, "counter_packets": 15,
+                "counter_bytes": 8192, "set_elements": 12,
+                "families": {"ip": 2, "inet": 2, "hidden": "SECRET"},
+                "hooks": {"input": 1, "forward": 1},
+                "policies": {"drop": 1},
+                "verdicts": {"drop": 3},
+                "raw_ruleset": "PRIVATE_FIREWALL",
+                "address": "192.0.2.40",
+            }}
+        self.security_data["components"]["fail2ban"] = {
+            "state": "unknown", "observed": True, "enforcement_verified": False,
+            "metrics": {
+                "service_active": True, "socket_reachable": True,
+                "declared_jails": 3, "observed_jails": 3,
+                "currently_banned": 4, "total_banned": 91,
+                "jail_names": ["PRIVATE_JAIL"], "banned_addresses": "SECRET",
+            }}
+        self.dump()
+        view = summarize(self.core, self.security, now=self.now)
+        by_name = {x["name"]: x for x in view["security"]}
+        fw = by_name["firewall"]
+        f2b = by_name["fail2ban"]
+        self.assertEqual(fw["detail_metrics"]["counts"]["rules"], 31)
+        self.assertEqual(fw["detail_metrics"]["groups"]["families"]["inet"], 2)
+        self.assertEqual(f2b["detail_metrics"]["counts"]["currently_banned"], 4)
+        self.assertTrue(f2b["detail_metrics"]["flags"]["socket_reachable"])
+        self.assertEqual(fw["state"], "unknown")
+        self.assertEqual(fw["diagnostic"]["tone"], "warning")
+        self.assertFalse(fw["enforcement_verified"])
+        for secret in ("PRIVATE_FIREWALL", "PRIVATE_JAIL", "SECRET",
+                       "192.0.2.40", "hidden"):
+            self.assertNotIn(secret, json.dumps(view))
+
+    def test_detail_panels_fail_closed_on_source_staleness_and_invalid_counts(self):
+        self.security_data["sources"] = {
+            "nftables_live_state": {"available": True, "stale": True},
+            "fail2ban_live_state": {"available": False, "stale": False}}
+        self.security_data["components"]["firewall"] = {
+            "state": "unknown", "observed": True,
+            "metrics": {"rules": 37}}
+        self.security_data["components"]["fail2ban"] = {
+            "state": "unknown", "observed": True,
+            "metrics": {"currently_banned": 4}}
+        self.dump()
+        view = summarize(self.core, self.security, now=self.now)
+        entries = {x["name"]: x for x in view["security"]}
+        self.assertFalse(entries["firewall"]["detail_metrics"]["available"])
+        self.assertEqual(entries["firewall"]["detail_metrics"]["counts"], {})
+        self.assertFalse(entries["fail2ban"]["detail_metrics"]["available"])
+        self.assertEqual(entries["fail2ban"]["detail_metrics"]["counts"], {})
+        self.security_data["sources"]["nftables_live_state"]["stale"] = False
+        self.security_data["components"]["firewall"]["metrics"] = {
+            "tables": True, "rules": -1, "counter_bytes": 10**20}
+        self.dump()
+        invalid = summarize(self.core, self.security, now=self.now)
+        fw = next(x for x in invalid["security"] if x["name"] == "firewall")
+        self.assertFalse(fw["detail_metrics"]["available"])
+        self.assertIsNone(fw["detail_metrics"]["counts"]["tables"])
+        self.assertIsNone(fw["detail_metrics"]["counts"]["rules"])
+
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
         self.core_data["generated_at"]=older
