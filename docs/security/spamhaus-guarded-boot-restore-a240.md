@@ -29,6 +29,16 @@ The operator's September 27 read-only diagnostics show Debian 13, kernel 6.12.10
 
 Proposed solution for an *isolated* proof of concept: bind an unpredictable run identifier to the newly created table using an nftables table comment, embed the identifier atomically when creating the reviewed candidate, and have a separate rollback wrapper require the exact identifier before invoking the existing table-specific recovery program. The nftables man page supports table comments and distinguishes `create table` (error if already present) from `add table` (idempotent). An atomic candidate-plus-comment derivative must be proven equivalent to the pinned source except for the run identifier and strict create-only semantics. Confirm actual Debian 13 syntax using `nft --check` and an isolated non-production table namespace before coding deployment. A watchdog must never infer ownership merely from the presence of `inet bigbird_spamhaus`.
 
+## Assignment 243 — Operator-confirmed syntax checks
+
+The operator executed `nft --check --file` on two temporary, unrelated `inet edge1_a243_syntax_probe` inputs. The ordinary table comment and combined `create table` plus tagged table definition **both passed syntax checks**. The original `inet bigbird_spamhaus` table remained present and no syntax-probe table was created. This confirms the Debian 13 parser accepts the proposed form; it does **not** establish that executing the combined transaction succeeds atomically or that rollback deletion is race-free.
+
+## Assignment 244 — Ownership candidate prototype (no deployment)
+
+Added a pure, offline `spamhaus_ownership_candidate.py` source transformer plus regression tests. It takes an already validated canonical Spamhaus candidate and an unpredictable 128-bit run ID and produces a proposed `create table` statement plus a table declaration with `comment "edge1-spamhaus-run:<id>"`. The candidate transformer is **not invoked** by the guarded restoration service and no changes have been made to the installed independent recovery helper.
+
+**Release block remains:** A matching table comment followed by a separate scoped `delete table` is still susceptible to a time-of-check/time-of-use race if an uncooperative process replaces the table. Require either a demonstrably atomic ownership-checked delete primitive or independently verified exclusive control over *all* writers to the dedicated table throughout create, acceptance and rollback. A cooperative file lock alone does not exclude other privileged writers. Do not wire the ownership prototype into the boot service or run the unattended watchdog against production until this proof and failure injection succeed. A mismatched/absent marker must stop deletion and preserve evidence; a matching marker is necessary but not sufficient if ownership can change before the deletion.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
