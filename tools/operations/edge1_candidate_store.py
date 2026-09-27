@@ -7,6 +7,7 @@ or change production configurations and has no command execution capability.
 """
 from __future__ import annotations
 import copy
+from contextlib import contextmanager
 import json
 import os
 import sqlite3
@@ -38,6 +39,7 @@ class CandidateStore:
             raise CandidateError("Candidate data directory missing or symlinked")
         self._setup()
 
+    @contextmanager
     def _connect(self):
         if self.path.is_symlink():
             raise CandidateError("Refusing symlinked candidate database")
@@ -46,7 +48,13 @@ class CandidateStore:
         db = sqlite3.connect(str(self.path), timeout=5, isolation_level=None)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=5000")
-        return db
+        try:
+            yield db
+        except BaseException:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
     def _setup(self):
         with self._connect() as db:
