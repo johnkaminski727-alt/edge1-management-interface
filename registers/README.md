@@ -1,5 +1,9 @@
 # Registers
 
+## 2026-09-27 CrowdSec Production Acceptance
+
+The [CrowdSec acceptance register](crowdsec-production-acceptance-20260927.md) records operator-verified dual-stack automatic input enforcement after production reboot, evidence checkpoints and remaining follow-up gates. Detailed recovery records belong in the private Edge1 operations library.
+
 Source-control-friendly registers may live here when they are part of the build process.
 
 Authoritative operational registers should continue to be committed to the Edge1 private `operations` library.
