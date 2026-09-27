@@ -132,11 +132,18 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
       const state=document.createElement("strong");state.textContent=item.state+(item.enforcement_verified?" · verified enforcement observation":"");article.append(state);
       const detail=document.createElement("small");
       detail.textContent=metrics||"No validated aggregate metrics";article.append(detail);
+      // Current source telemetry and component health are different claims.
+      // A current nftables/Fail2ban source must not turn an unknown service green.
+      if(item.source_adapter){
+        const line=document.createElement("p");line.className="panel-note";
+        line.textContent="Monitoring source: "+item.source_adapter.state;
+        article.append(line);
+      }
       const explain=document.createElement("p");
       explain.className="panel-note";explain.textContent=diagnostic.reason||"Further observation needed";article.append(explain);
       const more=document.createElement("details");
       const summary=document.createElement("summary");summary.textContent="Evidence and next steps";more.append(summary);
-      for(const sentence of [diagnostic.explanation,diagnostic.next_step]){
+      for(const sentence of [item.source_adapter?.description,diagnostic.explanation,diagnostic.next_step]){
         if(sentence){const line=document.createElement("p");line.textContent=sentence;more.append(line);}
       }
       const checks=Array.isArray(diagnostic.source_checks)?diagnostic.source_checks:[];
