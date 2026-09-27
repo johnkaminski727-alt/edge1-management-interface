@@ -65,6 +65,12 @@ On Edge1, the corrected draft revision `c49ecd635e9fc8ccd37e71e34763b76d5acadf8e
 
 The A246B incident reveals that the attempted inline `create table ... { comment "..." }` form requires a statement terminator **between** the comment and closing brace. The repository generator, offline expected-output test and isolated rehearsal now use `create table ... { comment "..."; }`. This is a syntactic correction inferred directly from the live parser error. **Not yet runtime-validated**: require a syntax-only `nft --check` pass on Edge1 before retrying the isolated execution rehearsal. Do not modify production firewall tables or attempt the original failed commits. A passing rehearsal still does not solve the independent ownership check/delete race.
 
+## Assignment 246C — Operator syntax confirmation and exact-form follow-up
+
+The operator executed `nft --check --file` on Edge1 using a **multiline** create-only test-table definition with a semicolon-terminated ownership comment, followed by the interval set and input rule. The parser returned success and a separate read-only check confirmed the production Spamhaus table still exists. This was a **syntax check only**, not a transaction execution or ownership-readback check.
+
+The staged tagged-candidate generator, exact-output offline test, and isolated network-namespace rehearsal were updated to use the same operator-tested multiline statement. Before an operator runs the revised isolated execution script, pin the GitHub commit and verify its complete CI status. Neither this syntax gate nor a successful isolated create-only rehearsal resolves the separate non-atomic check/delete race. The production restore service remains disabled and the PR remains draft.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
