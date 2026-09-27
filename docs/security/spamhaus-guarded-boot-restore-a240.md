@@ -21,6 +21,14 @@ The staged helper does **not** disarm the watchdog. Without a trusted independen
 
 A reboot with a candidate older than 72 hours leaves the dedicated table absent, not restored from an expired snapshot. Refreshing involves a **separate** authorized, check-only feed acquisition, candidate rendering, exact checksum manifest, fresh validation, signed/reviewed source commit or approved provenance, protected staged rotation with atomic rename, and independent preflight. Automatic feed updates remain disabled throughout this assignment.
 
+## Assignment 242 — Debian 13 live-JSON confirmation and rollback ownership gate
+
+The operator's September 27 read-only diagnostics show Debian 13, kernel 6.12.107+deb13-amd64, systemd 257, synchronized Chrony, all four protective services active and a live table with 1,610 IPv4 / 85 IPv6 aggregated prefixes. Each of input and forward has exactly one `ip saddr == @drop4` and one `ip6 saddr == @drop6` match, followed in order by counter and DROP. The strict verifier has been tightened to match this observed JSON form; set elements and firewall backup contents were not published.
+
+**Unresolved release blocker: ownership between rollback arming and candidate creation.** A scoped deletion that checks only the table name could delete an unrelated same-named table created by another process after the watchdog was armed. A pre-apply absence check is not sufficient: the check and the candidate-apply transaction are separate operations. Do not deploy, enable or execute the draft guard on a host whose table may be managed concurrently until the pending watchdog can reliably attest that this specific restoration attempt created the table.
+
+Proposed solution for an *isolated* proof of concept: bind an unpredictable run identifier to the newly created table using an nftables table comment, embed the identifier atomically when creating the reviewed candidate, and have a separate rollback wrapper require the exact identifier before invoking the existing table-specific recovery program. The nftables man page supports table comments and distinguishes `create table` (error if already present) from `add table` (idempotent). An atomic candidate-plus-comment derivative must be proven equivalent to the pinned source except for the run identifier and strict create-only semantics. Confirm actual Debian 13 syntax using `nft --check` and an isolated non-production table namespace before coding deployment. A watchdog must never infer ownership merely from the presence of `inet bigbird_spamhaus`.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
