@@ -138,6 +138,55 @@ class G3Tests(unittest.TestCase):
         self.assertIn({"name": "spamhaus", "state": "unavailable"}, triage["source_checks"])
         self.assertIn({"name": "spamhaus_live_state", "state": "stale"}, triage["source_checks"])
 
+    def test_current_source_adapter_never_proves_component_health(self):
+        self.security_data["sources"] = {
+            "nftables_live_state": {"available": True, "stale": False,
+                                     "file": "/private/network", "detail": "PRIVATE"},
+            "fail2ban_live_state": {"available": True, "stale": False,
+                                     "detail": "SECRET"},
+        }
+        self.security_data["components"]["firewall"] = {
+            "state": "unknown", "observed": True,
+            "enforcement_verified": False, "metrics": {"private": "SECRET"}}
+        self.security_data["components"]["fail2ban"] = {
+            "state": "unknown", "observed": True,
+            "enforcement_verified": False}
+        self.dump()
+        result = summarize(self.core, self.security, now=self.now)
+        by_name = {x["name"]: x for x in result["security"]}
+        for key in ("firewall", "fail2ban"):
+            entry = by_name[key]
+            self.assertEqual(entry["state"], "unknown")
+            self.assertEqual(entry["source_adapter"]["state"], "current")
+            self.assertEqual(entry["diagnostic"]["tone"], "warning")
+            self.assertFalse(entry["enforcement_verified"])
+        text = json.dumps(result)
+        self.assertNotIn("SECRET", text)
+        self.assertNotIn("/private/network", text)
+
+    def test_source_adapters_missing_stale_and_unavailable_fail_closed(self):
+        self.security_data["sources"] = {
+            "nftables_live_state": {"available": False, "stale": True},
+            "fail2ban_live_state": {"available": True, "stale": True}}
+        self.dump()
+        result = summarize(self.core, self.security, now=self.now)
+        entries = {x["name"]: x for x in result["security"]}
+        self.assertEqual(entries["firewall"]["source_adapter"]["state"], "unavailable")
+        self.assertEqual(entries["fail2ban"]["source_adapter"]["state"], "stale")
+        self.security_data["sources"] = {}
+        self.dump()
+        missing = summarize(self.core, self.security, now=self.now)
+        entries = {x["name"]: x for x in missing["security"]}
+        self.assertEqual(entries["firewall"]["source_adapter"]["state"], "unverified")
+        self.assertEqual(entries["fail2ban"]["source_adapter"]["state"], "unverified")
+        self.security_data["generated_at"] = (self.now-timedelta(minutes=8)).isoformat()
+        self.security_data["sources"] = {
+            "nftables_live_state": {"available": True, "stale": False}}
+        self.dump()
+        old = summarize(self.core, self.security, now=self.now)
+        item = next(x for x in old["security"] if x["name"] == "firewall")
+        self.assertEqual(item["source_adapter"]["state"], "stale")
+
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
         self.core_data["generated_at"]=older
