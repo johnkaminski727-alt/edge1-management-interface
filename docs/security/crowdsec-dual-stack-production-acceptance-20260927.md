@@ -8,7 +8,7 @@
 - An enabled, idempotent bootstrap service prepares both blacklist sets and separate, initially unhooked management guard chains after UFW and WireGuard start.
 - A second enabled service attaches two CrowdSec input hooks at priority -10, each jumping to the respective guard chain. The guard chains exempt the approved WireGuard management interface and listener before checking the blacklist.
 - The CrowdSec bouncer requires and starts after the enforcement service. Both families use the effective local nftables configuration with `set-only: true`; the bouncer manages blacklist membership, not the hook chains.
-- The acceptance scope is **traffic destined for Edge1**. Forwarded VPN traffic is outside this deployment.
+- The acceptance scope is **traffic destined for Edge1**. This section describes the earlier INPUT-only milestone. A later, separately accepted [IPv4 VPN FORWARD deployment](crowdsec-vpn-forward-production-acceptance-20260927.md) passed live packet-drop and production reboot testing. IPv6 VPN forwarding remains disabled.
 
 ## Verified milestones
 
