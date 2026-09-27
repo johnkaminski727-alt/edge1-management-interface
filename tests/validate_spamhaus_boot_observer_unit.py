@@ -11,7 +11,7 @@ assert "NoNewPrivileges=true" in text and "ProtectSystem=strict" in text
 assert "spamhaus_boot_preflight.py" in text
 assert "--stage /var/lib/edge1-spamhaus/boot-candidate" in text
 assert "After=local-fs.target" in text
-assert "[Install]" not in text
+assert not any(line.strip() == "[Install]" for line in text.splitlines())
 assert "nft " not in text and "/usr/sbin/nft" not in text
 assert "--execute" not in text and "--apply" not in text
 assert "ExecStart=" in text and "ExecStartPre=" not in text
