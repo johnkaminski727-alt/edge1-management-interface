@@ -120,8 +120,9 @@ def test_publisher_fixture() -> None:
                   '    echo "STOP: --apply requires root" >&2\n'
                   '    exit 1\n'
                   '}')
-    for part in (old_root, old_dest, old_backup, root_guard):
+    for part in (old_root, old_backup, root_guard):
         require(original.count(part) == 1, "Publisher fixture guard changed: " + part)
+    require(original.count(old_dest) == 2, "Expected main and rollback destinations")
 
     with tempfile.TemporaryDirectory(prefix="edge1-publisher-fixture-") as temp:
         base = Path(temp)
@@ -143,11 +144,8 @@ def test_publisher_fixture() -> None:
                                   'BACKUP="' + str(backups) +
                                   '/edge1-unified-publish-$STAMP"')
         fixture = fixture.replace(root_guard, "true # fixture only: nonroot allowed")
-        # The rollback has its OWN literal production destination: replace that too.
-        rollback_dest = "DEST=/var/www/edge1-status"
-        require(fixture.count(rollback_dest) == 1,
-                "Rollback destination fixture guard changed")
-        fixture = fixture.replace(rollback_dest, 'DEST="' + str(fake_dest) + '"')
+        require("DEST=/var/www/edge1-status" not in fixture,
+                "Fixture retained a production destination")
         script = base / "publisher-fixture.sh"
         script.write_text(fixture, encoding="utf-8")
         subprocess.run(["bash", "-n", str(script)], check=True)
