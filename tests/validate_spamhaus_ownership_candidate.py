@@ -20,10 +20,8 @@ CANONICAL = (
 class OwnershipCandidateTests(unittest.TestCase):
     def test_preserves_original_and_inserts_only_guard_comment(self):
         derived = m.derive_owned_candidate(CANONICAL, RUN)
-        expected = ('create table inet bigbird_spamhaus\n\n'
-                    'table inet bigbird_spamhaus {\n'
-                    '  comment "edge1-spamhaus-run:' + RUN + '"\n'
-                    + CANONICAL[len(m.HEADER):])
+        expected = ('create table inet bigbird_spamhaus { comment "edge1-spamhaus-run:'
+                    + RUN + '" }\n\n' + CANONICAL)
         self.assertEqual(derived, expected)
         self.assertEqual(CANONICAL.count("comment"), 0)
 
