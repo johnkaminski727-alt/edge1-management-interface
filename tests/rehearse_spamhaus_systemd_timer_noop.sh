@@ -8,7 +8,10 @@ set -euo pipefail
 BASE="edge1-spamhaus-a248-probe-$$"
 TIMER="${BASE}.timer"
 SERVICE="${BASE}.service"
+ARMED=0
 cleanup() {
+    # Do not stop an existing unit if the collision check or arming failed.
+    if [[ "$ARMED" != 1 ]]; then return; fi
     sudo /usr/bin/systemctl stop "$TIMER" "$SERVICE" >/dev/null 2>&1 || true
     sudo /usr/bin/systemctl reset-failed "$TIMER" "$SERVICE" >/dev/null 2>&1 || true
 }
@@ -28,6 +31,7 @@ fi
 echo "=== Arm independent timer (only runs /usr/bin/true) ==="
 sudo /usr/bin/systemd-run --unit="$BASE" --on-active=15s \
     --timer-property=AccuracySec=1s /usr/bin/true
+ARMED=1
 
 state="$(/usr/bin/systemctl show "$TIMER" -p ActiveState --value)"
 target="$(/usr/bin/systemctl show "$TIMER" -p Unit --value)"
