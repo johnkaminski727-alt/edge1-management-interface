@@ -77,11 +77,11 @@ def verify_restored_table():
                 family_rules = [r for r in matching if
                     any(isinstance(x, dict) and "match" in x and
                         x["match"].get("left", {}).get("payload", {}).get("protocol") == expected_family and
+                        x["match"].get("left", {}).get("payload", {}).get("field") == "saddr" and
+                        x["match"].get("op") == "==" and
                         x["match"].get("right") == "@" + expected_set
                         for x in r.get("expr", []))]
-                if len(family_rules) != 1 or not any(
-                    isinstance(x, dict) and "drop" in x for x in family_rules[0].get("expr", [])
-                ):
+                if len(family_rules) != 1 or [list(e) for e in family_rules[0].get("expr", [])] != [["match"], ["counter"], ["drop"]]:
                     raise ValueError("Missing correct source-set DROP rule")
     except (TypeError, ValueError, KeyError, IndexError) as exc:
         raise RuntimeError("Restored table structure verification failed") from exc
@@ -117,6 +117,10 @@ def arm_rollback():
                     "Cannot verify rollback timer state").strip()
     if state != "active":
         raise RuntimeError("Rollback timer not active")
+    target = require([SYSTEMCTL, "show", TIMER, "--property=Unit", "--value"],
+                     "Cannot inspect rollback timer target").strip()
+    if target != SERVICE:
+        raise RuntimeError("Rollback timer does not target the scoped recovery service")
     props = require([SYSTEMCTL, "show", SERVICE, "--property=ExecStart", "--value"],
                     "Cannot inspect independent rollback command")
     if not (("path=" + PYTHON + " ;") in props and
@@ -132,6 +136,9 @@ def guarded_restore(*, execute=False):
     if not execute:
         return "eligible_check_only"
     arm_rollback()
+    # Re-run the hash, feed freshness, clock, service and nft syntax gates after
+    # the timer is armed. Any failure must leave the independent timer intact.
+    validate_sources()
     # If this or later checks fail, intentionally leave the rollback timer armed.
     if table_present():
         raise RuntimeError("Table appeared after rollback arming: manual inspection required; timer remains armed")
