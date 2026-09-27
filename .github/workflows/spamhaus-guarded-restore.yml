@@ -33,6 +33,7 @@ jobs:
           bash -n tests/rehearse_spamhaus_ownership_netns.sh
           bash -n tests/rehearse_spamhaus_run_scoped_netns.sh
           bash -n tests/rehearse_spamhaus_systemd_timer_noop.sh
+          bash -n tests/rehearse_spamhaus_systemd_failure_noop.sh
       - name: Run-scoped per-attempt ownership prototype
         run: python3 tests/validate_spamhaus_run_scoped_candidate.py -v
       - name: Guarded orchestration regressions
