@@ -19,3 +19,8 @@ The operator's September 27 browser screenshot confirmed current Core and Networ
 The G3 offline suite adds positive-state-without-source tests, stale/failed source test fixtures, drill-down redaction checks, denial of green status for unknown/unavailable states, and stale count suppression. GitHub CI compiles the module and checks browser JavaScript; the existing G1/G2/G3 compatibility suites must pass.
 
 These tests validate the *mapping*, not the actual live root cause of the missing IDS/Spamhaus observations. Before marking either component operational, inspect Edge1's existing read-only Network Defense and underlying collector source timestamps, report actual source availability and compare them with the active service state. A separate reviewed, pinned opt-in G3.1 installer and local browser verification will be required; do not assume GitHub commits update `/opt/edge1-operations-workspace-g3` automatically.
+
+## Non-invasive live-source triage
+
+`tools/operations/inspect_edge1_security_sources.py` produces a fixed-schema JSON report from the two existing Edge1 snapshot files. It reports core-service state for a small allowlist, each recognized network-defense component's reported state and observation flags, fixed-name collector source freshness, and parent snapshot age. It never emits raw diagnostic detail, addresses, alert payloads, rules, or secrets; it has no subprocess or filesystem mutation capability. Pin the exact reviewed commit before any operator-run check. Its output can establish where the **observation pipeline** is missing evidence, but neither proves firewall enforcement nor warrants remediation or automatic rollback.
+
