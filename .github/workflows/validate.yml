@@ -60,7 +60,11 @@ jobs:
             done
           find bin deploy tools -type f -name '*.sh' -print0 |
             while IFS= read -r -d '' shell_file; do
-              sh -n "$shell_file"
+              if head -n 1 "$shell_file" | grep -Eq '^#!.*(env )?bash'; then
+                bash -n "$shell_file"
+              else
+                sh -n "$shell_file"
+              fi
             done
           node --check src/web/app.js
           node --check src/web/time-authority/app.js

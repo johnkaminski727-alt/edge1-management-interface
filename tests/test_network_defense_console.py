@@ -38,7 +38,10 @@ class NetworkDefenseConsoleTests(unittest.TestCase):
         endpoints = set(re.findall(r'/(?:edge1-status|api)/[^"\']+\.json', self.source))
         self.assertEqual(
             endpoints,
-            {'/edge1-status/network-defense/data/network-defense.json'},
+            {
+                '/edge1-status/network-defense/data/network-defense.json',
+                '/edge1-status/operator-shell/navigation.json',
+            },
         )
 
     def test_no_write_capable_fetch(self):

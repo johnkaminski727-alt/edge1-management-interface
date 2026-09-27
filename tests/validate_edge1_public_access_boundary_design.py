@@ -73,8 +73,12 @@ class Edge1PublicAccessBoundaryDesignTests(unittest.TestCase):
         self.assertIn("security-operations.json", self.domain_register)
         self.assertIn("security-correlation.json", self.domain_register)
         self.assertIn("network-defense/data/network-defense.json", self.domain_register)
-        self.assertIn('DEST="/var/www/edge1-status/index.html"', self.publisher)
-        self.assertIn('install -m 0644 "$SOURCE" "$DEST"', self.publisher)
+        # The unified publisher retains the same private status root and
+        # includes the Operations Center page in its bounded asset manifest.
+        self.assertIn("DEST=/var/www/edge1-status", self.publisher)
+        self.assertIn('"src/web/operations-center/index.html|index.html"', self.publisher)
+        self.assertIn('install -m 0644 "$ROOT/$source" "$target"', self.publisher)
+        self.assertIn('test "$(id -u)" -eq 0', self.publisher)
 
     def test_operations_page_consumes_mixed_detailed_feeds(self) -> None:
         for feed in (
