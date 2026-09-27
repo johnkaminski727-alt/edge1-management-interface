@@ -101,6 +101,7 @@ class G3Tests(unittest.TestCase):
         item = next(x for x in view["security"] if x["name"] == "dns")
         self.assertEqual(item["diagnostic"]["tone"], "neutral")
         self.assertEqual(item["diagnostic"]["source_checks"], [])
+        self.assertEqual(item["metrics"], {})
 
     def test_triage_summary_never_exports_raw_details(self):
         self.security_data["sources"] = {
@@ -132,6 +133,7 @@ class G3Tests(unittest.TestCase):
                       spamhaus["diagnostic"]["source_checks"])
         self.assertIn({"name": "spamhaus_live_state", "status": "stale"},
                       spamhaus["diagnostic"]["source_checks"])
+        self.assertEqual(spamhaus["metrics"], {})
         triage = inspect(self.core, self.security, now=self.now)
         self.assertIn({"name": "spamhaus", "state": "unavailable"}, triage["source_checks"])
         self.assertIn({"name": "spamhaus_live_state", "state": "stale"}, triage["source_checks"])
