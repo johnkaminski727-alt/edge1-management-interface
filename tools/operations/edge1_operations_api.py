@@ -10,6 +10,7 @@ from pathlib import Path
 from edge1_candidate_api import CandidateHandler, LocalHTTPServer
 from edge1_candidate_store import CandidateStore
 from edge1_operations_view import summarize
+from edge1_host_metrics import read_metrics
 
 
 class G3Handler(CandidateHandler):
@@ -18,7 +19,9 @@ class G3Handler(CandidateHandler):
             return super().do_GET()
         if not self._authorized():
             return
-        self.reply(200, summarize(self.server.core_path, self.server.security_path))
+        result = summarize(self.server.core_path, self.server.security_path)
+        result["host"] = read_metrics()
+        self.reply(200, result)
 
 
 class G3Server(LocalHTTPServer):
