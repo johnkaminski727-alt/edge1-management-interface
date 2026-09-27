@@ -1,6 +1,6 @@
 # Edge1 candidate configuration workspace G1
 
-**Status:** isolated GitHub development prototype; not installed or published. This branch starts from main `723e712775da5534042a146a725fa63a9da39421`, independently of draft Spamhaus PR #607.
+**Status:** local-only preview installation prepared; no production application capability. No Edge1 installation can be claimed until the operator executes the pinned installer and supplies successful verification output. This branch starts from main `723e712775da5534042a146a725fa63a9da39421`, independently of draft Spamhaus PR #607.
 
 ## Intended operator journey
 
@@ -42,6 +42,14 @@ No route above is implemented or exposed by this prototype. A future authenticat
 Use the existing `src/web/operations-center/index.html`, `core-dashboard.js`, the read-only `core-status.json` observation and the existing operator shell. Do not duplicate status collectors or assume stale/unavailable observations are healthy. The first UI deliverable is an **unpublished, self-contained local preview** showing running/candidate settings, typed display controls, pending-change summary and a read-only contextual ToolBox for the selected section.
 
 The ToolBox should link to existing health, networking and security observability sections and provide explainers and validation checks; it must not expose production mutation actions. Keep any live authenticated API and server changes behind separate design, permission and deployment reviews.
+
+## Local-only G1 installation and access
+
+The `deploy/candidate-workspace/install-preview.sh` script installs **only** static HTML, the pure Python candidate model, this README and regression tests into `/opt/edge1-candidate-workspace-g1`. It defaults to `--check`, accepts `--apply` only with root privileges, rejects symlinked source files and unrecognized existing destinations, checks the candidate regression tests and records SHA-256 payload hashes. On later authorized updates it backs up its own previously marked installation under `/var/backups/edge1-candidate-workspace-g1`. `--verify` checks the installed payload. This package does **not** modify the existing `/var/www/edge1-status` site, install systemd units, open a network port, modify a firewall or create an authenticated API.
+
+For a one-session private preview, an operator may start a separate loopback-only Python static server on Edge1 with `python3 -m http.server 8766 --bind 127.0.0.1 --directory /opt/edge1-candidate-workspace-g1`, then independently connect from Windows with `ssh -L 8766:127.0.0.1:8766 edge1` and open `http://127.0.0.1:8766/` in that Windows browser. Keep the Edge1 serving process and Windows SSH tunnel open only while reviewing the prototype. Stop the server with Ctrl+C. No systemd persistence is configured. The ToolBox in this standalone preview links to GitHub documentation instead of assuming live Operations Center routes are reachable from the local-only port.
+
+The browser model and Python engine are **two independently tested prototypes**, not yet connected to each other or to live settings. Changes made in the preview exist only in that browser tab, with no server persistence. The preview itself provides only static demonstration values, not a live Edge1 status report.
 
 ## Test and release gates
 
