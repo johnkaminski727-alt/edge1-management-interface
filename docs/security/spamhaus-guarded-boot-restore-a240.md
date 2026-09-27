@@ -124,6 +124,12 @@ The operator fetched pinned revision `edd7fc74338c21b0df6fba2e9bf221ec466825e8` 
 
 **Evidence gap:** The unprivileged `journalctl -u ...` printed `-- No entries --` with a notice that the user cannot see all journal entries. This is not proof that systemd failed to record the event. A later **sudo read-only journal query** or a separate harmless failure-injection rehearsal must verify actual journal visibility and incident logging; do not misstate this as a demonstrated journal record. An independent systemd no-op timer firing does not establish persistent boot restore correctness, sandbox compatibility, rollback ownership or recovery failure behavior. The canonical production table, boot service, and feed-update settings are untouched.
 
+## Assignment 249 — Harmless timer failure and journal probe (STAGED, NOT RUN)
+
+To close A248's journal-visibility evidence gap without touching the firewall, staged an operator-optional `tests/rehearse_spamhaus_systemd_failure_noop.sh`. It arms a uniquely named 10-second transient timer whose service command is **only `/usr/bin/false`**; verifies the timer's ActiveState, Unit target and harmless ExecStart; then independently waits for Result=`exit-code`, ExecMainStatus=`1` and a positive execution timestamp. Only then does it query the **specific probe service's** journal as root via `sudo journalctl -u ...`. An exit trap stops/resets only its own transient units after successful arming. Shell syntax is exercised by the dedicated CI workflow; no live Edge1 execution or journal outcome has yet been observed.
+
+This is **failure-injection of a harmless no-op service**, not firewall recovery and not evidence for a race-free watchdog. A service failure may create systemd/journal entries by design, but no restoration service is installed/enabled and no nftables command runs. Even if this test passes, the core per-run ownership-check/delete race, host recovery fault injection and independently authenticated positive acceptance remain deployment blockers.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
