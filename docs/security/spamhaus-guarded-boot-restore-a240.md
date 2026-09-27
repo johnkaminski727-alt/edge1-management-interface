@@ -95,6 +95,19 @@ A separate, operator-optional `tests/rehearse_spamhaus_run_scoped_netns.sh` has 
 
 This is **not an autonomous rollback rehearsal**, and cannot demonstrate safety against an uncooperative privileged writer who knows another run's table name. Neither the current guarded service nor the independently installed legacy recovery are modified or enabled. A production rollout would need explicit design approval for the new per-run table lifecycle and separate positive-acceptance, controlled stale-table cleanup, sandbox and timer tests.
 
+## Assignment 247 — Edge1 dual-run rehearsal PASSED
+
+The operator fetched pinned commit `ffd0294ee8518f71fdaa197e145baf1f77ad5569` and ran `tests/rehearse_spamhaus_run_scoped_netns.sh` on Edge1. The provided terminal output confirms all tests passed: a distinct network namespace was verified, two differently named owner-tagged tables coexisted, duplicate creation was refused, deleting run A did not delete or alter run B, both isolated run tables were cleaned up, and both the script's original-namespace check and an independent host check confirmed the production `inet bigbird_spamhaus` table was still present. The wrapper returned status 0 and the operator retained the SSH session.
+
+This **completes isolated dual-run table lifecycle verification only**. It does not establish safe unattended restoration, a real watchdog rollback, protection against uncooperative privileged writers or independent external acceptance. The original dedicated-table recovery still deletes `inet bigbird_spamhaus` by name; it is intentionally not connected to the per-run prototype. Keep draft PR #607 unmerged, the guarded restore service uninstalled and automatic feed updates disabled.
+
+### Assignment 248 release gates
+
+1. Design a per-run watchdog that never targets the canonical production table, rejects foreign/missing ownership and records immutable run identity and rollback evidence. A matching comment alone is not atomic check/delete: require verified exclusive coordination across all privileged writers or a genuinely atomic conditional deletion primitive before automatic deletion.
+2. Independently validate Debian 13/systemd 257 transient timer target and `ExecStart` behavior using a harmless, non-firewall rehearsal. Confirm timer arming before any firewall mutation, timer fire/failure evidence, and behavior if the initiating process dies.
+3. Specify positive acceptance using an independently authenticated external reachability receipt, bound to boot ID/run ID/candidate hash/expiry, with explicit watchdog disarming only upon verified acceptance. Without acceptance, rollback must remain scheduled.
+4. Reconcile unique-table hook behavior, conflicts and stale-table cleanup with the existing canonical `bigbird_spamhaus` table. Test duplicate and interrupted operations in an isolated network namespace, and rehearse scoped recovery failure without touching production.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
