@@ -53,9 +53,10 @@ def inspect(core: Path, defense: Path, *, now: datetime | None = None) -> dict:
             data = sources.get(name)
             if not isinstance(data, dict):
                 continue
-            status = ("stale" if data.get("stale") is True else
+            status = ("unavailable" if data.get("available") is False else
+                      "stale" if data.get("stale") is True else
                       "current" if data.get("available") is True and data.get("stale") is False else
-                      "unavailable" if data.get("available") is False else "unverified")
+                      "unverified")
             record["source_checks"].append({"name": name, "state": status})
     return record
 
