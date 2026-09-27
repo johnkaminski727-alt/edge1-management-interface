@@ -35,10 +35,10 @@ class Fake:
                 {"match": {"left": {"payload": {"protocol": fam, "field": "saddr"}},
                            "op": "==", "right": "@" + name}},
                 {"counter": {"packets": 0, "bytes": 0}}, {"drop": None}]
-            records = [{"set": {"name": "drop4", "type": "ipv4_addr", "elem": ["203.0.113.0/24"]}},
-                       {"set": {"name": "drop6", "type": "ipv6_addr", "elem": ["2001:db8::/32"]}}]
+            records = [{"set": {"name": "drop4", "type": "ipv4_addr", "flags": ["interval"], "elem": ["203.0.113.0/24"]}},
+                       {"set": {"name": "drop6", "type": "ipv6_addr", "flags": ["interval"], "elem": ["2001:db8::/32"]}}]
             for chain in ("input", "forward"):
-                records.append({"chain": {"name": chain, "hook": chain, "prio": -110, "policy": "accept"}})
+                records.append({"chain": {"name": chain, "hook": chain, "type": "filter", "prio": -110, "policy": "accept"}})
                 for fam, name in (("ip", "drop4"), ("ip6", "drop6")):
                     records.append({"rule": {"chain": chain, "expr": expr(fam, name)}})
             return ok(args, json.dumps({"nftables": records}))
@@ -47,7 +47,7 @@ class Fake:
         if args[:3] == [m.SYSTEMCTL, "show", m.TIMER]:
             return ok(args, "inactive\n" if self.timer_fail else "active\n")
         if args[:3] == [m.SYSTEMCTL, "show", m.SERVICE]:
-            return ok(args, "ExecStart=/usr/bin/python3 -B " + str(m.RECOVERY) + " --execute")
+            return ok(args, "path=" + m.PYTHON + " ; argv[]=" + m.PYTHON + " -B " + str(m.RECOVERY) + " --execute ;")
         if args[:2] == [m.NFT, "--file"]:
             if self.apply_fail:
                 return subprocess.CompletedProcess(args, 1, "", "")
