@@ -59,6 +59,12 @@ Root-cause candidate: the A244 prototype attached the comment to a *second* `tab
 
 The core race-free deletion/ownership release blocker remains unchanged even if the revised create syntax works. Do not merge, deploy or enable the proposed guarded service before an atomic-owner conditional deletion primitive or proven exclusive control over privileged writers exists.
 
+## Assignment 246B — Corrected comment requires statement terminator
+
+On Edge1, the corrected draft revision `c49ecd635e9fc8ccd37e71e34763b76d5acadf8e` was fetched and the isolated namespace check again passed. The test stopped during `nft --check` before applying any nftables transaction: the parser reported `unexpected '}', expecting newline or semicolon` after the `comment` directive. No duplicate-create or ownership readback testing occurred. The SSH shell remained open. The earlier independent host health check showed all critical services active, the live Spamhaus table present, and automatic restoration still not installed.
+
+The A246B incident reveals that the attempted inline `create table ... { comment "..." }` form requires a statement terminator **between** the comment and closing brace. The repository generator, offline expected-output test and isolated rehearsal now use `create table ... { comment "..."; }`. This is a syntactic correction inferred directly from the live parser error. **Not yet runtime-validated**: require a syntax-only `nft --check` pass on Edge1 before retrying the isolated execution rehearsal. Do not modify production firewall tables or attempt the original failed commits. A passing rehearsal still does not solve the independent ownership check/delete race.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
