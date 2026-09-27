@@ -42,7 +42,8 @@ const context = vm.createContext({
 vm.runInContext(candidates[0], context);
 assert.equal(requests, 0, "Absent historical feed must not be auto-fetched");
 assert.match(element("connection-status").textContent, /not deployed/i);
-assert.match(element("error-banner").textContent, /CrowdSec observations above remain independent|CrowdSec monitoring is separate/i);
+assert.match(element("error-banner").textContent, /not installed/i);
+assert.match(element("overview").innerHTML, /CrowdSec monitoring is separate/i);
 assert.equal(element("download-button").disabled, true);
 assert.equal(typeof poll, "function");
 poll();
