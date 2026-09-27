@@ -36,7 +36,7 @@ def derive_owned_candidate(candidate: str, run_id: str) -> str:
     if "\x00" in candidate or OWNER_PREFIX in candidate or "delete table" in candidate:
         raise ValueError("Candidate includes disallowed control content")
     return (
-        'create table inet bigbird_spamhaus { comment "' + OWNER_PREFIX + run_id + '" }\n\n'
+        'create table inet bigbird_spamhaus { comment "' + OWNER_PREFIX + run_id + '"; }\n\n'
         + candidate
     )
 
