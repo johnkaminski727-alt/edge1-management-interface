@@ -31,7 +31,7 @@ def derive_owned_candidate(candidate: str, run_id: str) -> str:
         raise ValueError("Candidate is not the expected canonical Spamhaus table")
     if candidate.count(HEADER) != 1 or candidate.count("table inet bigbird_spamhaus") != 1:
         raise ValueError("Candidate contains an unexpected table declaration")
-    if not candidate.endswith("}\n"):
+    if candidate.count("{") != candidate.count("}") or not candidate.endswith("}\n"):
         raise ValueError("Candidate is incomplete")
     if "\x00" in candidate or OWNER_PREFIX in candidate or "delete table" in candidate:
         raise ValueError("Candidate includes disallowed control content")
