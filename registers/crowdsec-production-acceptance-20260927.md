@@ -15,7 +15,9 @@
 | CS-09 | Production reboot and automatic dual-stack restoration | Passed | 132–133 |
 | CS-10 | Active-hook UFW reload rehearsal | Open | Separate controlled test with timed independent rollback |
 | CS-11 | Feed false-positive monitoring and exception governance | Open | Define review cadence, operator response and expiry |
-| CS-12 | Routed VPN forwarding protection | Out of scope | Requires separate design and approval |
+| CS-12 | Routed VPN forwarding protection | Accepted separately | Assignments 134–146; [forwarding acceptance](crowdsec-vpn-forward-acceptance-20260927.md) |
+
+**Update:** The nine-service summary below refers to the earlier INPUT-only checkpoint. The subsequently completed VPN FORWARD milestone passed a ten-service post-reboot check at 04:03 UTC; refer to the separate register.
 
 **Last observed acceptance:** all nine relevant units active/enabled after production reboot; two independent hooked input chains; both blacklists populated. Counts are time-dependent and must not be used as fixed pass thresholds. Operator's direct and WireGuard SSH management connections succeeded.
 
