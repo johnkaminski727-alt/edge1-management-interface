@@ -89,6 +89,12 @@ To reduce the accidental cross-attempt deletion risk, Assignment 247 prototypes 
 
 The dedicated custom CI workflow had escaped literal `\\n` between steps, which prevented its proper parsing; Assignment 247 replaces those with actual YAML newlines and adds per-run regression coverage. Confirm the workflow **actually runs and passes** on the final commit instead of relying only on repository-wide CI.
 
+## Assignment 247 — Dual-run isolated execution rehearsal prepared
+
+A separate, operator-optional `tests/rehearse_spamhaus_run_scoped_netns.sh` has been staged and shell-syntax checked in CI. It uses fixed **test-only** distinct run IDs and temporary root-private input files; requires a newly created network namespace to have a different inode **before** any nft mutation; loads two differently named tagged tables only within that namespace; proves the two coexist, duplicate creation is rejected, and deleting test run A leaves B's table and ownership marker unchanged; finally deletes B and independently checks the original production Spamhaus table read-only. Failure of `unshare --net` must abort, without falling back to the production namespace.
+
+This is **not an autonomous rollback rehearsal**, and cannot demonstrate safety against an uncooperative privileged writer who knows another run's table name. Neither the current guarded service nor the independently installed legacy recovery are modified or enabled. A production rollout would need explicit design approval for the new per-run table lifecycle and separate positive-acceptance, controlled stale-table cleanup, sandbox and timer tests.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
