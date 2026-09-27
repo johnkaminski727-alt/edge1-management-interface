@@ -46,6 +46,12 @@ Proposed phases: `prepared`, `watchdog_armed`, `created_unaccepted`, `externally
 | Stale acceptance, wrong boot/run/hash, replayed receipt | Refuse disarm; audit |
 | Actual deletion fails | Incident, retained forensic evidence; no global ruleset restore |
 
+## First A250 implementation: offline decision-only controller
+
+Added `tools/networking/spamhaus_rollback_decision.py` and `tests/validate_spamhaus_rollback_decision.py`. The pure `evaluate_rollback` function receives already-collected metadata and nftables JSON, validates exact run/table/timer/boot/hash bindings, and returns `do_not_delete` for every state. It distinguishes `observed_owned`, `foreign`, `absent`, `invalid_listing`, `inspection_failed`, `invalid_input` and `invalid_metadata`, always denying both command execution and watchdog disarming. A deterministic SHA-256 digest allows exact comparison of serialized diagnostic records but does **not** authenticate them or persist them; a future privileged journal bridge must supply secure durable storage and human alert delivery. The pure controller cannot run nftables, issue deletion commands, invoke systemd, or accept external authorization.
+
+Offline tests cover multiple simultaneous run names, the original canonical table, foreign or missing tags, ambiguous duplicate JSON records, malformed metadata, broken inspections, checksum tampering, and the key invariant that an `observed_owned` table **never** implies deletion permission. CI runs the new tests separately in the draft PR. This is progress on the *detection* portion of the threat model, not a solution to the separate check/delete race or proof that the watchdog is ready.
+
 ## Deployment separation
 
 All initial tests are pure functions/mocks and separate network namespaces. A harmless systemd timer rehearsal is already complete, but no production reboot, auto-feed refresh, production namespace nft modification, watchdog installation, or merge is authorized. Draft PR #607 remains blocked pending verified deletion semantics or explicitly approved exclusive-writer policy, durable incident evidence, and independent acceptance.
