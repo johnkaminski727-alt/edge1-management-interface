@@ -10,10 +10,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 cat > "$work/owned.nft" <<'NFT'
-create table inet edge1_a246_probe
+create table inet edge1_a246_probe { comment "edge1-a246-run:0123456789abcdef0123456789abcdef" }
 
 table inet edge1_a246_probe {
-    comment "edge1-a246-run:0123456789abcdef0123456789abcdef"
     set probe4 {
         type ipv4_addr
         flags interval
@@ -45,7 +44,11 @@ sudo env A246_HOST_NETNS="$host_netns" A246_TEST_FILE="$work/owned.nft" \
 data=json.load(sys.stdin)
 table=[x["table"] for x in data["nftables"] if "table" in x]
 assert len(table)==1, "Expected exactly one isolated test table"
-assert table[0].get("comment")=="edge1-a246-run:0123456789abcdef0123456789abcdef"
+actual=table[0].get("comment")
+expected="edge1-a246-run:0123456789abcdef0123456789abcdef"
+if actual!=expected:
+    print("FAIL: owner comment missing or mismatched; present:",repr(actual))
+    raise SystemExit(3)
 print("PASS: create-only transaction and table comment verified")
 '\''
     if nft --file "$A246_TEST_FILE" >/dev/null 2>&1; then
