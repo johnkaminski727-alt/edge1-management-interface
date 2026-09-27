@@ -76,9 +76,10 @@ def _diagnostic(name: str, state: str, observed: bool, enforcement: bool,
             continue
         available = item.get("available") is True
         stale = item.get("stale")
-        status = "stale" if stale is True else (
-            "available" if available and stale is False else
-            "unavailable" if item.get("available") is False else "unverified")
+        status = ("unavailable" if item.get("available") is False else
+                  "stale" if stale is True else
+                  "available" if available and stale is False else
+                  "unverified")
         checks.append({"name": key, "status": status})
     if any(c["status"] in ("unavailable", "stale", "unverified") for c in checks):
         tone = "warning"
