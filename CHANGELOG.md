@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-27 — Unified Operations Center release and closeout
+
+- Squash-merged [PR #592](https://github.com/johnkaminski727-alt/edge1-management-interface/pull/592): four browser-accepted private modules with shared operator navigation, current core/CrowdSec panels, sanitized security correlation and limited network-defense visibility.
+- Versioned four read-only observation collectors, nine systemd unit definitions and the ten-asset frontend publisher with timestamped backups and rollback script. Publisher source was preflighted; a fresh production redeployment and rollback rehearsal were not required or performed for closeout.
+- Local `main` synchronized with GitHub; ten of ten deployed frontend assets matched source, all four routes returned HTTP 200, and private web plus four monitoring timers were active in the final parity audit.
+- Added [deployment/rollback runbook](docs/operations/unified-operations-center-runbook-20260927.md) and [release register](registers/unified-operations-center-release-20260927.md). Legacy and unavailable sources remain explicitly unaccepted; future deployment automation requires independent testing.
+
 ## 2026-09-27 — CrowdSec IPv4 VPN forwarding production acceptance
 
 - Added a dependency-ordered dedicated IPv4 WireGuard↔internet FORWARD filter using the existing CrowdSec blacklist; confirmed four actual forwarded drops (240 bytes).
