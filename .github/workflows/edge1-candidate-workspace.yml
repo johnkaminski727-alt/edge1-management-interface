@@ -6,6 +6,7 @@ on:
       - 'tests/validate_edge1_candidate_workspace.py'
       - 'src/web/operations-center/candidate-workspace-preview.html'
       - 'docs/operations-center/candidate-workspace-g1.md'
+      - 'deploy/candidate-workspace/install-preview.sh'
       - '.github/workflows/edge1-candidate-workspace.yml'
   workflow_dispatch:
 
@@ -28,6 +29,10 @@ jobs:
         run: python3 -m py_compile tools/operations/edge1_candidate_workspace.py tests/validate_edge1_candidate_workspace.py
       - name: Candidate-only validation and drift regressions
         run: python3 tests/validate_edge1_candidate_workspace.py -v
+      - name: Local-only installer syntax and check-only preflight
+        run: |
+          bash -n deploy/candidate-workspace/install-preview.sh
+          bash deploy/candidate-workspace/install-preview.sh --check
       - name: Offline HTML preview JavaScript syntax
         run: |
           python3 - <<'PY'
