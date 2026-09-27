@@ -61,7 +61,6 @@ def validate(config: Any) -> dict:
     if type(cap) is not int or not 1 <= cap <= MAX_ITEMS:
         raise CandidateError("alerts.max_items out of range")
     output = copy.deepcopy(config)
-    output["dashboard"]["panels"].sort()
     return output
 
 
