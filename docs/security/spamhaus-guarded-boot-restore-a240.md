@@ -108,6 +108,12 @@ This **completes isolated dual-run table lifecycle verification only**. It does 
 3. Specify positive acceptance using an independently authenticated external reachability receipt, bound to boot ID/run ID/candidate hash/expiry, with explicit watchdog disarming only upon verified acceptance. Without acceptance, rollback must remain scheduled.
 4. Reconcile unique-table hook behavior, conflicts and stale-table cleanup with the existing canonical `bigbird_spamhaus` table. Test duplicate and interrupted operations in an isolated network namespace, and rehearse scoped recovery failure without touching production.
 
+## Assignment 248 — Harmless independent systemd timer rehearsal PREPARED
+
+Added `tests/rehearse_spamhaus_systemd_timer_noop.sh`, a **not-yet-executed** operator-optional script that creates a uniquely named transient 15-second timer running only `/usr/bin/true`. It checks `ActiveState`, `Unit` target, and the complete harmless service executable before observing whether the independently scheduled no-op service fires. A shell exit trap stops/resets only these uniquely named ephemeral probe units. CI checks shell syntax. This is an isolated **systemd control-plane diagnostic**, not a safe rollback implementation or an external acceptance test.
+
+**Safety restrictions:** The test contains no nftables calls, no reboot, no persistent unit installation and no production service enablement. Do not run the original draft guarded `--execute` flow as a substitute. An actual watchdog for uniquely named per-run firewall tables still requires scoped ownership checks and deletion race analysis, root-only installed helpers, independent health verification, forensic evidence, failure injection and authenticated external positive acceptance. This script must be reviewed before any operator-run execution, and its future PASS would demonstrate only systemd transient scheduling.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
