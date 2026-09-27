@@ -29,7 +29,9 @@ jobs:
           python3 -m py_compile tools/networking/spamhaus_ownership_inspect.py tests/validate_spamhaus_ownership_inspect.py
           python3 -m py_compile tools/networking/spamhaus_run_scoped_candidate.py tests/validate_spamhaus_run_scoped_candidate.py
       - name: Isolated network-namespace rehearsal syntax only
-        run: bash -n tests/rehearse_spamhaus_ownership_netns.sh
+        run: |
+          bash -n tests/rehearse_spamhaus_ownership_netns.sh
+          bash -n tests/rehearse_spamhaus_run_scoped_netns.sh
       - name: Run-scoped per-attempt ownership prototype
         run: python3 tests/validate_spamhaus_run_scoped_candidate.py -v
       - name: Guarded orchestration regressions
