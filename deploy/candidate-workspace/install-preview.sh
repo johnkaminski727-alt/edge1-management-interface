@@ -42,7 +42,7 @@ PY
 if [[ "$MODE" == --verify ]]; then
     [[ -d "$DEST" && ! -L "$DEST" ]] || fail "G1 preview not installed"
     [[ "$(/usr/bin/cat "$DEST/INSTALL-ID")" == "$MARKER" ]] || fail "Unrecognized installation marker"
-    /usr/bin/sha256sum -c "$DEST/SHA256SUMS" --quiet --ignore-missing
+    (cd "$DEST" && /usr/bin/sha256sum -c SHA256SUMS --quiet)
     /usr/bin/python3 -m py_compile "$DEST/edge1_candidate_workspace.py"
     echo "PASS: Local-only G1 preview installed; recorded payload hashes verified"
     exit 0
@@ -69,8 +69,11 @@ STAGE="$(/usr/bin/mktemp -d /opt/.edge1-g1-stage.XXXXXXXX)"
 moved=0
 restore() {
     rc=$?
-    if [[ "$rc" -ne 0 && "$moved" -eq 1 && ! -e "$DEST" && -n "${BACKUP:-}" && -d "$BACKUP" ]]; then
-        /usr/bin/mv -- "$BACKUP" "$DEST" || true
+    if [[ "$rc" -ne 0 && "$moved" -eq 1 && -n "${BACKUP:-}" && -d "$BACKUP" ]]; then
+        if [[ -d "$DEST" && ! -L "$DEST" && -f "$DEST/INSTALL-ID" && "$(/usr/bin/cat "$DEST/INSTALL-ID")" == "$MARKER" ]]; then
+            /usr/bin/rm -rf -- "$DEST"
+        fi
+        if [[ ! -e "$DEST" ]]; then /usr/bin/mv -- "$BACKUP" "$DEST" || true; fi
     fi
     if [[ -n "${STAGE:-}" && -d "$STAGE" ]]; then /usr/bin/rm -rf -- "$STAGE"; fi
     exit "$rc"
@@ -97,7 +100,7 @@ fi
 STAGE=""
 /usr/bin/chown -R root:root "$DEST"
 /usr/bin/chmod 0755 "$DEST"
-/usr/bin/sha256sum -c "$DEST/SHA256SUMS" --quiet --ignore-missing
+(cd "$DEST" && /usr/bin/sha256sum -c SHA256SUMS --quiet)
 echo "PASS: Installed isolated local preview; existing production services untouched"
 echo "Location: $DEST"
 if [[ -n "${BACKUP:-}" ]]; then echo "Previous G1 installation: $BACKUP"; fi
