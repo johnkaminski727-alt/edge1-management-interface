@@ -63,11 +63,11 @@ def verify_restored_table():
             raise ValueError("Unexpected sets")
         if sets["drop4"]["type"] != "ipv4_addr" or sets["drop6"]["type"] != "ipv6_addr":
             raise ValueError("Unexpected set types")
-        if any(not s.get("elem") for s in sets.values()):
+        if any(not s.get("elem") or "interval" not in s.get("flags", []) for s in sets.values()):
             raise ValueError("Empty blocked-address set")
         for name in ("input", "forward"):
             chain = chains[name]
-            if chain.get("hook") != name or chain.get("prio") != -110 or chain.get("policy") != "accept":
+            if chain.get("hook") != name or chain.get("prio") != -110 or chain.get("policy") != "accept" or chain.get("type") != "filter":
                 raise ValueError("Unexpected hook/priority/policy")
             matching = [r for r in rules if r.get("chain") == name]
             if len(matching) != 2:
@@ -112,7 +112,7 @@ def arm_rollback():
         raise RuntimeError("Rollback timer not active")
     props = require([SYSTEMCTL, "show", SERVICE, "--property=ExecStart", "--value"],
                     "Cannot inspect independent rollback command")
-    if str(RECOVERY) not in props or "--execute" not in props or "spamhaus_scoped_recovery.py" not in props:
+    if not (("path=" + PYTHON + " ;") in props and\n            ("argv[]=" + PYTHON + " -B " + str(RECOVERY) + " --execute ;") in props):
         raise RuntimeError("Rollback command is not the independently installed scoped recovery")
 
 
