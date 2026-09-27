@@ -118,6 +118,12 @@ Added `tests/rehearse_spamhaus_systemd_timer_noop.sh`, a **not-yet-executed** op
 
 Before the harmless transient timer test was handed to the operator, its shell exit trap was restricted to stop/reset the uniquely named probe units **only after the `systemd-run` command successfully returned**. If the initial name-collision check fails or the timer fails to arm, cleanup does not stop an existing unit. The probe's service command remains only `/usr/bin/true`, with no nftables operations, no persistent unit installation and no reboot. This is a no-op test of systemd scheduling, not evidence that the unfinished legacy restore helper is safe for unattended execution.
 
+## Assignment 248 — Edge1 independent no-op timer PASSED
+
+The operator fetched pinned revision `edd7fc74338c21b0df6fba2e9bf221ec466825e8` and ran `tests/rehearse_spamhaus_systemd_timer_noop.sh` on the production Edge1 **without making firewall changes**. The actual transcript shows systemd created a uniquely named transient `edge1-spamhaus-a248-probe-65474.timer` targeting the matching `.service`; the timer's ActiveState was `active`, and systemd's ExecStart was precisely `/usr/bin/true`. The service's nonzero start timestamp and Result=`success` demonstrated independent execution; the test reported PASS and cleaned up its own transient probe units. Both the script's independent host firewall check and exit status 0 were recorded, and the operator's interactive SSH session remained open.
+
+**Evidence gap:** The unprivileged `journalctl -u ...` printed `-- No entries --` with a notice that the user cannot see all journal entries. This is not proof that systemd failed to record the event. A later **sudo read-only journal query** or a separate harmless failure-injection rehearsal must verify actual journal visibility and incident logging; do not misstate this as a demonstrated journal record. An independent systemd no-op timer firing does not establish persistent boot restore correctness, sandbox compatibility, rollback ownership or recovery failure behavior. The canonical production table, boot service, and feed-update settings are untouched.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
