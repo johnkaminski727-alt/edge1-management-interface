@@ -48,7 +48,7 @@ const fresh = evaluate(
   'sourcePresentation("core_live", {available:true,age_seconds:2,stale_after_seconds:300,detail:"Current read-only observation"})'
 );
 assert.match(fresh, /Observed/);
-assert.match(fresh, /observation age 1[5-9]s/);
+assert.match(fresh, /source age 1[5-9]s/);
 const stale = evaluate(
   'sourcePresentation("core_live", {available:true,age_seconds:4,stale_after_seconds:10,detail:"Current read-only observation"})'
 );
@@ -60,7 +60,7 @@ assert.match(unknown, /Age unknown/);
 const missing = evaluate(
   'sourcePresentation("network", {available:false,age_seconds:null,detail:"network source is missing"})'
 );
-assert.match(missing, /Unavailable/);
+assert.match(missing, /Not connected/);
 const staged = evaluate(
   'sourcePresentation("dns_policy", {available:false,age_seconds:null,detail:"dns policy status is not staged"})'
 );
@@ -68,17 +68,17 @@ assert.match(staged, /Not staged/);
 
 evaluate('snapshot.sources={core_live:{available:true,age_seconds:4,stale_after_seconds:10,detail:"Current read-only observation"}}');
 evaluate("renderSources()");
-assert.match(element("sources").innerHTML, /Stale/);
+assert.match(element("current-sources").innerHTML, /Stale/);
 evaluate("snapshot.generated_at=new Date(Date.now()-360000).toISOString();updateFreshness()");
 assert.match(element("freshness").textContent, /stale/i);
-assert.match(element("sources").innerHTML, /Stale/);
+assert.match(element("current-sources").innerHTML, /Stale/);
 console.log("PASS: source ages advance from snapshot time; stale, unknown, missing and unstaged states are distinct");
 """
 
 def main():
     text = HTML.read_text(encoding="utf-8")
-    for anchor in ("Source freshness", "observation age", "stale_after_seconds",
-                   "Snapshot timestamp invalid", "not an end-to-end test"):
+    for anchor in ("Source freshness", "source age", "stale_after_seconds",
+                   "Snapshot timestamp invalid", "not a live traffic or event-recency test"):
         if anchor not in text:
             raise AssertionError("Missing freshness contract: " + anchor)
     subprocess.run(["node", "-e", NODE_TEST, str(HTML)], check=True)
