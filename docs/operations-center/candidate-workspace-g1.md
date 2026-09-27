@@ -51,6 +51,10 @@ For a one-session private preview, an operator may start a separate loopback-onl
 
 The browser model and Python engine are **two independently tested prototypes**, not yet connected to each other or to live settings. Changes made in the preview exist only in that browser tab, with no server persistence. The preview itself provides only static demonstration values, not a live Edge1 status report.
 
+## Edge1 operator installation evidence — September 27, 2026
+
+The operator retrieved the exact reviewed source revision `e7bd4b896b6c305e4b4730c3fbadbe8c54e8df25` on Edge1 using `git fetch` and `git archive`, without switching the production repository branch. The `--check` preflight passed eight Python regression tests and verified that the static HTML contains no network requests or live Apply control. The opt-in `--apply` installer repeated those checks and installed the isolated preview under `/opt/edge1-candidate-workspace-g1`; `--verify` confirmed the installed SHA-256 manifest and Python syntax. The operator's interactive SSH session remained open, and the installer reported no changes to existing production services. **Installation is verified**, but browser access, loopback-only preview serving, authenticated API integration and any live configuration application have not been verified. The HTML and Python model remain separate prototypes.
+
 ## Test and release gates
 
 Run `python3 tests/validate_edge1_candidate_workspace.py -v`. Negative cases include wrong type, unknown setting, duplicate panels, stale candidate revision, externally changed running state and mutation of caller-owned snapshots. HTML preview uses no server endpoint or persistent storage. Repository CI is required on the final branch; isolated tests are not proof of a production deployment. No GitHub merge, production installation, public publication, unit enablement, reboot or firewall modification is included in G1.
