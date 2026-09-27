@@ -16,6 +16,7 @@ sys.path.insert(0,str(TOOL))
 from edge1_operations_view import summarize
 from edge1_operations_api import G3Server
 from edge1_host_metrics import read_metrics
+from inspect_edge1_security_sources import inspect
 from edge1_candidate_store import CandidateStore
 
 TOKEN="a"*64
@@ -100,6 +101,22 @@ class G3Tests(unittest.TestCase):
         item = next(x for x in view["security"] if x["name"] == "dns")
         self.assertEqual(item["diagnostic"]["tone"], "neutral")
         self.assertEqual(item["diagnostic"]["source_checks"], [])
+
+    def test_triage_summary_never_exports_raw_details(self):
+        self.security_data["sources"] = {
+            "security": {"available": False, "stale": True, "detail": "SECRET_ACCESS"},
+            "spamhaus_live_state": {"available": False, "stale": False, "detail": "PRIVATE_ADDRESS"},
+            "core_live": {"available": True, "stale": False}}
+        self.security_data["components"]["ids"]["detail"] = "PRIVATE_ADDRESS"
+        self.dump()
+        diagnostic = inspect(self.core, self.security, now=self.now)
+        self.assertTrue(diagnostic["read_only"])
+        self.assertEqual(diagnostic["schema"], "edge1-security-triage-g3-1.v1")
+        self.assertEqual(len(diagnostic["components"]), 7)
+        self.assertIn({"name":"security", "state":"stale"}, diagnostic["source_checks"])
+        self.assertIn({"name":"spamhaus_live_state", "state":"unavailable"}, diagnostic["source_checks"])
+        self.assertNotIn("SECRET_ACCESS", json.dumps(diagnostic))
+        self.assertNotIn("PRIVATE_ADDRESS", json.dumps(diagnostic))
 
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
