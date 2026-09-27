@@ -119,7 +119,8 @@ def arm_rollback():
         raise RuntimeError("Rollback timer not active")
     props = require([SYSTEMCTL, "show", SERVICE, "--property=ExecStart", "--value"],
                     "Cannot inspect independent rollback command")
-    if not (("path=" + PYTHON + " ;") in props and\n            ("argv[]=" + PYTHON + " -B " + str(RECOVERY) + " --execute ;") in props):
+    if not (("path=" + PYTHON + " ;") in props and
+            ("argv[]=" + PYTHON + " -B " + str(RECOVERY) + " --execute ;") in props):
         raise RuntimeError("Rollback command is not the independently installed scoped recovery")
 
 
