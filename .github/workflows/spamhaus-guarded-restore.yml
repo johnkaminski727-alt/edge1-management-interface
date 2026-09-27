@@ -27,7 +27,7 @@ jobs:
           python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py
           python3 -m py_compile tools/networking/spamhaus_ownership_candidate.py tests/validate_spamhaus_ownership_candidate.py
           python3 -m py_compile tools/networking/spamhaus_ownership_inspect.py tests/validate_spamhaus_ownership_inspect.py
-      - name: Guarded orchestration regressions
+      - name: Isolated network-namespace rehearsal syntax only\n        run: bash -n tests/rehearse_spamhaus_ownership_netns.sh\n      - name: Guarded orchestration regressions
         run: python3 tests/validate_spamhaus_guarded_boot_restore.py -v
       - name: Create-only tagged candidate derivation
         run: python3 tests/validate_spamhaus_ownership_candidate.py -v
