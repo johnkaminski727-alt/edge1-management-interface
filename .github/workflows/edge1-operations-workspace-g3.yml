@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'tools/operations/edge1_operations_*.py'
+      - 'tools/operations/inspect_edge1_security_sources.py'
       - 'tools/operations/edge1_candidate_*.py'
       - 'tests/validate_edge1_operations_g3.py'
       - 'src/web/operations-center/operations-workspace-g3.html'
@@ -28,7 +29,7 @@ jobs:
           node-version: '22'
       - name: Python and shell compilation
         run: |
-          python3 -m py_compile tools/operations/edge1_candidate_workspace.py tools/operations/edge1_candidate_store.py tools/operations/edge1_candidate_api.py tools/operations/edge1_operations_view.py tools/operations/edge1_host_metrics.py tools/operations/edge1_operations_api.py tests/validate_edge1_operations_g3.py
+          python3 -m py_compile tools/operations/edge1_candidate_workspace.py tools/operations/edge1_candidate_store.py tools/operations/edge1_candidate_api.py tools/operations/edge1_operations_view.py tools/operations/edge1_host_metrics.py tools/operations/edge1_operations_api.py tools/operations/inspect_edge1_security_sources.py tests/validate_edge1_operations_g3.py
           bash -n deploy/candidate-workspace/install-g3.sh
       - name: Candidate, HTTP and operations regressions
         run: |
