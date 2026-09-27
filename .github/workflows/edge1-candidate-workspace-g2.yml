@@ -1,0 +1,52 @@
+name: Edge1 candidate workspace G2
+on:
+  pull_request:
+    paths:
+      - 'tools/operations/edge1_candidate_*.py'
+      - 'tests/validate_edge1_candidate_*.py'
+      - 'src/web/operations-center/candidate-workspace-g2.html'
+      - 'deploy/candidate-workspace/install-g2.sh'
+      - 'docs/operations-center/candidate-workspace-g2.md'
+      - '.github/workflows/edge1-candidate-workspace-g2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-g2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python syntax and candidate regressions
+        run: |
+          python3 -m py_compile tools/operations/edge1_candidate_workspace.py tools/operations/edge1_candidate_store.py tools/operations/edge1_candidate_api.py
+          python3 -m py_compile tests/validate_edge1_candidate_workspace.py tests/validate_edge1_candidate_store.py tests/validate_edge1_candidate_api.py
+          python3 tests/validate_edge1_candidate_workspace.py -v
+          python3 tests/validate_edge1_candidate_store.py -v
+          python3 tests/validate_edge1_candidate_api.py -v
+      - name: Local-only installer syntax and check-only preflight
+        run: |
+          bash -n deploy/candidate-workspace/install-g2.sh
+          bash deploy/candidate-workspace/install-g2.sh --check
+      - name: G2 browser syntax and no executable apply route
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          ui=Path("src/web/operations-center/candidate-workspace-g2.html").read_text()
+          js=re.search(r"<script>(.*?)</script>",ui,re.S)
+          assert js is not None
+          Path("/tmp/edge1-g2.js").write_text(js.group(1))
+          api=Path("tools/operations/edge1_candidate_api.py").read_text()
+          assert '"/api/apply"' not in api
+          assert '("127.0.0.1", args.port)' in api
+          PY
+          node --check /tmp/edge1-g2.js
