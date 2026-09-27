@@ -182,6 +182,10 @@ Key references:
 - `docs/ai-filesystem-write-connector/phase-4-operator-controlled-apply.md`
 
 ## Security
+## CrowdSec production security (2026-09-27)
+
+The dual-stack CrowdSec **input-path** deployment has completed operator-verified production reboot acceptance. UFW remains the primary firewall; the Edge1 bootstrap and input-enforcement units start before the set-only bouncer. Recovery was exercised from enabled startup state. See the [sanitized production acceptance](docs/security/crowdsec-dual-stack-production-acceptance-20260927.md) and [acceptance register](registers/crowdsec-production-acceptance-20260927.md). Detailed operational recovery material is restricted to the private operations library; The subsequently deployed IPv4 VPN FORWARD filter was accepted after a packet-drop test and production reboot. See [VPN forwarding acceptance](docs/security/crowdsec-vpn-forward-production-acceptance-20260927.md). IPv6 VPN forwarding remains disabled.
+
 
 Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or contributing configuration examples. Never open a public issue containing credentials, production data, private records, production databases, or unredacted diagnostic output.
 
