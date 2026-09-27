@@ -20,7 +20,7 @@ let requests = 0;
 const element = id => {
   if (!elements.has(id)) elements.set(id, {
     textContent: "", innerHTML: "", className: "",
-    disabled: false, value: "all",
+    disabled: id === "download-button", value: "all",
     addEventListener(name, fn) { callbacks.set(id + ":" + name, fn); }
   });
   return elements.get(id);
