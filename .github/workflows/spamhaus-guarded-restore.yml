@@ -1,0 +1,53 @@
+name: Spamhaus guarded restore offline regressions
+on:
+  pull_request:
+    paths:
+      - 'tools/networking/spamhaus_*'
+      - 'tests/validate_spamhaus_*'
+      - 'deploy/systemd/edge1-spamhaus-restore.service'
+      - 'docs/security/spamhaus-*'
+      - '.github/workflows/spamhaus-guarded-restore.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-guard:
+    name: Python offline regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax check
+        run: |
+          python3 -m py_compile tools/networking/spamhaus_guarded_boot_restore.py tests/validate_spamhaus_guarded_boot_restore.py
+          python3 -m py_compile tools/networking/spamhaus_ownership_candidate.py tests/validate_spamhaus_ownership_candidate.py
+          python3 -m py_compile tools/networking/spamhaus_ownership_inspect.py tests/validate_spamhaus_ownership_inspect.py
+          python3 -m py_compile tools/networking/spamhaus_run_scoped_candidate.py tests/validate_spamhaus_run_scoped_candidate.py
+          python3 -m py_compile tools/networking/spamhaus_rollback_decision.py tests/validate_spamhaus_rollback_decision.py
+      - name: Isolated network-namespace rehearsal syntax only
+        run: |
+          bash -n tests/rehearse_spamhaus_ownership_netns.sh
+          bash -n tests/rehearse_spamhaus_run_scoped_netns.sh
+          bash -n tests/rehearse_spamhaus_systemd_timer_noop.sh
+          bash -n tests/rehearse_spamhaus_systemd_failure_noop.sh
+      - name: Run-scoped per-attempt ownership prototype
+        run: python3 tests/validate_spamhaus_run_scoped_candidate.py -v
+      - name: Fail-closed A250 rollback decision prototype
+        run: python3 tests/validate_spamhaus_rollback_decision.py -v
+      - name: Guarded orchestration regressions
+        run: python3 tests/validate_spamhaus_guarded_boot_restore.py -v
+      - name: Create-only tagged candidate derivation
+        run: python3 tests/validate_spamhaus_ownership_candidate.py -v
+      - name: Read-only rollback ownership classification
+        run: python3 tests/validate_spamhaus_ownership_inspect.py -v
+      - name: Proposed systemd unit static contract
+        run: python3 tests/validate_spamhaus_boot_restore_unit.py
+      - name: Independent recovery regressions
+        run: python3 tests/validate_spamhaus_scoped_recovery.py -v
+      - name: Pinned-candidate preflight regressions
+        run: python3 tests/validate_spamhaus_boot_preflight.py -v
