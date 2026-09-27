@@ -39,6 +39,12 @@ Added a pure, offline `spamhaus_ownership_candidate.py` source transformer plus 
 
 **Release block remains:** A matching table comment followed by a separate scoped `delete table` is still susceptible to a time-of-check/time-of-use race if an uncooperative process replaces the table. Require either a demonstrably atomic ownership-checked delete primitive or independently verified exclusive control over *all* writers to the dedicated table throughout create, acceptance and rollback. A cooperative file lock alone does not exclude other privileged writers. Do not wire the ownership prototype into the boot service or run the unattended watchdog against production until this proof and failure injection succeed. A mismatched/absent marker must stop deletion and preserve evidence; a matching marker is necessary but not sufficient if ownership can change before the deletion.
 
+## Assignment 245 — Fail-closed read-only ownership classification
+
+The repository now contains `spamhaus_ownership_inspect.py` and offline tests that classify an nftables table listing as `absent`, `owned`, `foreign` or `invalid` when presented with an expected 128-bit run ID. Malformed JSON, duplicate target-table records and forged run IDs are rejected. **This inspector never runs nftables and never authorizes deletion.** An `owned` finding is not race-free: without exclusive control over *all* privileged writers (or an atomic compare-and-delete primitive), a process can replace the table after the check. The watchdog and the original scoped recovery are therefore deliberately *not connected* to the prototype.
+
+A244 initial repository-wide CI caught a truncated-candidate acceptance bug in the prototype, corrected by requiring balanced braces. The custom offline workflow was also corrected to use proper YAML line breaks and now exercises both ownership prototype modules. GitHub CI must pass on the final revision; prior success on earlier commits does not establish current acceptance.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
