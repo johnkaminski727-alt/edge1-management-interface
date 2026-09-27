@@ -139,6 +139,36 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
         line.textContent="Monitoring source: "+item.source_adapter.state;
         article.append(line);
       }
+      if(item.detail_metrics){
+        const panel=document.createElement("details");
+        const heading=document.createElement("summary");
+        heading.textContent=item.name==="firewall"?"Firewall aggregates":"Fail2ban jail activity";
+        panel.append(heading);
+        const context=document.createElement("p");context.className="panel-note";
+        context.textContent=item.detail_metrics.reason;
+        panel.append(context);
+        if(item.detail_metrics.available){
+          const groups=[
+            ["Counters",item.detail_metrics.counts],
+            ["Observations",item.detail_metrics.flags],
+            ...Object.entries(item.detail_metrics.groups||{}).map(([name,values])=>[name,values])
+          ];
+          for(const [group,values] of groups){
+            const rows=Object.entries(values||{}).filter(([,value])=>value!==null);
+            if(!rows.length)continue;
+            const label=document.createElement("h4");label.textContent=group;
+            panel.append(label);
+            const list=document.createElement("ul");
+            for(const [key,value] of rows){
+              const row=document.createElement("li");
+              row.textContent=key.replaceAll("_"," ")+": "+String(value);
+              list.append(row);
+            }
+            panel.append(list);
+          }
+        }
+        article.append(panel);
+      }
       const explain=document.createElement("p");
       explain.className="panel-note";explain.textContent=diagnostic.reason||"Further observation needed";article.append(explain);
       const more=document.createElement("details");
