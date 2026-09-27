@@ -69,6 +69,75 @@ def current_adapter(name: str, sources: dict, parent_fresh: bool) -> dict | None
     return {"name": key, "state": state, "description": description}
 
 
+# G3.3: numerical fields are copied only from the already sanitized
+# Network Defense aggregate, never from root-owned producer files.
+# Numeric observations are permitted when both parent and dedicated source are
+# current, regardless of whether the component itself has proven enforcement.
+DETAIL_COUNTERS = {
+    "firewall": (
+        "tables", "chains", "base_chains", "rules", "sets", "maps",
+        "set_elements", "map_elements", "rules_with_counters",
+        "counter_packets", "counter_bytes",
+    ),
+    "fail2ban": (
+        "declared_jails", "observed_jails", "currently_failed",
+        "total_failed", "currently_banned", "total_banned",
+    ),
+}
+DETAIL_FLAGS = {
+    "firewall": ("service_loaded",),
+    "fail2ban": ("service_installed", "service_active", "socket_reachable"),
+}
+DETAIL_GROUPS = {
+    "firewall": {
+        "families": ("ip", "ip6", "inet", "arp", "bridge", "netdev", "other"),
+        "hooks": ("prerouting", "input", "forward", "output",
+                  "postrouting", "ingress", "egress", "other"),
+        "policies": ("accept", "drop", "other"),
+        "verdicts": ("accept", "drop", "reject", "continue",
+                     "return", "jump", "goto", "queue"),
+    }
+}
+
+
+def curated_detail(name: str, metrics: dict, adapter: dict | None,
+                   observed: bool) -> dict | None:
+    """Whitelist aggregate counts/boolean flags only; fail closed on freshness."""
+    if name not in DETAIL_COUNTERS:
+        return None
+    result = {"available": False, "reason": "Current validated aggregate evidence unavailable",
+              "counts": {}, "flags": {}, "groups": {}}
+    if not observed or not adapter or adapter["state"] != "current":
+        return result
+    result["counts"] = {
+        field: valid_count(metrics.get(field))
+        for field in DETAIL_COUNTERS[name]
+    }
+    result["flags"] = {
+        field: metrics[field] if type(metrics.get(field)) is bool else None
+        for field in DETAIL_FLAGS[name]
+    }
+    result["groups"] = {
+        group: {key: valid_count(
+            metrics.get(group, {}).get(key)
+            if isinstance(metrics.get(group), dict) else None
+        ) for key in keys}
+        for group, keys in DETAIL_GROUPS.get(name, {}).items()
+    }
+    has_evidence = (any(n is not None for n in result["counts"].values()) or
+                    any(v is not None for v in result["flags"].values()) or
+                    any(n is not None for group in result["groups"].values()
+                        for n in group.values()))
+    result["available"] = has_evidence
+    result["reason"] = ("Sanitized aggregate telemetry; not enforcement verification"
+                        if has_evidence else "Current source has no validated aggregate values")
+    return result
+
+
+def valid_count(value):
+    return value if type(value) is int and 0 <= value <= 10**15 else None
+
+
 TITLES = {
     "ids": "Intrusion detection (IDS)",
     "dns": "DNS observation",
@@ -225,6 +294,7 @@ def summarize(core_path: Path, security_path: Path, *, now: datetime | None = No
             source_records = security.get("sources") if isinstance(security.get("sources"), dict) else {}
             diagnostic = _diagnostic(name, state, observed, enforced, security_status["fresh"], source_records)
             adapter = current_adapter(name, source_records, security_status["fresh"])
+            detail = curated_detail(name, metrics, adapter, observed)
             # A fresh parent aggregate may contain stale, missing, or unverified
             # historical children; never display their counts as current.
             if not diagnostic["source_checks"] or any(
@@ -235,6 +305,6 @@ def summarize(core_path: Path, security_path: Path, *, now: datetime | None = No
                 "observed": observed,
                 "enforcement_verified": enforced,
                 "metrics": sanitized, "diagnostic": diagnostic,
-                "source_adapter": adapter})
+                "source_adapter": adapter, "detail_metrics": detail})
         result["summary"]["security_components_observed"] = sum(item["observed"] for item in result["security"]) if security_status["fresh"] else None
     return result
