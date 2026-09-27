@@ -8,6 +8,7 @@ No feed download, no global nft flush, no changes to other firewall tables.
 from __future__ import annotations
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -87,9 +88,15 @@ def verify_restored_table():
 
 
 def validate_sources():
+    if STAGE.is_symlink() or not STAGE.is_dir():
+        raise RuntimeError("Pinned candidate directory missing or unsafe")
+    if os.geteuid() == 0 and (STAGE.stat().st_uid != 0 or STAGE.stat().st_mode & 0o077):
+        raise RuntimeError("Pinned candidate directory is not root-owned/private")
     for path in (PARSER, PREFLIGHT, RECOVERY, CANDIDATE):
         if not path.is_file() or path.is_symlink():
             raise RuntimeError("Missing or unsafe required source: " + path.name)
+        if os.geteuid() == 0 and (path.stat().st_uid != 0 or path.stat().st_mode & 0o022):
+            raise RuntimeError("Required source is not root-owned or is writable by others: " + path.name)
     require([CHRONYC, "waitsync", "30", "0.1"], "Clock is not synchronized", timeout=130)
     for unit in REQUIRED_SERVICES:
         require([SYSTEMCTL, "is-active", "--quiet", unit], "Required service not active: " + unit)
