@@ -114,6 +114,10 @@ Added `tests/rehearse_spamhaus_systemd_timer_noop.sh`, a **not-yet-executed** op
 
 **Safety restrictions:** The test contains no nftables calls, no reboot, no persistent unit installation and no production service enablement. Do not run the original draft guarded `--execute` flow as a substitute. An actual watchdog for uniquely named per-run firewall tables still requires scoped ownership checks and deletion race analysis, root-only installed helpers, independent health verification, forensic evidence, failure injection and authenticated external positive acceptance. This script must be reviewed before any operator-run execution, and its future PASS would demonstrate only systemd transient scheduling.
 
+## Assignment 248 — timer rehearsal cleanup guard review
+
+Before the harmless transient timer test was handed to the operator, its shell exit trap was restricted to stop/reset the uniquely named probe units **only after the `systemd-run` command successfully returned**. If the initial name-collision check fails or the timer fails to arm, cleanup does not stop an existing unit. The probe's service command remains only `/usr/bin/true`, with no nftables operations, no persistent unit installation and no reboot. This is a no-op test of systemd scheduling, not evidence that the unfinished legacy restore helper is safe for unattended execution.
+
 ## Known limitations requiring independent rehearsal before installation
 
 - Confirm actual Debian 13 `nft -j list table inet bigbird_spamhaus` JSON matches the strict verifier; schema handling is intentionally fail-closed.
