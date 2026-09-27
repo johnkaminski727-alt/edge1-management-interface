@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-27 — CrowdSec IPv4 VPN forwarding production acceptance
+
+- Added a dependency-ordered dedicated IPv4 WireGuard↔internet FORWARD filter using the existing CrowdSec blacklist; confirmed four actual forwarded drops (240 bytes).
+- Passed enabled-state forwarding-only emergency recovery, Windows VPN route/HTTPS/fresh SSH and independent production reboot at 04:03 UTC; all ten relevant services and three hooked chains restored.
+- IPv6 forwarding remains disabled; active-hook UFW reload and feed freshness/exception governance remain open. Added [forwarding acceptance](docs/security/crowdsec-vpn-forward-production-acceptance-20260927.md) and [register](registers/crowdsec-vpn-forward-acceptance-20260927.md).
+
 ## 2026-09-27 — CrowdSec dual-stack production acceptance
 
 - Reboot-validated separate Edge1 CrowdSec IPv4/IPv6 nftables blacklist sets, safe WireGuard guards, and ordered bootstrap → enforcement → bouncer startup alongside UFW.
