@@ -1,0 +1,24 @@
+[Unit]
+Description=Edge1 Spamhaus boot candidate check-only preflight (never applies firewall rules)
+Documentation=file:/opt/edge1-management-interface/docs/security/spamhaus-boot-restoration-preflight-20260927.md
+Wants=time-sync.target
+After=local-fs.target time-sync.target ufw.service crowdsec.service crowdsec-firewall-bouncer.service
+ConditionPathExists=/var/lib/edge1-spamhaus/boot-candidate/SHA256SUMS
+ConditionPathExists=/usr/local/libexec/edge1-spamhaus/spamhaus_boot_preflight.py
+ConditionPathExists=/usr/local/libexec/edge1-spamhaus/spamhaus_feed_candidate.py
+ConditionPathExists=/usr/local/libexec/edge1-spamhaus/spamhaus_scoped_recovery.py
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/var/lib/edge1-spamhaus/boot-candidate
+ExecStart=/usr/bin/python3 -B /usr/local/libexec/edge1-spamhaus/spamhaus_boot_preflight.py --stage /var/lib/edge1-spamhaus/boot-candidate --parser /usr/local/libexec/edge1-spamhaus/spamhaus_feed_candidate.py --recovery /usr/local/libexec/edge1-spamhaus/spamhaus_scoped_recovery.py
+
+# Deliberately no [Install] section: installing/enabling boot restoration
+# requires a separate reviewed change and operator acceptance.
