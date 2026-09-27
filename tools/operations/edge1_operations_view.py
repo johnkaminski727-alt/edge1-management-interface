@@ -32,6 +32,43 @@ SOURCE_KEYS = {
     "proxy": ("proxy",),
     "network_sensor": ("network_sensor", "correlation"),
 }
+# These are existing sanitized exporter source records, not direct filesystem
+# access to root-owned producer files and never claims of packet enforcement.
+CURRENT_ADAPTERS = {
+    "firewall": "nftables_live_state",
+    "fail2ban": "fail2ban_live_state",
+}
+SOURCE_STATES = ("current", "stale", "unavailable", "unverified")
+
+
+def current_adapter(name: str, sources: dict, parent_fresh: bool) -> dict | None:
+    """Expose only the existing aggregator's fixed-name source evidence."""
+    key = CURRENT_ADAPTERS.get(name)
+    if not key:
+        return None
+    item = sources.get(key)
+    if not isinstance(item, dict):
+        return {"name": key, "state": "unverified",
+                "description": "No current source record in the aggregator."}
+    if not parent_fresh:
+        state = "stale"
+    elif item.get("available") is False:
+        state = "unavailable"
+    elif item.get("available") is True and item.get("stale") is False:
+        state = "current"
+    elif item.get("available") is True and item.get("stale") is True:
+        state = "stale"
+    else:
+        state = "unverified"
+    description = {
+        "current": "The sanitized live-state source is current; component health and traffic enforcement are separate.",
+        "stale": "The live-state source or parent observation is stale; no current component state is established.",
+        "unavailable": "The exporter reports that this live-state source is unavailable.",
+        "unverified": "The exporter has not established source availability and freshness.",
+    }[state]
+    return {"name": key, "state": state, "description": description}
+
+
 TITLES = {
     "ids": "Intrusion detection (IDS)",
     "dns": "DNS observation",
@@ -187,6 +224,7 @@ def summarize(core_path: Path, security_path: Path, *, now: datetime | None = No
                          if observed else {})
             source_records = security.get("sources") if isinstance(security.get("sources"), dict) else {}
             diagnostic = _diagnostic(name, state, observed, enforced, security_status["fresh"], source_records)
+            adapter = current_adapter(name, source_records, security_status["fresh"])
             # A fresh parent aggregate may contain stale, missing, or unverified
             # historical children; never display their counts as current.
             if not diagnostic["source_checks"] or any(
@@ -196,6 +234,7 @@ def summarize(core_path: Path, security_path: Path, *, now: datetime | None = No
             result["security"].append({"name": name, "state": state,
                 "observed": observed,
                 "enforcement_verified": enforced,
-                "metrics": sanitized, "diagnostic": diagnostic})
+                "metrics": sanitized, "diagnostic": diagnostic,
+                "source_adapter": adapter})
         result["summary"]["security_components_observed"] = sum(item["observed"] for item in result["security"]) if security_status["fresh"] else None
     return result
