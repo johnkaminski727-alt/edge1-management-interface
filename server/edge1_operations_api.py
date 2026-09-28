@@ -10,6 +10,7 @@ import hmac
 import json
 import os
 import sqlite3
+from contextlib import closing
 import subprocess
 import time
 import uuid
@@ -23,6 +24,11 @@ from server.edge1_operations_typed_actions import (
     validate_typed_handler,
 )
 from server.vpn_access_registration import RegistrationStore
+from server.phone_intelligence import (
+    PhoneIntelligenceError,
+    PhoneIntelligenceStore,
+    parse_phone_api_path,
+)
 
 
 def _configured_absolute_path(value):
@@ -129,25 +135,27 @@ def registration_store():
 
 def record_audit(actor, action, body_hash, status, exit_code=None, duration_ms=None, stdout="", stderr=""):
     event_id = str(uuid.uuid4())
-    with connect_db() as conn:
-        conn.execute(
-            "INSERT INTO operation_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (event_id, utcnow(), actor, action, body_hash, status, exit_code, duration_ms,
-             stdout[-12000:], stderr[-12000:]),
-        )
+    with closing(connect_db()) as conn:
+        with conn:
+            conn.execute(
+                "INSERT INTO operation_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (event_id, utcnow(), actor, action, body_hash, status, exit_code, duration_ms,
+                 stdout[-12000:], stderr[-12000:]),
+            )
     return event_id
 
 
 def check_and_store_nonce(nonce, timestamp):
     cutoff = int(time.time()) - MAX_CLOCK_SKEW
-    with connect_db() as conn:
-        conn.execute("DELETE FROM request_nonces WHERE created_at < ?", (cutoff,))
-        try:
-            conn.execute("INSERT INTO request_nonces VALUES (?, ?)", (nonce, timestamp))
-            conn.commit()
-            return True
-        except sqlite3.IntegrityError:
-            return False
+    with closing(connect_db()) as conn:
+        with conn:
+            conn.execute("DELETE FROM request_nonces WHERE created_at < ?", (cutoff,))
+            try:
+                conn.execute("INSERT INTO request_nonces VALUES (?, ?)", (nonce, timestamp))
+                conn.commit()
+                return True
+            except sqlite3.IntegrityError:
+                return False
 
 
 def authenticate(headers, method, path, body):
@@ -285,14 +293,15 @@ def _idempotency_claim(action, key, request_hash):
 
 def _idempotency_complete(action, key, request_hash, response):
     encoded = json.dumps(response, sort_keys=True)
-    with connect_db() as conn:
-        cursor = conn.execute(
-            "UPDATE operation_idempotency SET response_json = ? WHERE action = ? AND idempotency_key = ? AND request_hash = ? AND response_json = ''",
-            (encoded, action, key, request_hash),
-        )
-        if cursor.rowcount != 1:
-            raise RuntimeError("idempotency completion state changed unexpectedly")
-        conn.commit()
+    with closing(connect_db()) as conn:
+        with conn:
+            cursor = conn.execute(
+                "UPDATE operation_idempotency SET response_json = ? WHERE action = ? AND idempotency_key = ? AND request_hash = ? AND response_json = ''",
+                (encoded, action, key, request_hash),
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError("idempotency completion state changed unexpectedly")
+            conn.commit()
 
 
 def run_typed_action(name, actor, body_hash, parameters):
@@ -480,6 +489,68 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_json(200, {"result": result, "enforcement_active": False})
 
+    def handle_phone_intelligence_get(self):
+        """Serve authenticated, read-only Phone Intelligence data."""
+        if self.authenticate_request("GET") is None:
+            return
+
+        route = parse_phone_api_path(self.path)
+
+        if route is None:
+            self.send_json(404, {"error": "not found"})
+            return
+
+        route_name, parameters = route
+        store = PhoneIntelligenceStore()
+
+        try:
+            if route_name == "dashboard":
+                payload = store.dashboard()
+
+            elif route_name == "phones":
+                payload = store.list_phones(
+                    query=parameters.get("query"),
+                    status=parameters.get("status"),
+                    npa=parameters.get("npa"),
+                    limit=parameters.get("limit"),
+                    offset=parameters.get("offset"),
+                )
+
+            elif route_name == "phone":
+                payload = store.phone_detail(
+                    parameters["phone_id"]
+                )
+
+                if payload is None:
+                    self.send_json(
+                        404,
+                        {"error": "phone number not found"},
+                    )
+                    return
+
+            elif route_name == "sources":
+                payload = store.list_sources(
+                    limit=parameters.get("limit"),
+                    offset=parameters.get("offset"),
+                )
+
+            else:
+                self.send_json(404, {"error": "not found"})
+                return
+
+        except PhoneIntelligenceError as exc:
+            self.send_json(400, {"error": str(exc)})
+            return
+
+        except sqlite3.Error:
+            self.send_json(
+                503,
+                {"error": "phone intelligence unavailable"},
+            )
+            return
+
+        self.send_json(200, payload)
+
     def do_GET(self):
         if self.path == "/healthz":
             try:
@@ -498,6 +569,9 @@ class Handler(BaseHTTPRequestHandler):
                 })
             except Exception as exc:
                 self.send_json(503, {"status": "error", "detail": str(exc), "repository_root_stable": False})
+            return
+        if self.path.startswith("/v1/intelligence/"):
+            self.handle_phone_intelligence_get()
             return
         if self.path.startswith("/v1/vpn-access/"):
             self.handle_vpn_registration_get()

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+  <meta name="theme-color" content="#f6f8fb">
+  <title>Phone Directory | Edge1</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+
+<body>
+<a class="skip-link" href="#phone-results">
+  Skip to directory
+</a>
+
+<main class="app-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">
+        Edge1 Intelligence
+      </p>
+
+      <h1>Phone Directory</h1>
+
+      <p class="subtitle">
+        Organizational phone contacts, source relationships,
+        evidence and research status.
+      </p>
+    </div>
+
+    <span class="mode">
+      Read-only
+    </span>
+  </header>
+
+  <nav class="module-nav" aria-label="Edge1 modules">
+    <a href="../">Private Library Search</a>
+    <a href="../communications/">Communications</a>
+    <a href="../number-portability/">Number Portability</a>
+    <a href="./" aria-current="page">Phone Directory</a>
+  </nav>
+
+  <section class="notice">
+    <strong>Private intelligence workspace.</strong>
+    Contact associations reflect the available organizational
+    research and source datasets.
+    Confirm evidence before relying on an association for
+    operational, legal, billing or identity decisions.
+  </section>
+
+  <section
+    class="stats"
+    aria-label="Phone intelligence summary"
+  >
+    <article>
+      <span>Total numbers</span>
+      <strong id="stat-total">677</strong>
+    </article>
+
+    <article>
+      <span>Confirmed</span>
+      <strong id="stat-confirmed">48</strong>
+    </article>
+
+    <article>
+      <span>Probable</span>
+      <strong id="stat-probable">2</strong>
+    </article>
+
+    <article>
+      <span>Unresolved</span>
+      <strong id="stat-unresolved">627</strong>
+    </article>
+
+    <article>
+      <span>Occurrences</span>
+      <strong id="stat-occurrences">4,255</strong>
+    </article>
+
+    <article>
+      <span>Bill relationships</span>
+      <strong id="stat-bills">1,566</strong>
+    </article>
+  </section>
+
+  <nav
+    class="view-tabs"
+    aria-label="Directory views"
+  >
+    <button
+      type="button"
+      class="active"
+      data-status=""
+    >
+      All Numbers
+    </button>
+
+    <button
+      type="button"
+      data-status="confirmed"
+    >
+      Confirmed
+    </button>
+
+    <button
+      type="button"
+      data-status="probable"
+    >
+      Probable
+    </button>
+
+    <button
+      type="button"
+      data-status="unresolved"
+    >
+      Unresolved
+    </button>
+
+    <button
+      type="button"
+      id="sources-view"
+    >
+      Sources
+    </button>
+  </nav>
+
+  <section
+    class="mobile-tools"
+    aria-label="Mobile directory controls"
+  >
+    <div class="mobile-summary" aria-live="polite">
+      <strong id="mobile-total">Numbers</strong>
+      <span aria-hidden="true">·</span>
+      <span id="mobile-confirmed">Confirmed</span>
+    </div>
+
+    <div class="mobile-actions">
+      <button
+        type="button"
+        id="mobile-search-button"
+        class="mobile-action"
+      >
+        Search
+      </button>
+
+      <button
+        type="button"
+        id="mobile-filter-button"
+        class="mobile-action"
+        aria-expanded="false"
+        aria-controls="directory-filters"
+      >
+        Filters
+      </button>
+    </div>
+  </section>
+
+  <section class="workspace">
+    <aside class="filter-panel" id="directory-filters">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Filter</p>
+          <h2>Find a number</h2>
+        </div>
+      </div>
+
+      <form id="search-form">
+        <label for="query">
+          Number, contact or organization
+        </label>
+
+        <input
+          id="query"
+          name="q"
+          type="search"
+          autocomplete="off"
+          placeholder="306 563 5411 or Canora"
+        >
+
+        <label for="status">
+          Evidence status
+        </label>
+
+        <select id="status" name="status">
+          <option value="">All statuses</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="probable">Probable</option>
+          <option value="unresolved">Unresolved</option>
+        </select>
+
+        <label for="npa">
+          Area code
+        </label>
+
+        <input
+          id="npa"
+          name="npa"
+          inputmode="numeric"
+          maxlength="3"
+          placeholder="306"
+        >
+
+        <button type="submit">
+          Search directory
+        </button>
+
+        <button
+          type="button"
+          id="clear-filters"
+          class="secondary"
+        >
+          Clear filters
+        </button>
+      </form>
+
+      <div class="legend">
+        <h3>Evidence states</h3>
+
+        <p>
+          <span class="badge confirmed">
+            Confirmed
+          </span>
+          Public association recorded as confirmed.
+        </p>
+
+        <p>
+          <span class="badge probable">
+            Probable
+          </span>
+          Association has supporting evidence but remains
+          uncertain.
+        </p>
+
+        <p>
+          <span class="badge unresolved">
+            Unresolved
+          </span>
+          No verified public association was established.
+        </p>
+      </div>
+    </aside>
+
+    <section class="results-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">
+            Directory
+          </p>
+
+          <h2 id="results-title">
+            All Numbers
+          </h2>
+        </div>
+
+        <span
+          id="result-count"
+          class="result-count"
+          aria-live="polite"
+        >
+          Loading
+        </span>
+      </div>
+
+      <div
+        id="state-message"
+        class="state-message"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <div
+        id="phone-results"
+        class="phone-list"
+        tabindex="-1"
+      ></div>
+
+      <div class="pagination">
+        <button
+          type="button"
+          id="previous-page"
+          disabled
+        >
+          Previous
+        </button>
+
+        <span id="page-status">
+          Page 1
+        </span>
+
+        <button
+          type="button"
+          id="next-page"
+          disabled
+        >
+          Next
+        </button>
+      </div>
+    </section>
+
+    <aside class="detail-panel" id="record-detail">
+      <button
+        type="button"
+        id="mobile-back-results"
+        class="mobile-back"
+      >
+        ← Back to results
+      </button>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">
+            Intelligence record
+          </p>
+
+          <h2 id="detail-title">
+            Select a number
+          </h2>
+        </div>
+
+        <span
+          id="detail-status"
+          class="badge unresolved"
+        >
+          —
+        </span>
+      </div>
+
+      <div id="detail-content" class="detail-content">
+        <p class="empty-state">
+          Select a directory entry to inspect its contact association,
+          evidence and source relationships.
+        </p>
+      </div>
+    </aside>
+  </section>
+</main>
+</body>
+</html>
