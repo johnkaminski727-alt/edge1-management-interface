@@ -45,7 +45,8 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
 <section class="box"><h2>Read-only Edge1 observation</h2><p id="observation">Observation not loaded.</p><button id="observe">Refresh observation</button><p class="muted">This is a freshness-checked operational summary, not a live configuration snapshot.</p></section>
 <section class="box"><h2>Local candidate audit</h2><ul id="audit"></ul><p class="muted">Local diagnostic audit, not immutable security evidence.</p></section>
 <section class="box"><h2>Contextual ToolBox</h2><p>Read-only operating references:</p><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/networking" target="_blank" rel="noopener noreferrer">Networking</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security</a></li></ul></section>
-</aside></div></section><section class="box" data-section="audit" hidden><h2>Audit and contextual ToolBox</h2><p>Read-only investigation workspace built from the same authenticated snapshots and candidate audit trail. Collector evidence does not establish packet enforcement or end-to-end reachability.</p><button type="button" id="toolbox-refresh">Refresh diagnostics and audit</button><p id="toolbox-status" role="status" class="muted">Connect to load current diagnostics.</p><h3>Observation sources</h3><div id="toolbox-sources" class="ops-grid" aria-live="polite"></div><h3>Security investigations</h3><div id="toolbox-security" class="ops-grid"></div><h3>Saved candidate and audit</h3><p id="toolbox-candidate">No candidate information loaded.</p><ul id="toolbox-audit"></ul><h3>Operator documentation</h3><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center operating manual</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security operations documentation</a></li></ul><p class="muted">No shell execution, Apply, deployment or privileged collector access. Changes to production controls require separate review.</p></section></div>
+</aside></div></section><section class="box" data-section="audit" hidden><h2>Audit and contextual ToolBox</h2><p>Read-only investigation workspace built from the same authenticated snapshots and candidate audit trail. Collector evidence does not establish packet enforcement or end-to-end reachability.</p><button type="button" id="toolbox-refresh">Refresh diagnostics and audit</button><p id="toolbox-status" role="status" class="muted">Connect to load current diagnostics.</p><h3>Observation sources</h3><div id="toolbox-sources" class="ops-grid" aria-live="polite"></div><h3>Telemetry coverage</h3><div id="toolbox-coverage" class="ops-grid"></div>
+<h3>Security investigations</h3><div id="toolbox-security" class="ops-grid"></div><h3>Saved candidate and audit</h3><p id="toolbox-candidate">No candidate information loaded.</p><ul id="toolbox-audit"></ul><h3>Operator documentation</h3><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center operating manual</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security operations documentation</a></li></ul><p class="muted">No shell execution, Apply, deployment or privileged collector access. Changes to production controls require separate review.</p></section></div>
 </main>
 <script>
 "use strict";
@@ -129,6 +130,7 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
       const tone=["good","neutral","warning"].includes(diagnostic.tone)?diagnostic.tone:"warning";
       const article=document.createElement("article");
       article.className="ops-card "+(tone==="warning"?"problem":tone);
+      article.dataset.securityName=item.name;
       const heading=document.createElement("h3");
       heading.textContent=diagnostic.label||item.name.replaceAll("_"," ");article.append(heading);
       const state=document.createElement("strong");state.textContent=item.state+(item.enforcement_verified?" · verified enforcement observation":"");article.append(state);
@@ -194,8 +196,8 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
   // G3.4 ToolBox never pulls raw source JSON or private server paths.
   // It reuses authenticated, bounded G3 operations and G2 audit responses.
   function renderToolbox(){
-    const sources=el("toolbox-sources"),security=el("toolbox-security");
-    sources.replaceChildren();security.replaceChildren();
+    const sources=el("toolbox-sources"),coverage=el("toolbox-coverage"),security=el("toolbox-security");
+    sources.replaceChildren();coverage.replaceChildren();security.replaceChildren();
     if(!operations){
       el("toolbox-status").textContent="Operations snapshot unavailable; refresh diagnostics.";
     }else{
@@ -208,20 +210,65 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
             String(record.age_seconds)+" seconds old",
           current?"good":"problem");
       }
+      const items=operations.security||[];
+      const sourceCounts={available:0,stale:0,unavailable:0,unverified:0};
+      const gapLabels=[];
+      const shared=new Map();
+      let currentAdapters=0;
+      for(const item of items){
+        if(item.source_adapter?.state==="current")currentAdapters++;
+        const checks=Array.isArray(item.diagnostic?.source_checks)?item.diagnostic.source_checks:[];
+        let itemGap=false;
+        for(const check of checks){
+          const status=["available","stale","unavailable","unverified"].includes(check.status)?check.status:"unverified";
+          sourceCounts[status]++;
+          if(status!=="available")itemGap=true;
+          const entry=shared.get(check.name)||{components:0,gaps:0};
+          entry.components++;
+          if(status!=="available")entry.gaps++;
+          shared.set(check.name,entry);
+        }
+        if(itemGap||!checks.length)gapLabels.push(item.diagnostic?.label||item.name);
+      }
+      card(coverage,"Dedicated current adapters",currentAdapters,
+        "Current fixed-name adapters; source freshness is not enforcement proof",
+        currentAdapters?"good":"problem");
+      card(coverage,"Supporting source checks",sourceCounts.available+" current",
+        sourceCounts.stale+" stale · "+sourceCounts.unavailable+" unavailable · "+sourceCounts.unverified+" unverified",
+        (sourceCounts.stale+sourceCounts.unavailable+sourceCounts.unverified)?"problem":"good");
+      card(coverage,"Components with evidence gaps",gapLabels.length,
+        gapLabels.length?gapLabels.join(" · "):"No bounded source gaps in this snapshot",
+        gapLabels.length?"problem":"good");
+      const correlated=[...shared.entries()].filter(([,v])=>v.components>1&&v.gaps>0)
+        .map(([name,v])=>name+" ("+v.gaps+"/"+v.components+" affected)");
+      card(coverage,"Shared-source correlations",correlated.length,
+        correlated.length?correlated.join(" · "):"No repeated degraded source across components",
+        correlated.length?"problem":"");
       let needsReview=0;
-      for(const item of operations.security||[]){
+      for(const item of items){
         const tone=item.diagnostic?.tone;
         if(tone==="good" && item.source_adapter?.state!=="stale")continue;
         needsReview++;
         const state=item.source_adapter?.state||"unverified";
         const label=item.diagnostic?.label||item.name;
         const reason=item.diagnostic?.reason||"Current evidence not established";
-        card(security,label,item.state,"Source: "+state+" · "+reason,"problem");
+        const article=document.createElement("article");article.className="ops-card problem";
+        const heading=document.createElement("h3");heading.textContent=label;article.append(heading);
+        const value=document.createElement("strong");value.textContent=item.state;article.append(value);
+        const detail=document.createElement("small");detail.textContent="Source: "+state+" · "+reason;article.append(detail);
+        const button=document.createElement("button");button.type="button";button.textContent="Review Security evidence";
+        button.addEventListener("click",()=>{
+          switchTab("security");
+          const target=Array.from(document.querySelectorAll("[data-security-name]"))
+            .find(node=>node.dataset.securityName===item.name);
+          if(target){target.scrollIntoView({behavior:"smooth",block:"center"});}
+        });
+        article.append(button);security.append(article);
       }
       if(!needsReview)card(security,"Security observations","No flagged items",
         "No flagged items in this snapshot; not proof of end-to-end protection","");
-      el("toolbox-status").textContent="Snapshot-only diagnostics. "+
-        "Review the Security tab for complete evidence and source limitations.";
+      el("toolbox-status").textContent="Snapshot-only diagnostics with bounded source correlation. "+
+        "Use Review Security evidence for the complete per-component evidence trail.";
     }
     el("toolbox-candidate").textContent=state?
       (state.pending?String(state.changes.length)+" saved candidate changes awaiting review":
