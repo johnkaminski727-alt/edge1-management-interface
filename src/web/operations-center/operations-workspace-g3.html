@@ -45,12 +45,12 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
 <section class="box"><h2>Read-only Edge1 observation</h2><p id="observation">Observation not loaded.</p><button id="observe">Refresh observation</button><p class="muted">This is a freshness-checked operational summary, not a live configuration snapshot.</p></section>
 <section class="box"><h2>Local candidate audit</h2><ul id="audit"></ul><p class="muted">Local diagnostic audit, not immutable security evidence.</p></section>
 <section class="box"><h2>Contextual ToolBox</h2><p>Read-only operating references:</p><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/networking" target="_blank" rel="noopener noreferrer">Networking</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security</a></li></ul></section>
-</aside></div></section><section class="box" data-section="audit" hidden><h2>Audit and contextual ToolBox</h2><p>Candidate audit history and documentation appear in the Candidate settings sidebar; additional operational diagnostics are read-only.</p><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center operating manual</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security operations documentation</a></li></ul><p>Deployment, authenticated multi-user RBAC and Apply are not available in G3.</p></section></div>
+</aside></div></section><section class="box" data-section="audit" hidden><h2>Audit and contextual ToolBox</h2><p>Read-only investigation workspace built from the same authenticated snapshots and candidate audit trail. Collector evidence does not establish packet enforcement or end-to-end reachability.</p><button type="button" id="toolbox-refresh">Refresh diagnostics and audit</button><p id="toolbox-status" role="status" class="muted">Connect to load current diagnostics.</p><h3>Observation sources</h3><div id="toolbox-sources" class="ops-grid" aria-live="polite"></div><h3>Security investigations</h3><div id="toolbox-security" class="ops-grid"></div><h3>Saved candidate and audit</h3><p id="toolbox-candidate">No candidate information loaded.</p><ul id="toolbox-audit"></ul><h3>Operator documentation</h3><ul><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/operations-center" target="_blank" rel="noopener noreferrer">Operations Center operating manual</a></li><li><a href="https://github.com/johnkaminski727-alt/edge1-management-interface/tree/main/docs/security" target="_blank" rel="noopener noreferrer">Security operations documentation</a></li></ul><p class="muted">No shell execution, Apply, deployment or privileged collector access. Changes to production controls require separate review.</p></section></div>
 </main>
 <script>
 "use strict";
 (() => {
-  let token = "", state = null, busy = false;
+  let token = "", state = null, busy = false, auditEvents = [];
   const el = id => document.getElementById(id);
   const notify = (text, error=false) => { el("feedback").textContent=text; el("feedback").className=error?"error":"ok"; };
   async function api(path, body) {
@@ -76,9 +76,11 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
   async function load() {
     state=await api("/api/state");render();if(operations)renderOperations();
     const log=await api("/api/audit");
+    auditEvents=Array.isArray(log.events)?log.events:[];
     el("audit").replaceChildren();
-    for(const item of log.events){const li=document.createElement("li");li.textContent=item.observed_utc+" · "+item.action+(item.path?" · "+item.path:"");el("audit").append(li);}
-    if(!log.events.length)el("audit").textContent="No candidate activity yet.";
+    for(const item of auditEvents){const li=document.createElement("li");li.textContent=item.observed_utc+" · "+item.action+(item.path?" · "+item.path:"");el("audit").append(li);}
+    if(!auditEvents.length)el("audit").textContent="No candidate activity yet.";
+    renderToolbox();
   }
   async function observe(){
     try{
@@ -189,13 +191,69 @@ nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}nav.tabs button{backg
     }
     if(!v.security.length)card(sec,"Network defense","Unavailable","Missing or invalid snapshot","problem");
   }
+  // G3.4 ToolBox never pulls raw source JSON or private server paths.
+  // It reuses authenticated, bounded G3 operations and G2 audit responses.
+  function renderToolbox(){
+    const sources=el("toolbox-sources"),security=el("toolbox-security");
+    sources.replaceChildren();security.replaceChildren();
+    if(!operations){
+      el("toolbox-status").textContent="Operations snapshot unavailable; refresh diagnostics.";
+    }else{
+      const core=operations.sources?.core, defense=operations.sources?.network_defense;
+      for(const [label,record] of [["Core observation",core],["Network defense",defense]]){
+        const current=record?.fresh===true;
+        card(sources,label,current?"Current":"Unavailable or stale",
+          record?.age_seconds===null||record?.age_seconds===undefined?
+            "No validated observation age":
+            String(record.age_seconds)+" seconds old",
+          current?"good":"problem");
+      }
+      let needsReview=0;
+      for(const item of operations.security||[]){
+        const tone=item.diagnostic?.tone;
+        if(tone==="good" && item.source_adapter?.state!=="stale")continue;
+        needsReview++;
+        const state=item.source_adapter?.state||"unverified";
+        const label=item.diagnostic?.label||item.name;
+        const reason=item.diagnostic?.reason||"Current evidence not established";
+        card(security,label,item.state,"Source: "+state+" · "+reason,"problem");
+      }
+      if(!needsReview)card(security,"Security observations","No flagged items",
+        "No flagged items in this snapshot; not proof of end-to-end protection","");
+      el("toolbox-status").textContent="Snapshot-only diagnostics. "+
+        "Review the Security tab for complete evidence and source limitations.";
+    }
+    el("toolbox-candidate").textContent=state?
+      (state.pending?String(state.changes.length)+" saved candidate changes awaiting review":
+        "No pending candidate changes")+" · Display settings only; no Apply capability.":
+      "Candidate state unavailable.";
+    const list=el("toolbox-audit");list.replaceChildren();
+    for(const item of auditEvents.slice(0,20)){
+      const li=document.createElement("li");
+      li.textContent=String(item.observed_utc||"Time unavailable")+" · "+
+        String(item.action||"Unknown action")+
+        (item.path?" · "+String(item.path):"");
+      list.append(li);
+    }
+    if(!auditEvents.length){
+      const li=document.createElement("li");
+      li.textContent="No recorded candidate activity in the returned audit window.";
+      list.append(li);
+    }
+  }
   async function refreshOperations(){
     el("g3-refresh").disabled=true;
-    try{operations=await api("/api/operations");renderOperations();}
+    try{operations=await api("/api/operations");renderOperations();renderToolbox();}
     catch(err){el("g3-freshness").textContent="Observations unavailable: "+err.message;}
     finally{el("g3-refresh").disabled=false;}
   }
   el("g3-refresh").addEventListener("click",refreshOperations);
+  el("toolbox-refresh").addEventListener("click",async()=>{
+    const control=el("toolbox-refresh");control.disabled=true;
+    try{await load();await refreshOperations();}
+    catch(err){el("toolbox-status").textContent="Refresh failed: "+err.message;}
+    finally{control.disabled=false;}
+  });
 
   el("connect").addEventListener("click",async()=>{
     const supplied=el("token").value.trim();
