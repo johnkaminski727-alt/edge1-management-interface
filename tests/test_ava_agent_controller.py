@@ -20,7 +20,7 @@ def base_payload() -> dict:
         "request_id": "a" * 32,
         "user": {"id": "u", "role": "internal_viewer", "scopes": [
             "chat:general", "edge1:status:read", "library:search", "library:document:read",
-            "communications:read", "telephony:read",
+            "communications:read", "contacts:read", "telephony:read",
         ]},
         "message": "Check Edge1 health and find the latest project documentation",
         "include_edge1_status": True,
@@ -29,6 +29,7 @@ def base_payload() -> dict:
         "library_collections": ["operations"],
         "include_communications": True,
         "communications_groups": ["ops"],
+        "include_contacts": True,
         "include_telephony": True,
     }
 
@@ -50,12 +51,35 @@ class AvaAgentControllerTests(unittest.TestCase):
         self.assertTrue(plan.source_flags["include_library"])
         self.assertTrue(plan.source_flags["include_documentation"])
         self.assertFalse(plan.source_flags["include_communications"])
+        self.assertFalse(plan.source_flags["include_contacts"])
         self.assertFalse(plan.source_flags["include_telephony"])
         prepared = agent.prepare_gateway_request(payload, plan)
         self.assertNotIn("agent_auto_route", prepared)
         self.assertNotIn("communications:read", prepared["user"]["scopes"])
+        self.assertNotIn("contacts:read", prepared["user"]["scopes"])
         self.assertNotIn("telephony:read", prepared["user"]["scopes"])
         self.assertEqual(prepared["communications_groups"], [])
+
+    def test_auto_route_selects_contacts_for_directory_lookup(self) -> None:
+        payload = base_payload()
+        payload["message"] = "Who is this phone number in the contact directory?"
+        payload["agent_auto_route"] = True
+        plan = agent.build_plan(payload)
+        self.assertTrue(plan.source_flags["include_contacts"])
+        prepared = agent.prepare_gateway_request(payload, plan)
+        self.assertIn("contacts:read", prepared["user"]["scopes"])
+
+    def test_contact_evidence_is_counted(self) -> None:
+        payload = base_payload()
+        plan = agent.build_plan(payload)
+        trace = agent.verify_gateway_result(payload["request_id"], {
+            "request_id": payload["request_id"],
+            "answer": "A matching contact was found.",
+            "mode": "read-only",
+            "contact_sources": [{"source_id": "contact:1", "title": "Unified Contacts"}],
+        }, plan)
+        self.assertEqual(trace["evidence"]["contacts"], 1)
+        self.assertEqual(trace["evidence_class"], "source-backed")
 
     def test_controller_never_expands_disabled_source(self) -> None:
         payload = base_payload()
