@@ -255,6 +255,20 @@ class G3Tests(unittest.TestCase):
         self.assertIsNone(fw["detail_metrics"]["counts"]["tables"])
         self.assertIsNone(fw["detail_metrics"]["counts"]["rules"])
 
+    def test_g34_toolbox_is_read_only_and_reuses_authenticated_endpoints(self):
+        page = (Path(__file__).resolve().parents[1] /
+                "src/web/operations-center/operations-workspace-g3.html").read_text()
+        for required in ('id="toolbox-sources"', 'id="toolbox-security"',
+                         'id="toolbox-audit"', 'id="toolbox-refresh"',
+                         'function renderToolbox()', 'renderToolbox();',
+                         '"/api/operations"', '"/api/audit"',
+                         'No shell execution, Apply'):
+            self.assertIn(required, page)
+        self.assertNotIn('"/api/apply"', page)
+        self.assertNotIn("localStorage", page)
+        self.assertNotIn("sessionStorage", page)
+        self.assertNotIn('innerHTML=', page)
+
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
         self.core_data["generated_at"]=older
