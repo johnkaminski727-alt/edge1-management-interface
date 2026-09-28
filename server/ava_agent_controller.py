@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-CONTROLLER_VERSION = "0.1.0"
+CONTROLLER_VERSION = "0.2.0"
 MAX_STEPS = 8
 
 
@@ -64,6 +64,10 @@ SOURCE_RULES: tuple[SourceRule, ...] = (
     )),
     SourceRule("communications", "Review communications", "include_communications", "communications:read", (
         "email", "mail", "message", "communications", "conversation", "thread", "reply", "said", "wrote", "inbox", "correspondence",
+    )),
+    SourceRule("contacts", "Search Unified Contacts", "include_contacts", "contacts:read", (
+        "contact", "contacts", "person", "people", "organization", "company", "business",
+        "phone number", "telephone number", "email address", "who is", "who owns", "caller", "directory",
     )),
     SourceRule("voice", "Check Voice & PBX", "include_telephony", "telephony:read", (
         "call", "phone", "voice", "pbx", "asterisk", "freepbx", "sip", "pjsip", "trunk", "telephony", "voicemail",
@@ -137,6 +141,8 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
                 allowed_optional.update({"library:search", "library:document:read"})
             if prepared.get("include_communications") is True:
                 allowed_optional.add("communications:read")
+            if prepared.get("include_contacts") is True:
+                allowed_optional.add("contacts:read")
             if prepared.get("include_telephony") is True:
                 allowed_optional.add("telephony:read")
             clean_user["scopes"] = [
@@ -190,6 +196,7 @@ def verify_gateway_result(request_id: str, result: dict[str, Any], plan: AgentPl
     evidence = {
         "knowledge": _source_count(result, "sources"),
         "communications": _source_count(result, "communications_sources"),
+        "contacts": _source_count(result, "contact_sources"),
         "telephony": _source_count(result, "telephony_sources"),
         "mail": _source_count(result, "mail_sources"),
     }
