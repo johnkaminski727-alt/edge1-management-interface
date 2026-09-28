@@ -269,6 +269,19 @@ class G3Tests(unittest.TestCase):
         self.assertNotIn("sessionStorage", page)
         self.assertNotIn('innerHTML=', page)
 
+    def test_g35_toolbox_correlates_bounded_source_gaps_and_drills_to_security(self):
+        page = (Path(__file__).resolve().parents[1] /
+                "src/web/operations-center/operations-workspace-g3.html").read_text()
+        for required in ('id="toolbox-coverage"', 'Dedicated current adapters',
+                         'Supporting source checks', 'Components with evidence gaps',
+                         'Shared-source correlations', 'Review Security evidence',
+                         'data-security-name', 'switchTab("security")'):
+            self.assertIn(required, page)
+        self.assertNotIn('"/api/apply"', page)
+        self.assertNotIn("localStorage", page)
+        self.assertNotIn("sessionStorage", page)
+        self.assertNotIn("innerHTML=", page)
+
     def test_stale_sources_cannot_appear_healthy(self):
         older=(self.now-timedelta(minutes=8)).isoformat()
         self.core_data["generated_at"]=older
