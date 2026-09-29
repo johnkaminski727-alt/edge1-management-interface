@@ -32,7 +32,7 @@ class Edge1OperatorShellTests(unittest.TestCase):
         ):
             self.assertIn(marker, script)
         self.assertIn("Navigation unavailable · safety state unknown", script)
-        self.assertIn('escape.href = "/edge1-status/"', script)
+        self.assertIn('escape.href = "/edge1-ops/status/"', script)
 
     def test_registry_has_no_external_browser_urls(self):
         data = json.loads(REGISTRY.read_text(encoding="utf-8"))
