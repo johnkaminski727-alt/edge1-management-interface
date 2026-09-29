@@ -25,8 +25,8 @@
   "actions": [
     {
       "id": "security.validate_config",
-      "label": "Check the security configuration",
-      "description": "Tests the Suricata configuration without changing the running service.",
+      "label": "Check the Edge1 security configuration",
+      "description": "Validates the active Edge1 firewall, CrowdSec, Fail2Ban, AdGuard, WireGuard, private HTTPS, TLS, authentication, and Operations API posture without changing the running system.",
       "risk": "read_only",
       "mutating": false,
       "required_scope": "edge1.security.validate",

@@ -463,3 +463,106 @@ h2 {
   font-size: 0.82rem;
   line-height: 1.45;
 }
+
+/* Phase 3G.4C — entity-first Contacts */
+
+.badge.document_sourced {
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+}
+
+.badge.unverified,
+.badge.missing_source {
+  background: #eef2f6;
+  color: #526276;
+}
+
+.evidence-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-section h3 {
+  margin: 18px 0 8px;
+  color: #334b68;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.evidence-item {
+  margin: 8px 0;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfdff;
+}
+
+.evidence-item strong,
+.evidence-item span {
+  display: block;
+}
+
+.evidence-item span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.evidence-item p {
+  margin: 7px 0 0;
+  color: #40536d;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.evidence-empty {
+  padding: 9px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+
+/* Unified Contacts — read-only Connections */
+.relationship-result {
+  border-left: 3px solid #5277a3;
+}
+
+.correlation-result {
+  border-left: 3px dashed #8b7b52;
+}
+
+.connection-arrow {
+  display: inline-block;
+  margin: 0 0.35rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.relationship-result .result-value,
+.correlation-result .result-value {
+  margin-top: 0.2rem;
+}
+
+/* Unified Contacts candidate review */
+.correlation-review {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #d8dee8);
+}
+
+.correlation-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.correlation-review button {
+  min-height: 2.25rem;
+}
+
+.correlation-review-note {
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+}

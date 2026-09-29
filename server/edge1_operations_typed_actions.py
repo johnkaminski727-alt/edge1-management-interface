@@ -17,6 +17,10 @@ import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
+from dataclasses import asdict
+import sqlite3
+
+from tools.unified_contacts.connections import mutate_candidate
 
 from server.asterisk_process_identity import resolve_asterisk_pid
 
@@ -217,10 +221,206 @@ def telephony_console_reload(parameters: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+
+def _validate_contacts_candidate_mutation(
+    parameters: dict[str, Any],
+    operation: str,
+) -> dict[str, Any]:
+    if not isinstance(parameters, dict):
+        raise TypedActionValidationError(
+            "typed action parameters must be an object"
+        )
+
+    allowed = {
+        "candidate_id",
+        "idempotency_key",
+    }
+
+    if operation == "promote":
+        allowed.update({
+            "provenance_id",
+            "evidence_role",
+            "evidence_summary",
+        })
+
+    extra = set(parameters) - allowed
+    if extra:
+        raise TypedActionValidationError(
+            "unsupported contacts mutation parameter"
+        )
+
+    candidate_id = parameters.get("candidate_id")
+    key = parameters.get("idempotency_key")
+
+    if (
+        isinstance(candidate_id, bool)
+        or not isinstance(candidate_id, int)
+        or candidate_id < 1
+    ):
+        raise TypedActionValidationError(
+            "candidate_id must be a positive integer"
+        )
+
+    if not isinstance(key, str) or not key.strip():
+        raise TypedActionValidationError(
+            "idempotency_key is required"
+        )
+
+    result = {
+        "candidate_id": candidate_id,
+        "idempotency_key": key.strip(),
+    }
+
+    if operation == "promote":
+        provenance_id = parameters.get("provenance_id")
+
+        if (
+            isinstance(provenance_id, bool)
+            or not isinstance(provenance_id, int)
+            or provenance_id < 1
+        ):
+            raise TypedActionValidationError(
+                "provenance_id must be a positive integer"
+            )
+
+        role = parameters.get(
+            "evidence_role",
+            "supporting",
+        )
+        summary = parameters.get(
+            "evidence_summary",
+            "",
+        )
+
+        if not isinstance(role, str):
+            raise TypedActionValidationError(
+                "evidence_role must be a string"
+            )
+
+        if not isinstance(summary, str):
+            raise TypedActionValidationError(
+                "evidence_summary must be a string"
+            )
+
+        result.update({
+            "provenance_id": provenance_id,
+            "evidence_role": role,
+            "evidence_summary": summary,
+        })
+
+    return result
+
+
+def _validate_contacts_candidate_accept(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return _validate_contacts_candidate_mutation(
+        parameters,
+        "accept",
+    )
+
+
+def _validate_contacts_candidate_reject(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return _validate_contacts_candidate_mutation(
+        parameters,
+        "reject",
+    )
+
+
+def _validate_contacts_candidate_promote(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return _validate_contacts_candidate_mutation(
+        parameters,
+        "promote",
+    )
+
+
+def _run_contacts_candidate_mutation(
+    parameters: dict[str, Any],
+    operation: str,
+) -> dict[str, Any]:
+    db = sqlite3.connect(
+        "/var/lib/edge1-phone-intelligence/"
+        "phone-intelligence.sqlite",
+        timeout=10,
+    )
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+
+    try:
+        kwargs = {}
+
+        if operation == "promote":
+            kwargs = {
+                "provenance_id": parameters[
+                    "provenance_id"
+                ],
+                "evidence_role": parameters[
+                    "evidence_role"
+                ],
+                "evidence_summary": parameters[
+                    "evidence_summary"
+                ],
+            }
+
+        result = mutate_candidate(
+            db,
+            parameters["candidate_id"],
+            operation,
+            **kwargs,
+        )
+
+        return asdict(result)
+
+    except ValueError as exc:
+        raise TypedActionValidationError(
+            str(exc)
+        ) from exc
+
+    finally:
+        db.close()
+
+
+def contacts_candidate_accept(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return _run_contacts_candidate_mutation(
+        parameters,
+        "accept",
+    )
+
+
+def contacts_candidate_reject(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return _run_contacts_candidate_mutation(
+        parameters,
+        "reject",
+    )
+
+
+def contacts_candidate_promote(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return _run_contacts_candidate_mutation(
+        parameters,
+        "promote",
+    )
+
+
 TYPED_ACTION_VALIDATORS = {
+    "contacts_candidate_accept": _validate_contacts_candidate_accept,
+    "contacts_candidate_promote": _validate_contacts_candidate_promote,
+    "contacts_candidate_reject": _validate_contacts_candidate_reject,
     "telephony_console_reload": _validate_reload,
 }
 TYPED_ACTION_HANDLERS = {
+    "contacts_candidate_accept": contacts_candidate_accept,
+    "contacts_candidate_promote": contacts_candidate_promote,
+    "contacts_candidate_reject": contacts_candidate_reject,
     "telephony_console_reload": telephony_console_reload,
 }
 

@@ -6,9 +6,11 @@
         content="width=device-width,initial-scale=1">
   <title>Unified Contacts | Edge1</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/edge1-status/operator-shell/shell.css">
 </head>
 
 <body data-edge1-module="contacts">
+<div id="wwcx-operator-shell"></div>
 <main class="workspace">
 
   <header class="page-header">
@@ -63,7 +65,11 @@
       <strong id="metric-emails">—</strong>
     </article>
     <article>
-      <span>UNASSIGNED</span>
+      <span>DOMAINS</span>
+      <strong id="metric-domains">—</strong>
+    </article>
+    <article>
+      <span>UNASSIGNED PHONES</span>
       <strong id="metric-unassigned">—</strong>
     </article>
     <article>
@@ -82,9 +88,11 @@
     <button data-view="people">People</button>
     <button data-view="phones">Phones</button>
     <button data-view="emails">Emails</button>
-    <button data-view="unassigned">Unassigned</button>
+    <button data-view="domains">Domains</button>
+    <button data-view="unassigned">Unassigned Phones</button>
     <button data-view="sources">Sources</button>
     <button data-view="observations">Observations</button>
+    <button data-view="connections">Connections</button>
   </nav>
 
   <section class="directory-layout">
@@ -111,7 +119,10 @@
         <option value="">All statuses</option>
         <option value="confirmed">Confirmed</option>
         <option value="probable">Probable</option>
-        <option value="verified">Verified entity</option>
+        <option value="verified">Verified</option>
+        <option value="document_sourced">Document sourced</option>
+        <option value="unverified">Unverified</option>
+        <option value="missing_source">Missing source</option>
       </select>
 
       <button id="search-button" class="primary">
@@ -161,5 +172,6 @@
 </main>
 
 <script src="app.js"></script>
+<script src="/edge1-status/operator-shell/shell.js" defer data-registry="/edge1-status/operator-shell/navigation.json" data-module="contacts-relationships"></script>
 </body>
 </html>

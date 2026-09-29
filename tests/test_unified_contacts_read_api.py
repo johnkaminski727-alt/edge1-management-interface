@@ -202,6 +202,23 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
             """)
 
             con.execute("""
+                INSERT INTO contact_points (
+                    id,
+                    point_type,
+                    normalized_value,
+                    display_value,
+                    lifecycle_status
+                )
+                VALUES (
+                    3,
+                    'domain',
+                    'example.test',
+                    'example.test',
+                    'active'
+                )
+            """)
+
+            con.execute("""
                 INSERT INTO contact_assertions (
                     id,
                     entity_id,
@@ -215,6 +232,23 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
                     1,
                     'uses',
                     'confirmed'
+                )
+            """)
+
+            con.execute("""
+                INSERT INTO contact_assertions (
+                    id,
+                    entity_id,
+                    contact_point_id,
+                    assertion_type,
+                    confidence
+                )
+                VALUES (
+                    2,
+                    1,
+                    3,
+                    'uses',
+                    'document_sourced'
                 )
             """)
 
@@ -396,8 +430,10 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
         summary = self.store.summary()
 
         self.assertEqual(summary["entities"], 1)
-        self.assertEqual(summary["contact_points"], 2)
-        self.assertEqual(summary["assertions"], 1)
+        self.assertEqual(summary["contact_points"], 3)
+        self.assertEqual(summary["assertions"], 2)
+        self.assertEqual(summary["domains"], 1)
+        self.assertEqual(summary["unassigned_phones"], 1)
 
         # This proves we count contact points with no assertion
         # rather than relying on points - assertion row count.
@@ -538,7 +574,7 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
         )
         self.assertEqual(
             rows[0]["contact_point_count"],
-            1,
+            2,
         )
         self.assertEqual(
             rows[0]["alias_count"],
@@ -567,7 +603,16 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
             limit=10,
         )
 
-        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows), 2)
+
+        self.assertEqual(
+            {
+                row["point_type"]
+                for row in rows
+            },
+            {"phone", "domain"},
+        )
+
         self.assertEqual(
             rows[0]["canonical_name"],
             "Example Org",
@@ -581,7 +626,7 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
 
         self.assertEqual(
             len(result["assertions"]),
-            1,
+            2,
         )
         self.assertEqual(
             len(result["assertion_evidence"]),
@@ -621,6 +666,31 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
                 limit=10,
             )
 
+
+
+    def test_domain_search_kind(self):
+        rows = self.store.search(
+            query="",
+            kind="domains",
+            limit=250,
+        )
+
+        self.assertEqual(len(rows), 1)
+
+        self.assertEqual(
+            rows[0]["point_type"],
+            "domain",
+        )
+
+        self.assertEqual(
+            rows[0]["normalized_value"],
+            "example.test",
+        )
+
+        self.assertEqual(
+            rows[0]["canonical_name"],
+            "Example Org",
+        )
 
 if __name__ == "__main__":
     unittest.main()
