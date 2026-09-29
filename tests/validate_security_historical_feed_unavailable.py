@@ -12,7 +12,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const page = fs.readFileSync(process.argv[1], "utf8");
 const candidates = [...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
-  .map(m => m[1]).filter(s => s.includes('const ENDPOINT="/edge1-status/security-operations.json"'));
+  .map(m => m[1]).filter(s => s.includes('const ENDPOINT="/edge1-ops/status/security-operations.json"'));
 assert.equal(candidates.length, 1);
 const elements = new Map();
 const callbacks = new Map();
