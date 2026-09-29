@@ -73,11 +73,11 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
         ):
             self.assertIn(token, self.installer)
         self.assertIn(
-            "--output /var/www/edge1-status/network-defense/data/network-defense.json",
+            "--output /var/www/edge1-ops/status/network-defense/data/network-defense.json",
             self.service,
         )
         self.assertIn(
-            "ReadWritePaths=/var/www/edge1-status/network-defense/data",
+            "ReadWritePaths=/var/www/edge1-ops/status/network-defense/data",
             self.service,
         )
         self.assertNotIn("ReadWritePaths=/var/www/edge1-status\n", self.service)
@@ -115,10 +115,10 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
 
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         expected = {
-            "/edge1-status/",
-            "/edge1-status/security/",
-            "/edge1-status/security/correlation.html",
-            "/edge1-status/network-defense/",
+            "/edge1-ops/status/",
+            "/edge1-ops/status/security/",
+            "/edge1-ops/status/security/correlation.html",
+            "/edge1-ops/status/network-defense/",
         }
         actual = {
             module["browser_route"]
@@ -132,8 +132,8 @@ class NetworkDefenseDeploymentTests(unittest.TestCase):
         # same authoritative registry via the read-only shared operator shell.
         for token in expected:
             self.assertIn(token, self.operations)
-        self.assertIn("/edge1-status/operator-shell/navigation.json", self.network)
-        self.assertIn("/edge1-status/operator-shell/navigation.json", self.correlation)
+        self.assertIn("/edge1-ops/status/operator-shell/navigation.json", self.network)
+        self.assertIn("/edge1-ops/status/operator-shell/navigation.json", self.correlation)
 
     def test_deployment_verifies_read_only_dns_contract(self):
         for token in (

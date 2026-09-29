@@ -30,10 +30,10 @@ EXPECTED = {
     "config/edge1_operator/navigation_registry.json": "operator-shell/navigation.json",
 }
 ROUTES = {
-    "operations-center": "/edge1-status/",
-    "security-operations": "/edge1-status/security/",
-    "security-correlation": "/edge1-status/security/correlation.html",
-    "network-defense": "/edge1-status/network-defense/",
+    "operations-center": "/edge1-ops/status/",
+    "security-operations": "/edge1-ops/status/security/",
+    "security-correlation": "/edge1-ops/status/security/correlation.html",
+    "network-defense": "/edge1-ops/status/network-defense/",
 }
 
 
@@ -102,8 +102,8 @@ def validate_sources() -> None:
                 "Missing shell module binding: " + mid)
         require(any("operator-shell/shell.css" in s for s in parsed.styles),
                 "Missing shared CSS: " + mid)
-        for broken in ("/edge1-status/bitcoin/", "/edge1-status/mining/",
-                       "/edge1-status/daily-summary.html"):
+        for broken in ("/edge1-ops/status/bitcoin/", "/edge1-ops/status/mining/",
+                       "/edge1-ops/status/daily-summary.html"):
             require(broken not in parsed.links, "Broken navigation: " + broken)
     main = pages["operations-center"].read_text()
     for marker in ("core-cards", "crowdsec-cards", "legacy-telemetry"):

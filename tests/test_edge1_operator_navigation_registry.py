@@ -27,7 +27,7 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
         for module in data["modules"]:
             if module["palette"]:
                 self.assertEqual(module["availability"], "accepted_live")
-                self.assertTrue(module["browser_route"].startswith("/edge1-status/"))
+                self.assertTrue(module["browser_route"].startswith("/edge1-ops/status/"))
                 self.assertNotIn("command", module)
                 self.assertNotIn("action", module)
 
@@ -43,7 +43,7 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
         data = json.loads(REGISTRY.read_text(encoding="utf-8"))
         by_id = {item["id"]: item for item in data["modules"]}
         module = by_id["cookie-monster"]
-        self.assertEqual(module["candidate_route"], "/edge1-status/cookie-monster/")
+        self.assertEqual(module["candidate_route"], "/edge1-ops/status/cookie-monster/")
         self.assertEqual(module["runtime_route"], "/edge1-status/cookie-monster/")
         self.assertEqual(module["availability"], "staged_disabled")
         self.assertEqual(module["authorization"], "unverified_route_policy")

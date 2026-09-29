@@ -206,7 +206,7 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             (
                 "Content-Security-Policy",
                 "default-src 'self'; "
-                f"script-src 'nonce-{nonce}'; style-src 'nonce-{nonce}'; "
+                f"script-src 'self' 'nonce-{nonce}'; style-src 'self' 'nonce-{nonce}'; "
                 "connect-src 'self'; img-src 'self' data:; object-src 'none'; "
                 "frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
             ),

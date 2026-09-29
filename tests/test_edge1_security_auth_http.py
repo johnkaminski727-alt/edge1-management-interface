@@ -30,7 +30,7 @@ def config_mapping(**overrides):
             "session": "/edge1-ops/session",
             "logout": "/edge1-ops/session/logout",
             "validate": "/edge1-ops/api/v1/security/validate",
-            "redirect_after_exchange": "/edge1-ops/security/",
+            "redirect_after_exchange": "/edge1-ops/status/",
         },
         "cookies": {
             "session_name": "__Secure-wwcx_edge1_ops_session",
@@ -213,7 +213,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(headers["Content-Type"],"text/html; charset=utf-8")
         csp=headers["Content-Security-Policy"]
         self.assertNotIn("unsafe-inline",csp)
-        nonce=re.search(r"script-src 'nonce-([^']+)'",csp)
+        nonce=re.search(r"script-src [^;]*'nonce-([^']+)'",csp)
         self.assertIsNotNone(nonce)
         value=nonce.group(1)
         body=response.body.decode("utf-8")

@@ -44,19 +44,19 @@ class OperatorShellIntegrationTests(unittest.TestCase):
         self.assertIn('Refusing non-loopback bind', server)
         self.assertNotIn('WWCXCommunicationsWorkspace/1.1', server)
 
-    def test_security_uses_canonical_registry_with_safe_fallback(self):
+    def test_security_uses_shared_synchronized_shell(self):
         text = (ROOT / 'src/web/edge1-ops/security/index.html').read_text(encoding='utf-8')
-        self.assertIn('const NAVIGATION_URL="/edge1-status/operator-shell/navigation.json"', text)
-        self.assertIn('availability==="accepted_live"', text)
-        self.assertIn('item.browser_route.startsWith("/")', text)
-        self.assertIn('navigationSafe(registry)', text)
-        self.assertIn('acceptedNavigation=[["Operations Center","/edge1-status/"', text)
+        self.assertIn('/edge1-ops/status/operator-shell/shell.css', text)
+        self.assertIn('/edge1-ops/status/operator-shell/shell.js', text)
+        self.assertIn('data-registry="/edge1-ops/status/operator-shell/navigation.json"', text)
+        self.assertIn('data-module="security-console"', text)
         self.assertEqual(text.count('<style>'), 1)
         self.assertEqual(text.count('<script>'), 1)
+        self.assertNotIn('id="operator-nav"', text)
+        self.assertNotIn('id="palette"', text)
         self.assertNotIn('/admin/ai/', text)
         self.assertNotIn('/communications/', text)
         self.assertNotIn('Store Admin', text)
-
 
 if __name__ == '__main__':
     unittest.main()
