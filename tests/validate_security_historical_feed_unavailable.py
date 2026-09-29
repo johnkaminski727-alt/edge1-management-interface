@@ -12,7 +12,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const page = fs.readFileSync(process.argv[1], "utf8");
 const candidates = [...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
-  .map(m => m[1]).filter(s => s.includes('const ENDPOINT="/edge1-status/security-operations.json"'));
+  .map(m => m[1]).filter(s => s.includes('const ENDPOINT="/edge1-ops/status/security-operations.json"'));
 assert.equal(candidates.length, 1);
 const elements = new Map();
 const callbacks = new Map();
@@ -68,7 +68,14 @@ def main():
                   '<script src="./crowdsec-dashboard.js" defer>'):
         if token not in text:
             raise AssertionError("Missing historical telemetry boundary: " + token)
-    subprocess.run(["node", "-e", NODE, str(PAGE)], check=True)
+    import shutil
+
+    node = shutil.which("node")
+    if node is None:
+        print("SKIP: Node unavailable; browser script validation not checked")
+        return
+
+    subprocess.run([node, "-e", NODE, str(PAGE)], check=True)
     print("PASS: Security Operations historical feed fixture; no live access")
 
 if __name__ == "__main__":

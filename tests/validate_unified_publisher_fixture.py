@@ -26,14 +26,15 @@ EXPECTED = {
     "src/web/security/crowdsec-dashboard.js": "security/crowdsec-dashboard.js",
     "src/web/network-defense/index.html": "network-defense/index.html",
     "src/web/operator-shell/shell.css": "operator-shell/shell.css",
+    "src/web/operator-shell/theme.css": "operator-shell/theme.css",
     "src/web/operator-shell/shell.js": "operator-shell/shell.js",
     "config/edge1_operator/navigation_registry.json": "operator-shell/navigation.json",
 }
 ROUTES = {
-    "operations-center": "/edge1-status/",
-    "security-operations": "/edge1-status/security/",
-    "security-correlation": "/edge1-status/security/correlation.html",
-    "network-defense": "/edge1-status/network-defense/",
+    "operations-center": "/edge1-ops/status/",
+    "security-operations": "/edge1-ops/status/security/",
+    "security-correlation": "/edge1-ops/status/security/correlation.html",
+    "network-defense": "/edge1-ops/status/network-defense/",
 }
 
 
@@ -65,8 +66,8 @@ class Page(HTMLParser):
 def validate_sources() -> None:
     publisher = PUBLISHER.read_text(encoding="utf-8")
     pairs = re.findall(r'^\s+"(src/[^"|]+|config/[^"|]+)\|([^"|]+)"\s*$', publisher, re.M)
-    require(dict(pairs) == EXPECTED and len(pairs) == 10,
-            "Publisher's ten-asset mapping differs from accepted contract")
+    require(dict(pairs) == EXPECTED and len(pairs) == len(EXPECTED),
+            "Publisher asset mapping differs from accepted contract")
     for source in EXPECTED:
         require((ROOT / source).is_file(), "Missing source: " + source)
     subprocess.run(["bash", "-n", str(PUBLISHER)], check=True)
@@ -102,13 +103,13 @@ def validate_sources() -> None:
                 "Missing shell module binding: " + mid)
         require(any("operator-shell/shell.css" in s for s in parsed.styles),
                 "Missing shared CSS: " + mid)
-        for broken in ("/edge1-status/bitcoin/", "/edge1-status/mining/",
-                       "/edge1-status/daily-summary.html"):
+        for broken in ("/edge1-ops/status/bitcoin/", "/edge1-ops/status/mining/",
+                       "/edge1-ops/status/daily-summary.html"):
             require(broken not in parsed.links, "Broken navigation: " + broken)
     main = pages["operations-center"].read_text()
     for marker in ("core-cards", "crowdsec-cards", "legacy-telemetry"):
         require(marker in main, "Missing Operations Center panel: " + marker)
-    print("PASS: Four-page navigation and ten-asset source contract")
+    print("PASS: Four-page authenticated navigation and shared-theme source contract")
 
 
 def test_publisher_fixture() -> None:
@@ -187,7 +188,7 @@ def test_publisher_fixture() -> None:
         require(len(folders) == 1, "Expected one fixture backup")
         backup = folders[0]
         manifest = (backup / "manifest").read_text().splitlines()
-        require(len(manifest) == 10, "Backup manifest missing assets")
+        require(len(manifest) == len(EXPECTED), "Backup manifest missing assets")
         for relative in EXPECTED.values():
             actual = (fake_dest / relative).read_bytes()
             source = next(k for k, v in EXPECTED.items() if v == relative)
