@@ -79,6 +79,22 @@ jobs:
       - name: Unified Contacts observation tests
         run: python3 -m unittest -v tests.test_unified_contacts_observation_bridge
 
+      - name: Unified Contacts connections tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections
+
+      - name: Unified Contacts connections read tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections_read
+
+      - name: Unified Contacts connections route tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections_routes
+
+      - name: Unified Contacts connections schema tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections_schema
+
+      - name: Unified Contacts relationship policy tests
+        run: python3 -m unittest -v tests.test_unified_contacts_relationship_policy
+
+
       - name: Validate JSON, shell, and JavaScript
         run: |
           set -eu
