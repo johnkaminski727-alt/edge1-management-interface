@@ -22,7 +22,9 @@
       "description": "Read-only infrastructure operations visibility.",
       "palette": true,
       "toolbox": true,
-      "evidence_status": "verified_live"
+      "evidence_status": "verified_live",
+      "menu_visibility": "primary",
+      "dashboard_visibility": true
     },
     {
       "id": "security-operations",
@@ -36,7 +38,26 @@
       "description": "Read-only IDS health, alerts, and security posture.",
       "palette": true,
       "toolbox": true,
-      "evidence_status": "verified_live"
+      "evidence_status": "verified_live",
+      "menu_visibility": "primary",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "firewall",
+      "label": "Firewall",
+      "section": "Security",
+      "sort_order": 22,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/firewall/",
+      "runtime_route": "/edge1-status/firewall/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "Firewall policy, rule posture, exposure and enforcement status.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "dashboard_planned",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "security-correlation",
@@ -50,7 +71,9 @@
       "description": "Read-only cross-source investigative context.",
       "palette": true,
       "toolbox": true,
-      "evidence_status": "verified_live"
+      "evidence_status": "verified_live",
+      "menu_visibility": "primary",
+      "dashboard_visibility": true
     },
     {
       "id": "network-defense",
@@ -64,35 +87,77 @@
       "description": "Read-only network defense posture and DNS policy readiness.",
       "palette": true,
       "toolbox": true,
-      "evidence_status": "verified_live"
+      "evidence_status": "verified_live",
+      "menu_visibility": "primary",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "wireguard-vpn",
+      "label": "WireGuard & VPN",
+      "section": "Network",
+      "sort_order": 42,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/vpn/",
+      "runtime_route": "/edge1-status/vpn/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "VPN peer health, registration, routes, handshakes and private access posture.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "dashboard_planned",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "dns-resolver",
+      "label": "DNS & Filtering",
+      "section": "Network",
+      "sort_order": 44,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/dns/",
+      "runtime_route": "/edge1-status/dns/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "AdGuard health, private rewrites, upstream resolution and filtering state.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "dashboard_planned",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "bitcoin-operations",
       "label": "Bitcoin Operations",
       "section": "Operations",
       "sort_order": 50,
-      "browser_route": "/edge1-status/bitcoin/",
+      "browser_route": null,
       "runtime_route": "/edge1-status/bitcoin/",
       "availability": "staged_disabled",
       "authorization": "existing_route_policy",
       "description": "Read-only Bitcoin wallet and backend telemetry.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "repository_only_not_deployed"
+      "evidence_status": "repository_only_not_deployed",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true,
+      "candidate_route": "/edge1-status/bitcoin/"
     },
     {
       "id": "mining-operations",
       "label": "Mining Operations",
       "section": "Operations",
       "sort_order": 60,
-      "browser_route": "/edge1-status/mining/",
+      "browser_route": null,
       "runtime_route": "/edge1-status/mining/",
       "availability": "staged_disabled",
       "authorization": "existing_route_policy",
       "description": "Read-only mining telemetry and health.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "repository_only_not_deployed"
+      "evidence_status": "repository_only_not_deployed",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true,
+      "candidate_route": "/edge1-status/mining/"
     },
     {
       "id": "release-manager",
@@ -107,7 +172,9 @@
       "description": "Read-only source/runtime identity, current/previous release, rollback and control-plane health status; live browser acceptance remains separately gated.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_unaccepted_browser"
+      "evidence_status": "verified_repository_unaccepted_browser",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "communications-workspace",
@@ -121,7 +188,9 @@
       "description": "Unified read-only communications metadata workspace.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_runtime"
+      "evidence_status": "verified_repository_runtime",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "mail-room",
@@ -135,7 +204,9 @@
       "description": "Mail read and prepare surface; production send remains unauthorized.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_route"
+      "evidence_status": "verified_repository_route",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "messaging-operations",
@@ -149,7 +220,9 @@
       "description": "Messaging operations simulator and private quarantine surface.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_route"
+      "evidence_status": "verified_repository_route",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "voice-sip",
@@ -163,7 +236,9 @@
       "description": "Read-only voice and SIP operations surface.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_route"
+      "evidence_status": "verified_repository_route",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "news-relay",
@@ -177,7 +252,9 @@
       "description": "Read-only private communications relay.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_route"
+      "evidence_status": "verified_repository_route",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "security-console",
@@ -192,7 +269,9 @@
       "description": "Authenticated validation-only console; live route remains separately gated.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_staged"
+      "evidence_status": "verified_staged",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "wwcx-ai",
@@ -207,7 +286,9 @@
       "description": "AI operator surface; browser production acceptance is unverified.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_config_unaccepted_browser"
+      "evidence_status": "verified_config_unaccepted_browser",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     },
     {
       "id": "cookie-monster",
@@ -222,7 +303,86 @@
       "description": "Alpha ingestion, provenance, review, Big Bird handoff, Fengus status and acceptance cockpit; live route authorization remains separately gated.",
       "palette": false,
       "toolbox": false,
-      "evidence_status": "verified_repository_unaccepted_browser"
+      "evidence_status": "verified_repository_unaccepted_browser",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "contacts-relationships",
+      "label": "Contacts & Relationships",
+      "section": "Intelligence",
+      "sort_order": 145,
+      "browser_route": null,
+      "candidate_route": "/contacts/",
+      "runtime_route": "/contacts/",
+      "availability": "loopback_only",
+      "authorization": "runtime_boundary",
+      "description": "Unified contact, organization, provenance, observation, relationship and correlation workspace.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "verified_repository_runtime",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "ava-agent",
+      "label": "AVA",
+      "section": "AI & Automation",
+      "sort_order": 150,
+      "browser_route": null,
+      "candidate_route": "/ava/",
+      "runtime_route": "/ava/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "Upcoming authenticated AI agent workspace for bounded planning, operator assistance, approvals and connector-aware execution.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "verified_repository_components_unaccepted_browser",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "change-control",
+      "label": "Changes & Apply",
+      "section": "Configuration",
+      "sort_order": 160,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/changes/",
+      "runtime_route": "/edge1-status/changes/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "Candidate/running configuration, pending changes, validation, apply jobs, checkpoints and rollback.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "roadmap_approved",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
+    },
+    {
+      "id": "audit-history",
+      "label": "Audit & History",
+      "section": "Configuration",
+      "sort_order": 170,
+      "browser_route": null,
+      "candidate_route": "/edge1-status/audit/",
+      "runtime_route": "/edge1-status/audit/",
+      "availability": "staged_disabled",
+      "authorization": "unverified_route_policy",
+      "description": "Authenticated sessions, administrative actions, configuration history, security actions and evidence.",
+      "palette": false,
+      "toolbox": false,
+      "evidence_status": "roadmap_approved",
+      "menu_visibility": "upcoming",
+      "dashboard_visibility": true
     }
-  ]
+  ],
+  "ui": {
+    "version": 2,
+    "navigation_model": "registry_synchronized",
+    "render_upcoming_modules": true,
+    "dashboard_source": "same_registry",
+    "badges_source": "availability_and_status",
+    "search_source": "same_registry",
+    "toolbox_source": "same_registry"
+  }
 }
