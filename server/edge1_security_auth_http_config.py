@@ -68,7 +68,7 @@ class HttpAdapterConfig:
             "session": "/edge1-ops/session",
             "logout": "/edge1-ops/session/logout",
             "validate": "/edge1-ops/api/v1/security/validate",
-            "redirect_after_exchange": "/edge1-ops/security/",
+            "redirect_after_exchange": "/edge1-ops/status/",
         }
         if routes != expected_routes:
             raise ValueError("HTTP adapter routes do not match the contract")
