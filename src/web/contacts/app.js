@@ -52,6 +52,7 @@ function titleForView(view) {
     unassigned: "Unassigned Phone Numbers",
     sources: "Sources & Provenance",
     observations: "Observations",
+    connections: "Connections",
   }[view] || "All Contacts";
 }
 
@@ -90,6 +91,14 @@ async function loadSummary() {
 }
 
 function rowKey(row) {
+  if (row.relationship_id) {
+    return `relationship:${row.relationship_id}`;
+  }
+
+  if (row.correlation_id) {
+    return `correlation:${row.correlation_id}`;
+  }
+
   if (row.provenance_id && !row.observation_id) {
     return `source:${row.provenance_id}`;
   }
@@ -145,6 +154,90 @@ function passesVerification(row) {
 }
 
 function resultTemplate(row) {
+  if (row.relationship_id) {
+    const left =
+      row.left_display_name ||
+      row.left_display_value ||
+      "Left endpoint";
+
+    const right =
+      row.right_display_name ||
+      row.right_display_value ||
+      "Right endpoint";
+
+    return `
+      <button
+        class="result relationship-result"
+        data-key="${escapeHtml(rowKey(row))}"
+        type="button">
+        <div class="result-head">
+          <div>
+            <div class="result-name">
+              ${escapeHtml(left)}
+              <span class="connection-arrow">
+                ${row.directionality === "directed" ? "→" : "↔"}
+              </span>
+              ${escapeHtml(right)}
+            </div>
+            <div class="result-value">
+              ${escapeHtml(row.relationship_type)}
+            </div>
+          </div>
+          <span class="badge ${escapeHtml(row.confidence)}">
+            ${escapeHtml(row.confidence)}
+          </span>
+        </div>
+        <div class="result-meta">
+          <span>established relationship</span>
+          <span>${escapeHtml(row.lifecycle_status)}</span>
+          <span>
+            ${Number(row.evidence_count || 0).toLocaleString()}
+            evidence
+          </span>
+        </div>
+      </button>
+    `;
+  }
+
+  if (row.correlation_id) {
+    const left =
+      row.left_display_name ||
+      row.left_display_value ||
+      "Candidate endpoint";
+
+    const right =
+      row.right_display_name ||
+      row.right_display_value ||
+      "Candidate endpoint";
+
+    return `
+      <button
+        class="result correlation-result"
+        data-key="${escapeHtml(rowKey(row))}"
+        type="button">
+        <div class="result-head">
+          <div>
+            <div class="result-name">
+              ${escapeHtml(left)}
+              <span class="connection-arrow">⋯</span>
+              ${escapeHtml(right)}
+            </div>
+            <div class="result-value">
+              ${escapeHtml(row.correlation_type || "candidate correlation")}
+            </div>
+          </div>
+          <span class="badge ${escapeHtml(row.confidence || "unverified")}">
+            ${escapeHtml(row.confidence || "unverified")}
+          </span>
+        </div>
+        <div class="result-meta">
+          <span>candidate only</span>
+          <span>${escapeHtml(row.review_status || "pending")}</span>
+        </div>
+      </button>
+    `;
+  }
+
   if (row.observation_id) {
     const value =
       row.display_value ||
@@ -744,6 +837,133 @@ async function renderContactDetail(row) {
   }
 }
 
+async function renderRelationshipDetail(row) {
+  const left =
+    row.left_display_name ||
+    row.left_display_value ||
+    "Left endpoint";
+
+  const right =
+    row.right_display_name ||
+    row.right_display_value ||
+    "Right endpoint";
+
+  $("#detail-title").textContent =
+    `${left} ${row.directionality === "directed" ? "→" : "↔"} ${right}`;
+
+  $("#detail-content").className = "";
+
+  $("#detail-content").innerHTML =
+    detailBlock("Record type", "Established relationship") +
+    detailBlock("Relationship", row.relationship_type) +
+    detailBlock("Confidence", row.confidence) +
+    detailBlock("Directionality", row.directionality) +
+    detailBlock("Lifecycle", row.lifecycle_status) +
+    detailBlock("Left endpoint", left) +
+    detailBlock("Right endpoint", right) +
+    detailBlock("Notes", row.notes) +
+    `<section class="evidence-section">
+       <h3>Relationship evidence</h3>
+       <div class="loading">Loading relationship evidence…</div>
+     </section>`;
+
+  try {
+    const evidence = await api(
+      "/api/contacts/relationship-evidence?" +
+      new URLSearchParams({
+        relationship_id: String(row.relationship_id),
+        limit: "250",
+        offset: "0",
+      })
+    );
+
+    const loading =
+      $("#detail-content .loading");
+
+    if (!loading) {
+      return;
+    }
+
+    loading.outerHTML = evidence.length
+      ? evidence.map((item) => `
+          <div class="evidence-item identity-evidence">
+            <strong>
+              ${escapeHtml(
+                item.source_name ||
+                item.source_reference ||
+                `Provenance ${item.provenance_id}`
+              )}
+            </strong>
+            <span>
+              ${escapeHtml(item.evidence_role || "supporting")}
+              ·
+              ${escapeHtml(
+                item.verification_status || "unverified"
+              )}
+            </span>
+            <p>
+              ${escapeHtml(
+                item.evidence_summary ||
+                "Evidence linked to this relationship."
+              )}
+            </p>
+          </div>
+        `).join("")
+      : `<div class="evidence-empty">
+           No provenance evidence is linked to this relationship.
+         </div>`;
+  } catch (error) {
+    const loading =
+      $("#detail-content .loading");
+
+    if (loading) {
+      loading.outerHTML = `
+        <div class="evidence-empty">
+          Unable to load relationship evidence:
+          ${escapeHtml(error.message)}
+        </div>
+      `;
+    }
+  }
+}
+
+function renderCorrelationDetail(row) {
+  const left =
+    row.left_display_name ||
+    row.left_display_value ||
+    "Candidate endpoint";
+
+  const right =
+    row.right_display_name ||
+    row.right_display_value ||
+    "Candidate endpoint";
+
+  $("#detail-title").textContent =
+    `${left} ⋯ ${right}`;
+
+  $("#detail-content").className = "";
+
+  $("#detail-content").innerHTML =
+    detailBlock("Record type", "Candidate correlation") +
+    detailBlock(
+      "Correlation type",
+      row.correlation_type || "—"
+    ) +
+    detailBlock("Confidence", row.confidence) +
+    detailBlock(
+      "Review status",
+      row.review_status || "pending"
+    ) +
+    detailBlock("Left endpoint", left) +
+    detailBlock("Right endpoint", right) +
+    detailBlock("Notes", row.notes) +
+    detailBlock(
+      "Interpretation",
+      "This is a review candidate, not an established " +
+      "relationship or identity assertion."
+    );
+}
+
 function renderSourceDetail(row) {
   $("#detail-title").textContent =
     row.source_name ||
@@ -844,6 +1064,16 @@ async function renderDetail(row) {
       );
     });
 
+  if (row.relationship_id) {
+    await renderRelationshipDetail(row);
+    return;
+  }
+
+  if (row.correlation_id) {
+    renderCorrelationDetail(row);
+    return;
+  }
+
   if (row.observation_id) {
     renderObservationDetail(row);
     return;
@@ -933,13 +1163,53 @@ async function observationSearch() {
   );
 }
 
+async function relationshipSearch() {
+  const params = new URLSearchParams({
+    lifecycle_status: "active",
+    limit: "250",
+    offset: "0",
+  });
+
+  if (state.verification) {
+    params.set("confidence", state.verification);
+  }
+
+  return api(
+    `/api/contacts/relationships?${params}`
+  );
+}
+
+async function correlationSearch() {
+  const params = new URLSearchParams({
+    review_status: "pending",
+    limit: "250",
+    offset: "0",
+  });
+
+  if (state.verification) {
+    params.set("confidence", state.verification);
+  }
+
+  return api(
+    `/api/contacts/correlations?${params}`
+  );
+}
+
 async function loadDirectory() {
   $("#results").innerHTML =
     `<div class="loading">Loading directory…</div>`;
 
   let rows = [];
 
-  if (state.view === "sources") {
+  if (state.view === "connections") {
+    const [relationships, correlations] =
+      await Promise.all([
+        relationshipSearch(),
+        correlationSearch(),
+      ]);
+
+    rows = relationships.concat(correlations);
+  } else if (state.view === "sources") {
     rows = await sourceSearch();
 
   } else if (state.view === "observations") {
@@ -990,12 +1260,16 @@ async function loadDirectory() {
     "detail-empty";
 
   $("#detail-content").textContent =
-    state.view === "sources"
-      ? "Select a source to inspect its provenance role."
-      : state.view === "observations"
-        ? "Select an observation to inspect its context."
-        : "Select a directory entry to inspect identity, " +
-          "contact points, evidence and observations.";
+    state.view === "connections"
+      ? "Established relationships and pending candidate " +
+        "correlations are separate. Candidates do not " +
+        "establish identity or a relationship."
+      : state.view === "sources"
+        ? "Select a source to inspect its provenance role."
+        : state.view === "observations"
+          ? "Select an observation to inspect its context."
+          : "Select a directory entry to inspect identity, " +
+            "contact points, evidence and observations.";
 }
 
 async function runSearch() {

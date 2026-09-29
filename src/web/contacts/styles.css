@@ -522,3 +522,25 @@ h2 {
   font-size: 13px;
   line-height: 1.45;
 }
+
+
+/* Unified Contacts — read-only Connections */
+.relationship-result {
+  border-left: 3px solid #5277a3;
+}
+
+.correlation-result {
+  border-left: 3px dashed #8b7b52;
+}
+
+.connection-arrow {
+  display: inline-block;
+  margin: 0 0.35rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.relationship-result .result-value,
+.correlation-result .result-value {
+  margin-top: 0.2rem;
+}
