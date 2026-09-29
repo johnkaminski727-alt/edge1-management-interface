@@ -63,8 +63,8 @@ jobs:
       - name: Unified Contacts read API tests
         run: python3 -m unittest -v tests.test_unified_contacts_read_api
 
-      - name: Unified Contacts schema tests
-        run: python3 -m unittest -v tests.test_unified_contacts_schema
+      - name: Unified Contacts schema validation
+        run: python3 tests/test_unified_contacts_schema.py
 
       - name: Unified Contacts provenance tests
         run: python3 -m unittest -v tests.test_unified_contacts_provenance_bridge
