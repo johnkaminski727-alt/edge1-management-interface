@@ -44,7 +44,7 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
         by_id = {item["id"]: item for item in data["modules"]}
         module = by_id["cookie-monster"]
         self.assertEqual(module["candidate_route"], "/edge1-ops/status/cookie-monster/")
-        self.assertEqual(module["runtime_route"], "/edge1-ops/status/cookie-monster/")
+        self.assertEqual(module["runtime_route"], "/edge1-status/cookie-monster/")
         self.assertEqual(module["availability"], "staged_disabled")
         self.assertEqual(module["authorization"], "unverified_route_policy")
         self.assertFalse(module["palette"])
