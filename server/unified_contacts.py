@@ -505,6 +505,283 @@ class UnifiedContacts:
                 for row in con.execute(sql, params)
             ]
 
+
+    def relationships(
+        self,
+        entity_id=None,
+        contact_point_id=None,
+        relationship_type="",
+        confidence="",
+        lifecycle_status="active",
+        limit=100,
+        offset=0,
+    ):
+        """
+        Return durable Connections edges.
+
+        Relationship identity, evidence and candidate review
+        remain separate layers.
+        """
+        limit = max(1, min(int(limit), 250))
+        offset = max(0, int(offset))
+
+        clauses = []
+        params = []
+
+        if entity_id is not None:
+            entity_id = int(entity_id)
+            clauses.append(
+                "(r.left_entity_id=? OR r.right_entity_id=?)"
+            )
+            params.extend([entity_id, entity_id])
+
+        if contact_point_id is not None:
+            contact_point_id = int(contact_point_id)
+            clauses.append(
+                "("
+                "r.left_contact_point_id=? "
+                "OR r.right_contact_point_id=?"
+                ")"
+            )
+            params.extend(
+                [contact_point_id, contact_point_id]
+            )
+
+        if relationship_type:
+            clauses.append("r.relationship_type=?")
+            params.append(relationship_type)
+
+        if confidence:
+            clauses.append("r.confidence=?")
+            params.append(confidence)
+
+        if lifecycle_status:
+            clauses.append("r.lifecycle_status=?")
+            params.append(lifecycle_status)
+
+        where = (
+            "WHERE " + " AND ".join(clauses)
+            if clauses else ""
+        )
+
+        sql = f"""
+            SELECT
+                r.id AS relationship_id,
+                r.left_entity_id,
+                le.entity_type AS left_entity_type,
+                le.canonical_name AS left_canonical_name,
+                le.display_name AS left_display_name,
+                r.left_contact_point_id,
+                lcp.point_type AS left_point_type,
+                lcp.normalized_value
+                    AS left_normalized_value,
+                lcp.display_value AS left_display_value,
+                r.right_entity_id,
+                re.entity_type AS right_entity_type,
+                re.canonical_name AS right_canonical_name,
+                re.display_name AS right_display_name,
+                r.right_contact_point_id,
+                rcp.point_type AS right_point_type,
+                rcp.normalized_value
+                    AS right_normalized_value,
+                rcp.display_value AS right_display_value,
+                r.relationship_type,
+                r.confidence,
+                r.lifecycle_status,
+                r.directionality,
+                r.notes,
+                r.created_at,
+                r.updated_at,
+                (
+                    SELECT COUNT(*)
+                    FROM relationship_evidence rev
+                    WHERE rev.relationship_id=r.id
+                ) AS evidence_count
+            FROM contact_relationships r
+            LEFT JOIN contact_entities le
+              ON le.id=r.left_entity_id
+            LEFT JOIN contact_points lcp
+              ON lcp.id=r.left_contact_point_id
+            LEFT JOIN contact_entities re
+              ON re.id=r.right_entity_id
+            LEFT JOIN contact_points rcp
+              ON rcp.id=r.right_contact_point_id
+            {where}
+            ORDER BY
+                r.created_at DESC,
+                r.id DESC
+            LIMIT ? OFFSET ?
+        """
+
+        params.extend([limit, offset])
+
+        with closing(self.connect()) as con:
+            return [
+                dict(row)
+                for row in con.execute(sql, params)
+            ]
+
+    def relationship_evidence(
+        self,
+        relationship_id,
+        limit=100,
+        offset=0,
+    ):
+        """
+        Return provenance attached to one durable
+        relationship.
+        """
+        relationship_id = int(relationship_id)
+        limit = max(1, min(int(limit), 250))
+        offset = max(0, int(offset))
+
+        with closing(self.connect()) as con:
+            return [
+                dict(row)
+                for row in con.execute(
+                    """
+                    SELECT
+                        rev.id AS relationship_evidence_id,
+                        rev.relationship_id,
+                        rev.provenance_id,
+                        rev.evidence_role,
+                        rev.evidence_summary,
+                        rev.created_at,
+                        p.source_document_id,
+                        p.source_kind,
+                        p.source_name,
+                        p.source_reference,
+                        p.source_page,
+                        p.source_url,
+                        p.source_sha256,
+                        p.extraction_method,
+                        p.verification_status,
+                        p.notes AS provenance_notes
+                    FROM relationship_evidence rev
+                    JOIN provenance_records p
+                      ON p.id=rev.provenance_id
+                    WHERE rev.relationship_id=?
+                    ORDER BY
+                        rev.created_at,
+                        rev.id
+                    LIMIT ? OFFSET ?
+                    """,
+                    (
+                        relationship_id,
+                        limit,
+                        offset,
+                    ),
+                )
+            ]
+
+    def correlations(
+        self,
+        review_status="pending",
+        correlation_type="",
+        confidence="",
+        entity_id=None,
+        contact_point_id=None,
+        limit=100,
+        offset=0,
+    ):
+        """
+        Return review-queue correlations separately from
+        durable Connections edges.
+        """
+        limit = max(1, min(int(limit), 250))
+        offset = max(0, int(offset))
+
+        clauses = []
+        params = []
+
+        if review_status:
+            clauses.append("c.review_status=?")
+            params.append(review_status)
+
+        if correlation_type:
+            clauses.append("c.correlation_type=?")
+            params.append(correlation_type)
+
+        if confidence:
+            clauses.append("c.confidence=?")
+            params.append(confidence)
+
+        if entity_id is not None:
+            entity_id = int(entity_id)
+            clauses.append(
+                "(c.left_entity_id=? OR c.right_entity_id=?)"
+            )
+            params.extend([entity_id, entity_id])
+
+        if contact_point_id is not None:
+            contact_point_id = int(contact_point_id)
+            clauses.append(
+                "("
+                "c.left_contact_point_id=? "
+                "OR c.right_contact_point_id=?"
+                ")"
+            )
+            params.extend(
+                [contact_point_id, contact_point_id]
+            )
+
+        where = (
+            "WHERE " + " AND ".join(clauses)
+            if clauses else ""
+        )
+
+        sql = f"""
+            SELECT
+                c.id AS correlation_id,
+                c.left_entity_id,
+                le.entity_type AS left_entity_type,
+                le.canonical_name AS left_canonical_name,
+                le.display_name AS left_display_name,
+                c.left_contact_point_id,
+                lcp.point_type AS left_point_type,
+                lcp.normalized_value
+                    AS left_normalized_value,
+                lcp.display_value AS left_display_value,
+                c.right_entity_id,
+                re.entity_type AS right_entity_type,
+                re.canonical_name AS right_canonical_name,
+                re.display_name AS right_display_name,
+                c.right_contact_point_id,
+                rcp.point_type AS right_point_type,
+                rcp.normalized_value
+                    AS right_normalized_value,
+                rcp.display_value AS right_display_value,
+                c.correlation_type,
+                c.confidence,
+                c.review_status,
+                c.rationale,
+                c.created_at,
+                c.reviewed_at
+            FROM candidate_correlations c
+            LEFT JOIN contact_entities le
+              ON le.id=c.left_entity_id
+            LEFT JOIN contact_points lcp
+              ON lcp.id=c.left_contact_point_id
+            LEFT JOIN contact_entities re
+              ON re.id=c.right_entity_id
+            LEFT JOIN contact_points rcp
+              ON rcp.id=c.right_contact_point_id
+            {where}
+            ORDER BY
+                c.created_at DESC,
+                c.id DESC
+            LIMIT ? OFFSET ?
+        """
+
+        params.extend([limit, offset])
+
+        with closing(self.connect()) as con:
+            return [
+                dict(row)
+                for row in con.execute(sql, params)
+            ]
+
+
     def evidence(
         self,
         assertion_id=None,

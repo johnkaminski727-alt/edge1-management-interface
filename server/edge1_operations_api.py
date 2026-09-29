@@ -709,6 +709,126 @@ class Handler(BaseHTTPRequestHandler):
                     offset=offset,
                 )
 
+            elif path == "/v1/contacts/relationships":
+                allowed = {
+                    "entity_id",
+                    "contact_point_id",
+                    "relationship_type",
+                    "confidence",
+                    "lifecycle_status",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.relationships(
+                    entity_id=integer("entity_id"),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    relationship_type=one(
+                        "relationship_type"
+                    ),
+                    confidence=one("confidence"),
+                    lifecycle_status=one(
+                        "lifecycle_status",
+                        "active",
+                    ),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/relationship-evidence":
+                allowed = {
+                    "relationship_id",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                relationship_id = integer(
+                    "relationship_id"
+                )
+
+                if relationship_id is None:
+                    raise ValueError(
+                        "relationship_id is required"
+                    )
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.relationship_evidence(
+                    relationship_id=relationship_id,
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/correlations":
+                allowed = {
+                    "review_status",
+                    "correlation_type",
+                    "confidence",
+                    "entity_id",
+                    "contact_point_id",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.correlations(
+                    review_status=one(
+                        "review_status",
+                        "pending",
+                    ),
+                    correlation_type=one(
+                        "correlation_type"
+                    ),
+                    confidence=one("confidence"),
+                    entity_id=integer("entity_id"),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    limit=limit,
+                    offset=offset,
+                )
+
             elif path == "/v1/contacts/evidence":
                 allowed = {
                     "assertion_id",
