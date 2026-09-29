@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 CONTROLLER_VERSION = "0.3.0"
-MAX_STEPS = 8
+MAX_STEPS = 9
 
 
 class AgentControllerError(RuntimeError):
