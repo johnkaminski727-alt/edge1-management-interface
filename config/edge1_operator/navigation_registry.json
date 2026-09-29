@@ -130,7 +130,7 @@
       "label": "Bitcoin Operations",
       "section": "Operations",
       "sort_order": 50,
-      "browser_route": "/edge1-status/bitcoin/",
+      "browser_route": null,
       "runtime_route": "/edge1-status/bitcoin/",
       "availability": "staged_disabled",
       "authorization": "existing_route_policy",
@@ -139,14 +139,15 @@
       "toolbox": false,
       "evidence_status": "repository_only_not_deployed",
       "menu_visibility": "upcoming",
-      "dashboard_visibility": true
+      "dashboard_visibility": true,
+      "candidate_route": "/edge1-status/bitcoin/"
     },
     {
       "id": "mining-operations",
       "label": "Mining Operations",
       "section": "Operations",
       "sort_order": 60,
-      "browser_route": "/edge1-status/mining/",
+      "browser_route": null,
       "runtime_route": "/edge1-status/mining/",
       "availability": "staged_disabled",
       "authorization": "existing_route_policy",
@@ -155,7 +156,8 @@
       "toolbox": false,
       "evidence_status": "repository_only_not_deployed",
       "menu_visibility": "upcoming",
-      "dashboard_visibility": true
+      "dashboard_visibility": true,
+      "candidate_route": "/edge1-status/mining/"
     },
     {
       "id": "release-manager",
