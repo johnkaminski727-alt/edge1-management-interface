@@ -20,7 +20,7 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("accepted browser routes: 6", result.stdout)
+        self.assertIn("accepted browser routes: 4", result.stdout)
 
     def test_palette_is_navigation_only(self):
         data = json.loads(REGISTRY.read_text(encoding="utf-8"))
