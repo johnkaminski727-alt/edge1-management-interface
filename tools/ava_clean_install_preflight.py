@@ -16,6 +16,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/opt/edge1-management-interface")
+CANDIDATE_REF = "origin/agent/ava-clean-install-integrated-20260929"
 GATEWAY_MAIN = Path("/opt/bigbird-ai-gateway/app/main.py")
 LIBRARY_DB = Path("/var/lib/bigbird-ai-library/library.sqlite3")
 CONTACT_DB = Path("/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite")
@@ -43,6 +44,11 @@ REQUIRED_REPO_FILES = (
 def run(*argv: str) -> tuple[int, str]:
     p = subprocess.run(argv, text=True, capture_output=True, check=False)
     return p.returncode, (p.stdout + p.stderr).strip()
+
+
+def git_ref_has_file(ref: str, path: str) -> bool:
+    code, _ = run("git", "-C", str(REPO), "cat-file", "-e", f"{ref}:{path}")
+    return code == 0
 
 
 def service_state(name: str) -> str:
@@ -96,14 +102,23 @@ def main() -> int:
     checks: dict[str, object] = report["checks"]  # type: ignore[assignment]
 
     checks["repo_present"] = REPO.is_dir()
-    checks["repo_files"] = {
+    checks["working_tree_files"] = {
         name: (REPO / name).is_file() for name in REQUIRED_REPO_FILES
     }
+    checks["candidate_ref"] = CANDIDATE_REF
+    checks["candidate_source_files"] = {}
     if REPO.is_dir():
         code, out = run("git", "-C", str(REPO), "rev-parse", "HEAD")
         checks["repo_head"] = out if code == 0 else None
         code, out = run("git", "-C", str(REPO), "status", "--porcelain")
         checks["repo_clean"] = code == 0 and out == ""
+        checks["repo_status"] = out.splitlines() if code == 0 and out else []
+        code, out = run("git", "-C", str(REPO), "rev-parse", CANDIDATE_REF)
+        checks["candidate_head"] = out if code == 0 else None
+        checks["candidate_source_files"] = {
+            name: git_ref_has_file(CANDIDATE_REF, name)
+            for name in REQUIRED_REPO_FILES
+        }
 
     checks["services"] = {name: service_state(name) for name in SERVICES}
     checks["gateway_main_present"] = GATEWAY_MAIN.is_file()
@@ -136,8 +151,11 @@ def main() -> int:
     blocking = []
     if not checks["repo_present"]:
         blocking.append("repository missing")
-    if not all(checks["repo_files"].values()):  # type: ignore[union-attr]
-        blocking.append("required source files missing")
+    candidate_files = checks.get("candidate_source_files")
+    if not isinstance(candidate_files, dict) or not candidate_files or not all(candidate_files.values()):
+        blocking.append("required candidate source files missing")
+    if checks.get("repo_clean") is False:
+        blocking.append("working tree has uncommitted changes; preserve them before install")
     if not checks["gateway_main_present"]:
         blocking.append("Big Bird gateway source/runtime missing")
     if not checks["operations_secret_present"]:
