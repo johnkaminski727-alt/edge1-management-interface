@@ -14,6 +14,7 @@ declare -a FILES=(
   "src/web/security/crowdsec-dashboard.js|security/crowdsec-dashboard.js"
   "src/web/network-defense/index.html|network-defense/index.html"
   "src/web/operator-shell/shell.css|operator-shell/shell.css"
+  "src/web/operator-shell/theme.css|operator-shell/theme.css"
   "src/web/operator-shell/shell.js|operator-shell/shell.js"
   "config/edge1_operator/navigation_registry.json|operator-shell/navigation.json"
 )
@@ -29,7 +30,7 @@ done
 
 case "$MODE" in
     "")
-        echo "PASS: All ten deployment assets present."
+        echo "PASS: All ${#FILES[@]} deployment assets present."
         echo "Use --apply for deployment."
         exit 0
         ;;
@@ -91,7 +92,7 @@ echo "Previous interface restored: $HERE"
 ROLLBACK
 chmod 0700 "$BACKUP/rollback.sh"
 
-echo "=== Publishing ten interface assets ==="
+echo "=== Publishing ${#FILES[@]} interface assets ==="
 for entry in "${FILES[@]}"; do
     source="${entry%%|*}"
     relative="${entry#*|}"
