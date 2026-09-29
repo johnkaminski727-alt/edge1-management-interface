@@ -12,13 +12,19 @@ Contacts baseline:
 Contacts expansion baseline:
 - branch `phase-3g4-contacts-expansion-20260929`
 - commit `3f356f3a5b2a5aaf3f89dfb3a2b438bac56feb01`
+
+Contacts connections checkpoint:
+- branch `phase-3g5-contacts-connections-20260929`
+- commit `ebca84f1e57e23f4e26b45c3a11af833edd303d9`
+- preserved as an exact 11-file live snapshot before runtime commissioning
 - syntax validation passed on rebuilt Edge1
 - 29 Unified Contacts expansion/read/provenance/observation tests passed before publication
 
 ## Closed in source
 
 - Unified Contacts / Phone Intelligence Phase 3F is published and tagged.
-- Unified Contacts 3G.4 messaging/schema expansion is published and is now the Ava candidate baseline.
+- Unified Contacts 3G.4 messaging/schema expansion is published.
+- Unified Contacts 3G.5 Connections/Relationship Policy checkpoint is published and integrated into the Ava candidate.
 - Ava controller work is rebased conceptually onto the published Contacts baseline through the integrated candidate branch.
 - Ava has a bounded `contacts:read` source contract.
 - `server/ava_contacts_gateway.py` uses the signed loopback Operations API instead of direct SQLite access.
