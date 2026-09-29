@@ -8,9 +8,10 @@ source selections before a request is relayed to the loopback gateway.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
-CONTROLLER_VERSION = "0.1.0"
+CONTROLLER_VERSION = "0.3.0"
 MAX_STEPS = 8
 
 
@@ -65,6 +66,10 @@ SOURCE_RULES: tuple[SourceRule, ...] = (
     SourceRule("communications", "Review communications", "include_communications", "communications:read", (
         "email", "mail", "message", "communications", "conversation", "thread", "reply", "said", "wrote", "inbox", "correspondence",
     )),
+    SourceRule("contacts", "Search Unified Contacts", "include_contacts", "contacts:read", (
+        "contact", "contacts", "person", "people", "organization", "company", "business",
+        "phone number", "telephone number", "email address", "who is", "who owns", "caller", "directory",
+    )),
     SourceRule("voice", "Check Voice & PBX", "include_telephony", "telephony:read", (
         "call", "phone", "voice", "pbx", "asterisk", "freepbx", "sip", "pjsip", "trunk", "telephony", "voicemail",
     )),
@@ -109,6 +114,26 @@ def build_plan(payload: dict[str, Any]) -> AgentPlan:
     return AgentPlan(request_id=request_id, auto_route=auto_route, source_flags=source_flags, steps=tuple(steps))
 
 
+def _normalize_library_collections(payload: dict[str, Any], enabled: bool) -> list[str]:
+    value = payload.get("library_collections", [])
+    if not isinstance(value, list) or len(value) > 8:
+        raise AgentControllerError("library collection selection is invalid")
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise AgentControllerError("library collection selection is invalid")
+        candidate = item.strip().lower()
+        if re.fullmatch(r"[a-z][a-z0-9_-]{1,63}", candidate) is None:
+            raise AgentControllerError("library collection name is invalid")
+        if candidate not in normalized:
+            normalized.append(candidate)
+    if enabled and not normalized:
+        raise AgentControllerError("library search requires an approved collection")
+    if not enabled and normalized:
+        raise AgentControllerError("library collections require library access")
+    return normalized
+
+
 def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[str, Any]:
     prepared = dict(payload)
     for key in tuple(prepared):
@@ -120,8 +145,9 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
             raise AgentControllerError(f"controller attempted to expand {flag}")
         prepared[flag] = selected
 
-    if prepared.get("include_library") is not True:
-        prepared["library_collections"] = []
+    prepared["library_collections"] = _normalize_library_collections(
+        payload, prepared.get("include_library") is True
+    )
     if prepared.get("include_communications") is not True:
         prepared["communications_groups"] = []
 
@@ -137,6 +163,8 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
                 allowed_optional.update({"library:search", "library:document:read"})
             if prepared.get("include_communications") is True:
                 allowed_optional.add("communications:read")
+            if prepared.get("include_contacts") is True:
+                allowed_optional.add("contacts:read")
             if prepared.get("include_telephony") is True:
                 allowed_optional.add("telephony:read")
             clean_user["scopes"] = [
@@ -190,6 +218,7 @@ def verify_gateway_result(request_id: str, result: dict[str, Any], plan: AgentPl
     evidence = {
         "knowledge": _source_count(result, "sources"),
         "communications": _source_count(result, "communications_sources"),
+        "contacts": _source_count(result, "contact_sources"),
         "telephony": _source_count(result, "telephony_sources"),
         "mail": _source_count(result, "mail_sources"),
     }
