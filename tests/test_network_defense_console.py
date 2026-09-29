@@ -39,8 +39,8 @@ class NetworkDefenseConsoleTests(unittest.TestCase):
         self.assertEqual(
             endpoints,
             {
-                '/edge1-status/network-defense/data/network-defense.json',
-                '/edge1-status/operator-shell/navigation.json',
+                '/edge1-ops/status/network-defense/data/network-defense.json',
+                '/edge1-ops/status/operator-shell/navigation.json',
             },
         )
 
