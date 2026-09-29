@@ -463,3 +463,62 @@ h2 {
   font-size: 0.82rem;
   line-height: 1.45;
 }
+
+/* Phase 3G.4C — entity-first Contacts */
+
+.badge.document_sourced {
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+}
+
+.badge.unverified,
+.badge.missing_source {
+  background: #eef2f6;
+  color: #526276;
+}
+
+.evidence-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-section h3 {
+  margin: 18px 0 8px;
+  color: #334b68;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.evidence-item {
+  margin: 8px 0;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfdff;
+}
+
+.evidence-item strong,
+.evidence-item span {
+  display: block;
+}
+
+.evidence-item span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.evidence-item p {
+  margin: 7px 0 0;
+  color: #40536d;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.evidence-empty {
+  padding: 9px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}

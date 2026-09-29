@@ -48,7 +48,8 @@ function titleForView(view) {
     people: "People",
     phones: "Phone Contacts",
     emails: "Email Contacts",
-    unassigned: "Unassigned Contact Points",
+    domains: "Domains",
+    unassigned: "Unassigned Phone Numbers",
     sources: "Sources & Provenance",
     observations: "Observations",
   }[view] || "All Contacts";
@@ -72,8 +73,14 @@ async function loadSummary() {
   $("#metric-emails").textContent =
     summary.emails.toLocaleString();
 
+  $("#metric-domains").textContent =
+    Number(summary.domains ?? 0).toLocaleString();
+
   $("#metric-unassigned").textContent =
-    summary.unassigned.toLocaleString();
+    Number(
+      summary.unassigned_phones ??
+      summary.unassigned
+    ).toLocaleString();
 
   $("#metric-sources").textContent =
     summary.provenance.toLocaleString();
@@ -91,8 +98,12 @@ function rowKey(row) {
     return `observation:${row.observation_id}`;
   }
 
+  if (row.entity_id && !row.contact_point_id) {
+    return `entity:${row.entity_id}`;
+  }
+
   if (row.entity_id) {
-    return `entity:${row.entity_id}:${row.contact_point_id ?? ""}`;
+    return `entity:${row.entity_id}:${row.contact_point_id}`;
   }
 
   return `point:${row.contact_point_id}`;
@@ -114,11 +125,23 @@ function passesVerification(row) {
       row.confidence === state.verification;
   }
 
+  if (
+    row.entity_id &&
+    !row.contact_point_id
+  ) {
+    return row.verification_status ===
+      state.verification;
+  }
+
   if (state.verification === "verified") {
     return row.verification_status === "verified";
   }
 
-  return row.confidence === state.verification;
+  return (
+    row.confidence === state.verification ||
+    row.verification_status === state.verification ||
+    row.provenance_verification === state.verification
+  );
 }
 
 function resultTemplate(row) {
@@ -209,6 +232,52 @@ function resultTemplate(row) {
           <span>
             ${escapeHtml(row.observation_links)} observations
           </span>
+        </div>
+      </button>
+    `;
+  }
+
+  if (row.entity_id && !row.contact_point_id) {
+    const name =
+      row.display_name ||
+      row.canonical_name ||
+      `Entity ${row.entity_id}`;
+
+    const meta = [
+      row.entity_type,
+      `${row.contact_point_count ?? 0} contact points`,
+      `${row.alias_count ?? 0} aliases`,
+      `${row.attestation_count ?? 0} attestations`,
+    ];
+
+    return `
+      <button
+        class="result entity-result"
+        data-key="${escapeHtml(rowKey(row))}"
+        type="button">
+        <div class="result-head">
+          <div>
+            <div class="result-name">
+              ${escapeHtml(name)}
+            </div>
+            <div class="result-value">
+              Canonical ${escapeHtml(row.entity_type || "entity")}
+            </div>
+          </div>
+
+          <span class="badge ${escapeHtml(
+            row.verification_status || "unverified"
+          )}">
+            ${escapeHtml(
+              row.verification_status || "unverified"
+            )}
+          </span>
+        </div>
+
+        <div class="result-meta">
+          ${meta.map(
+            (item) => `<span>${escapeHtml(item)}</span>`
+          ).join("")}
         </div>
       </button>
     `;
@@ -392,6 +461,182 @@ function evidenceHtml(detail) {
       ${observed}
     </section>
   `;
+}
+
+function entityEvidenceHtml(detail) {
+  const assertions = detail.assertions || [];
+  const aliases = detail.aliases || [];
+  const attestations = detail.attestations || [];
+  const observations = detail.observations || [];
+
+  const points = assertions.length
+    ? assertions.map((row) => `
+        <div class="evidence-item">
+          <strong>
+            ${escapeHtml(
+              row.display_value ||
+              row.normalized_value ||
+              "Contact point"
+            )}
+          </strong>
+          <span>
+            ${escapeHtml(row.point_type || "contact")}
+            ·
+            ${escapeHtml(row.confidence || "unverified")}
+          </span>
+        </div>
+      `).join("")
+    : `<div class="evidence-empty">
+         No asserted contact points.
+       </div>`;
+
+  const aliasHtml = aliases.length
+    ? aliases.map((row) => `
+        <div class="evidence-item">
+          <strong>${escapeHtml(row.alias_name)}</strong>
+          <span>
+            alias ·
+            ${escapeHtml(row.alias_type || "alternate_name")}
+            ·
+            ${escapeHtml(row.confidence || "unverified")}
+          </span>
+        </div>
+      `).join("")
+    : `<div class="evidence-empty">
+         No aliases recorded.
+       </div>`;
+
+  const attestationHtml = attestations.length
+    ? attestations.map((row) => {
+        const subject = row.contact_point_id
+          ? `contact point ${row.contact_point_id}`
+          : "entity";
+
+        return `
+          <div class="evidence-item">
+            <strong>
+              ${escapeHtml(row.attribute)}
+            </strong>
+            <span>
+              ${escapeHtml(subject)}
+              ·
+              ${escapeHtml(
+                row.verification_status || "unverified"
+              )}
+            </span>
+            <p>
+              ${escapeHtml(row.attested_value)}
+            </p>
+          </div>
+        `;
+      }).join("")
+    : `<div class="evidence-empty">
+         No attestations recorded.
+       </div>`;
+
+  const observationHtml = observations.length
+    ? observations.map((row) => `
+        <div class="evidence-item">
+          <strong>
+            ${escapeHtml(
+              row.source_name ||
+              row.source_reference ||
+              "Observed source"
+            )}
+          </strong>
+          <span>
+            observation ·
+            ${escapeHtml(
+              row.provenance_verification || "unverified"
+            )}
+          </span>
+        </div>
+      `).join("")
+    : `<div class="evidence-empty">
+         No contextual observations recorded.
+       </div>`;
+
+  return `
+    <section class="evidence-section">
+      <h3>Contact points</h3>
+      ${points}
+
+      <h3>Aliases</h3>
+      ${aliasHtml}
+
+      <h3>Attestations</h3>
+      ${attestationHtml}
+
+      <h3>Contextual observations</h3>
+      ${observationHtml}
+    </section>
+  `;
+}
+
+async function renderEntityDetail(row) {
+  const name =
+    row.display_name ||
+    row.canonical_name ||
+    `Entity ${row.entity_id}`;
+
+  $("#detail-title").textContent = name;
+  $("#detail-content").className = "";
+
+  $("#detail-content").innerHTML =
+    detailBlock("Entity type", row.entity_type) +
+    detailBlock(
+      "Verification",
+      row.verification_status
+    ) +
+    detailBlock(
+      "Lifecycle",
+      row.lifecycle_status
+    ) +
+    detailBlock(
+      "Contact points",
+      row.contact_point_count
+    ) +
+    detailBlock(
+      "Aliases",
+      row.alias_count
+    ) +
+    detailBlock(
+      "Entity attestations",
+      row.attestation_count
+    ) +
+    `<div class="loading">
+       Loading entity evidence…
+     </div>`;
+
+  try {
+    const detail = await api(
+      "/api/contacts/evidence?" +
+      new URLSearchParams({
+        entity_id: String(row.entity_id),
+        limit: "250",
+      })
+    );
+
+    const loading =
+      $("#detail-content .loading");
+
+    if (loading) {
+      loading.outerHTML =
+        entityEvidenceHtml(detail);
+    }
+  } catch (error) {
+    const loading =
+      $("#detail-content .loading");
+
+    if (loading) {
+      loading.outerHTML = `
+        <div class="evidence-empty">
+          Unable to load entity evidence:
+          ${escapeHtml(error.message)}
+        </div>
+      `;
+    }
+  }
 }
 
 async function renderContactDetail(row) {
@@ -609,6 +854,11 @@ async function renderDetail(row) {
     return;
   }
 
+  if (row.entity_id && !row.contact_point_id) {
+    await renderEntityDetail(row);
+    return;
+  }
+
   await renderContactDetail(row);
 }
 
@@ -622,6 +872,17 @@ async function canonicalSearch() {
   });
 
   return api(`/api/contacts/search?${params}`);
+}
+
+async function entitySearch(entityType) {
+  const params = new URLSearchParams({
+    q: state.query,
+    entity_type: entityType,
+    limit: "250",
+    offset: "0",
+  });
+
+  return api(`/api/contacts/entities?${params}`);
 }
 
 async function unassignedSearch() {
@@ -687,9 +948,16 @@ async function loadDirectory() {
   } else if (state.view === "unassigned") {
     rows = await unassignedSearch();
 
+  } else if (state.view === "organizations") {
+    rows = await entitySearch("organization");
+
+  } else if (state.view === "people") {
+    rows = await entitySearch("person");
+
   } else if (
     state.view === "phones" ||
-    state.view === "emails"
+    state.view === "emails" ||
+    state.view === "domains"
   ) {
     rows = await canonicalSearch();
 

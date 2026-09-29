@@ -51,6 +51,11 @@ class UnifiedContacts:
                     FROM contact_points
                     WHERE point_type='email'
                 """),
+                "domains": count("""
+                    SELECT COUNT(*)
+                    FROM contact_points
+                    WHERE point_type='domain'
+                """),
                 "assertions": count(
                     "SELECT COUNT(*) FROM contact_assertions"
                 ),
@@ -78,6 +83,16 @@ class UnifiedContacts:
                         FROM contact_assertions ca
                         WHERE ca.contact_point_id=cp.id
                     )
+                """),
+                "unassigned_phones": count("""
+                    SELECT COUNT(*)
+                    FROM contact_points cp
+                    WHERE cp.point_type='phone'
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM contact_assertions ca
+                          WHERE ca.contact_point_id=cp.id
+                      )
                 """),
                 "candidate_correlations": count(
                     "SELECT COUNT(*) FROM candidate_correlations"
@@ -215,6 +230,8 @@ class UnifiedContacts:
             clauses.append("cp.point_type='phone'")
         elif kind == "emails":
             clauses.append("cp.point_type='email'")
+        elif kind == "domains":
+            clauses.append("cp.point_type='domain'")
 
         where = (
             "WHERE " + " AND ".join(clauses)

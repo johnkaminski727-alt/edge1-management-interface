@@ -63,7 +63,11 @@
       <strong id="metric-emails">—</strong>
     </article>
     <article>
-      <span>UNASSIGNED</span>
+      <span>DOMAINS</span>
+      <strong id="metric-domains">—</strong>
+    </article>
+    <article>
+      <span>UNASSIGNED PHONES</span>
       <strong id="metric-unassigned">—</strong>
     </article>
     <article>
@@ -82,7 +86,8 @@
     <button data-view="people">People</button>
     <button data-view="phones">Phones</button>
     <button data-view="emails">Emails</button>
-    <button data-view="unassigned">Unassigned</button>
+    <button data-view="domains">Domains</button>
+    <button data-view="unassigned">Unassigned Phones</button>
     <button data-view="sources">Sources</button>
     <button data-view="observations">Observations</button>
   </nav>
@@ -111,7 +116,10 @@
         <option value="">All statuses</option>
         <option value="confirmed">Confirmed</option>
         <option value="probable">Probable</option>
-        <option value="verified">Verified entity</option>
+        <option value="verified">Verified</option>
+        <option value="document_sourced">Document sourced</option>
+        <option value="unverified">Unverified</option>
+        <option value="missing_source">Missing source</option>
       </select>
 
       <button id="search-button" class="primary">

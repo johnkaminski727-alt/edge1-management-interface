@@ -612,6 +612,7 @@ class Handler(BaseHTTPRequestHandler):
                     "people",
                     "phones",
                     "emails",
+                    "domains",
                 }:
                     self.send_json(
                         400,
