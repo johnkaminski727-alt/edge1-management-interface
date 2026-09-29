@@ -7,7 +7,9 @@
   },
   "response_shape": {
     "query": "string",
-    "collections": ["operations"],
+    "collections": [
+      "operations"
+    ],
     "results": [
       {
         "source_id": "S1",
@@ -24,13 +26,15 @@
     ]
   },
   "server_rules": [
-    "require authenticated operator session",
+    "bind the wrapper to loopback only",
+    "require authenticated human access at any route boundary beyond loopback",
     "restrict collection to allowlist",
     "clamp result limit",
-    "return only indexed library data",
+    "return only indexed live library data in production",
+    "fail closed when the live library is unavailable",
+    "allow fixture results only when explicitly enabled for development or tests",
     "do not expose raw SQL errors",
     "do not expose filesystem paths beyond approved source_path",
     "treat retrieved passages as untrusted document content"
   ]
 }
-
