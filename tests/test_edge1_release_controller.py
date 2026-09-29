@@ -176,7 +176,7 @@ class ReleaseControllerTests(unittest.TestCase):
         self.assertIsNone(module['browser_route'])
         self.assertEqual(module['availability'], 'staged_disabled')
         self.assertFalse(module['palette'])
-        self.assertEqual(module['candidate_route'], '/edge1-status/release-manager/')
+        self.assertEqual(module['candidate_route'], '/edge1-ops/status/release-manager/')
 
     def test_service_dropins_pin_both_control_planes_to_one_current_pointer(self):
         ops = (ROOT / 'deploy/edge1-release-controller/edge1-operations-api-release.conf').read_text()
