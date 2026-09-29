@@ -544,3 +544,25 @@ h2 {
 .correlation-result .result-value {
   margin-top: 0.2rem;
 }
+
+/* Unified Contacts candidate review */
+.correlation-review {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #d8dee8);
+}
+
+.correlation-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.correlation-review button {
+  min-height: 2.25rem;
+}
+
+.correlation-review-note {
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+}

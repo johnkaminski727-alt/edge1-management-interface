@@ -47,6 +47,7 @@ DB_PATH = Path(os.environ.get("EDGE1_OPS_DB", "/var/lib/edge1-operations-api/aud
 SECRET_FILE = Path(os.environ.get("EDGE1_OPS_SECRET_FILE", "/etc/edge1-operations-api.secret"))
 MUTATIONS_ENABLED = os.environ.get("EDGE1_OPS_MUTATIONS_ENABLED", "false").lower() == "true"
 MUTATION_GATE_ENV = {
+    "contacts_relationship_mutations": "EDGE1_OPS_CONTACTS_RELATIONSHIP_WRITES_ENABLED",
     "telephony_safe_controls": "EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED",
     "vpn_registration": "EDGE1_VPN_REGISTRATION_WRITES_ENABLED",
 }

@@ -17,6 +17,9 @@ EVENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 ACTOR_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$")
 ACTION_PATHS = {
     "security.validate_config": "/v1/actions/security.validate_config/run",
+    "contacts.correlation.accept": "/v1/actions/contacts.correlation.accept/run",
+    "contacts.correlation.reject": "/v1/actions/contacts.correlation.reject/run",
+    "contacts.correlation.promote": "/v1/actions/contacts.correlation.promote/run",
 }
 
 
@@ -70,14 +73,36 @@ class Edge1OperationsClient:
             raise OperationsClientError("Operations API secret is invalid")
         return value
 
-    def run(self, action_id: str, actor_subject: str) -> OperationsResult:
+    def run(
+        self,
+        action_id: str,
+        actor_subject: str,
+        *,
+        parameters: dict[str, Any] | None = None,
+    ) -> OperationsResult:
         path = ACTION_PATHS.get(action_id)
         if path is None:
             raise OperationsClientError("action is not allowlisted")
         actor = f"edge1-security-console:{actor_subject}"
         if not ACTOR_RE.fullmatch(actor):
             raise OperationsClientError("actor identity is invalid")
-        body = b"{}"
+        if parameters is None:
+            parameters = {}
+        if not isinstance(parameters, dict):
+            raise OperationsClientError("action parameters must be an object")
+        try:
+            body = json.dumps(
+                parameters,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            raise OperationsClientError(
+                "action parameters are not JSON serializable"
+            ) from exc
+        if len(body) > 65536:
+            raise OperationsClientError("action parameters are too large")
         timestamp = str(int(self.now()))
         nonce = secrets.token_hex(24)
         body_hash = hashlib.sha256(body).hexdigest()

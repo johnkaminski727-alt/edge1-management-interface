@@ -40,19 +40,35 @@ class ConnectionsUiTests(unittest.TestCase):
             JS,
         )
 
-    def test_no_mutation_routes_or_controls(self):
-        forbidden = (
-            "/correlations/accept",
-            "/correlations/reject",
-            "/correlations/promote",
-            "Accept candidate",
-            "Reject candidate",
-            "Promote candidate",
+
+    def test_candidate_review_controls_preserve_browser_boundary(self):
+        self.assertIn(
+            'data-correlation-action="accept"',
+            JS,
+        )
+        self.assertIn(
+            'data-correlation-action="reject"',
+            JS,
         )
 
-        for value in forbidden:
-            self.assertNotIn(value, HTML)
-            self.assertNotIn(value, JS)
+        # Promotion remains deliberately unavailable as a
+        # browser control until provenance selection is built.
+        self.assertNotIn(
+            'data-correlation-action="promote"',
+            JS,
+        )
+
+        # Browser code uses the authenticated Edge1 session
+        # and CSRF token. It must never contain Operations
+        # HMAC material.
+        for forbidden in (
+            "X-WWCX-Signature",
+            "X-WWCX-Nonce",
+            "operations_api_secret",
+            "EDGE1_OPS_SECRET",
+        ):
+            self.assertNotIn(forbidden, JS)
+
 
     def test_semantic_separation_is_visible(self):
         self.assertIn(

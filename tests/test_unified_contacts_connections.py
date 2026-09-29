@@ -727,3 +727,272 @@ class ConnectionsMutationSafetyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CandidateMutationServiceTests(
+    ConnectionsLifecycleTests
+):
+    def setUp(self):
+        super().setUp()
+        self.candidate_id = self.candidate()
+        self.provenance_id = 20
+
+    def test_mutation_accept_and_replay(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        result = mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "accept",
+        )
+
+        self.assertEqual(result.review_status, "accepted")
+        self.assertFalse(result.idempotent)
+
+        replay = mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "accept",
+        )
+
+        self.assertEqual(replay.review_status, "accepted")
+        self.assertTrue(replay.idempotent)
+
+    def test_mutation_reject_and_replay(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        result = mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "reject",
+        )
+
+        self.assertEqual(result.review_status, "rejected")
+        self.assertFalse(result.idempotent)
+
+        replay = mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "reject",
+        )
+
+        self.assertEqual(replay.review_status, "rejected")
+        self.assertTrue(replay.idempotent)
+
+    def test_accept_then_reject_conflicts(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "accept",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "only pending candidates can be rejected",
+        ):
+            mutate_candidate(
+                self.db,
+                self.candidate_id,
+                "reject",
+            )
+
+        status = self.db.execute(
+            """
+            SELECT review_status
+            FROM candidate_correlations
+            WHERE id=?
+            """,
+            (self.candidate_id,),
+        ).fetchone()[0]
+
+        self.assertEqual(status, "accepted")
+
+    def test_reject_then_accept_conflicts(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "reject",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "only pending candidates can be accepted",
+        ):
+            mutate_candidate(
+                self.db,
+                self.candidate_id,
+                "accept",
+            )
+
+        status = self.db.execute(
+            """
+            SELECT review_status
+            FROM candidate_correlations
+            WHERE id=?
+            """,
+            (self.candidate_id,),
+        ).fetchone()[0]
+
+        self.assertEqual(status, "rejected")
+
+    def test_promote_requires_accepted_candidate(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "candidate is not eligible for promotion",
+        ):
+            mutate_candidate(
+                self.db,
+                self.candidate_id,
+                "promote",
+                provenance_id=self.provenance_id,
+            )
+
+        count = self.db.execute(
+            "SELECT COUNT(*) FROM contact_relationships"
+        ).fetchone()[0]
+
+        self.assertEqual(count, 0)
+
+    def test_accept_promote_and_replay(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "accept",
+        )
+
+        first = mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "promote",
+            provenance_id=self.provenance_id,
+            evidence_summary="candidate review",
+        )
+
+        self.assertEqual(first.review_status, "accepted")
+        self.assertFalse(first.idempotent)
+        self.assertTrue(first.relationship_created)
+        self.assertTrue(first.evidence_created)
+
+        second = mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "promote",
+            provenance_id=self.provenance_id,
+            evidence_summary="candidate review",
+        )
+
+        self.assertEqual(
+            second.relationship_id,
+            first.relationship_id,
+        )
+        self.assertTrue(second.idempotent)
+        self.assertFalse(second.relationship_created)
+        self.assertFalse(second.evidence_created)
+
+    def test_failed_mutation_rolls_back_own_transaction(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "accept",
+        )
+
+        before = self.db.execute(
+            """
+            SELECT
+                COUNT(*)
+            FROM contact_relationships
+            """
+        ).fetchone()[0]
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "provenance not found",
+        ):
+            mutate_candidate(
+                self.db,
+                self.candidate_id,
+                "promote",
+                provenance_id=999999,
+            )
+
+        after = self.db.execute(
+            """
+            SELECT
+                COUNT(*)
+            FROM contact_relationships
+            """
+        ).fetchone()[0]
+
+        self.assertEqual(after, before)
+
+    def test_validation_rejects_boolean_ids(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "candidate_id must be an integer",
+        ):
+            mutate_candidate(
+                self.db,
+                True,
+                "accept",
+            )
+
+        mutate_candidate(
+            self.db,
+            self.candidate_id,
+            "accept",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "provenance_id must be an integer",
+        ):
+            mutate_candidate(
+                self.db,
+                self.candidate_id,
+                "promote",
+                provenance_id=True,
+            )
+
+    def test_accept_reject_reject_promote_only_fields(self):
+        from tools.unified_contacts.connections import (
+            mutate_candidate,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "provenance_id is only valid for promote",
+        ):
+            mutate_candidate(
+                self.db,
+                self.candidate_id,
+                "accept",
+                provenance_id=self.provenance_id,
+            )

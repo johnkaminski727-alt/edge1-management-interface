@@ -17,6 +17,7 @@ from .edge1_security_auth_http_actions import SecurityHttpActionMixin
 from .edge1_security_auth_http_config import HttpAdapterConfig
 from .edge1_security_auth_http_helpers import SecurityHttpHelpersMixin
 from .edge1_security_auth_http_types import LOOPBACKS, HttpRequest, HttpResponse
+from .unified_contacts_review_http import ContactsReviewAdapter
 from .edge1_vpn_account_client import VPNAccountBackend, VPNAccountBackendError
 
 CONSOLE_READ_SCOPE = "edge1.security.read"
@@ -42,6 +43,57 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
         )
         self.console_path = console_path
         self.now = now
+        self.contacts_review = ContactsReviewAdapter(
+            self.gateway,
+            self.operations,
+        )
+
+    def _contacts_review_action(
+        self,
+        request: HttpRequest,
+        contacts_route,
+    ) -> HttpResponse:
+        candidate_id, operation = contacts_route
+
+        # Reuse the same authenticated browser boundary as the
+        # existing security action: exact origin, session cookie,
+        # and CSRF validation all remain server-side.
+        self._require_same_origin(request)
+
+        session_token = self._session_token(request)
+        request_id = self._request_id()
+
+        # Authenticate first so CSRF verification can bind to the
+        # exact Edge1 session identifier, matching the existing
+        # authenticated action contract.
+        context = self.gateway.authenticate_session(
+            session_token,
+            request_id,
+        )
+
+        self._require_csrf(
+            request,
+            context.session_identifier_hash,
+        )
+
+        parameters = self.contacts_review.parse_payload(
+            operation,
+            request.body,
+        )
+
+        result = self.contacts_review.review(
+            session_token=session_token,
+            request_id=request_id,
+            csrf_validated=True,
+            candidate_id=candidate_id,
+            operation=operation,
+            parameters=parameters,
+        )
+
+        return self._json(
+            result.status_code,
+            dict(result.payload),
+        )
 
     def handle(self, request: HttpRequest) -> HttpResponse:
         try:
@@ -63,6 +115,18 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
                 return self._method(request, {"POST"}, self._logout)
             if request.path == route["validate"]:
                 return self._method(request, {"POST"}, self._validate_action)
+
+            contacts_route = self.contacts_review.parse_path(request.path)
+            if contacts_route is not None:
+                return self._method(
+                    request,
+                    {"POST"},
+                    lambda req: self._contacts_review_action(
+                        req,
+                        contacts_route,
+                    ),
+                )
+
             return self._json(404, {"error": "not_found"})
         except ValueError:
             return self._json(400, {"error": "bad_request"})

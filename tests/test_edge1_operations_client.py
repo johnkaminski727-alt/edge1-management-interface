@@ -115,3 +115,163 @@ class OperationsClientTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ContactsTypedActionClientTests(unittest.TestCase):
+    def _secret(self):
+        import tempfile
+        from pathlib import Path
+
+        directory = tempfile.TemporaryDirectory()
+        path = Path(directory.name) / "secret"
+        path.write_bytes(b"x" * 64)
+        path.chmod(0o600)
+        return directory, path
+
+    def test_contacts_action_serializes_parameters_and_signs_exact_body(self):
+        import hashlib
+        import hmac
+        import json
+        from unittest.mock import patch
+
+        from server.edge1_operations_client import Edge1OperationsClient
+
+        directory, secret = self._secret()
+        captured = {}
+
+        class Response:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self, _limit):
+                return json.dumps({
+                    "event_id": "contacts-event-1",
+                    "status": "succeeded",
+                }).encode()
+
+        def fake_urlopen(request, timeout):
+            captured["request"] = request
+            captured["timeout"] = timeout
+            return Response()
+
+        client = Edge1OperationsClient(
+            secret_path=secret,
+            now=lambda: 1234567890,
+        )
+
+        parameters = {
+            "candidate_id": 7,
+            "provenance_id": 11,
+            "evidence_role": "supporting",
+        }
+
+        with patch(
+            "server.edge1_operations_client.secrets.token_hex",
+            return_value="a" * 48,
+        ), patch(
+            "server.edge1_operations_client.urlopen",
+            side_effect=fake_urlopen,
+        ):
+            result = client.run(
+                "contacts.correlation.promote",
+                "john",
+                parameters=parameters,
+            )
+
+        request = captured["request"]
+
+        expected_body = json.dumps(
+            parameters,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode()
+
+        self.assertEqual(request.data, expected_body)
+        self.assertEqual(
+            request.full_url,
+            "http://127.0.0.1:8097/"
+            "v1/actions/contacts.correlation.promote/run",
+        )
+
+        actor = "edge1-security-console:john"
+        body_hash = hashlib.sha256(expected_body).hexdigest()
+
+        canonical = "\n".join((
+            "POST",
+            "/v1/actions/contacts.correlation.promote/run",
+            "1234567890",
+            "a" * 48,
+            actor,
+            body_hash,
+        )).encode()
+
+        expected_signature = hmac.new(
+            b"x" * 64,
+            canonical,
+            hashlib.sha256,
+        ).hexdigest()
+
+        self.assertEqual(
+            request.headers["X-wwcx-signature"],
+            expected_signature,
+        )
+        self.assertEqual(result.action_id, "contacts.correlation.promote")
+        self.assertEqual(result.status, "succeeded")
+
+        directory.cleanup()
+
+    def test_contacts_accept_and_reject_are_allowlisted(self):
+        from server.edge1_operations_client import ACTION_PATHS
+
+        self.assertEqual(
+            ACTION_PATHS["contacts.correlation.accept"],
+            "/v1/actions/contacts.correlation.accept/run",
+        )
+        self.assertEqual(
+            ACTION_PATHS["contacts.correlation.reject"],
+            "/v1/actions/contacts.correlation.reject/run",
+        )
+
+    def test_unknown_action_remains_rejected(self):
+        from server.edge1_operations_client import (
+            Edge1OperationsClient,
+            OperationsClientError,
+        )
+
+        directory, secret = self._secret()
+
+        client = Edge1OperationsClient(secret_path=secret)
+
+        with self.assertRaises(OperationsClientError):
+            client.run(
+                "contacts.correlation.merge",
+                "john",
+                parameters={"candidate_id": 1},
+            )
+
+        directory.cleanup()
+
+    def test_non_object_parameters_are_rejected(self):
+        from server.edge1_operations_client import (
+            Edge1OperationsClient,
+            OperationsClientError,
+        )
+
+        directory, secret = self._secret()
+
+        client = Edge1OperationsClient(secret_path=secret)
+
+        with self.assertRaises(OperationsClientError):
+            client.run(
+                "contacts.correlation.accept",
+                "john",
+                parameters=["bad"],
+            )
+
+        directory.cleanup()

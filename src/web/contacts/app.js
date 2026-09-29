@@ -961,7 +961,8 @@ function renderCorrelationDetail(row) {
       "Interpretation",
       "This is a review candidate, not an established " +
       "relationship or identity assertion."
-    );
+    ) +
+    correlationReviewHtml(row);
 }
 
 function renderSourceDetail(row) {
@@ -1370,3 +1371,179 @@ Promise.all([
       ${escapeHtml(error.message)}
     </div>`;
 });
+
+/*
+ * Candidate-review source contract.
+ *
+ * Browser authentication is the existing Edge1 session.
+ * The Operations API HMAC credential is never exposed here.
+ * Activation occurs only after the authenticated review route
+ * is separately integrated and tested.
+ */
+
+function edge1Cookie(name) {
+  const prefix = `${name}=`;
+
+  for (const item of document.cookie.split(";")) {
+    const value = item.trim();
+
+    if (value.startsWith(prefix)) {
+      return decodeURIComponent(
+        value.slice(prefix.length)
+      );
+    }
+  }
+
+  return "";
+}
+
+function correlationReviewAvailable(row) {
+  return Boolean(
+    row &&
+    Number.isInteger(Number(row.correlation_id)) &&
+    Number(row.correlation_id) > 0 &&
+    ["pending", "accepted"].includes(
+      row.review_status || "pending"
+    )
+  );
+}
+
+function correlationReviewHtml(row) {
+  if (!correlationReviewAvailable(row)) {
+    return "";
+  }
+
+  const status = row.review_status || "pending";
+
+  if (status === "pending") {
+    return `
+      <section class="correlation-review">
+        <div class="detail-label">Review candidate</div>
+        <div class="correlation-review-actions">
+          <button
+            type="button"
+            data-correlation-action="accept"
+            data-correlation-id="${Number(row.correlation_id)}"
+          >Accept candidate</button>
+          <button
+            type="button"
+            data-correlation-action="reject"
+            data-correlation-id="${Number(row.correlation_id)}"
+          >Reject candidate</button>
+        </div>
+        <div class="correlation-review-note">
+          Accepting a candidate does not merge identities and
+          does not itself create a durable relationship.
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="correlation-review">
+      <div class="detail-label">Accepted candidate</div>
+      <div class="correlation-review-note">
+        Promotion requires supporting provenance and creates a
+        durable relationship. It does not merge identities.
+      </div>
+    </section>
+  `;
+}
+
+async function submitCorrelationReview(
+  candidateId,
+  operation,
+  payload = {}
+) {
+  const csrf = edge1Cookie(
+    "__Secure-wwcx_edge1_ops_csrf"
+  );
+
+  if (!csrf) {
+    throw new Error(
+      "Authenticated Edge1 review session is required."
+    );
+  }
+
+  const response = await fetch(
+    `/edge1-ops/api/v1/contacts/correlations/` +
+      `${candidateId}/${operation}`,
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-WWCX-CSRF": csrf,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  let body = {};
+
+  try {
+    body = await response.json();
+  } catch (_) {
+    body = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      body.error ||
+      body.message ||
+      `Review request failed (HTTP ${response.status})`
+    );
+  }
+
+  return body;
+}
+
+async function handleCorrelationReviewClick(event) {
+  const button = event.target.closest(
+    "[data-correlation-action]"
+  );
+
+  if (!button) {
+    return;
+  }
+
+  const candidateId = Number(
+    button.dataset.correlationId
+  );
+
+  const operation =
+    button.dataset.correlationAction;
+
+  if (
+    !Number.isInteger(candidateId) ||
+    candidateId < 1 ||
+    !["accept", "reject"].includes(operation)
+  ) {
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    await submitCorrelationReview(
+      candidateId,
+      operation,
+      {}
+    );
+
+    await loadDirectory();
+  } catch (error) {
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : "Candidate review failed."
+    );
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.addEventListener(
+  "click",
+  handleCorrelationReviewClick
+);
