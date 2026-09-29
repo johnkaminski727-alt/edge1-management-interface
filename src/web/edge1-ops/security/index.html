@@ -119,9 +119,10 @@ async function loadNavigation(){
     renderNavigation(allNavigation);
     renderModuleGrid(allNavigation);
   }catch{
-    allNavigation=[];acceptedNavigation=[];
-    renderNavigation([]);
-    moduleGrid.innerHTML='<div class="card upcoming"><div class="label">Navigation registry</div><div class="value">Unavailable</div><p class="module-description">The portal remains fail-closed. No inferred routes were added.</p></div>';
+    acceptedNavigation=[{id:"operations-center",label:"Operations Center",section:"Operations",browser_route:"/edge1-status/",description:"Read-only infrastructure operations visibility.",availability:"accepted_live",dashboard_visibility:true,sort_order:10}];
+    allNavigation=acceptedNavigation;
+    renderNavigation(allNavigation);
+    renderModuleGrid(allNavigation);
   }
 }
 const palette=document.getElementById("palette"),paletteOpen=document.getElementById("palette-open"),paletteQuery=document.getElementById("palette-query"),paletteResults=document.getElementById("palette-results");
