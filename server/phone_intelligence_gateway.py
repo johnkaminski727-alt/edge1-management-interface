@@ -31,6 +31,8 @@ PHONE_DETAIL_RE = re.compile(
 ALLOWED_API_PATHS = {
     "/api/contacts/summary":
         "/v1/contacts/summary",
+    "/api/contacts/entities":
+        "/v1/contacts/entities",
     "/api/contacts/search":
         "/v1/contacts/search",
     "/api/contacts/unassigned":
@@ -51,6 +53,12 @@ ALLOWED_API_PATHS = {
 
 ALLOWED_QUERY_KEYS = {
     "/api/contacts/summary": set(),
+    "/api/contacts/entities": {
+        "q",
+        "entity_type",
+        "limit",
+        "offset",
+    },
     "/api/contacts/search": {
         "q",
         "kind",
@@ -78,6 +86,7 @@ ALLOWED_QUERY_KEYS = {
     "/api/contacts/evidence": {
         "assertion_id",
         "contact_point_id",
+        "entity_id",
         "limit",
     },
     "/api/intelligence/phones": {

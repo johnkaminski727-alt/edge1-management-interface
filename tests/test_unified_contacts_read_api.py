@@ -86,6 +86,40 @@ CREATE TABLE contact_observations (
         REFERENCES provenance_records(id)
 );
 
+CREATE TABLE contact_entity_aliases (
+    id INTEGER PRIMARY KEY,
+    entity_id INTEGER NOT NULL,
+    alias_name TEXT NOT NULL,
+    alias_type TEXT NOT NULL,
+    confidence TEXT NOT NULL,
+    provenance_id INTEGER,
+    source_path TEXT,
+    notes TEXT,
+    FOREIGN KEY(entity_id)
+        REFERENCES contact_entities(id),
+    FOREIGN KEY(provenance_id)
+        REFERENCES provenance_records(id)
+);
+
+CREATE TABLE contact_attestations (
+    id INTEGER PRIMARY KEY,
+    entity_id INTEGER,
+    contact_point_id INTEGER,
+    provenance_id INTEGER NOT NULL,
+    attribute TEXT NOT NULL,
+    attested_value TEXT NOT NULL,
+    classification TEXT,
+    verification_status TEXT NOT NULL,
+    source_path TEXT NOT NULL,
+    notes TEXT,
+    FOREIGN KEY(entity_id)
+        REFERENCES contact_entities(id),
+    FOREIGN KEY(contact_point_id)
+        REFERENCES contact_points(id),
+    FOREIGN KEY(provenance_id)
+        REFERENCES provenance_records(id)
+);
+
 CREATE TABLE candidate_correlations (
     id INTEGER PRIMARY KEY
 );
@@ -281,6 +315,73 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
                 )
             """)
 
+            con.execute("""
+                INSERT INTO contact_entity_aliases (
+                    id,
+                    entity_id,
+                    alias_name,
+                    alias_type,
+                    confidence,
+                    provenance_id,
+                    source_path
+                )
+                VALUES (
+                    1,
+                    1,
+                    'Example Operating Name',
+                    'operating_name',
+                    'document_sourced',
+                    1,
+                    '$.example.alias'
+                )
+            """)
+
+            con.execute("""
+                INSERT INTO contact_attestations (
+                    id,
+                    entity_id,
+                    provenance_id,
+                    attribute,
+                    attested_value,
+                    classification,
+                    verification_status,
+                    source_path
+                )
+                VALUES (
+                    1,
+                    1,
+                    1,
+                    'identity_name',
+                    'Example Org',
+                    'source_named_organization',
+                    'document_sourced',
+                    '$.example.name'
+                )
+            """)
+
+            con.execute("""
+                INSERT INTO contact_attestations (
+                    id,
+                    contact_point_id,
+                    provenance_id,
+                    attribute,
+                    attested_value,
+                    classification,
+                    verification_status,
+                    source_path
+                )
+                VALUES (
+                    2,
+                    1,
+                    1,
+                    'phone_classification',
+                    'test',
+                    'test',
+                    'unverified',
+                    '$.example.phone'
+                )
+            """)
+
             con.commit()
 
         finally:
@@ -425,6 +526,100 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
             len(result["observations"]),
             1,
         )
+
+
+    def test_entities_are_one_row_per_entity(self):
+        rows = self.store.entities(limit=10)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0]["canonical_name"],
+            "Example Org",
+        )
+        self.assertEqual(
+            rows[0]["contact_point_count"],
+            1,
+        )
+        self.assertEqual(
+            rows[0]["alias_count"],
+            1,
+        )
+        self.assertEqual(
+            rows[0]["attestation_count"],
+            1,
+        )
+
+    def test_entity_search_matches_alias(self):
+        rows = self.store.entities(
+            query="Operating Name",
+            limit=10,
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0]["canonical_name"],
+            "Example Org",
+        )
+
+    def test_legacy_search_matches_alias(self):
+        rows = self.store.search(
+            query="Operating Name",
+            limit=10,
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0]["canonical_name"],
+            "Example Org",
+        )
+
+    def test_entity_evidence_keeps_new_layers_separate(self):
+        result = self.store.evidence(
+            entity_id=1,
+            limit=10,
+        )
+
+        self.assertEqual(
+            len(result["assertions"]),
+            1,
+        )
+        self.assertEqual(
+            len(result["assertion_evidence"]),
+            1,
+        )
+        self.assertEqual(
+            len(result["aliases"]),
+            1,
+        )
+        self.assertEqual(
+            len(result["attestations"]),
+            2,
+        )
+        self.assertEqual(
+            len(result["observations"]),
+            1,
+        )
+
+        statuses = {
+            row["verification_status"]
+            for row in result["attestations"]
+        }
+
+        self.assertEqual(
+            statuses,
+            {"document_sourced", "unverified"},
+        )
+
+    def test_evidence_requires_exactly_one_selector(self):
+        with self.assertRaises(ValueError):
+            self.store.evidence(limit=10)
+
+        with self.assertRaises(ValueError):
+            self.store.evidence(
+                entity_id=1,
+                contact_point_id=1,
+                limit=10,
+            )
 
 
 if __name__ == "__main__":

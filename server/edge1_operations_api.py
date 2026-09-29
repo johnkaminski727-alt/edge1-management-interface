@@ -552,6 +552,48 @@ class Handler(BaseHTTPRequestHandler):
 
                 payload = store.summary()
 
+            elif path == "/v1/contacts/entities":
+                allowed = {
+                    "q",
+                    "entity_type",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                entity_type = one("entity_type")
+
+                if entity_type not in {
+                    "",
+                    "organization",
+                    "person",
+                }:
+                    self.send_json(
+                        400,
+                        {"error": "invalid entity type"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.entities(
+                    query=one("q"),
+                    entity_type=entity_type,
+                    limit=limit,
+                    offset=offset,
+                )
+
             elif path == "/v1/contacts/search":
                 allowed = {"q", "kind", "limit"}
 
@@ -670,6 +712,7 @@ class Handler(BaseHTTPRequestHandler):
                 allowed = {
                     "assertion_id",
                     "contact_point_id",
+                    "entity_id",
                     "limit",
                 }
 
@@ -682,13 +725,24 @@ class Handler(BaseHTTPRequestHandler):
 
                 assertion = one("assertion_id")
                 point = one("contact_point_id")
+                entity = one("entity_id")
 
-                if not assertion and not point:
+                supplied = sum(
+                    bool(value)
+                    for value in (
+                        assertion,
+                        point,
+                        entity,
+                    )
+                )
+
+                if supplied != 1:
                     self.send_json(
                         400,
                         {
                             "error": (
-                                "assertion_id or contact_point_id "
+                                "exactly one of assertion_id, "
+                                "contact_point_id or entity_id "
                                 "is required"
                             )
                         },
@@ -701,6 +755,9 @@ class Handler(BaseHTTPRequestHandler):
                     ),
                     contact_point_id=integer(
                         "contact_point_id"
+                    ),
+                    entity_id=integer(
+                        "entity_id"
                     ),
                     limit=limit,
                 )
