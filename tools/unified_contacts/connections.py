@@ -102,9 +102,83 @@ def reject_candidate(
     )
 
 
+def _endpoint(
+    entity_id,
+    contact_point_id,
+):
+    if (
+        (entity_id is None)
+        == (contact_point_id is None)
+    ):
+        raise ValueError(
+            "endpoint must identify exactly one subject"
+        )
+
+    if entity_id is not None:
+        return (0, "entity", int(entity_id))
+
+    return (
+        1,
+        "contact_point",
+        int(contact_point_id),
+    )
+
+
+def _candidate_endpoints(candidate):
+    left = _endpoint(
+        candidate["left_entity_id"],
+        candidate["left_contact_point_id"],
+    )
+    right = _endpoint(
+        candidate["right_entity_id"],
+        candidate["right_contact_point_id"],
+    )
+
+    if left == right:
+        raise ValueError(
+            "self-relationships are not permitted"
+        )
+
+    return left, right
+
+
+def _canonical_candidate(
+    candidate,
+    directionality,
+):
+    left, right = _candidate_endpoints(candidate)
+
+    if (
+        directionality == "directed"
+        or left <= right
+    ):
+        return {
+            "left_entity_id":
+                candidate["left_entity_id"],
+            "right_entity_id":
+                candidate["right_entity_id"],
+            "left_contact_point_id":
+                candidate["left_contact_point_id"],
+            "right_contact_point_id":
+                candidate["right_contact_point_id"],
+        }
+
+    return {
+        "left_entity_id":
+            candidate["right_entity_id"],
+        "right_entity_id":
+            candidate["left_entity_id"],
+        "left_contact_point_id":
+            candidate["right_contact_point_id"],
+        "right_contact_point_id":
+            candidate["left_contact_point_id"],
+    }
+
+
 def _active_relationship(
     db: sqlite3.Connection,
     candidate,
+    endpoints,
 ):
     return db.execute(
         """
@@ -121,10 +195,10 @@ def _active_relationship(
         LIMIT 1
         """,
         (
-            candidate["left_entity_id"],
-            candidate["right_entity_id"],
-            candidate["left_contact_point_id"],
-            candidate["right_contact_point_id"],
+            endpoints["left_entity_id"],
+            endpoints["right_entity_id"],
+            endpoints["left_contact_point_id"],
+            endpoints["right_contact_point_id"],
             candidate["correlation_type"],
         ),
     ).fetchone()
@@ -135,8 +209,6 @@ def promote_candidate(
     candidate_id: int,
     provenance_id: int,
     *,
-    evidence_verified: bool = False,
-    evidence_document_sourced: bool = False,
     evidence_role: str = "supporting",
     evidence_summary: str = "",
 ) -> PromotionResult:
@@ -158,24 +230,16 @@ def promote_candidate(
         candidate["correlation_type"]
     )
 
-    confidence = promotion_confidence(
-        candidate["confidence"],
-        evidence_verified=evidence_verified,
-        evidence_document_sourced=(
-            evidence_document_sourced
-        ),
-    )
-
-    validate_relationship(
-        candidate["correlation_type"],
-        confidence,
+    endpoints = _canonical_candidate(
+        candidate,
         definition.directionality,
-        candidate=False,
     )
 
     provenance = db.execute(
         """
-        SELECT id
+        SELECT
+            id,
+            verification_status
         FROM provenance_records
         WHERE id=?
         """,
@@ -187,9 +251,22 @@ def promote_candidate(
             f"provenance not found: {provenance_id}"
         )
 
+    confidence = promotion_confidence(
+        candidate["confidence"],
+        provenance["verification_status"],
+    )
+
+    validate_relationship(
+        candidate["correlation_type"],
+        confidence,
+        definition.directionality,
+        candidate=False,
+    )
+
     existing = _active_relationship(
         db,
         candidate,
+        endpoints,
     )
 
     if existing is None:
@@ -209,10 +286,10 @@ def promote_candidate(
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                candidate["left_entity_id"],
-                candidate["right_entity_id"],
-                candidate["left_contact_point_id"],
-                candidate["right_contact_point_id"],
+                endpoints["left_entity_id"],
+                endpoints["right_entity_id"],
+                endpoints["left_contact_point_id"],
+                endpoints["right_contact_point_id"],
                 candidate["correlation_type"],
                 confidence,
                 "active",

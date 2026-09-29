@@ -24,7 +24,8 @@ CREATE TABLE contact_points (
 );
 
 CREATE TABLE provenance_records (
-    id INTEGER PRIMARY KEY
+    id INTEGER PRIMARY KEY,
+    verification_status TEXT NOT NULL
 );
 
 CREATE TABLE candidate_correlations (
@@ -89,8 +90,11 @@ class ConnectionsLifecycleTests(unittest.TestCase):
 
         self.db.execute(
             """
-            INSERT INTO provenance_records(id)
-            VALUES (20)
+            INSERT INTO provenance_records(
+                id,
+                verification_status
+            )
+            VALUES (20, 'document_sourced')
             """
         )
 
@@ -135,7 +139,6 @@ class ConnectionsLifecycleTests(unittest.TestCase):
                 self.db,
                 candidate_id,
                 20,
-                evidence_document_sourced=True,
             )
 
     def test_accept_then_promote(self):
@@ -150,7 +153,6 @@ class ConnectionsLifecycleTests(unittest.TestCase):
             self.db,
             candidate_id,
             20,
-            evidence_document_sourced=True,
             evidence_summary="test",
         )
 
@@ -198,7 +200,6 @@ class ConnectionsLifecycleTests(unittest.TestCase):
             self.db,
             candidate_id,
             20,
-            evidence_document_sourced=True,
             evidence_summary="test",
         )
 
@@ -206,7 +207,6 @@ class ConnectionsLifecycleTests(unittest.TestCase):
             self.db,
             candidate_id,
             20,
-            evidence_document_sourced=True,
             evidence_summary="test",
         )
 
@@ -413,6 +413,315 @@ class ConnectionsLifecycleTests(unittest.TestCase):
         self.assertEqual(
             tuple(row),
             (1, 10),
+        )
+
+
+class ConnectionsMutationSafetyTests(unittest.TestCase):
+
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA foreign_keys=ON")
+        self.db.executescript(BASE_SCHEMA)
+
+        self.db.executemany(
+            "INSERT INTO contact_entities(id) VALUES (?)",
+            [(1,), (2,), (3,)],
+        )
+
+        self.db.executemany(
+            "INSERT INTO contact_points(id) VALUES (?)",
+            [(1,), (10,)],
+        )
+
+        self.db.executemany(
+            """
+            INSERT INTO provenance_records(
+                id,
+                verification_status
+            )
+            VALUES (?, ?)
+            """,
+            [
+                (20, "verified"),
+                (21, "document_sourced"),
+                (22, "missing_source"),
+                (23, "unverified"),
+            ],
+        )
+
+        migrate(self.db)
+
+    def candidate(
+        self,
+        *,
+        left_entity=None,
+        right_entity=None,
+        left_point=None,
+        right_point=None,
+        relationship_type="associated_with",
+        confidence="probable",
+    ):
+        cur = self.db.execute(
+            """
+            INSERT INTO candidate_correlations(
+                left_entity_id,
+                right_entity_id,
+                left_contact_point_id,
+                right_contact_point_id,
+                correlation_type,
+                confidence,
+                review_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+            """,
+            (
+                left_entity,
+                right_entity,
+                left_point,
+                right_point,
+                relationship_type,
+                confidence,
+            ),
+        )
+
+        candidate_id = cur.lastrowid
+
+        accept_candidate(
+            self.db,
+            candidate_id,
+        )
+
+        return candidate_id
+
+    def relationship_confidence(self, relationship_id):
+        return self.db.execute(
+            """
+            SELECT confidence
+            FROM contact_relationships
+            WHERE id=?
+            """,
+            (relationship_id,),
+        ).fetchone()[0]
+
+    def test_verified_provenance_confirms(self):
+        candidate_id = self.candidate(
+            left_entity=1,
+            right_entity=2,
+            confidence="possible",
+        )
+
+        result = promote_candidate(
+            self.db,
+            candidate_id,
+            20,
+        )
+
+        self.assertEqual(
+            self.relationship_confidence(
+                result.relationship_id
+            ),
+            "confirmed",
+        )
+
+    def test_document_sourced_provenance(self):
+        candidate_id = self.candidate(
+            left_entity=1,
+            right_entity=2,
+            confidence="possible",
+        )
+
+        result = promote_candidate(
+            self.db,
+            candidate_id,
+            21,
+        )
+
+        self.assertEqual(
+            self.relationship_confidence(
+                result.relationship_id
+            ),
+            "document_sourced",
+        )
+
+    def test_unverified_cannot_inflate(self):
+        candidate_id = self.candidate(
+            left_entity=1,
+            right_entity=2,
+            confidence="possible",
+        )
+
+        result = promote_candidate(
+            self.db,
+            candidate_id,
+            23,
+        )
+
+        self.assertEqual(
+            self.relationship_confidence(
+                result.relationship_id
+            ),
+            "unverified",
+        )
+
+    def test_missing_source_preserves_probable(self):
+        candidate_id = self.candidate(
+            left_entity=1,
+            right_entity=2,
+            confidence="probable",
+        )
+
+        result = promote_candidate(
+            self.db,
+            candidate_id,
+            22,
+        )
+
+        self.assertEqual(
+            self.relationship_confidence(
+                result.relationship_id
+            ),
+            "probable",
+        )
+
+    def test_entity_self_edge_rejected(self):
+        candidate_id = self.candidate(
+            left_entity=1,
+            right_entity=1,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "self-relationships",
+        ):
+            promote_candidate(
+                self.db,
+                candidate_id,
+                21,
+            )
+
+        count = self.db.execute(
+            """
+            SELECT COUNT(*)
+            FROM contact_relationships
+            """
+        ).fetchone()[0]
+
+        self.assertEqual(count, 0)
+
+    def test_point_self_edge_rejected(self):
+        candidate_id = self.candidate(
+            left_point=10,
+            right_point=10,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "self-relationships",
+        ):
+            promote_candidate(
+                self.db,
+                candidate_id,
+                21,
+            )
+
+    def test_numeric_namespace_overlap_not_self(self):
+        candidate_id = self.candidate(
+            left_entity=1,
+            right_point=1,
+        )
+
+        result = promote_candidate(
+            self.db,
+            candidate_id,
+            21,
+        )
+
+        self.assertTrue(
+            result.relationship_created
+        )
+
+    def test_undirected_reverse_collapses(self):
+        first_id = self.candidate(
+            left_entity=2,
+            right_entity=1,
+            relationship_type="associated_with",
+        )
+
+        first = promote_candidate(
+            self.db,
+            first_id,
+            21,
+        )
+
+        second_id = self.candidate(
+            left_entity=1,
+            right_entity=2,
+            relationship_type="associated_with",
+        )
+
+        second = promote_candidate(
+            self.db,
+            second_id,
+            21,
+        )
+
+        self.assertEqual(
+            first.relationship_id,
+            second.relationship_id,
+        )
+
+        self.assertTrue(
+            first.relationship_created
+        )
+        self.assertFalse(
+            second.relationship_created
+        )
+
+        row = self.db.execute(
+            """
+            SELECT
+                left_entity_id,
+                right_entity_id
+            FROM contact_relationships
+            WHERE id=?
+            """,
+            (first.relationship_id,),
+        ).fetchone()
+
+        self.assertEqual(
+            tuple(row),
+            (1, 2),
+        )
+
+    def test_directed_reverse_remains_distinct(self):
+        first_id = self.candidate(
+            left_entity=1,
+            right_entity=2,
+            relationship_type="vendor_of",
+        )
+
+        second_id = self.candidate(
+            left_entity=2,
+            right_entity=1,
+            relationship_type="vendor_of",
+        )
+
+        first = promote_candidate(
+            self.db,
+            first_id,
+            21,
+        )
+
+        second = promote_candidate(
+            self.db,
+            second_id,
+            21,
+        )
+
+        self.assertNotEqual(
+            first.relationship_id,
+            second.relationship_id,
         )
 
 

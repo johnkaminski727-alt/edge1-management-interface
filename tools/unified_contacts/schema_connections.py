@@ -176,3 +176,168 @@ def harden(
     connection.executescript(
         HARDENING_DDL
     )
+
+
+def harden_relationship_constraints(db):
+    """Install database-level relationship safety invariants."""
+
+    db.executescript(
+        """
+        CREATE TRIGGER IF NOT EXISTS
+        trg_contact_relationships_no_self_insert
+        BEFORE INSERT ON contact_relationships
+        WHEN
+            (
+                NEW.left_entity_id IS NOT NULL
+                AND NEW.right_entity_id IS NOT NULL
+                AND NEW.left_entity_id = NEW.right_entity_id
+            )
+            OR
+            (
+                NEW.left_contact_point_id IS NOT NULL
+                AND NEW.right_contact_point_id IS NOT NULL
+                AND NEW.left_contact_point_id =
+                    NEW.right_contact_point_id
+            )
+        BEGIN
+            SELECT RAISE(
+                ABORT,
+                'contact relationship self-edge'
+            );
+        END;
+
+
+        CREATE TRIGGER IF NOT EXISTS
+        trg_contact_relationships_no_self_update
+        BEFORE UPDATE ON contact_relationships
+        WHEN
+            (
+                NEW.left_entity_id IS NOT NULL
+                AND NEW.right_entity_id IS NOT NULL
+                AND NEW.left_entity_id = NEW.right_entity_id
+            )
+            OR
+            (
+                NEW.left_contact_point_id IS NOT NULL
+                AND NEW.right_contact_point_id IS NOT NULL
+                AND NEW.left_contact_point_id =
+                    NEW.right_contact_point_id
+            )
+        BEGIN
+            SELECT RAISE(
+                ABORT,
+                'contact relationship self-edge'
+            );
+        END;
+
+
+        CREATE TRIGGER IF NOT EXISTS
+        trg_contact_relationships_canonical_insert
+        BEFORE INSERT ON contact_relationships
+        WHEN
+            NEW.directionality = 'undirected'
+            AND
+            (
+                CASE
+                    WHEN NEW.left_entity_id IS NOT NULL
+                        THEN 0
+                    ELSE 1
+                END
+                >
+                CASE
+                    WHEN NEW.right_entity_id IS NOT NULL
+                        THEN 0
+                    ELSE 1
+                END
+
+                OR
+
+                (
+                    CASE
+                        WHEN NEW.left_entity_id IS NOT NULL
+                            THEN 0
+                        ELSE 1
+                    END
+                    =
+                    CASE
+                        WHEN NEW.right_entity_id IS NOT NULL
+                            THEN 0
+                        ELSE 1
+                    END
+
+                    AND
+
+                    COALESCE(
+                        NEW.left_entity_id,
+                        NEW.left_contact_point_id
+                    )
+                    >
+                    COALESCE(
+                        NEW.right_entity_id,
+                        NEW.right_contact_point_id
+                    )
+                )
+            )
+        BEGIN
+            SELECT RAISE(
+                ABORT,
+                'noncanonical undirected relationship'
+            );
+        END;
+
+
+        CREATE TRIGGER IF NOT EXISTS
+        trg_contact_relationships_canonical_update
+        BEFORE UPDATE ON contact_relationships
+        WHEN
+            NEW.directionality = 'undirected'
+            AND
+            (
+                CASE
+                    WHEN NEW.left_entity_id IS NOT NULL
+                        THEN 0
+                    ELSE 1
+                END
+                >
+                CASE
+                    WHEN NEW.right_entity_id IS NOT NULL
+                        THEN 0
+                    ELSE 1
+                END
+
+                OR
+
+                (
+                    CASE
+                        WHEN NEW.left_entity_id IS NOT NULL
+                            THEN 0
+                        ELSE 1
+                    END
+                    =
+                    CASE
+                        WHEN NEW.right_entity_id IS NOT NULL
+                            THEN 0
+                        ELSE 1
+                    END
+
+                    AND
+
+                    COALESCE(
+                        NEW.left_entity_id,
+                        NEW.left_contact_point_id
+                    )
+                    >
+                    COALESCE(
+                        NEW.right_entity_id,
+                        NEW.right_contact_point_id
+                    )
+                )
+            )
+        BEGIN
+            SELECT RAISE(
+                ABORT,
+                'noncanonical undirected relationship'
+            );
+        END;
+        """
+    )

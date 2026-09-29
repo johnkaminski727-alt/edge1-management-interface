@@ -1,7 +1,10 @@
 import sqlite3
 import unittest
 
-from tools.unified_contacts.schema_connections import migrate
+from tools.unified_contacts.schema_connections import (
+    harden_relationship_constraints,
+    migrate,
+)
 
 
 BASE_SCHEMA = """
@@ -254,6 +257,7 @@ class ConnectionsHardeningTests(unittest.TestCase):
         migrate(self.db)
 
         from tools.unified_contacts.schema_connections import (
+    harden_relationship_constraints,
             harden,
         )
 
@@ -407,3 +411,180 @@ class ConnectionsHardeningTests(unittest.TestCase):
             sqlite3.IntegrityError
         ):
             self.db.execute(sql)
+
+
+class ConnectionsDatabaseHardeningTests(unittest.TestCase):
+
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        self.db.execute("PRAGMA foreign_keys=ON")
+
+        self.db.executescript(
+            """
+            CREATE TABLE contact_entities (
+                id INTEGER PRIMARY KEY
+            );
+
+            CREATE TABLE contact_points (
+                id INTEGER PRIMARY KEY
+            );
+            """
+        )
+
+        self.db.executemany(
+            "INSERT INTO contact_entities(id) VALUES (?)",
+            [(1,), (2,)],
+        )
+
+        self.db.executemany(
+            "INSERT INTO contact_points(id) VALUES (?)",
+            [(1,), (2,)],
+        )
+
+        migrate(self.db)
+        harden_relationship_constraints(self.db)
+
+    def tearDown(self):
+        self.db.close()
+
+    def insert_relationship(
+        self,
+        *,
+        left_entity=None,
+        right_entity=None,
+        left_point=None,
+        right_point=None,
+        directionality="undirected",
+        relationship_type="associated_with",
+    ):
+        return self.db.execute(
+            """
+            INSERT INTO contact_relationships(
+                left_entity_id,
+                right_entity_id,
+                left_contact_point_id,
+                right_contact_point_id,
+                relationship_type,
+                confidence,
+                lifecycle_status,
+                directionality
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                left_entity,
+                right_entity,
+                left_point,
+                right_point,
+                relationship_type,
+                "document_sourced",
+                "active",
+                directionality,
+            ),
+        )
+
+    def test_entity_self_edge_blocked(self):
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError,
+            "self-edge",
+        ):
+            self.insert_relationship(
+                left_entity=1,
+                right_entity=1,
+            )
+
+    def test_point_self_edge_blocked(self):
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError,
+            "self-edge",
+        ):
+            self.insert_relationship(
+                left_point=1,
+                right_point=1,
+            )
+
+    def test_canonical_entity_pair_allowed(self):
+        self.insert_relationship(
+            left_entity=1,
+            right_entity=2,
+        )
+
+    def test_reversed_entity_pair_blocked(self):
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError,
+            "noncanonical",
+        ):
+            self.insert_relationship(
+                left_entity=2,
+                right_entity=1,
+            )
+
+    def test_entity_before_point_allowed(self):
+        self.insert_relationship(
+            left_entity=2,
+            right_point=1,
+        )
+
+    def test_point_before_entity_blocked(self):
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError,
+            "noncanonical",
+        ):
+            self.insert_relationship(
+                left_point=1,
+                right_entity=2,
+            )
+
+    def test_numeric_namespace_overlap_allowed(self):
+        self.insert_relationship(
+            left_entity=1,
+            right_point=1,
+        )
+
+    def test_directed_reverse_allowed(self):
+        self.insert_relationship(
+            left_entity=2,
+            right_entity=1,
+            directionality="directed",
+            relationship_type="vendor_of",
+        )
+
+    def test_update_to_self_edge_blocked(self):
+        cur = self.insert_relationship(
+            left_entity=1,
+            right_entity=2,
+        )
+
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError,
+            "self-edge",
+        ):
+            self.db.execute(
+                """
+                UPDATE contact_relationships
+                SET right_entity_id=1
+                WHERE id=?
+                """,
+                (cur.lastrowid,),
+            )
+
+    def test_update_to_noncanonical_blocked(self):
+        cur = self.insert_relationship(
+            left_entity=1,
+            right_entity=2,
+        )
+
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError,
+            "noncanonical",
+        ):
+            self.db.execute(
+                """
+                UPDATE contact_relationships
+                SET
+                    left_entity_id=2,
+                    right_entity_id=1
+                WHERE id=?
+                """,
+                (cur.lastrowid,),
+            )

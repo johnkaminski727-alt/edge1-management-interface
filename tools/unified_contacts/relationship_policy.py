@@ -249,14 +249,12 @@ def can_promote_candidate(
 
 def promotion_confidence(
     candidate_confidence,
-    *,
-    evidence_verified=False,
-    evidence_document_sourced=False,
+    provenance_verification_status,
 ):
-    if evidence_verified:
+    if provenance_verification_status == "verified":
         return "confirmed"
 
-    if evidence_document_sourced:
+    if provenance_verification_status == "document_sourced":
         return "document_sourced"
 
     if candidate_confidence == "probable":

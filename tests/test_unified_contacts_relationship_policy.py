@@ -146,11 +146,11 @@ class RelationshipPolicyTests(unittest.TestCase):
             )
         )
 
-    def test_promotion_confidence_uses_evidence(self):
+    def test_promotion_confidence_uses_provenance(self):
         self.assertEqual(
             promotion_confidence(
                 "possible",
-                evidence_verified=True,
+                "verified",
             ),
             "confirmed",
         )
@@ -158,24 +158,27 @@ class RelationshipPolicyTests(unittest.TestCase):
         self.assertEqual(
             promotion_confidence(
                 "possible",
-                evidence_document_sourced=True,
+                "document_sourced",
             ),
             "document_sourced",
         )
 
         self.assertEqual(
             promotion_confidence(
-                "probable"
+                "probable",
+                "missing_source",
             ),
             "probable",
         )
 
         self.assertEqual(
             promotion_confidence(
-                "possible"
+                "possible",
+                "unverified",
             ),
             "unverified",
         )
+
 
 
 if __name__ == "__main__":
