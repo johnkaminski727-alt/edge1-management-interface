@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import shutil
+import socket
+import ssl
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 
 REQUIRED_SERVICES = (
     "nginx.service",
@@ -24,8 +25,6 @@ OPTIONAL_SERVICES = (
     "edge1-crowdsec-forward.service",
     "edge1-crowdsec-observation.service",
 )
-CERT = Path("/etc/letsencrypt/live/edge1.ww.cx/fullchain.pem")
-
 
 def run(argv: list[str], timeout: int = 8) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -99,11 +98,30 @@ checks.append({
 })
 
 cert_ok = False
-cert_detail = "missing"
-if CERT.is_file() and shutil.which("openssl"):
-    cert = run(["openssl", "x509", "-checkend", "86400", "-noout", "-in", str(CERT)])
-    cert_ok = cert.returncode == 0
-    cert_detail = "valid >24h" if cert_ok else "expires within 24h or unreadable"
+cert_detail = "TLS probe failed"
+try:
+    context = ssl.create_default_context()
+    with socket.create_connection(("10.77.0.1", 443), timeout=5) as raw:
+        with context.wrap_socket(raw, server_hostname="edge1.ww.cx") as tls:
+            cert = tls.getpeercert()
+            not_after = cert.get("notAfter")
+            if not_after:
+                expiry = datetime.strptime(
+                    not_after,
+                    "%b %d %H:%M:%S %Y %Z",
+                ).replace(tzinfo=timezone.utc)
+                remaining = (expiry - datetime.now(timezone.utc)).total_seconds()
+                cert_ok = remaining > 86400
+                cert_detail = (
+                    "served certificate valid >24h"
+                    if cert_ok
+                    else "served certificate expires within 24h"
+                )
+            else:
+                cert_detail = "served certificate has no expiry"
+except (OSError, ssl.SSLError, ValueError) as exc:
+    cert_detail = "TLS probe failed: " + exc.__class__.__name__
+
 checks.append({
     "id": "tls:edge1.ww.cx",
     "status": "pass" if cert_ok else "fail",
