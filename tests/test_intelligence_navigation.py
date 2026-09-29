@@ -49,7 +49,13 @@ def manifest_modules():
 
 
 def test_manifest_is_valid():
-    modules = manifest_modules()
+    data = json.loads(MANIFEST.read_text())
+
+    assert data["version"] == 2
+    assert data["contract"] == "wwcx.edge1-application-registry.v1"
+    assert data["navigation_grants_authorization"] is False
+
+    modules = data["modules"]
 
     assert modules
 
@@ -65,6 +71,15 @@ def test_manifest_is_valid():
         assert module["id"]
         assert module["label"]
         assert module["href"].startswith("/")
+        assert module["section"]
+        assert isinstance(module["sort_order"], int)
+        assert module["required_scopes"]
+        assert module["enabled"] is True
+
+    assert modules == sorted(
+        modules,
+        key=lambda module: (module["sort_order"], module["id"]),
+    )
 
 
 def test_pages_are_generated_and_current():
@@ -164,3 +179,12 @@ def test_navigation_order_is_identical():
         ]
 
         assert positions == sorted(positions)
+
+
+def test_generated_navigation_contains_no_literal_escape_artifacts():
+    for path in PAGES.values():
+        text = path.read_text()
+        start = text.index("<!-- EDGE1_INTELLIGENCE_NAV_START -->")
+        end = text.index("<!-- EDGE1_INTELLIGENCE_NAV_END -->", start)
+        nav = text[start:end]
+        assert "\\n" not in nav

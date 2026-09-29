@@ -1,30 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
+  "contract": "wwcx.edge1-application-registry.v1",
+  "navigation_grants_authorization": false,
   "modules": [
-    {
-      "id": "library",
-      "label": "Private Library Search",
-      "href": "/"
-    },
-    {
-      "id": "communications",
-      "label": "Communications",
-      "href": "/communications/"
-    },
-    {
-      "id": "number-portability",
-      "label": "Number Portability",
-      "href": "/number-portability/"
-    },
-    {
-      "id": "phone-directory",
-      "label": "Phone Directory",
-      "href": "/phone-directory/"
-    },
-    {
-      "id": "contacts",
-      "label": "Unified Contacts",
-      "href": "/contacts/"
-    }
+    {"id":"library","label":"Private Library Search","href":"/","section":"Intelligence","sort_order":10,"required_scopes":["library:search"],"enabled":true},
+    {"id":"communications","label":"Communications","href":"/communications/","section":"Communications","sort_order":20,"required_scopes":["communications:read"],"enabled":true},
+    {"id":"number-portability","label":"Number Portability","href":"/number-portability/","section":"Communications","sort_order":30,"required_scopes":["telephony:read"],"enabled":true},
+    {"id":"phone-directory","label":"Phone Directory","href":"/phone-directory/","section":"Contacts","sort_order":40,"required_scopes":["contacts:read"],"enabled":true},
+    {"id":"contacts","label":"Unified Contacts","href":"/contacts/","section":"Contacts","sort_order":50,"required_scopes":["contacts:read"],"enabled":true},
+    {"id":"operations-center","label":"Operations Center","href":"/edge1-status/","section":"Operations","sort_order":60,"required_scopes":["edge1.status.detail.read"],"enabled":true}
   ]
 }
