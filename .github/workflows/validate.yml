@@ -66,8 +66,15 @@ jobs:
       - name: Unified Contacts schema validation
         run: python3 tests/test_unified_contacts_schema.py
 
-      - name: Unified Contacts provenance tests
-        run: python3 -m unittest -v tests.test_unified_contacts_provenance_bridge
+      - name: Unified Contacts provenance validation
+        run: |
+          python3 - <<'PY'
+          from tests import test_unified_contacts_provenance_bridge as t
+          t.test_source_kind()
+          t.test_verification_status()
+          t.test_production_schema_supports_bridge()
+          print("Unified Contacts provenance validation passed")
+          PY
 
       - name: Unified Contacts observation tests
         run: python3 -m unittest -v tests.test_unified_contacts_observation_bridge
