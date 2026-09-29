@@ -53,8 +53,9 @@ assert actions["security.logs.rotate"]["mutating"] is True
 assert actions["security.logs.rotate"]["available_after_gateway_activation"] is False
 
 required_page_markers = (
-    "Edge1 Security Console",
-    "Authenticated, read-only validation",
+    "Edge1 Control Center",
+    "Authenticated operational overview",
+    "Validate the security configuration",
     "Run configuration check",
     "Mutation access",
     "Disabled",
