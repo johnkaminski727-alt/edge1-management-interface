@@ -218,7 +218,7 @@
       mount.className = "wwcx-operator-shell";
       const bar = make("div", "wwcx-shell-bar");
       const escape = make("a", "wwcx-shell-action", "Operations Center");
-      escape.href = "/edge1-status/";
+      escape.href = "/edge1-ops/status/";
       bar.append(
         make("div", "wwcx-shell-brand", "WW.CX Edge1 Operator"),
         escape,
