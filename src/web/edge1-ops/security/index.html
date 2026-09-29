@@ -39,7 +39,7 @@
 </section>
 <section class="panel" id="security-validation">
 <h2>Validate the security configuration</h2>
-<p class="muted">Runs the allowlisted Suricata configuration check. It does not restart services, reload rules, rotate logs, or change network traffic.</p>
+<p class="muted">Validates the active Edge1 security stack, including firewall services, CrowdSec, Fail2Ban, AdGuard, WireGuard, private HTTPS, TLS, authentication, and the Operations API. It does not restart services, reload rules, rotate logs, or change network traffic.</p>
 <div class="notice warning">Only <code>security.validate_config</code> is available. All mutation actions remain denied. Navigation does not grant additional authority.</div>
 <div class="actions">
 <button id="validate" class="primary" type="button" disabled>Run configuration check</button>

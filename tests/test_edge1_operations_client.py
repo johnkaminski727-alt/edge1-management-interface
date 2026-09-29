@@ -112,6 +112,31 @@ class OperationsClientTests(unittest.TestCase):
             with self.assertRaises(OperationsClientError):
                 self.client().run("security.validate_config", "wwcx-user-42")
 
+    def test_root_owned_systemd_credential_mode_0440_is_accepted(self):
+        from types import SimpleNamespace
+
+        client = Edge1OperationsClient(
+            secret_path=Path("/run/credentials/edge1-security-auth.service/operations_api_secret")
+        )
+
+        with patch.object(Path, "is_symlink", return_value=False), \
+             patch.object(Path, "stat", return_value=SimpleNamespace(st_mode=0o100440, st_uid=0, st_gid=0)), \
+             patch.object(Path, "read_bytes", return_value=b"s" * 64):
+            self.assertEqual(client._read_secret(), b"s" * 64)
+
+    def test_systemd_credential_rejects_non_root_ownership(self):
+        from types import SimpleNamespace
+
+        client = Edge1OperationsClient(
+            secret_path=Path("/run/credentials/edge1-security-auth.service/operations_api_secret")
+        )
+
+        with patch.object(Path, "is_symlink", return_value=False), \
+             patch.object(Path, "stat", return_value=SimpleNamespace(st_mode=0o100440, st_uid=33, st_gid=33)), \
+             patch.object(Path, "read_bytes", return_value=b"s" * 64):
+            with self.assertRaises(OperationsClientError):
+                client._read_secret()
+
 
 if __name__ == "__main__":
     unittest.main()

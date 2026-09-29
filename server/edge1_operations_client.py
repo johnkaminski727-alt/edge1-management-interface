@@ -63,8 +63,15 @@ class Edge1OperationsClient:
         try:
             if self.secret_path.is_symlink():
                 raise OperationsClientError("Operations API secret path cannot be a symlink")
-            mode = self.secret_path.stat().st_mode & 0o777
-            if mode & 0o077:
+            st = self.secret_path.stat()
+            mode = st.st_mode & 0o777
+            systemd_credential = str(self.secret_path).startswith("/run/credentials/")
+            if systemd_credential:
+                if st.st_uid != 0 or st.st_gid != 0 or mode not in (0o400, 0o440):
+                    raise OperationsClientError(
+                        "Operations API systemd credential permissions are invalid"
+                    )
+            elif mode & 0o077:
                 raise OperationsClientError("Operations API secret permissions are too broad")
             value = self.secret_path.read_bytes().strip()
         except OSError as exc:
