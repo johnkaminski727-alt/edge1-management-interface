@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/opt/edge1-management-interface")
-CANDIDATE_REF = "origin/agent/ava-clean-install-integrated-20260929"
+CANDIDATE_REF = "origin/agent/ava-clean-install-3g4-integrated-20260929"
 GATEWAY_MAIN = Path("/opt/bigbird-ai-gateway/app/main.py")
 LIBRARY_DB = Path("/var/lib/bigbird-ai-library/library.sqlite3")
 CONTACT_DB = Path("/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite")
