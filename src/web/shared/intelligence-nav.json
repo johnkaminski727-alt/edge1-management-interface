@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "library",
+      "label": "Private Library Search",
+      "href": "/"
+    },
+    {
+      "id": "communications",
+      "label": "Communications",
+      "href": "/communications/"
+    },
+    {
+      "id": "number-portability",
+      "label": "Number Portability",
+      "href": "/number-portability/"
+    },
+    {
+      "id": "phone-directory",
+      "label": "Phone Directory",
+      "href": "/phone-directory/"
+    },
+    {
+      "id": "contacts",
+      "label": "Unified Contacts",
+      "href": "/contacts/"
+    }
+  ]
+}

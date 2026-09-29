@@ -9,7 +9,7 @@ User=wwadmin
 Group=wwadmin
 WorkingDirectory=/opt/edge1-management-interface
 Environment=WWCX_PORTAL_HOST=127.0.0.1
-Environment=WWCX_PORTAL_PORT=8098
+Environment=WWCX_PORTAL_PORT=18098
 ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/portal/portal_api_server.py
 Restart=on-failure
 RestartSec=5

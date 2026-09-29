@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-28 — Unified Contacts Phase 3F
+
+- Added the carrier-neutral Unified Contacts model and read API.
+- Added Sources and Observations while separating identity assertions,
+  provenance, and contextual document observations.
+- Retained 677 legacy evidence records as provenance without promoting
+  627 unresolved numbers into identity assertions.
+- Migrated 1,566 unique workbook-level phone/document relationships as
+  observations without synthesizing calls from the aggregate 4,255 total.
+- Preserved the source limitation of 5 recovered documents and 45
+  missing-source records.
+- Added generated shared Intelligence navigation.
+- Hardened migration idempotency, duplicate detection, and malformed
+  Contacts query handling.
+- Reconciled private port use: 8097/8098/8102 remain loopback services;
+  historical 18098 remains a dormant loopback-only reservation.
+- Verified database integrity, live API contracts, loopback confinement,
+  static UI delivery, and regression tests.
+
+
 ## 2026-09-27 — Unified Operations Center release and closeout
 
 - Squash-merged [PR #592](https://github.com/johnkaminski727-alt/edge1-management-interface/pull/592): four browser-accepted private modules with shared operator navigation, current core/CrowdSec panels, sanitized security correlation and limited network-defense visibility.

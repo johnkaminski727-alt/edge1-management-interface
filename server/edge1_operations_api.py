@@ -18,12 +18,14 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import urllib.parse
 from server.edge1_operations_typed_actions import (
     TypedActionValidationError,
     run_typed_handler,
     validate_typed_handler,
 )
 from server.vpn_access_registration import RegistrationStore
+from server.unified_contacts import UnifiedContacts
 from server.phone_intelligence import (
     PhoneIntelligenceError,
     PhoneIntelligenceStore,
@@ -489,6 +491,240 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_json(200, {"result": result, "enforcement_active": False})
 
+
+    def handle_unified_contacts_get(self):
+        """Serve authenticated, read-only Unified Contacts data."""
+        if self.authenticate_request("GET") is None:
+            return
+
+        parsed = urllib.parse.urlsplit(self.path)
+        path = parsed.path
+        query = urllib.parse.parse_qs(
+            parsed.query,
+            keep_blank_values=True,
+        )
+
+        def one(name, default=""):
+            values = query.get(name)
+            return values[0] if values else default
+
+        def integer(name, default=None):
+            value = one(
+                name,
+                "" if default is None else str(default),
+            )
+
+            if value == "" and default is None:
+                return None
+
+            try:
+                return int(value)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{name} must be an integer"
+                ) from exc
+
+        try:
+            limit = integer("limit", 100)
+
+            if limit < 1 or limit > 250:
+                raise ValueError(
+                    "limit must be between 1 and 250"
+                )
+
+        except ValueError as exc:
+            self.send_json(400, {"error": str(exc)})
+            return
+
+        store = UnifiedContacts(
+            "/var/lib/edge1-phone-intelligence/"
+            "phone-intelligence.sqlite"
+        )
+
+        try:
+            if path == "/v1/contacts/summary":
+                if parsed.query:
+                    self.send_json(
+                        400,
+                        {"error": "summary accepts no query parameters"},
+                    )
+                    return
+
+                payload = store.summary()
+
+            elif path == "/v1/contacts/search":
+                allowed = {"q", "kind", "limit"}
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                kind = one("kind", "all")
+
+                if kind not in {
+                    "all",
+                    "organizations",
+                    "people",
+                    "phones",
+                    "emails",
+                }:
+                    self.send_json(
+                        400,
+                        {"error": "invalid contact kind"},
+                    )
+                    return
+
+                payload = store.search(
+                    query=one("q"),
+                    kind=kind,
+                    limit=limit,
+                )
+
+            elif path == "/v1/contacts/unassigned":
+                allowed = {"q", "limit"}
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                payload = store.unassigned_phones(
+                    query=one("q"),
+                    limit=limit,
+                )
+
+            elif path == "/v1/contacts/sources":
+                allowed = {
+                    "q",
+                    "verification",
+                    "source_kind",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.sources(
+                    query=one("q"),
+                    verification=one("verification"),
+                    source_kind=one("source_kind"),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/observations":
+                allowed = {
+                    "q",
+                    "classification",
+                    "verification",
+                    "contact_point_id",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                point = one("contact_point_id")
+
+                payload = store.observations(
+                    query=one("q"),
+                    classification=one("classification"),
+                    verification=one("verification"),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/evidence":
+                allowed = {
+                    "assertion_id",
+                    "contact_point_id",
+                    "limit",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                assertion = one("assertion_id")
+                point = one("contact_point_id")
+
+                if not assertion and not point:
+                    self.send_json(
+                        400,
+                        {
+                            "error": (
+                                "assertion_id or contact_point_id "
+                                "is required"
+                            )
+                        },
+                    )
+                    return
+
+                payload = store.evidence(
+                    assertion_id=integer(
+                        "assertion_id"
+                    ),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    limit=limit,
+                )
+
+            else:
+                self.send_json(404, {"error": "not found"})
+                return
+
+        except ValueError as exc:
+            self.send_json(
+                400,
+                {"error": str(exc)},
+            )
+            return
+
+        except sqlite3.Error:
+            self.send_json(
+                503,
+                {"error": "unified contacts unavailable"},
+            )
+            return
+
+        self.send_json(200, payload)
+
     def handle_phone_intelligence_get(self):
         """Serve authenticated, read-only Phone Intelligence data."""
         if self.authenticate_request("GET") is None:
@@ -569,6 +805,9 @@ class Handler(BaseHTTPRequestHandler):
                 })
             except Exception as exc:
                 self.send_json(503, {"status": "error", "detail": str(exc), "repository_root_stable": False})
+            return
+        if self.path.startswith("/v1/contacts/"):
+            self.handle_unified_contacts_get()
             return
         if self.path.startswith("/v1/intelligence/"):
             self.handle_phone_intelligence_get()

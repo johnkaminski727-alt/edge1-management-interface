@@ -29,6 +29,18 @@ PHONE_DETAIL_RE = re.compile(
 )
 
 ALLOWED_API_PATHS = {
+    "/api/contacts/summary":
+        "/v1/contacts/summary",
+    "/api/contacts/search":
+        "/v1/contacts/search",
+    "/api/contacts/unassigned":
+        "/v1/contacts/unassigned",
+    "/api/contacts/sources":
+        "/v1/contacts/sources",
+    "/api/contacts/observations":
+        "/v1/contacts/observations",
+    "/api/contacts/evidence":
+        "/v1/contacts/evidence",
     "/api/intelligence/dashboard":
         "/v1/intelligence/dashboard",
     "/api/intelligence/phones":
@@ -38,6 +50,36 @@ ALLOWED_API_PATHS = {
 }
 
 ALLOWED_QUERY_KEYS = {
+    "/api/contacts/summary": set(),
+    "/api/contacts/search": {
+        "q",
+        "kind",
+        "limit",
+    },
+    "/api/contacts/unassigned": {
+        "q",
+        "limit",
+    },
+    "/api/contacts/sources": {
+        "q",
+        "verification",
+        "source_kind",
+        "limit",
+        "offset",
+    },
+    "/api/contacts/observations": {
+        "q",
+        "classification",
+        "verification",
+        "contact_point_id",
+        "limit",
+        "offset",
+    },
+    "/api/contacts/evidence": {
+        "assertion_id",
+        "contact_point_id",
+        "limit",
+    },
     "/api/intelligence/phones": {
         "q",
         "status",
@@ -300,6 +342,8 @@ class PhoneIntelligenceGatewayHandler(
 
         if parsed.path.startswith(
             "/api/intelligence"
+        ) or parsed.path.startswith(
+            "/api/contacts"
         ):
             self.handle_intelligence_get()
             return
