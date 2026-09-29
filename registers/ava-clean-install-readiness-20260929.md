@@ -23,6 +23,24 @@ Contacts baseline:
 - Ava Library collection selection is bounded/validated in the controller.
 - A read-only clean-install preflight exists at `tools/ava_clean_install_preflight.py`.
 
+## Rebuilt Edge1 preflight observed 2026-09-29
+
+Read-only preflight from the live rebuilt Edge1 reported:
+
+- current checkout: `phase-3b2-unified-contacts` at `211a0ce1f41b1dcc11054c28e4fe17d8351b1637`;
+- Operations API active on loopback `127.0.0.1:8097`, health HTTP 200;
+- private web gateway active on loopback `127.0.0.1:8098`;
+- MCP listener present on loopback `127.0.0.1:8102`;
+- Operations API service credential present;
+- Unified Contacts database present;
+- `bigbird-ai-gateway.service` inactive and `/opt/bigbird-ai-gateway/app/main.py` absent;
+- Private Library database absent and `edge1-private-library-search.service` inactive;
+- no listener on port 8091;
+- the working tree contains newer uncommitted Unified Contacts expansion/messaging-adapter work.
+
+The dirty worktree is now an explicit preservation gate. No Ava install, checkout
+switch, reset, merge, or overwrite should occur until that work is captured safely.
+
 ## Still open before installation
 
 1. Run the preflight on rebuilt Edge1 and capture the JSON result.
