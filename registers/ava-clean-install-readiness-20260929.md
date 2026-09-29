@@ -2,16 +2,23 @@
 
 Status: **PRE-INSTALL / SOURCE CANDIDATE**
 
-Candidate branch: `agent/ava-clean-install-integrated-20260929`
+Candidate branch: `agent/ava-clean-install-3g4-integrated-20260929`
 
 Contacts baseline:
 - branch `phase-3b2-unified-contacts`
 - commit `211a0ce1f41b1dcc11054c28e4fe17d8351b1637`
 - tag `edge1-unified-contacts-3f-20260929`
 
+Contacts expansion baseline:
+- branch `phase-3g4-contacts-expansion-20260929`
+- commit `3f356f3a5b2a5aaf3f89dfb3a2b438bac56feb01`
+- syntax validation passed on rebuilt Edge1
+- 29 Unified Contacts expansion/read/provenance/observation tests passed before publication
+
 ## Closed in source
 
 - Unified Contacts / Phone Intelligence Phase 3F is published and tagged.
+- Unified Contacts 3G.4 messaging/schema expansion is published and is now the Ava candidate baseline.
 - Ava controller work is rebased conceptually onto the published Contacts baseline through the integrated candidate branch.
 - Ava has a bounded `contacts:read` source contract.
 - `server/ava_contacts_gateway.py` uses the signed loopback Operations API instead of direct SQLite access.
@@ -43,7 +50,7 @@ switch, reset, merge, or overwrite should occur until that work is captured safe
 
 ## Still open before installation
 
-1. Run the preflight on rebuilt Edge1 and capture the JSON result.
+1. Re-run the corrected preflight against the combined 3G.4 Ava candidate after it is fetched on rebuilt Edge1.
 2. Inspect the rebuilt Big Bird gateway version and source shape before applying any gateway patch.
 3. Integrate `ava_contacts_gateway.search_contacts()` into the actual Big Bird gateway request path and return sanitized `contact_sources`.
 4. Verify the gateway independently enforces `contacts:read` and `include_contacts`.
