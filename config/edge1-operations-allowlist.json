@@ -291,11 +291,11 @@
     },
     "security.validate_config": {
       "argv": [
-        "bash",
-        "tools/security/validate-suricata.sh"
+        "python3",
+        "tools/security/validate_edge1_security.py"
       ],
       "mutating": false,
-      "timeout_seconds": 300
+      "timeout_seconds": 60
     },
     "system.services": {
       "argv": [
