@@ -41,6 +41,12 @@ ALLOWED_API_PATHS = {
         "/v1/contacts/sources",
     "/api/contacts/observations":
         "/v1/contacts/observations",
+    "/api/contacts/relationships":
+        "/v1/contacts/relationships",
+    "/api/contacts/relationship-evidence":
+        "/v1/contacts/relationship-evidence",
+    "/api/contacts/correlations":
+        "/v1/contacts/correlations",
     "/api/contacts/evidence":
         "/v1/contacts/evidence",
     "/api/intelligence/dashboard":
@@ -79,6 +85,29 @@ ALLOWED_QUERY_KEYS = {
         "q",
         "classification",
         "verification",
+        "contact_point_id",
+        "limit",
+        "offset",
+    },
+    "/api/contacts/relationships": {
+        "entity_id",
+        "contact_point_id",
+        "relationship_type",
+        "confidence",
+        "lifecycle_status",
+        "limit",
+        "offset",
+    },
+    "/api/contacts/relationship-evidence": {
+        "relationship_id",
+        "limit",
+        "offset",
+    },
+    "/api/contacts/correlations": {
+        "review_status",
+        "correlation_type",
+        "confidence",
+        "entity_id",
         "contact_point_id",
         "limit",
         "offset",
