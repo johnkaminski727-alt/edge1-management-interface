@@ -68,6 +68,8 @@ class AvaAgentControllerTests(unittest.TestCase):
         self.assertTrue(plan.source_flags["include_contacts"])
         prepared = agent.prepare_gateway_request(payload, plan)
         self.assertIn("contacts:read", prepared["user"]["scopes"])
+        self.assertFalse(prepared["include_library"])
+        self.assertEqual(prepared["library_collections"], [])
 
     def test_contact_evidence_is_counted(self) -> None:
         payload = base_payload()
