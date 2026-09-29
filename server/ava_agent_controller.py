@@ -145,9 +145,14 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
             raise AgentControllerError(f"controller attempted to expand {flag}")
         prepared[flag] = selected
 
-    prepared["library_collections"] = _normalize_library_collections(
-        payload, prepared.get("include_library") is True
-    )
+    if prepared.get("include_library") is True:
+        prepared["library_collections"] = _normalize_library_collections(payload, True)
+    elif payload.get("include_library") is True:
+        # Auto-routing may only narrow an already-authorized Library request.
+        # Discard its approved collections when Library is not selected.
+        prepared["library_collections"] = []
+    else:
+        prepared["library_collections"] = _normalize_library_collections(payload, False)
     if prepared.get("include_communications") is not True:
         prepared["communications_groups"] = []
 
