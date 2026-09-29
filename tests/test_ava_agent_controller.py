@@ -81,6 +81,26 @@ class AvaAgentControllerTests(unittest.TestCase):
         self.assertEqual(trace["evidence"]["contacts"], 1)
         self.assertEqual(trace["evidence_class"], "source-backed")
 
+    def test_library_collections_are_normalized_and_bounded(self) -> None:
+        payload = base_payload()
+        payload["library_collections"] = ["Operations", "operations"]
+        plan = agent.build_plan(payload)
+        prepared = agent.prepare_gateway_request(payload, plan)
+        self.assertEqual(prepared["library_collections"], ["operations"])
+
+        payload["library_collections"] = ["../secret"]
+        plan = agent.build_plan(payload)
+        with self.assertRaises(agent.AgentControllerError):
+            agent.prepare_gateway_request(payload, plan)
+
+    def test_library_collections_require_library_access(self) -> None:
+        payload = base_payload()
+        payload["include_library"] = False
+        payload["library_collections"] = ["operations"]
+        plan = agent.build_plan(payload)
+        with self.assertRaises(agent.AgentControllerError):
+            agent.prepare_gateway_request(payload, plan)
+
     def test_controller_never_expands_disabled_source(self) -> None:
         payload = base_payload()
         payload["include_edge1_status"] = False
