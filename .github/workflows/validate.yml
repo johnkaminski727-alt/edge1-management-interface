@@ -51,17 +51,26 @@ jobs:
           cat /tmp/python-validation-summary.txt
           exit "$status"
 
-      - name: Run Ava clean-install gate tests
-        run: |
-          set -eu
-          python3 -m unittest -v \
-            tests.test_ava_agent_controller \
-            tests.test_ava_contacts_gateway \
-            tests.test_phone_intelligence_gateway \
-            tests.test_unified_contacts_read_api \
-            tests.test_unified_contacts_schema \
-            tests.test_unified_contacts_provenance_bridge \
-            tests.test_unified_contacts_observation_bridge
+      - name: Ava controller tests
+        run: python3 -m unittest -v tests.test_ava_agent_controller
+
+      - name: Ava Contacts adapter tests
+        run: python3 -m unittest -v tests.test_ava_contacts_gateway
+
+      - name: Phone Intelligence gateway tests
+        run: python3 -m unittest -v tests.test_phone_intelligence_gateway
+
+      - name: Unified Contacts read API tests
+        run: python3 -m unittest -v tests.test_unified_contacts_read_api
+
+      - name: Unified Contacts schema tests
+        run: python3 -m unittest -v tests.test_unified_contacts_schema
+
+      - name: Unified Contacts provenance tests
+        run: python3 -m unittest -v tests.test_unified_contacts_provenance_bridge
+
+      - name: Unified Contacts observation tests
+        run: python3 -m unittest -v tests.test_unified_contacts_observation_bridge
 
       - name: Validate JSON, shell, and JavaScript
         run: |
