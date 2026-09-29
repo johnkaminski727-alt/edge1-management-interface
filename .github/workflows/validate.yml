@@ -51,6 +51,50 @@ jobs:
           cat /tmp/python-validation-summary.txt
           exit "$status"
 
+      - name: Ava controller tests
+        run: python3 -m unittest -v tests.test_ava_agent_controller
+
+      - name: Ava Contacts adapter tests
+        run: python3 -m unittest -v tests.test_ava_contacts_gateway
+
+      - name: Phone Intelligence gateway tests
+        run: python3 -m unittest -v tests.test_phone_intelligence_gateway
+
+      - name: Unified Contacts read API tests
+        run: python3 -m unittest -v tests.test_unified_contacts_read_api
+
+      - name: Unified Contacts schema validation
+        run: python3 tests/test_unified_contacts_schema.py
+
+      - name: Unified Contacts provenance validation
+        run: |
+          python3 - <<'PY'
+          from tests import test_unified_contacts_provenance_bridge as t
+          t.test_source_kind()
+          t.test_verification_status()
+          t.test_production_schema_supports_bridge()
+          print("Unified Contacts provenance validation passed")
+          PY
+
+      - name: Unified Contacts observation tests
+        run: python3 -m unittest -v tests.test_unified_contacts_observation_bridge
+
+      - name: Unified Contacts connections tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections
+
+      - name: Unified Contacts connections read tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections_read
+
+      - name: Unified Contacts connections route tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections_routes
+
+      - name: Unified Contacts connections schema tests
+        run: python3 -m unittest -v tests.test_unified_contacts_connections_schema
+
+      - name: Unified Contacts relationship policy tests
+        run: python3 -m unittest -v tests.test_unified_contacts_relationship_policy
+
+
       - name: Validate JSON, shell, and JavaScript
         run: |
           set -eu

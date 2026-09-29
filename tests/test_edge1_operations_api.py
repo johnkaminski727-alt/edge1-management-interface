@@ -1,3 +1,4 @@
+from contextlib import closing
 import importlib.util
 import json
 import os
@@ -42,7 +43,7 @@ class OperationsApiTests(unittest.TestCase):
         result = self.module.run_action("safe", "tester", "hash")
         self.assertEqual(result["status"], "succeeded")
         self.assertEqual(result["stdout"], "ok")
-        with self.module.connect_db() as conn:
+        with closing(self.module.connect_db()) as conn:
             self.assertEqual(conn.execute("select count(*) from operation_audit").fetchone()[0], 1)
 
     def test_mutation_is_disabled_by_default(self):

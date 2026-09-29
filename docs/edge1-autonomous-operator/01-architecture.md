@@ -49,7 +49,7 @@ fixed allowlisted actions + audit trail
 
 No new unauthenticated public listener is permitted. The MCP endpoint must remain on loopback. Tunnel provisioning must not change that bind address.
 
-Port `8098` is reserved by the existing WW.CX Portal API Bridge. The Edge1 MCP transport uses dedicated loopback port `8102`; deployment validation must keep those listener assignments distinct.
+Port `8098` is reserved by the Edge1 private web gateway. It is loopback-only and serves the private Edge1 web surface while proxying explicitly allowlisted API requests to the authenticated Operations API on `127.0.0.1:8097`. The historical WW.CX Portal API Bridge uses `18098` when run separately. The Edge1 MCP transport uses dedicated loopback port `8102`; deployment validation must keep these listener assignments distinct.
 
 ## MCP transport contract
 

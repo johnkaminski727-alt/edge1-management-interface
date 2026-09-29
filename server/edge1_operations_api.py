@@ -10,6 +10,7 @@ import hmac
 import json
 import os
 import sqlite3
+from contextlib import closing
 import subprocess
 import time
 import uuid
@@ -17,12 +18,19 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import urllib.parse
 from server.edge1_operations_typed_actions import (
     TypedActionValidationError,
     run_typed_handler,
     validate_typed_handler,
 )
 from server.vpn_access_registration import RegistrationStore
+from server.unified_contacts import UnifiedContacts
+from server.phone_intelligence import (
+    PhoneIntelligenceError,
+    PhoneIntelligenceStore,
+    parse_phone_api_path,
+)
 
 
 def _configured_absolute_path(value):
@@ -129,25 +137,27 @@ def registration_store():
 
 def record_audit(actor, action, body_hash, status, exit_code=None, duration_ms=None, stdout="", stderr=""):
     event_id = str(uuid.uuid4())
-    with connect_db() as conn:
-        conn.execute(
-            "INSERT INTO operation_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (event_id, utcnow(), actor, action, body_hash, status, exit_code, duration_ms,
-             stdout[-12000:], stderr[-12000:]),
-        )
+    with closing(connect_db()) as conn:
+        with conn:
+            conn.execute(
+                "INSERT INTO operation_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (event_id, utcnow(), actor, action, body_hash, status, exit_code, duration_ms,
+                 stdout[-12000:], stderr[-12000:]),
+            )
     return event_id
 
 
 def check_and_store_nonce(nonce, timestamp):
     cutoff = int(time.time()) - MAX_CLOCK_SKEW
-    with connect_db() as conn:
-        conn.execute("DELETE FROM request_nonces WHERE created_at < ?", (cutoff,))
-        try:
-            conn.execute("INSERT INTO request_nonces VALUES (?, ?)", (nonce, timestamp))
-            conn.commit()
-            return True
-        except sqlite3.IntegrityError:
-            return False
+    with closing(connect_db()) as conn:
+        with conn:
+            conn.execute("DELETE FROM request_nonces WHERE created_at < ?", (cutoff,))
+            try:
+                conn.execute("INSERT INTO request_nonces VALUES (?, ?)", (nonce, timestamp))
+                conn.commit()
+                return True
+            except sqlite3.IntegrityError:
+                return False
 
 
 def authenticate(headers, method, path, body):
@@ -285,14 +295,15 @@ def _idempotency_claim(action, key, request_hash):
 
 def _idempotency_complete(action, key, request_hash, response):
     encoded = json.dumps(response, sort_keys=True)
-    with connect_db() as conn:
-        cursor = conn.execute(
-            "UPDATE operation_idempotency SET response_json = ? WHERE action = ? AND idempotency_key = ? AND request_hash = ? AND response_json = ''",
-            (encoded, action, key, request_hash),
-        )
-        if cursor.rowcount != 1:
-            raise RuntimeError("idempotency completion state changed unexpectedly")
-        conn.commit()
+    with closing(connect_db()) as conn:
+        with conn:
+            cursor = conn.execute(
+                "UPDATE operation_idempotency SET response_json = ? WHERE action = ? AND idempotency_key = ? AND request_hash = ? AND response_json = ''",
+                (encoded, action, key, request_hash),
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError("idempotency completion state changed unexpectedly")
+            conn.commit()
 
 
 def run_typed_action(name, actor, body_hash, parameters):
@@ -480,6 +491,480 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_json(200, {"result": result, "enforcement_active": False})
 
+
+    def handle_unified_contacts_get(self):
+        """Serve authenticated, read-only Unified Contacts data."""
+        if self.authenticate_request("GET") is None:
+            return
+
+        parsed = urllib.parse.urlsplit(self.path)
+        path = parsed.path
+        query = urllib.parse.parse_qs(
+            parsed.query,
+            keep_blank_values=True,
+        )
+
+        def one(name, default=""):
+            values = query.get(name)
+            return values[0] if values else default
+
+        def integer(name, default=None):
+            value = one(
+                name,
+                "" if default is None else str(default),
+            )
+
+            if value == "" and default is None:
+                return None
+
+            try:
+                return int(value)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{name} must be an integer"
+                ) from exc
+
+        try:
+            limit = integer("limit", 100)
+
+            if limit < 1 or limit > 250:
+                raise ValueError(
+                    "limit must be between 1 and 250"
+                )
+
+        except ValueError as exc:
+            self.send_json(400, {"error": str(exc)})
+            return
+
+        store = UnifiedContacts(
+            "/var/lib/edge1-phone-intelligence/"
+            "phone-intelligence.sqlite"
+        )
+
+        try:
+            if path == "/v1/contacts/summary":
+                if parsed.query:
+                    self.send_json(
+                        400,
+                        {"error": "summary accepts no query parameters"},
+                    )
+                    return
+
+                payload = store.summary()
+
+            elif path == "/v1/contacts/entities":
+                allowed = {
+                    "q",
+                    "entity_type",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                entity_type = one("entity_type")
+
+                if entity_type not in {
+                    "",
+                    "organization",
+                    "person",
+                }:
+                    self.send_json(
+                        400,
+                        {"error": "invalid entity type"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.entities(
+                    query=one("q"),
+                    entity_type=entity_type,
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/search":
+                allowed = {"q", "kind", "limit"}
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                kind = one("kind", "all")
+
+                if kind not in {
+                    "all",
+                    "organizations",
+                    "people",
+                    "phones",
+                    "emails",
+                    "domains",
+                }:
+                    self.send_json(
+                        400,
+                        {"error": "invalid contact kind"},
+                    )
+                    return
+
+                payload = store.search(
+                    query=one("q"),
+                    kind=kind,
+                    limit=limit,
+                )
+
+            elif path == "/v1/contacts/unassigned":
+                allowed = {"q", "limit"}
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                payload = store.unassigned_phones(
+                    query=one("q"),
+                    limit=limit,
+                )
+
+            elif path == "/v1/contacts/sources":
+                allowed = {
+                    "q",
+                    "verification",
+                    "source_kind",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.sources(
+                    query=one("q"),
+                    verification=one("verification"),
+                    source_kind=one("source_kind"),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/observations":
+                allowed = {
+                    "q",
+                    "classification",
+                    "verification",
+                    "contact_point_id",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                point = one("contact_point_id")
+
+                payload = store.observations(
+                    query=one("q"),
+                    classification=one("classification"),
+                    verification=one("verification"),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/relationships":
+                allowed = {
+                    "entity_id",
+                    "contact_point_id",
+                    "relationship_type",
+                    "confidence",
+                    "lifecycle_status",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.relationships(
+                    entity_id=integer("entity_id"),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    relationship_type=one(
+                        "relationship_type"
+                    ),
+                    confidence=one("confidence"),
+                    lifecycle_status=one(
+                        "lifecycle_status",
+                        "active",
+                    ),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/relationship-evidence":
+                allowed = {
+                    "relationship_id",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                relationship_id = integer(
+                    "relationship_id"
+                )
+
+                if relationship_id is None:
+                    raise ValueError(
+                        "relationship_id is required"
+                    )
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.relationship_evidence(
+                    relationship_id=relationship_id,
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/correlations":
+                allowed = {
+                    "review_status",
+                    "correlation_type",
+                    "confidence",
+                    "entity_id",
+                    "contact_point_id",
+                    "limit",
+                    "offset",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                offset = integer("offset", 0)
+
+                if offset < 0:
+                    raise ValueError(
+                        "offset must be zero or greater"
+                    )
+
+                payload = store.correlations(
+                    review_status=one(
+                        "review_status",
+                        "pending",
+                    ),
+                    correlation_type=one(
+                        "correlation_type"
+                    ),
+                    confidence=one("confidence"),
+                    entity_id=integer("entity_id"),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    limit=limit,
+                    offset=offset,
+                )
+
+            elif path == "/v1/contacts/evidence":
+                allowed = {
+                    "assertion_id",
+                    "contact_point_id",
+                    "entity_id",
+                    "limit",
+                }
+
+                if set(query) - allowed:
+                    self.send_json(
+                        400,
+                        {"error": "unsupported query parameter"},
+                    )
+                    return
+
+                assertion = one("assertion_id")
+                point = one("contact_point_id")
+                entity = one("entity_id")
+
+                supplied = sum(
+                    bool(value)
+                    for value in (
+                        assertion,
+                        point,
+                        entity,
+                    )
+                )
+
+                if supplied != 1:
+                    self.send_json(
+                        400,
+                        {
+                            "error": (
+                                "exactly one of assertion_id, "
+                                "contact_point_id or entity_id "
+                                "is required"
+                            )
+                        },
+                    )
+                    return
+
+                payload = store.evidence(
+                    assertion_id=integer(
+                        "assertion_id"
+                    ),
+                    contact_point_id=integer(
+                        "contact_point_id"
+                    ),
+                    entity_id=integer(
+                        "entity_id"
+                    ),
+                    limit=limit,
+                )
+
+            else:
+                self.send_json(404, {"error": "not found"})
+                return
+
+        except ValueError as exc:
+            self.send_json(
+                400,
+                {"error": str(exc)},
+            )
+            return
+
+        except sqlite3.Error:
+            self.send_json(
+                503,
+                {"error": "unified contacts unavailable"},
+            )
+            return
+
+        self.send_json(200, payload)
+
+    def handle_phone_intelligence_get(self):
+        """Serve authenticated, read-only Phone Intelligence data."""
+        if self.authenticate_request("GET") is None:
+            return
+
+        route = parse_phone_api_path(self.path)
+
+        if route is None:
+            self.send_json(404, {"error": "not found"})
+            return
+
+        route_name, parameters = route
+        store = PhoneIntelligenceStore()
+
+        try:
+            if route_name == "dashboard":
+                payload = store.dashboard()
+
+            elif route_name == "phones":
+                payload = store.list_phones(
+                    query=parameters.get("query"),
+                    status=parameters.get("status"),
+                    npa=parameters.get("npa"),
+                    limit=parameters.get("limit"),
+                    offset=parameters.get("offset"),
+                )
+
+            elif route_name == "phone":
+                payload = store.phone_detail(
+                    parameters["phone_id"]
+                )
+
+                if payload is None:
+                    self.send_json(
+                        404,
+                        {"error": "phone number not found"},
+                    )
+                    return
+
+            elif route_name == "sources":
+                payload = store.list_sources(
+                    limit=parameters.get("limit"),
+                    offset=parameters.get("offset"),
+                )
+
+            else:
+                self.send_json(404, {"error": "not found"})
+                return
+
+        except PhoneIntelligenceError as exc:
+            self.send_json(400, {"error": str(exc)})
+            return
+
+        except sqlite3.Error:
+            self.send_json(
+                503,
+                {"error": "phone intelligence unavailable"},
+            )
+            return
+
+        self.send_json(200, payload)
+
     def do_GET(self):
         if self.path == "/healthz":
             try:
@@ -498,6 +983,12 @@ class Handler(BaseHTTPRequestHandler):
                 })
             except Exception as exc:
                 self.send_json(503, {"status": "error", "detail": str(exc), "repository_root_stable": False})
+            return
+        if self.path.startswith("/v1/contacts/"):
+            self.handle_unified_contacts_get()
+            return
+        if self.path.startswith("/v1/intelligence/"):
+            self.handle_phone_intelligence_get()
             return
         if self.path.startswith("/v1/vpn-access/"):
             self.handle_vpn_registration_get()

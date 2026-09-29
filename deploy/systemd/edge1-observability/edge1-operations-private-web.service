@@ -1,21 +1,43 @@
 [Unit]
-Description=Edge1 private Operations Center web preview
-After=network.target
+Description=Edge1 private Operations Center web gateway
+After=network.target edge1-operations-api.service
+Wants=edge1-operations-api.service
 
 [Service]
 Type=simple
 User=www-data
 Group=www-data
-ExecStart=/usr/bin/python3 -m http.server 8098 --bind 127.0.0.1 --directory /var/www
+
+WorkingDirectory=/opt/edge1-management-interface
+
+LoadCredential=operations_api_secret:/etc/edge1-operations-api.secret
+
+ExecStart=/usr/bin/python3 -B -m server.phone_intelligence_gateway --host 127.0.0.1 --port 8098 --web-root /var/www
+
 Restart=on-failure
 RestartSec=3
+
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
+
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+
+RestrictSUIDSGID=true
+LockPersonality=true
+
 CapabilityBoundingSet=
 AmbientCapabilities=
+
 RestrictAddressFamilies=AF_INET AF_UNIX
+
+ReadOnlyPaths=/opt/edge1-management-interface
+ReadOnlyPaths=/var/www
+ReadOnlyPaths=/etc/edge1-operations-api.secret
 
 [Install]
 WantedBy=multi-user.target

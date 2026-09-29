@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1">
+  <title>Unified Contacts | Edge1</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body data-edge1-module="contacts">
+<main class="workspace">
+
+  <header class="page-header">
+    <div>
+      <div class="eyebrow">EDGE1 INTELLIGENCE</div>
+      <h1>Unified Contacts</h1>
+      <p class="subtitle">
+        People, organizations, phone numbers, email addresses,
+        sources and verified contact relationships.
+      </p>
+    </div>
+
+    <span class="readonly">Read-only</span>
+  </header>
+
+  <!-- EDGE1_INTELLIGENCE_NAV_START -->
+  <nav class="module-nav" aria-label="Edge1 modules">
+    <a href="/">Private Library Search</a>
+    <a href="/communications/">Communications</a>
+    <a href="/number-portability/">Number Portability</a>
+    <a href="/phone-directory/">Phone Directory</a>
+    <a href="/contacts/" aria-current="page">Unified Contacts</a>
+  </nav>
+<!-- EDGE1_INTELLIGENCE_NAV_END -->
+
+  <section class="notice">
+    <strong>Private intelligence workspace.</strong>
+    Canonical identity facts remain separate from provenance,
+    observations and contextual connections. Unresolved contact
+    points are retained without being assigned to an identity.
+  </section>
+
+  <section id="metrics" class="metrics">
+    <article>
+      <span>ENTITIES</span>
+      <strong id="metric-entities">—</strong>
+    </article>
+    <article>
+      <span>ORGANIZATIONS</span>
+      <strong id="metric-organizations">—</strong>
+    </article>
+    <article>
+      <span>PEOPLE</span>
+      <strong id="metric-people">—</strong>
+    </article>
+    <article>
+      <span>PHONE NUMBERS</span>
+      <strong id="metric-phones">—</strong>
+    </article>
+    <article>
+      <span>EMAILS</span>
+      <strong id="metric-emails">—</strong>
+    </article>
+    <article>
+      <span>UNASSIGNED</span>
+      <strong id="metric-unassigned">—</strong>
+    </article>
+    <article>
+      <span>SOURCES</span>
+      <strong id="metric-sources">—</strong>
+    </article>
+    <article>
+      <span>OBSERVATIONS</span>
+      <strong id="metric-observations">—</strong>
+    </article>
+  </section>
+
+  <nav id="view-tabs" class="view-tabs" aria-label="Contacts views">
+    <button class="active" data-view="all">All Contacts</button>
+    <button data-view="organizations">Organizations</button>
+    <button data-view="people">People</button>
+    <button data-view="phones">Phones</button>
+    <button data-view="emails">Emails</button>
+    <button data-view="unassigned">Unassigned</button>
+    <button data-view="sources">Sources</button>
+    <button data-view="observations">Observations</button>
+  </nav>
+
+  <section class="directory-layout">
+
+    <aside class="filter-panel panel">
+      <div class="section-label">FILTER</div>
+      <h2>Find a contact</h2>
+
+      <label for="search">
+        Name, number or email
+      </label>
+
+      <input
+        id="search"
+        type="search"
+        placeholder="306 563 5411 or Canora"
+        autocomplete="off">
+
+      <label for="verification">
+        Verification
+      </label>
+
+      <select id="verification">
+        <option value="">All statuses</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="probable">Probable</option>
+        <option value="verified">Verified entity</option>
+      </select>
+
+      <button id="search-button" class="primary">
+        Search directory
+      </button>
+
+      <button id="clear-button" class="secondary">
+        Clear filters
+      </button>
+
+      <div class="filter-note">
+        Global search also checks unassigned contact points.
+        A match does not create an identity association.
+      </div>
+    </aside>
+
+    <section class="directory-panel panel">
+      <header class="panel-header">
+        <div>
+          <div class="section-label">DIRECTORY</div>
+          <h2 id="directory-title">All Contacts</h2>
+        </div>
+
+        <span id="result-count">—</span>
+      </header>
+
+      <div id="results" class="results">
+        <div class="loading">Loading directory…</div>
+      </div>
+    </section>
+
+    <aside class="detail-panel panel">
+      <header class="panel-header">
+        <div>
+          <div class="section-label">CONTACT RECORD</div>
+          <h2 id="detail-title">Select a contact</h2>
+        </div>
+      </header>
+
+      <div id="detail-content" class="detail-empty">
+        Select a directory entry to inspect its identity,
+        contact points and verification state.
+      </div>
+    </aside>
+
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

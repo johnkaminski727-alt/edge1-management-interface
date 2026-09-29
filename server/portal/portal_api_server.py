@@ -278,7 +278,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     host = os.environ.get("WWCX_PORTAL_HOST", "127.0.0.1")
-    port = int(os.environ.get("WWCX_PORTAL_PORT", "8098"))
+    port = int(os.environ.get("WWCX_PORTAL_PORT", "18098"))
 
     if host not in ("127.0.0.1", "::1"):
         raise SystemExit("refusing non-loopback portal bind")

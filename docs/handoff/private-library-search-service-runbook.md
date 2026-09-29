@@ -22,6 +22,10 @@ requires explicit approval.
   `IPAddressAllow=localhost` / `IPAddressDeny=any` as defense in depth.
 - Read-only behavior is unchanged: only the `operations` collection, result
   limits clamped, no write endpoints.
+- Production search fails closed if the live Library engine/backend is unavailable.
+  Fixture results require the explicit development flag
+  `EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED=1` and must not be enabled for Ava
+  production retrieval.
 - The unit runs with a read-only view of the repo (`ReadOnlyPaths`) and
   `ProtectSystem=full`. It deliberately does not use `ProtectSystem=strict`
   so that SQLite WAL/shm access to `/var/lib/bigbird-ai-library/` cannot be
@@ -52,10 +56,10 @@ Checks, in order: the service is active; port 8091 listens on loopback only;
 `/api/private-library/search?q=VPN` returns valid JSON and reports its mode
 (expect `live_direct` on Edge1); a disallowed collection returns HTTP 400.
 
-The smoke test warns (but does not fail) if the mode is fixture-backed, since
-that state is valid off-box. On Edge1, a fixture mode under the service means
-the service process cannot read the library DB — check file permissions on
-`/var/lib/bigbird-ai-library/library.sqlite3` and the gateway path.
+The smoke test fails if the mode is fixture-backed. Development/off-box testing
+may explicitly set `ALLOW_FIXTURE_SMOKE=1`, but Edge1 acceptance requires
+`live_direct` or `live`. A fixture mode on Edge1 means the service process
+cannot reach the real Library and must not be treated as valid evidence.
 
 Repo-side asset validation (no root, no systemd needed):
 
@@ -100,7 +104,9 @@ bin/run_private_library_search.sh 8091
 ## Out of Scope
 
 - Any route or reverse proxy beyond localhost (requires approval).
-- Operator authentication at the route boundary (open handoff item 3).
+- Human authentication at any route beyond loopback remains the responsibility
+  of the Edge1 Private Access Gateway. The loopback wrapper itself is not a
+  public authentication endpoint and must not be exposed directly.
 - Running the wrapper as a dedicated service user. The unit currently runs as
   root with filesystem/network sandboxing; moving to a dedicated user needs a
   decision about read access to the library DB and should be validated
