@@ -27,7 +27,7 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
         for module in data["modules"]:
             if module["palette"]:
                 self.assertEqual(module["availability"], "accepted_live")
-                self.assertTrue(module["browser_route"].startswith("/edge1-status/"))
+                self.assertTrue(module["browser_route"].startswith("/edge1-ops/status/"))
                 self.assertNotIn("command", module)
                 self.assertNotIn("action", module)
 
