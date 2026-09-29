@@ -8,9 +8,10 @@ source selections before a request is relayed to the loopback gateway.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
-CONTROLLER_VERSION = "0.2.0"
+CONTROLLER_VERSION = "0.3.0"
 MAX_STEPS = 8
 
 
@@ -113,6 +114,26 @@ def build_plan(payload: dict[str, Any]) -> AgentPlan:
     return AgentPlan(request_id=request_id, auto_route=auto_route, source_flags=source_flags, steps=tuple(steps))
 
 
+def _normalize_library_collections(payload: dict[str, Any], enabled: bool) -> list[str]:
+    value = payload.get("library_collections", [])
+    if not isinstance(value, list) or len(value) > 8:
+        raise AgentControllerError("library collection selection is invalid")
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise AgentControllerError("library collection selection is invalid")
+        candidate = item.strip().lower()
+        if re.fullmatch(r"[a-z][a-z0-9_-]{1,63}", candidate) is None:
+            raise AgentControllerError("library collection name is invalid")
+        if candidate not in normalized:
+            normalized.append(candidate)
+    if enabled and not normalized:
+        raise AgentControllerError("library search requires an approved collection")
+    if not enabled and normalized:
+        raise AgentControllerError("library collections require library access")
+    return normalized
+
+
 def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[str, Any]:
     prepared = dict(payload)
     for key in tuple(prepared):
@@ -124,8 +145,9 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
             raise AgentControllerError(f"controller attempted to expand {flag}")
         prepared[flag] = selected
 
-    if prepared.get("include_library") is not True:
-        prepared["library_collections"] = []
+    prepared["library_collections"] = _normalize_library_collections(
+        payload, prepared.get("include_library") is True
+    )
     if prepared.get("include_communications") is not True:
         prepared["communications_groups"] = []
 
