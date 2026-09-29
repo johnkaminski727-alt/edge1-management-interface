@@ -25,6 +25,16 @@ MANIFEST = (
 
 def load_modules():
     data = json.loads(MANIFEST.read_text())
+
+    if data.get("version") != 2:
+        raise SystemExit("Unsupported application registry version.")
+
+    if data.get("contract") != "wwcx.edge1-application-registry.v1":
+        raise SystemExit("Application registry contract mismatch.")
+
+    if data.get("navigation_grants_authorization") is not False:
+        raise SystemExit("Navigation must not grant authorization.")
+
     modules = data.get("modules")
 
     if not isinstance(modules, list) or not modules:
@@ -33,7 +43,7 @@ def load_modules():
     seen = set()
 
     for module in modules:
-        for field in ("id", "label", "href"):
+        for field in ("id", "label", "href", "section", "sort_order", "required_scopes", "enabled"):
             if not module.get(field):
                 raise SystemExit(
                     f"Missing {field}: {module!r}"
@@ -44,9 +54,20 @@ def load_modules():
                 f"Duplicate module id: {module['id']}"
             )
 
+        if not isinstance(module["required_scopes"], list) or not module["required_scopes"]:
+            raise SystemExit(
+                f"Missing required scopes: {module!r}"
+            )
+
+        if module["enabled"] is not True:
+            continue
+
         seen.add(module["id"])
 
-    return modules
+    return sorted(
+        (module for module in modules if module["enabled"] is True),
+        key=lambda module: (module["sort_order"], module["id"]),
+    )
 
 
 def active_module(text):
