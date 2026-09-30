@@ -119,8 +119,18 @@ def filter_fixture(query: str, collection: str, limit: int) -> dict[str, Any]:
     }
 
 
+def env_enabled(name: str, default: str = "0") -> bool:
+    return os.environ.get(name, default).strip().lower() not in {"0", "false", "no", "off", ""}
+
+
 def direct_search_enabled() -> bool:
-    return os.environ.get("EDGE1_LIBRARY_DIRECT_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
+    return env_enabled("EDGE1_LIBRARY_DIRECT_ENABLED", "1")
+
+
+def fixture_fallback_enabled() -> bool:
+    # Fixture results are development/test data and must never silently stand
+    # in for production evidence.
+    return env_enabled("EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED", "0")
 
 
 def direct_search(query: str, collection: str, limit: int) -> dict[str, Any] | None:
@@ -232,12 +242,29 @@ def search_payload(query: str, collection: str, limit: int) -> tuple[int, dict[s
         try:
             return HTTPStatus.OK, query_backend(backend_url, query, collection, limit)
         except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError) as exc:
-            fallback = filter_fixture(query, collection, limit)
-            fallback["mode"] = "fixture_fallback"
-            fallback["warning"] = f"live backend unavailable: {exc.__class__.__name__}"
-            return HTTPStatus.OK, fallback
+            if fixture_fallback_enabled():
+                fallback = filter_fixture(query, collection, limit)
+                fallback["mode"] = "fixture_fallback"
+                fallback["warning"] = f"live backend unavailable: {exc.__class__.__name__}"
+                return HTTPStatus.OK, fallback
+            return (
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {
+                    "error": "live_library_unavailable",
+                    "message": "Live Private Library search is unavailable.",
+                },
+            )
 
-    return HTTPStatus.OK, filter_fixture(query, collection, limit)
+    if fixture_fallback_enabled():
+        return HTTPStatus.OK, filter_fixture(query, collection, limit)
+
+    return (
+        HTTPStatus.SERVICE_UNAVAILABLE,
+        {
+            "error": "live_library_unavailable",
+            "message": "Live Private Library search is unavailable.",
+        },
+    )
 
 
 class PrivateLibrarySearchHandler(SimpleHTTPRequestHandler):
