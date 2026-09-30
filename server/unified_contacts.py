@@ -319,6 +319,7 @@ class UnifiedContacts:
         query="",
         verification="",
         source_kind="",
+        provenance_id=None,
         limit=100,
         offset=0,
     ):
@@ -355,6 +356,17 @@ class UnifiedContacts:
                 "pr.source_kind=?"
             )
             params.append(source_kind)
+
+        if provenance_id is not None:
+            provenance_id = int(provenance_id)
+            if provenance_id < 1:
+                raise ValueError(
+                    "provenance_id must be a positive integer"
+                )
+            clauses.append(
+                "pr.id=?"
+            )
+            params.append(provenance_id)
 
         where = (
             "WHERE " + " AND ".join(clauses)
