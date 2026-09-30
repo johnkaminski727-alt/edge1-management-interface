@@ -182,6 +182,7 @@ def main() -> int:
 
     old_env = {
         "EDGE1_LIBRARY_DIRECT_ENABLED": os.environ.get("EDGE1_LIBRARY_DIRECT_ENABLED"),
+        "EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED": os.environ.get("EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED"),
         "EDGE1_BIGBIRD_GATEWAY_ROOT": os.environ.get("EDGE1_BIGBIRD_GATEWAY_ROOT"),
         "BB_LIBRARY_DB": os.environ.get("BB_LIBRARY_DB"),
         "EDGE1_LIBRARY_SEARCH_URL": os.environ.get("EDGE1_LIBRARY_SEARCH_URL"),
@@ -190,10 +191,18 @@ def main() -> int:
 
     try:
         os.environ["EDGE1_LIBRARY_DIRECT_ENABLED"] = "0"
+        os.environ.pop("EDGE1_LIBRARY_SEARCH_URL", None)
+        os.environ["EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED"] = "0"
+        status, payload = module.search_payload("VPN", "operations", 5)
+        assert status == 503
+        assert payload["error"] == "live_library_unavailable"
+
+        os.environ["EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED"] = "1"
         status, payload = module.search_payload("VPN", "operations", 5)
         assert status == 200
+        assert payload["mode"] == "fixture"
         assert payload["collection"] == "operations"
-        assert payload["results"], "fixture search should return results"
+        assert payload["results"], "explicit fixture search should return results"
 
         status, payload = module.search_payload("VPN", "public", 5)
         assert status == 400
@@ -214,6 +223,7 @@ def main() -> int:
             assert payload["results"][0]["path"] == "operations/direct-live-result.md"
 
         os.environ["EDGE1_LIBRARY_DIRECT_ENABLED"] = "0"
+        os.environ["EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED"] = "1"
         server, thread = run_server(module.PrivateLibrarySearchHandler)
         try:
             host, port = server.server_address
@@ -238,6 +248,7 @@ def main() -> int:
         try:
             host, port = backend.server_address
             os.environ["EDGE1_LIBRARY_SEARCH_URL"] = f"http://{host}:{port}/search"
+            os.environ["EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED"] = "0"
             os.environ["EDGE1_LIBRARY_SEARCH_METHOD"] = "GET"
             status, payload = module.search_payload("VPN", "operations", 5)
             assert status == 200
