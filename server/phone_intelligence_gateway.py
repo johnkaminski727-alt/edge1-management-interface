@@ -78,6 +78,7 @@ ALLOWED_QUERY_KEYS = {
         "q",
         "verification",
         "source_kind",
+        "provenance_id",
         "limit",
         "offset",
     },
