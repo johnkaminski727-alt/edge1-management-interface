@@ -1,0 +1,41 @@
+[Unit]
+Description=Edge1 Ava / Big Bird read-only AI gateway
+After=network-online.target edge1-operations-api.service edge1-private-library-search.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bigbird-ai
+Group=bigbird-ai
+SupplementaryGroups=wwadmin
+WorkingDirectory=/opt/bigbird-ai-gateway
+Environment=PYTHONUNBUFFERED=1
+Environment=EDGE1_MANAGEMENT_ROOT=/opt/edge1-management-interface
+Environment=EDGE1_BIGBIRD_GATEWAY_ROOT=/opt/bigbird-ai-gateway
+Environment=BB_LIBRARY_DB=/var/lib/bigbird-ai-library/library.sqlite3
+EnvironmentFile=-/etc/bigbird-ai-gateway.env
+LoadCredential=operations_api_secret:/etc/edge1-operations-api.secret
+ExecStart=/usr/bin/python3 /opt/bigbird-ai-gateway/app/main.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/run
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictSUIDSGID=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
