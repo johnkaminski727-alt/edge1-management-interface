@@ -11,7 +11,10 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE = ROOT / "services/bigbird-ai-gateway/app/main.py"
+GATEWAY_ROOT = ROOT / "services" / "bigbird-ai-gateway"
+MODULE = GATEWAY_ROOT / "app" / "main.py"
+if str(GATEWAY_ROOT) not in sys.path:
+    sys.path.insert(0, str(GATEWAY_ROOT))
 
 class AvaReadonlyGatewayTests(unittest.TestCase):
     def load(self):
