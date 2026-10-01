@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT=/opt/edge1-management-interface
+ROOT="${EDGE1_RELEASE_ROOT:-/opt/edge1-management-interface}"
 DEST=/var/www/edge1-status
 MODE="${1:-}"
 
