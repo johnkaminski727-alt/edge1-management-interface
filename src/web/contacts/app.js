@@ -57,7 +57,7 @@ function titleForView(view) {
 }
 
 async function loadSummary() {
-  const summary = await api("/api/contacts/summary");
+  const summary = await api("/edge1-ops/contacts-api/summary");
 
   $("#metric-entities").textContent =
     summary.entities.toLocaleString();
@@ -703,7 +703,7 @@ async function renderEntityDetail(row) {
 
   try {
     const detail = await api(
-      "/api/contacts/evidence?" +
+      "/edge1-ops/contacts-api/evidence?" +
       new URLSearchParams({
         entity_id: String(row.entity_id),
         limit: "250",
@@ -807,7 +807,7 @@ async function renderContactDetail(row) {
 
   try {
     const detail = await api(
-      "/api/contacts/evidence?" +
+      "/edge1-ops/contacts-api/evidence?" +
       new URLSearchParams({
         contact_point_id:
           String(row.contact_point_id),
@@ -869,7 +869,7 @@ async function renderRelationshipDetail(row) {
 
   try {
     const evidence = await api(
-      "/api/contacts/relationship-evidence?" +
+      "/edge1-ops/contacts-api/relationship-evidence?" +
       new URLSearchParams({
         relationship_id: String(row.relationship_id),
         limit: "250",

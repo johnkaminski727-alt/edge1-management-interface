@@ -43,7 +43,7 @@
 
   async function loadSummary() {
     try {
-      const summary = await getJson('/api/ava-office/summary');
+      const summary = await getJson('/edge1-ops/ava-api/summary');
       metrics.active.textContent = String(count(summary, 'new', 'working'));
       metrics.needsYou.textContent = String(Number(summary.work_items?.needs_owner || 0) + Number(summary.actions?.awaiting_confirmation || 0));
       metrics.waiting.textContent = String(count(summary, 'waiting_external'));
@@ -73,7 +73,7 @@
     workList.innerHTML = '<div class="empty">Loading work queue…</div>';
     const query = workState ? `?state=${encodeURIComponent(workState)}` : '';
     try {
-      const payload = await getJson(`/api/ava-office/work-items${query}`);
+      const payload = await getJson(`/edge1-ops/ava-api/work-items${query}`);
       workList.innerHTML = payload.items?.length ? payload.items.map(workCard).join('') : '<div class="empty">No work items in this view.</div>';
     } catch (error) {
       workList.innerHTML = `<div class="error">Unable to read work queue: ${escapeHtml(error.message)}</div>`;
@@ -92,7 +92,7 @@
   async function loadDecisions() {
     decisionList.innerHTML = '<div class="empty">Loading decisions…</div>';
     try {
-      const payload = await getJson('/api/ava-office/decisions');
+      const payload = await getJson('/edge1-ops/ava-api/decisions');
       decisionList.innerHTML = payload.items?.length ? payload.items.map(decisionCard).join('') : '<div class="empty">Nothing currently needs your decision.</div>';
     } catch (error) {
       decisionList.innerHTML = `<div class="error">Unable to read decisions: ${escapeHtml(error.message)}</div>`;
@@ -111,7 +111,7 @@
   async function loadInstructions() {
     instructionList.innerHTML = '<div class="empty">Loading standing instructions…</div>';
     try {
-      const payload = await getJson('/api/ava-office/instructions');
+      const payload = await getJson('/edge1-ops/ava-api/instructions');
       instructionList.innerHTML = payload.items?.length ? payload.items.map(instructionCard).join('') : '<div class="empty">No standing instructions have been recorded yet.</div>';
     } catch (error) {
       instructionList.innerHTML = `<div class="error">Unable to read instructions: ${escapeHtml(error.message)}</div>`;
