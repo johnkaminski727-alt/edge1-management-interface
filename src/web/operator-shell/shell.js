@@ -3,7 +3,7 @@
   const script = document.currentScript;
   if (!script) return;
   const registryUrl = script.dataset.registry;
-  const activeId = script.dataset.module || "";
+  let activeId = script.dataset.module || "";
   const mount = document.querySelector("#wwcx-operator-shell");
   if (!registryUrl || !mount) return;
 
@@ -68,17 +68,30 @@
     const accepted = modules.filter(isLive);
     const sections = [...new Set(modules.map((item) => item.section))];
 
+    if (!modules.some((item) => item.id === activeId)) {
+      const path = window.location.pathname;
+      const routeMatch = accepted
+        .filter((item) => path === item.browser_route || path.startsWith(item.browser_route))
+        .sort((a, b) => b.browser_route.length - a.browser_route.length)[0];
+      if (routeMatch) activeId = routeMatch.id;
+    }
+
     document.documentElement.classList.add("wwcx-shell-active");
     mount.className = "wwcx-operator-shell";
 
     const bar = make("div", "wwcx-shell-bar");
-    const brand = make("div", "wwcx-shell-brand", "WW.CX");
-    brand.append(make("small", "", "Edge1 Operator"));
+    const brand = make("a", "wwcx-shell-brand", "WW.CX");
+    brand.href = "/edge1-ops/security/";
+    brand.setAttribute("aria-label", "Edge1 Control Center home");
+    brand.append(make("small", "", "Edge1 Control Center"));
 
+    const activeModule = modules.find((item) => item.id === activeId);
     const breadcrumb = make(
       "div",
       "wwcx-shell-breadcrumb",
-      "Edge1 / " + ((modules.find((item) => item.id === activeId) || {}).label || "Control Center")
+      activeModule
+        ? "Edge1 / " + activeModule.section + " / " + activeModule.label
+        : "Edge1 / Control Center"
     );
 
     const mobile = make("button", "wwcx-shell-action wwcx-shell-mobile", "Menu");
@@ -218,9 +231,9 @@
       mount.className = "wwcx-operator-shell";
       const bar = make("div", "wwcx-shell-bar");
       const escape = make("a", "wwcx-shell-action", "Operations Center");
-      escape.href = "/edge1-status/";
+      escape.href = "/edge1-ops/status/";
       bar.append(
-        make("div", "wwcx-shell-brand", "WW.CX Edge1 Operator"),
+        make("div", "wwcx-shell-brand", "WW.CX Edge1 Control Center"),
         escape,
         make("span", "wwcx-shell-spacer"),
         make("span", "wwcx-shell-safety", "Navigation unavailable · safety state unknown")
