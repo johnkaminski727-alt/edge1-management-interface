@@ -55,9 +55,22 @@ class ContactsAvaAuthenticatedIngressTests(unittest.TestCase):
         self.assertNotEqual(ava["availability"], "accepted_live")
 
     def test_ava_execution_gates_are_not_changed_by_browser_ingress(self):
-        text = json.dumps(self.ava_policy, sort_keys=True)
-        self.assertIn("confirmation", text.lower())
-        self.assertIn("blocked", text.lower())
+        classes = self.ava_policy["classes"]
+        self.assertTrue(classes["conditional"]["requires_confirmation"])
+        self.assertTrue(classes["attended"]["requires_confirmation"])
+        self.assertTrue(classes["restricted"]["requires_confirmation"])
+        self.assertFalse(classes["restricted"]["allowed"])
+
+        restricted = {
+            item["prefix"]
+            for item in self.ava_policy["capabilities"]
+            if item["class"] == "restricted"
+        }
+        self.assertTrue(
+            {"credential", "destructive", "financial", "legal", "emergency"}
+            <= restricted
+        )
+
         self.assertNotIn("browser_route", self.ava_policy)
         self.assertIn("operator action/shell gates remain independent", self.installer)
 
