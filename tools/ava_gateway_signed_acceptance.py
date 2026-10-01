@@ -105,7 +105,7 @@ def main() -> int:
             "role": "internal_viewer",
             "scopes": ["chat:general", "library:search", "library:document:read"],
         },
-        "message": "Find the Edge1 Private Library runtime bootstrap record and summarize only what the approved evidence says.",
+        "message": "VPN",
         "include_edge1_status": False,
         "include_messaging_status": False,
         "include_library": True,
