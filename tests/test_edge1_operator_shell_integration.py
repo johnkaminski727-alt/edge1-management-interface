@@ -46,12 +46,12 @@ class OperatorShellIntegrationTests(unittest.TestCase):
 
     def test_security_uses_canonical_registry_with_safe_fallback(self):
         text = (ROOT / 'src/web/edge1-ops/security/index.html').read_text(encoding='utf-8')
-        self.assertIn('const NAVIGATION_URL="/edge1-status/operator-shell/navigation.json"', text)
+        self.assertIn('const NAVIGATION_URL="/edge1-ops/status/operator-shell/navigation.json"', text)
         self.assertIn('availability==="accepted_live"', text)
         self.assertIn('item.browser_route.startsWith("/")', text)
         self.assertIn('navigationSafe(registry)', text)
         self.assertIn('label:"Operations Center"', text)
-        self.assertIn('browser_route:"/edge1-status/"', text)
+        self.assertIn('browser_route:"/edge1-ops/status/"', text)
         self.assertEqual(text.count('<style>'), 1)
         self.assertEqual(text.count('<script>'), 1)
         self.assertNotIn('/admin/ai/', text)

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-29 — Authenticated Control Center module ingress and unified workspace theme
+
+- Completed the private authentication/security-validation prerequisite and recorded the public redirect/PASS-ASE follow-on separately.
+- Moved the four accepted read-only specialist browser routes under `/edge1-ops/status/`, keeping them inside the existing Edge1 session-cookie namespace.
+- Added a backed-up nginx installer using `auth_request` against the existing Edge1 session endpoint before static module content is served.
+- Added a Contacts-aligned shared light workspace theme and updated the synchronized operator shell and authenticated Control Center to use the same design language.
+- Updated Operations Center, Security Operations, Security Correlation and Network Defense links/data endpoints to the authenticated namespace.
+- Kept AVA, Contacts & Relationships and other unaccepted modules visible as upcoming rather than creating unauthorized browser routes.
+
 ## 2026-09-28 — Unified Contacts Phase 3F
 
 - Added the carrier-neutral Unified Contacts model and read API.

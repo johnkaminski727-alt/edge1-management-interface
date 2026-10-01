@@ -59,7 +59,7 @@ def main():
                  "Age unknown", "Summary snapshot", "Browser refreshed",
                  "not service-health counts"):
         assert term in js, "Missing presentation contract: " + term
-    assert 'const ENDPOINT="/edge1-status/network-defense/data/network-defense.json"' in js
+    assert 'const ENDPOINT="/edge1-ops/status/network-defense/data/network-defense.json"' in js
     assert 'traffic_controls_changed:false' in html
     assert not re.search(r'fetch\s*\([^)]*,\s*\{[^}]*method\s*:\s*["\'](?:POST|PUT|PATCH|DELETE)', js, re.I|re.S)
 

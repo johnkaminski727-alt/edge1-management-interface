@@ -35,12 +35,12 @@ class NetworkDefenseConsoleTests(unittest.TestCase):
         self.assertEqual(len(parser.ids), len(set(parser.ids)))
 
     def test_only_approved_status_endpoint_is_used(self):
-        endpoints = set(re.findall(r'/(?:edge1-status|api)/[^"\']+\.json', self.source))
+        endpoints = set(re.findall(r'/(?:edge1-ops/status|edge1-status|api)/[^"\']+\.json', self.source))
         self.assertEqual(
             endpoints,
             {
-                '/edge1-status/network-defense/data/network-defense.json',
-                '/edge1-status/operator-shell/navigation.json',
+                '/edge1-ops/status/network-defense/data/network-defense.json',
+                '/edge1-ops/status/operator-shell/navigation.json',
             },
         )
 
