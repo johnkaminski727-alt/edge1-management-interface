@@ -10,6 +10,7 @@ on:
       - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
       - 'deploy/install-ava-browser-worker.sh'
+      - 'tools/ava_gateway_signed_acceptance.py'
       - 'deploy/ava-visual-worker.service'
       - 'deploy/ava-visual/**'
       - 'docs/private-ai-browser-interface.md'
@@ -42,7 +43,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile workers
-        run: python -m py_compile server/private_ai_browser_worker.py server/ava_visual_generator.py server/ava_visual_worker.py
+        run: python -m py_compile server/private_ai_browser_worker.py server/ava_visual_generator.py server/ava_visual_worker.py tools/ava_gateway_signed_acceptance.py
       - name: Run worker tests
         run: python -m unittest tests.test_private_ai_browser_worker tests.test_ava_visual_generator
       - name: Verify browser worker assets
@@ -52,6 +53,7 @@ jobs:
           grep -F 'no reusable WW.CX queue worker identity is present' deploy/install-ava-browser-worker.sh
           grep -F 'BB_RELAY_SECRET' deploy/install-ava-browser-worker.sh
           ! grep -E 'install -d .* /etc([[:space:]]|$)|chmod [0-7]+ /etc([[:space:]]|$)|chown .* /etc([[:space:]]|$)' deploy/install-ava-browser-worker.sh
+          ! grep -E 'print\(.*BB_RELAY|print\(.*secret|echo .*BB_RELAY' tools/ava_gateway_signed_acceptance.py
       - name: Verify Ava visual systemd unit
         run: systemd-analyze verify deploy/ava-visual-worker.service
       - name: Validate immutable activation helper
