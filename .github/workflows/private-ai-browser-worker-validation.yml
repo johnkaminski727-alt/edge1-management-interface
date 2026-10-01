@@ -48,7 +48,7 @@ jobs:
         run: python -m unittest tests.test_private_ai_browser_worker tests.test_ava_visual_generator
       - name: Verify browser worker assets
         run: |
-          systemd-analyze verify deploy/private-ai-browser-worker.service
+          systemd-analyze verify deploy/systemd/bigbird-ai-gateway.service deploy/private-ai-browser-worker.service
           sh -n deploy/install-ava-browser-worker.sh
           grep -F 'no reusable WW.CX queue worker identity is present' deploy/install-ava-browser-worker.sh
           grep -F 'BB_RELAY_SECRET' deploy/install-ava-browser-worker.sh
