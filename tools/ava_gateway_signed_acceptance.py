@@ -51,7 +51,7 @@ def load_env() -> dict[str, str]:
 def request(body: bytes, headers: dict[str, str]) -> tuple[int, dict]:
     req = urllib.request.Request(URL, data=body, method="POST", headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=75) as resp:
             raw = resp.read(1_048_577)
             status = int(resp.status)
     except urllib.error.HTTPError as exc:
