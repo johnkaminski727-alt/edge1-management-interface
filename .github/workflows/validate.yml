@@ -80,3 +80,6 @@ jobs:
       - name: Big Bird Private Library engine tests
         run: python3 -m unittest -v tests.test_bigbird_private_library_engine
 
+      - name: Ava read-only gateway tests
+        run: python3 -m unittest -v tests.test_ava_readonly_gateway
+
