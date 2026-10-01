@@ -122,16 +122,30 @@ def main() -> int:
     headers = signed_headers(body, env["BB_RELAY_KEY_ID"], env["BB_RELAY_SECRET"], nonce)
 
     status, result = request(body, headers)
-    if status != 503:
-        die(f"signed pre-model request returned HTTP {status}, expected 503")
-    if result.get("detail") != "model_not_configured":
-        die("signed pre-model request did not fail closed as model_not_configured")
     if result.get("mode") != "read-only":
         die("gateway mode is not read-only")
     sources = result.get("sources")
     if not isinstance(sources, list) or not sources:
         die("signed Library request returned no bounded evidence")
-    print(f"signed Library retrieval: PASS ({len(sources)} evidence item(s), model intentionally unconfigured)")
+
+    if status == 200:
+        answer = result.get("answer")
+        if not isinstance(answer, str) or not answer.strip():
+            die("model-backed response returned no answer text")
+        print(
+            f"signed Library + model response: PASS "
+            f"({len(sources)} evidence item(s), {len(answer.strip())} answer chars)"
+        )
+    elif status == 503 and result.get("detail") == "model_not_configured":
+        print(
+            f"signed Library retrieval: PASS "
+            f"({len(sources)} evidence item(s), model intentionally unconfigured)"
+        )
+    else:
+        detail = result.get("detail")
+        if not isinstance(detail, str):
+            detail = "unexpected_gateway_response"
+        die(f"signed model-backed request returned HTTP {status}: {detail}")
 
     replay_status, _ = request(body, headers)
     if replay_status != 401:
