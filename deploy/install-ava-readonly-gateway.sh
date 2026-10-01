@@ -30,7 +30,8 @@ chown -R root:root "$RUNTIME"
 
 install -m 0644 "$ROOT/deploy/systemd/bigbird-ai-gateway.service" "$UNIT"
 
-install -d -m 0750 /etc
+# /etc is an existing system trust boundary. Never change its ownership or mode here.
+test -d /etc
 if [ ! -f /etc/bigbird-ai-gateway.env ]; then
   secret="$(python3 - <<'PY'
 import secrets
