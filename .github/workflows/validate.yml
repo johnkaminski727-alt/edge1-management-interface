@@ -76,3 +76,10 @@ jobs:
             -w /repo \
             python:3.6.15-slim-buster \
             python tests/validate_time_authority_collector_compat.py
+
+      - name: Big Bird Private Library engine tests
+        run: python3 -m unittest -v tests.test_bigbird_private_library_engine
+
+      - name: Ava read-only gateway tests
+        run: python3 -m unittest -v tests.test_ava_readonly_gateway
+

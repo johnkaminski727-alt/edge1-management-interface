@@ -647,6 +647,7 @@ class Handler(BaseHTTPRequestHandler):
                     "q",
                     "verification",
                     "source_kind",
+                    "provenance_id",
                     "limit",
                     "offset",
                 }
@@ -669,6 +670,7 @@ class Handler(BaseHTTPRequestHandler):
                     query=one("q"),
                     verification=one("verification"),
                     source_kind=one("source_kind"),
+                    provenance_id=one("provenance_id"),
                     limit=limit,
                     offset=offset,
                 )

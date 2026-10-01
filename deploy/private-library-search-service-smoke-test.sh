@@ -35,7 +35,11 @@ case "$mode" in
   live_direct) echo "  mode=live_direct (live library engine)" ;;
   live)        echo "  mode=live (HTTP backend)" ;;
   fixture|fixture_fallback)
-    echo "  mode=${mode} (WARNING: not live; check library DB readability under the service)" ;;
+    if [ "${ALLOW_FIXTURE_SMOKE:-0}" = "1" ]; then
+      echo "  mode=${mode} (development override accepted)"
+    else
+      fail "fixture-backed Library mode is not acceptable for production"
+    fi ;;
   *) fail "unexpected search mode: ${mode}" ;;
 esac
 
