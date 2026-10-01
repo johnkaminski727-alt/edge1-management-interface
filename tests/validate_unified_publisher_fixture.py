@@ -114,7 +114,7 @@ def validate_sources() -> None:
 
 def test_publisher_fixture() -> None:
     original = PUBLISHER.read_text(encoding="utf-8")
-    old_root = "ROOT=/opt/edge1-management-interface"
+    old_root = 'ROOT="${EDGE1_RELEASE_ROOT:-/opt/edge1-management-interface}"'
     old_dest = "DEST=/var/www/edge1-status"
     old_backup = 'BACKUP="/var/backups/edge1-unified-publish-$STAMP"'
     root_guard = ('test "$(id -u)" -eq 0 || {\n'
