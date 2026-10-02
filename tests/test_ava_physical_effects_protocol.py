@@ -145,6 +145,107 @@ class AvaPhysicalEffectsProtocolTests(unittest.TestCase):
         self.assertEqual(first["disposition"], "approved")
         self.assertEqual(second["disposition"], "duplicate")
 
+    def test_duplicate_json_field_is_denied(self) -> None:
+        service = self.make_protocol()
+        payload = (
+            b'{"version":1,'
+            b'"request_id":"request-duplicate-field-0001",'
+            b'"catalogue_effect":"cat_meow",'
+            b'"catalogue_effect":"donkey_braying"}'
+        )
+
+        with self.assertRaises(protocol.ProtocolError):
+            service.handle(payload, GOOD_PEER)
+
+    def test_boolean_protocol_version_is_denied(self) -> None:
+        service = self.make_protocol()
+
+        with self.assertRaises(protocol.ProtocolError):
+            service.handle(request(version=True), GOOD_PEER)
+
+    def test_allowed_identity_requires_exact_nonnegative_int(self) -> None:
+        policy = broker.BrokerPolicy(enabled=False)
+
+        for bad_uid, bad_gid in (
+            (True, ALLOWED_GID),
+            (ALLOWED_UID, False),
+            (-1, ALLOWED_GID),
+            (ALLOWED_UID, -1),
+            ("1234", ALLOWED_GID),
+            (ALLOWED_UID, "5678"),
+        ):
+            with self.subTest(uid=bad_uid, gid=bad_gid):
+                with self.assertRaises(protocol.ProtocolError):
+                    protocol.PhysicalEffectsProtocol(
+                        policy,
+                        allowed_uid=bad_uid,
+                        allowed_gid=bad_gid,
+                    )
+
+    def test_peer_identity_requires_exact_nonnegative_ints(self) -> None:
+        service = self.make_protocol()
+
+        bad_peers = (
+            protocol.PeerIdentity(
+                pid=True,
+                uid=ALLOWED_UID,
+                gid=ALLOWED_GID,
+            ),
+            protocol.PeerIdentity(
+                pid=1,
+                uid=True,
+                gid=ALLOWED_GID,
+            ),
+            protocol.PeerIdentity(
+                pid=1,
+                uid=ALLOWED_UID,
+                gid=True,
+            ),
+            protocol.PeerIdentity(
+                pid=-1,
+                uid=ALLOWED_UID,
+                gid=ALLOWED_GID,
+            ),
+            protocol.PeerIdentity(
+                pid=1,
+                uid=-1,
+                gid=ALLOWED_GID,
+            ),
+            protocol.PeerIdentity(
+                pid=1,
+                uid=ALLOWED_UID,
+                gid=-1,
+            ),
+        )
+
+        for peer in bad_peers:
+            with self.subTest(peer=peer):
+                with self.assertRaises(protocol.ProtocolError):
+                    service.handle(request(), peer)
+
+    def test_response_schema_is_exact(self) -> None:
+        service = self.make_protocol()
+        response = json.loads(service.handle(request(), GOOD_PEER))
+
+        self.assertEqual(
+            set(response),
+            {
+                "version",
+                "request_id",
+                "catalogue_effect",
+                "disposition",
+            },
+        )
+        self.assertEqual(
+            response,
+            {
+                "version": 1,
+                "request_id": "request-protocol-test-0001",
+                "catalogue_effect": "donkey_braying",
+                "disposition": "disabled",
+            },
+        )
+
     def test_protocol_has_no_hardware_executor(self) -> None:
         source = PROTOCOL_PATH.read_text(encoding="utf-8")
 

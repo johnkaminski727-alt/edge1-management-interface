@@ -25,6 +25,21 @@ class ProtocolError(ValueError):
     """Raised when a physical-effect protocol request fails closed."""
 
 
+def _exact_nonnegative_int(value: object) -> bool:
+    return type(value) is int and value >= 0
+
+
+def _reject_duplicate_keys(pairs):
+    result = {}
+
+    for key, value in pairs:
+        if key in result:
+            raise ProtocolError("duplicate request field")
+        result[key] = value
+
+    return result
+
+
 @dataclass(frozen=True)
 class PeerIdentity:
     pid: int
@@ -40,16 +55,26 @@ class PhysicalEffectsProtocol:
         allowed_uid: int,
         allowed_gid: int,
     ) -> None:
-        if allowed_uid < 0 or allowed_gid < 0:
+        if (
+            not _exact_nonnegative_int(allowed_uid)
+            or not _exact_nonnegative_int(allowed_gid)
+        ):
             raise ProtocolError("invalid allowed peer identity")
 
         self.policy = policy
-        self.allowed_uid = int(allowed_uid)
-        self.allowed_gid = int(allowed_gid)
+        self.allowed_uid = allowed_uid
+        self.allowed_gid = allowed_gid
 
     def _authorize_peer(self, peer: PeerIdentity) -> None:
         if not isinstance(peer, PeerIdentity):
             raise ProtocolError("missing peer credentials")
+
+        if (
+            not _exact_nonnegative_int(peer.pid)
+            or not _exact_nonnegative_int(peer.uid)
+            or not _exact_nonnegative_int(peer.gid)
+        ):
+            raise ProtocolError("invalid peer credentials")
 
         if peer.uid != self.allowed_uid or peer.gid != self.allowed_gid:
             raise ProtocolError("peer is not authorized")
@@ -63,7 +88,10 @@ class PhysicalEffectsProtocol:
             raise ProtocolError("invalid request size")
 
         try:
-            request = json.loads(payload.decode("utf-8"))
+            request = json.loads(
+                payload.decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_keys,
+            )
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ProtocolError("invalid request encoding") from exc
 
@@ -73,7 +101,10 @@ class PhysicalEffectsProtocol:
         if set(request) != {"version", "request_id", "catalogue_effect"}:
             raise ProtocolError("request fields are not exact")
 
-        if request["version"] != PROTOCOL_VERSION:
+        if (
+            type(request["version"]) is not int
+            or request["version"] != PROTOCOL_VERSION
+        ):
             raise ProtocolError("unsupported protocol version")
 
         request_id = request["request_id"]
