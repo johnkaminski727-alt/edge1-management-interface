@@ -71,3 +71,20 @@ Before integrating the AVA controller or Contacts gateway:
 4. verify no scope expansion;
 5. preserve the authenticated `/edge1-ops/` browser architecture;
 6. make no live publication from the donor checkout.
+
+
+## Phase 3O.2 shared-file reconciliation — completed source pass
+
+Selective semantic reconciliation has now been applied to the current Phase 3 line:
+
+- `server/private_library_search_server.py`: production fixture fallback now fails closed by default; explicit test/dev fallback remains opt-in via `EDGE1_LIBRARY_FIXTURE_FALLBACK_ENABLED`.
+- `server/unified_contacts.py`: added bounded positive-integer `provenance_id` filtering for provenance reads.
+- `server/edge1_operations_api.py`: exposed `provenance_id` only on the read-only `/v1/contacts/sources` path.
+- `tests/validate_private_library_server.py`: added fail-closed and explicit fixture-fallback coverage.
+- `tests/test_unified_contacts_read_api.py`: added provenance-id filtering coverage.
+
+No Control Center assets, browser authorization state, live services, mutation gates, or
+current Contacts CRUD implementation were replaced by this pass.
+
+Next gate: CI/repository validation, followed by adaptation of the donor runtime
+installers to the reviewed release-root / immutable deployment model.
