@@ -193,6 +193,29 @@ class AvaPhysicalEffectsTransportTests(unittest.TestCase):
             left.close()
             right.close()
 
+    def test_silent_client_times_out(self) -> None:
+        service = protocol_mod.PhysicalEffectsProtocol(
+            broker.BrokerPolicy(enabled=False),
+            allowed_uid=os.getuid(),
+            allowed_gid=os.getgid(),
+        )
+
+        left, right = socket.socketpair(
+            socket.AF_UNIX,
+            socket.SOCK_STREAM,
+        )
+
+        original_timeout = transport.CONNECTION_TIMEOUT_SECONDS
+        transport.CONNECTION_TIMEOUT_SECONDS = 0.05
+
+        try:
+            with self.assertRaises(transport.TransportError):
+                transport.handle_connection(left, service)
+        finally:
+            transport.CONNECTION_TIMEOUT_SECONDS = original_timeout
+            left.close()
+            right.close()
+
     def test_transport_contains_no_hardware_executor(self) -> None:
         source = (SERVER / "ava_physical_effects_transport.py").read_text(
             encoding="utf-8"

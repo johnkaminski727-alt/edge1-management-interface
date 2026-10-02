@@ -31,6 +31,7 @@ except ImportError:
 
 PEERCRED_FORMAT = "3i"
 PEERCRED_SIZE = struct.calcsize(PEERCRED_FORMAT)
+CONNECTION_TIMEOUT_SECONDS = 2.0
 
 
 class TransportError(RuntimeError):
@@ -90,15 +91,21 @@ def handle_connection(
     connection: socket.socket,
     protocol: PhysicalEffectsProtocol,
 ) -> None:
-    peer = peer_identity(connection)
-    payload = receive_request(connection)
+    connection.settimeout(CONNECTION_TIMEOUT_SECONDS)
 
     try:
-        response = protocol.handle(payload, peer)
-    except ProtocolError as exc:
-        raise TransportError("protocol rejected request") from exc
+        peer = peer_identity(connection)
+        payload = receive_request(connection)
 
-    connection.sendall(response)
+        try:
+            response = protocol.handle(payload, peer)
+        except ProtocolError as exc:
+            raise TransportError("protocol rejected request") from exc
+
+        connection.sendall(response)
+
+    except socket.timeout as exc:
+        raise TransportError("connection timed out") from exc
 
 
 def serve_once(
