@@ -470,6 +470,22 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
         self.assertEqual(document["assertion_links"], 0)
         self.assertEqual(document["observation_links"], 2)
 
+    def test_sources_can_filter_by_provenance_id(self):
+        rows = self.store.sources(
+            provenance_id=2,
+            limit=10,
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["provenance_id"], 2)
+        self.assertEqual(rows[0]["source_kind"], "document")
+
+        with self.assertRaises(ValueError):
+            self.store.sources(
+                provenance_id=0,
+                limit=10,
+            )
+
     def test_observation_remains_contextual(self):
         rows = self.store.observations(
             contact_point_id=1,
