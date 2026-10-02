@@ -64,6 +64,11 @@ class DurableReservationLedger:
         self.max_records = max_records
         self._wall_clock = wall_clock
 
+    @property
+    def retention_seconds(self):
+        """Return the durable reservation retention window."""
+        return self.dedupe_seconds
+
     def _now(self):
         value = self._wall_clock()
 
@@ -270,6 +275,26 @@ class DurableReservationLedger:
         now = self._now()
         data = self._prune(self._read(), now)
         return data["reservations"].get(request_id)
+
+    def recent_count(self, window_seconds):
+        if (
+            isinstance(window_seconds, bool)
+            or not isinstance(window_seconds, (int, float))
+            or window_seconds <= 0
+        ):
+            raise PhysicalEffectsStateError(
+                "window_seconds must be positive"
+            )
+
+        now = self._now()
+        data = self._prune(self._read(), now)
+        cutoff = now - float(window_seconds)
+
+        return sum(
+            1
+            for record in data["reservations"].values()
+            if record["reserved_at"] > cutoff
+        )
 
     def reserve(self, request_id, catalogue_effect):
         now = self._now()

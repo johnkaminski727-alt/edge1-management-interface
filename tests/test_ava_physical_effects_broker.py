@@ -334,6 +334,199 @@ class AvaPhysicalEffectsBrokerTests(unittest.TestCase):
             )
 
 
+    def test_same_process_effect_mismatch_without_ledger_fails_closed(
+        self,
+    ) -> None:
+        policy = broker.BrokerPolicy(enabled=True)
+        request_id = "request-broker-memory-mismatch-0001"
+
+        self.assertEqual(
+            policy.decide(
+                request_id,
+                "cat_meow",
+            ).disposition,
+            "approved",
+        )
+
+        with self.assertRaises(broker.BrokerPolicyError):
+            policy.decide(
+                request_id,
+                "donkey_braying",
+            )
+
+    def test_same_process_effect_mismatch_with_ledger_fails_closed(
+        self,
+    ) -> None:
+        from server.ava_physical_effects_state import (
+            DurableReservationLedger,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "broker-state.json"
+            ledger = DurableReservationLedger(
+                path,
+                dedupe_seconds=300,
+            )
+            policy = broker.BrokerPolicy(
+                enabled=True,
+                durable_ledger=ledger,
+            )
+            request_id = "request-broker-durable-mismatch-0002"
+
+            self.assertEqual(
+                policy.decide(
+                    request_id,
+                    "cat_meow",
+                ).disposition,
+                "approved",
+            )
+
+            with self.assertRaises(
+                broker.BrokerPolicyError
+            ):
+                policy.decide(
+                    request_id,
+                    "donkey_braying",
+                )
+
+    def test_durable_rate_limit_survives_policy_restart(
+        self,
+    ) -> None:
+        from server.ava_physical_effects_state import (
+            DurableReservationLedger,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "broker-state.json"
+
+            first = broker.BrokerPolicy(
+                enabled=True,
+                max_events_per_window=1,
+                window_seconds=60,
+                durable_ledger=DurableReservationLedger(
+                    path,
+                    dedupe_seconds=300,
+                ),
+            )
+
+            self.assertEqual(
+                first.decide(
+                    "request-broker-persistent-rate-0001",
+                    "cat_meow",
+                ).disposition,
+                "approved",
+            )
+
+            restarted = broker.BrokerPolicy(
+                enabled=True,
+                max_events_per_window=1,
+                window_seconds=60,
+                durable_ledger=DurableReservationLedger(
+                    path,
+                    dedupe_seconds=300,
+                ),
+            )
+
+            self.assertEqual(
+                restarted.decide(
+                    "request-broker-persistent-rate-0002",
+                    "donkey_braying",
+                ).disposition,
+                "rate_limited",
+            )
+
+            self.assertIsNone(
+                restarted._durable_ledger.lookup(
+                    "request-broker-persistent-rate-0002"
+                )
+            )
+
+    def test_durable_retention_shorter_than_rate_window_fails_closed(
+        self,
+    ) -> None:
+        from server.ava_physical_effects_state import (
+            DurableReservationLedger,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            ledger = DurableReservationLedger(
+                Path(td) / "broker-state.json",
+                dedupe_seconds=30,
+            )
+
+            with self.assertRaises(
+                broker.BrokerPolicyError
+            ):
+                broker.BrokerPolicy(
+                    enabled=True,
+                    window_seconds=60,
+                    durable_ledger=ledger,
+                )
+
+    def test_second_durable_lookup_error_is_normalized(
+        self,
+    ) -> None:
+        class FailingConflictLedger:
+            retention_seconds = 300.0
+
+            def lookup(self, request_id):
+                if getattr(self, "after_reserve", False):
+                    raise broker.PhysicalEffectsStateError(
+                        "simulated lookup failure"
+                    )
+                return None
+
+            def recent_count(self, window_seconds):
+                return 0
+
+            def reserve(self, request_id, catalogue_effect):
+                self.after_reserve = True
+                return False
+
+        policy = broker.BrokerPolicy(
+            enabled=True,
+            durable_ledger=FailingConflictLedger(),
+        )
+
+        with self.assertRaisesRegex(
+            broker.BrokerPolicyError,
+            "durable reservation failed",
+        ):
+            policy.decide(
+                "request-broker-conflict-error-0001",
+                "cat_meow",
+            )
+
+    def test_reservation_conflict_without_record_fails_closed(
+        self,
+    ) -> None:
+        class ConflictLedger:
+            retention_seconds = 300.0
+
+            def lookup(self, request_id):
+                return None
+
+            def recent_count(self, window_seconds):
+                return 0
+
+            def reserve(self, request_id, catalogue_effect):
+                return False
+
+        policy = broker.BrokerPolicy(
+            enabled=True,
+            durable_ledger=ConflictLedger(),
+        )
+
+        with self.assertRaisesRegex(
+            broker.BrokerPolicyError,
+            "durable reservation conflict",
+        ):
+            policy.decide(
+                "request-broker-conflict-empty-0001",
+                "cat_meow",
+            )
+
+
     def test_module_contains_no_execution_or_hardware_primitive(self) -> None:
         source = MODULE_PATH.read_text(encoding="utf-8")
 

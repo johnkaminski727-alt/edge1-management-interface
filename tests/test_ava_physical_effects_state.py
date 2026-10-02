@@ -261,6 +261,60 @@ class DurableReservationLedgerTests(unittest.TestCase):
             )
 
 
+    def test_recent_count_uses_strict_window_boundary(self):
+        with tempfile.TemporaryDirectory() as td:
+            clock = FakeWallClock()
+            ledger = self.make_ledger(td, clock)
+
+            self.assertTrue(
+                ledger.reserve(
+                    "request-state-recent-0001",
+                    "cat_meow",
+                )
+            )
+
+            clock.advance(59)
+            self.assertEqual(ledger.recent_count(60), 1)
+
+            clock.advance(1)
+            self.assertEqual(ledger.recent_count(60), 0)
+
+    def test_recent_count_missing_state_does_not_create_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            clock = FakeWallClock()
+            ledger = self.make_ledger(td, clock)
+            path = Path(td) / "broker-state.json"
+
+            self.assertEqual(ledger.recent_count(60), 0)
+            self.assertFalse(path.exists())
+
+    def test_recent_count_rejects_invalid_window(self):
+        with tempfile.TemporaryDirectory() as td:
+            clock = FakeWallClock()
+            ledger = self.make_ledger(td, clock)
+
+            for bad in (True, 0, -1, "60"):
+                with self.subTest(window_seconds=bad):
+                    with self.assertRaises(
+                        state.PhysicalEffectsStateError
+                    ):
+                        ledger.recent_count(bad)
+
+    def test_retention_seconds_exposes_dedupe_window(self):
+        with tempfile.TemporaryDirectory() as td:
+            clock = FakeWallClock()
+            ledger = self.make_ledger(
+                td,
+                clock,
+                dedupe_seconds=321,
+            )
+
+            self.assertEqual(
+                ledger.retention_seconds,
+                321.0,
+            )
+
+
     def test_invalid_constructor_types_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
             clock = FakeWallClock()
