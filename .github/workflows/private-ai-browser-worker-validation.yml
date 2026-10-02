@@ -4,11 +4,29 @@ on:
   pull_request:
     paths:
       - 'server/private_ai_browser_worker.py'
+      - 'server/ava_agent_controller.py'
+      - 'server/ava_contacts_gateway.py'
+      - 'server/phone_intelligence_gateway.py'
+      - 'services/bigbird-ai-gateway/app/**'
       - 'server/ava_visual_generator.py'
       - 'server/ava_visual_worker.py'
       - 'tests/test_private_ai_browser_worker.py'
+      - 'tests/test_ava_agent_controller.py'
+      - 'tests/test_ava_contacts_gateway.py'
+      - 'tests/test_ava_readonly_gateway.py'
+      - 'tests/test_bigbird_private_library_engine.py'
+      - 'tests/test_ava_phase3o_commissioning.py'
+      - 'tests/test_ava_phase3o_preflight.py'
+      - 'deploy/preflight-ava-phase3o-release.sh'
       - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
+      - 'deploy/install-ava-browser-worker.sh'
+      - 'deploy/install-ava-readonly-gateway.sh'
+      - 'deploy/install-bigbird-private-library-runtime.sh'
+      - 'deploy/systemd/bigbird-ai-gateway.service'
+      - 'deploy/systemd/bigbird-ai-gateway-provider-egress.conf'
+      - 'tools/ava_gateway_signed_acceptance.py'
+      - 'tools/private_library/bootstrap_library_runtime.py'
       - 'deploy/ava-visual-worker.service'
       - 'deploy/ava-visual/**'
       - 'docs/private-ai-browser-interface.md'
@@ -18,11 +36,27 @@ on:
     branches: [main]
     paths:
       - 'server/private_ai_browser_worker.py'
+      - 'server/ava_agent_controller.py'
+      - 'server/ava_contacts_gateway.py'
+      - 'server/phone_intelligence_gateway.py'
+      - 'services/bigbird-ai-gateway/app/**'
       - 'server/ava_visual_generator.py'
       - 'server/ava_visual_worker.py'
       - 'tests/test_private_ai_browser_worker.py'
+      - 'tests/test_ava_agent_controller.py'
+      - 'tests/test_ava_contacts_gateway.py'
+      - 'tests/test_ava_readonly_gateway.py'
+      - 'tests/test_bigbird_private_library_engine.py'
+      - 'tests/test_ava_phase3o_commissioning.py'
       - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
+      - 'deploy/install-ava-browser-worker.sh'
+      - 'deploy/install-ava-readonly-gateway.sh'
+      - 'deploy/install-bigbird-private-library-runtime.sh'
+      - 'deploy/systemd/bigbird-ai-gateway.service'
+      - 'deploy/systemd/bigbird-ai-gateway-provider-egress.conf'
+      - 'tools/ava_gateway_signed_acceptance.py'
+      - 'tools/private_library/bootstrap_library_runtime.py'
       - 'deploy/ava-visual-worker.service'
       - 'deploy/ava-visual/**'
       - 'docs/private-ai-browser-interface.md'
@@ -40,13 +74,46 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile workers
-        run: python -m py_compile server/private_ai_browser_worker.py server/ava_visual_generator.py server/ava_visual_worker.py
-      - name: Run worker tests
-        run: python -m unittest tests.test_private_ai_browser_worker tests.test_ava_visual_generator
+      - name: Compile Ava runtime and workers
+        run: |
+          python -m py_compile \
+            server/private_ai_browser_worker.py \
+            server/ava_agent_controller.py \
+            server/ava_contacts_gateway.py \
+            server/phone_intelligence_gateway.py \
+            services/bigbird-ai-gateway/app/library_engine.py \
+            services/bigbird-ai-gateway/app/main.py \
+            tools/ava_gateway_signed_acceptance.py \
+            tools/private_library/bootstrap_library_runtime.py \
+            server/ava_visual_generator.py \
+            server/ava_visual_worker.py
+      - name: Run Ava runtime tests
+        run: |
+          python -m unittest \
+            tests.test_private_ai_browser_worker \
+            tests.test_ava_agent_controller \
+            tests.test_ava_contacts_gateway \
+            tests.test_ava_readonly_gateway \
+            tests.test_bigbird_private_library_engine \
+            tests.test_ava_phase3o_commissioning \
+            tests.test_ava_phase3o_preflight \
+            tests.test_ava_visual_generator
+      - name: Verify immutable Ava commissioning assets
+        run: |
+          sh -n deploy/install-ava-readonly-gateway.sh
+          sh -n deploy/install-ava-browser-worker.sh
+          sh -n deploy/install-bigbird-private-library-runtime.sh
+          sh -n deploy/preflight-ava-phase3o-release.sh
+          systemd-analyze verify deploy/systemd/bigbird-ai-gateway.service deploy/private-ai-browser-worker.service
+          grep -F 'WorkingDirectory=/opt/bigbird-ai-gateway/current' deploy/systemd/bigbird-ai-gateway.service
+          grep -F 'ExecStart=/usr/bin/python3 /opt/bigbird-ai-gateway/current/app/main.py' deploy/systemd/bigbird-ai-gateway.service
+          grep -F 'WorkingDirectory=/opt/wwcx-private-ai-browser-worker/current' deploy/private-ai-browser-worker.service
+          grep -F 'ExecStart=/usr/bin/python3 /opt/wwcx-private-ai-browser-worker/current/private_ai_browser_worker.py' deploy/private-ai-browser-worker.service
+          grep -F 'no reusable WW.CX queue worker identity is present' deploy/install-ava-browser-worker.sh
+          ! grep -E 'git[[:space:]]+(checkout|reset|pull|clean)' deploy/install-ava-readonly-gateway.sh deploy/install-ava-browser-worker.sh deploy/install-bigbird-private-library-runtime.sh
       - name: Verify Ava visual systemd unit
         run: systemd-analyze verify deploy/ava-visual-worker.service
-      - name: Validate immutable activation helper
+      - name: Validate immutable visual activation helper
         run: |
           sh -n deploy/ava-visual/activate.sh
           sh deploy/ava-visual/activate.sh --dry-run --repo "$PWD" --ref HEAD
