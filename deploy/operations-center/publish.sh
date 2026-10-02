@@ -16,6 +16,7 @@ declare -a FILES=(
   "src/web/operator-shell/shell.css|operator-shell/shell.css"
   "src/web/operator-shell/shell.js|operator-shell/shell.js"
   "config/edge1_operator/navigation_registry.json|operator-shell/navigation.json"
+  "src/web/edge1-ops/ava/index.html|ava/index.html"
 )
 
 echo "=== Unified Operations Center preflight ==="
@@ -29,7 +30,7 @@ done
 
 case "$MODE" in
     "")
-        echo "PASS: All ten deployment assets present."
+        echo "PASS: All eleven deployment assets present."
         echo "Use --apply for deployment."
         exit 0
         ;;
@@ -91,7 +92,7 @@ echo "Previous interface restored: $HERE"
 ROLLBACK
 chmod 0700 "$BACKUP/rollback.sh"
 
-echo "=== Publishing ten interface assets ==="
+echo "=== Publishing eleven interface assets ==="
 for entry in "${FILES[@]}"; do
     source="${entry%%|*}"
     relative="${entry#*|}"

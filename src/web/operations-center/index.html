@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090f15">
+<meta name="theme-color" content="#f4f7fb">
 <title>WW.CX Edge1 Control Center</title>
 <link rel="stylesheet" href="./operator-shell/shell.css">
+<link rel="stylesheet" href="./operator-shell/theme.css">
 <style>
 :root{color-scheme:dark;font-family:system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#48c783;--warn:#e0aa47;--neutral:#526270}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eee}.skip-link{position:fixed;left:12px;top:-80px;z-index:300;background:#fff;color:#0b1015;padding:10px 14px;border-radius:8px;text-decoration:none}.skip-link:focus{top:12px}.ops-page{max-width:1200px;margin:auto;padding:24px 30px 48px}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}.card.good{border-color:var(--good)}.card.warning{border-color:var(--warn)}.card.neutral{border-color:var(--neutral)}.label,small{color:var(--muted)}.label{font-size:.85rem}.value{font-size:1.35rem;font-weight:700;overflow-wrap:anywhere}a{color:#fff;text-decoration:none}.ops-nav{display:flex;gap:14px;flex-wrap:wrap}.module-card h3{margin-top:0}.muted{color:var(--muted)}.safety-banner{border-left:4px solid var(--warn);background:#121b22;padding:12px 14px;margin-bottom:18px}.safety-banner strong{display:block;margin-bottom:4px}@media(max-width:700px){.ops-page{padding:16px}}
 </style>
@@ -20,10 +21,10 @@
 
 <nav class="ops-nav" aria-label="Operations sections">
 <a href="#operations">Deployed modules</a>
-<a href="/edge1-status/security/">Security Operations</a>
-<a href="/edge1-status/security/correlation.html">
+<a href="/edge1-ops/status/security/">Security Operations</a>
+<a href="/edge1-ops/status/security/correlation.html">
 Security Correlation</a>
-<a href="/edge1-status/network-defense/">
+<a href="/edge1-ops/status/network-defense/">
 Network Defense</a>
 <a href="#legacy-telemetry">Historical telemetry</a>
 </nav>
@@ -34,11 +35,11 @@ Network Defense</a>
 <h2>Edge1 at a glance</h2>
 <p class="muted">A synchronized operational landing page for system health, network and VPN, firewall and security, DNS, configuration change control, AVA, contacts and relationship intelligence, and audit history. Navigation and module state come from the same registry as the menu.</p>
 <div class="grid">
-<a class="card module-card" href="/edge1-status/security/"><h3>Firewall &amp; Security</h3><small>Security posture, IDS, CrowdSec, PASS/ASE, firewall enforcement and recent events.</small></a>
-<a class="card module-card" href="/edge1-status/network-defense/"><h3>Network, VPN &amp; DNS</h3><small>Interfaces, routing, WireGuard, private access, AdGuard, filtering and resolver health.</small></a>
+<a class="card module-card" href="/edge1-ops/status/security/"><h3>Firewall &amp; Security</h3><small>Security posture, IDS, CrowdSec, PASS/ASE, firewall enforcement and recent events.</small></a>
+<a class="card module-card" href="/edge1-ops/status/network-defense/"><h3>Network, VPN &amp; DNS</h3><small>Interfaces, routing, WireGuard, private access, AdGuard, filtering and resolver health.</small></a>
 <div class="card module-card"><h3>Changes &amp; Apply</h3><small>Candidate/running configuration, pending changes, validation, apply jobs, checkpoints and rollback. Upcoming module.</small></div>
-<div class="card module-card"><h3>Contacts &amp; Relationships</h3><small>Unified people, organizations, provenance, observations, relationships and correlations. Private module integration in progress.</small></div>
-<div class="card module-card"><h3>AVA</h3><small>Upcoming AI agent workspace for planning, operator assistance, approvals, connector health and bounded actions.</small></div>
+<a class="card module-card" href="/edge1-ops/contacts/"><h3>Contacts &amp; Relationships</h3><small>Unified people, organizations, contact points, provenance, observations, relationships and correlations.</small></a>
+<a class="card module-card" href="/edge1-ops/status/ava/"><h3>AVA</h3><small>Primary AI workspace for planning, operator assistance, approvals, contacts, communications, connector health and bounded actions.</small></a>
 <div class="card module-card"><h3>Audit &amp; History</h3><small>Authentication, configuration, administrative and security action history. Upcoming module.</small></div>
 </div>
 </section>
@@ -108,9 +109,9 @@ healthy. The live monitoring sections above are independent.</p>
 <section id="operations" class="panel">
 <h2>Operations Modules</h2>
 <div class="grid">
-<a class="card module-card" href="/edge1-status/security/"><h3>Security Operations</h3><small>IDS health, alerts and validation.</small></a>
-<a class="card module-card" href="/edge1-status/security/correlation.html"><h3>Security Correlation</h3><small>Read-only cross-source investigative context.</small></a>
-<a class="card module-card" href="/edge1-status/network-defense/"><h3>Network &amp; DNS Defense</h3><small>Defense posture and staged DNS policy readiness.</small></a>
+<a class="card module-card" href="/edge1-ops/status/security/"><h3>Security Operations</h3><small>IDS health, alerts and validation.</small></a>
+<a class="card module-card" href="/edge1-ops/status/security/correlation.html"><h3>Security Correlation</h3><small>Read-only cross-source investigative context.</small></a>
+<a class="card module-card" href="/edge1-ops/status/network-defense/"><h3>Network &amp; DNS Defense</h3><small>Defense posture and staged DNS policy readiness.</small></a>
 
 
 </div>
