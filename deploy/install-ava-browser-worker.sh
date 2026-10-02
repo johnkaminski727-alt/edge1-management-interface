@@ -96,6 +96,7 @@ printf '%s
 rollback() {
     rc=$?
     trap - EXIT INT TERM
+    [ -n "${TMP:-}" ] && rm -f "$TMP" || true
     echo "Ava browser worker commissioning failed; restoring prior service state." >&2
     if [ -n "$PREVIOUS_RUNTIME" ] && [ -d "$PREVIOUS_RUNTIME" ]; then
         ln -sfn "$PREVIOUS_RUNTIME" "$CURRENT.rollback"
@@ -114,14 +115,16 @@ rollback() {
 trap rollback EXIT INT TERM
 
 install -d -m 0755 -o root -g root "$RUNTIME_ROOT" "$RELEASES"
-if [ ! -d "$RELEASE" ]; then
+if [ -e "$RELEASE" ]; then
+    [ -d "$RELEASE" ] || { echo "release path is not a directory: $RELEASE" >&2; exit 4; }
+    cmp -s "$REPO_ROOT/server/private_ai_browser_worker.py" "$RELEASE/private_ai_browser_worker.py"
+    cmp -s "$REPO_ROOT/server/ava_agent_controller.py" "$RELEASE/ava_agent_controller.py"
+else
     install -d -m 0755 -o root -g root "$RELEASE"
     CREATED_RELEASE=1
+    install -m 0555 -o root -g root "$REPO_ROOT/server/private_ai_browser_worker.py" "$RELEASE/private_ai_browser_worker.py"
+    install -m 0444 -o root -g root "$REPO_ROOT/server/ava_agent_controller.py" "$RELEASE/ava_agent_controller.py"
 fi
-install -m 0555 -o root -g root "$REPO_ROOT/server/private_ai_browser_worker.py" "$RELEASE/private_ai_browser_worker.py"
-install -m 0444 -o root -g root "$REPO_ROOT/server/ava_agent_controller.py" "$RELEASE/ava_agent_controller.py"
-cmp -s "$REPO_ROOT/server/private_ai_browser_worker.py" "$RELEASE/private_ai_browser_worker.py"
-cmp -s "$REPO_ROOT/server/ava_agent_controller.py" "$RELEASE/ava_agent_controller.py"
 
 ln -sfn "$RELEASE" "$CURRENT.new"
 mv -Tf "$CURRENT.new" "$CURRENT"
@@ -129,7 +132,6 @@ mv -Tf "$CURRENT.new" "$CURRENT"
 
 install -d -o root -g bigbird-ai -m 0750 /etc/wwcx
 TMP=$(mktemp /etc/wwcx/.private-ai-browser-worker.env.XXXXXX)
-trap 'rm -f "$TMP"; rollback' INT TERM EXIT
 {
     sed -n -E '/^BB_BROWSER_WORKER_(KEY_ID|SECRET)=/p' "$QUEUE_ENV"
     sed -n -E '/^BB_RELAY_(KEY_ID|SECRET)=/p' "$GATEWAY_ENV"
