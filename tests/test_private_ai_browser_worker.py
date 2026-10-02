@@ -92,5 +92,96 @@ class BrowserWorkerTests(unittest.TestCase):
 
 
 
+    def test_physical_dispatch_uses_sanitized_fixed_catalogue(self) -> None:
+        original = worker.submit_physical_effect
+        calls = []
+
+        def fake_submit(request_id, catalogue_effect):
+            calls.append((request_id, catalogue_effect))
+            return {
+                "version": 1,
+                "request_id": request_id,
+                "catalogue_effect": catalogue_effect,
+                "disposition": "disabled",
+            }
+
+        worker.submit_physical_effect = fake_submit
+        try:
+            result = {
+                "ui_effects": [
+                    "donkey_easter_egg",
+                    "cat_easter_egg",
+                ]
+            }
+            outcomes = worker.dispatch_physical_effects(
+                "request-worker-effect-0001",
+                result,
+            )
+        finally:
+            worker.submit_physical_effect = original
+
+        self.assertEqual(
+            calls,
+            [
+                ("request-worker-effect-0001", "donkey_braying"),
+                ("request-worker-effect-0001", "cat_meow"),
+            ],
+        )
+        self.assertEqual(
+            [item["disposition"] for item in outcomes],
+            ["disabled", "disabled"],
+        )
+
+    def test_physical_dispatch_failure_does_not_raise(self) -> None:
+        original = worker.submit_physical_effect
+
+        def fail_submit(*_args, **_kwargs):
+            raise worker.PhysicalEffectsClientError("broker unavailable")
+
+        worker.submit_physical_effect = fail_submit
+        try:
+            outcomes = worker.dispatch_physical_effects(
+                "request-worker-effect-0002",
+                {"ui_effects": ["blue_tit_easter_egg"]},
+            )
+        finally:
+            worker.submit_physical_effect = original
+
+        self.assertEqual(outcomes, [])
+
+    def test_physical_dispatch_ignores_unapproved_effect(self) -> None:
+        original = worker.submit_physical_effect
+        calls = []
+
+        def fake_submit(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise AssertionError("unapproved effect reached broker client")
+
+        worker.submit_physical_effect = fake_submit
+        try:
+            outcomes = worker.dispatch_physical_effects(
+                "request-worker-effect-0003",
+                {"ui_effects": ["run_arbitrary_command"]},
+            )
+        finally:
+            worker.submit_physical_effect = original
+
+        self.assertEqual(outcomes, [])
+        self.assertEqual(calls, [])
+
+    def test_dispatch_hook_occurs_after_sanitization_and_verification(self) -> None:
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        sanitized = source.index("result = sanitize_gateway_result(result)")
+        verified = source.index("trace = verify_gateway_result(request_id, result, plan)")
+        dispatched = source.index("dispatch_physical_effects(request_id, result)")
+        completed = source.index(
+            'complete(request_id, "completed", queue_secret, queue_key_id, result=result)'
+        )
+
+        self.assertLess(sanitized, verified)
+        self.assertLess(verified, dispatched)
+        self.assertLess(dispatched, completed)
+
+
 if __name__ == "__main__":
     unittest.main()

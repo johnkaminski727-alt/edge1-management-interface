@@ -33,6 +33,16 @@ from ava_agent_controller import (
     verify_gateway_result,
 )
 
+from ava_physical_effects import (
+    PHYSICAL_EFFECT_CATALOGUE,
+    PhysicalEffectPolicyError,
+    decide as decide_physical_effect,
+)
+from ava_physical_effects_client import (
+    PhysicalEffectsClientError,
+    submit as submit_physical_effect,
+)
+
 QUEUE_URL = os.environ.get("BB_BROWSER_QUEUE_URL", "https://ww.cx/api/bigbird-ai-worker.php")
 GATEWAY_URL = os.environ.get("BB_BROWSER_GATEWAY_URL", "http://127.0.0.1:8787/v1/chat")
 WORKER_ID = os.environ.get("BB_BROWSER_WORKER_ID", "edge1-private-ai-browser")
@@ -196,6 +206,61 @@ def gateway_call(payload: dict[str, Any], secret: str, key_id: str) -> dict[str,
     return decoded
 
 
+def dispatch_physical_effects(request_id: str, result: dict[str, Any]) -> list[dict[str, str]]:
+    """Best-effort dispatch of already-sanitized presentation effects.
+
+    Physical presentation is supplementary. Any policy/client failure is
+    contained here and must never fail an otherwise valid AVA response.
+    """
+    outcomes: list[dict[str, str]] = []
+    effects = result.get("ui_effects", [])
+
+    if not isinstance(effects, list):
+        return outcomes
+
+    for presentation_effect in effects:
+        try:
+            # Repeat the trusted presentation allowlist/mapping boundary.
+            # enabled=True here grants no hardware authority; it only exposes
+            # the fixed catalogue mapping. The root broker remains authoritative
+            # for actual enablement and execution.
+            decision = decide_physical_effect(
+                request_id,
+                presentation_effect,
+                enabled=True,
+            )
+
+            if (
+                decision.catalogue_effect
+                != PHYSICAL_EFFECT_CATALOGUE[presentation_effect]
+            ):
+                raise PhysicalEffectPolicyError(
+                    "catalogue mapping mismatch"
+                )
+
+            response = submit_physical_effect(
+                request_id,
+                decision.catalogue_effect,
+            )
+
+            outcomes.append({
+                "presentation_effect": presentation_effect,
+                "catalogue_effect": decision.catalogue_effect,
+                "disposition": str(response["disposition"]),
+            })
+        except (
+            PhysicalEffectPolicyError,
+            PhysicalEffectsClientError,
+            KeyError,
+            TypeError,
+            ValueError,
+        ):
+            # Fail open for AVA/browser presentation, closed for physical effect.
+            continue
+
+    return outcomes
+
+
 def complete(request_id: str, outcome: str, queue_secret: str, queue_key_id: str, *, result: dict[str, Any] | None = None, error_code: str | None = None) -> None:
     payload: dict[str, Any] = {"action": "complete", "worker_id": WORKER_ID, "request_id": request_id, "outcome": outcome}
     if result is not None:
@@ -254,6 +319,11 @@ def process_once(queue_secret: str, queue_key_id: str, gateway_secret: str, gate
         trace["gateway_duration_ms"] = elapsed_ms
         result = dict(result)
         result["agent_trace"] = trace
+
+        # Supplementary physical presentation occurs only after the gateway
+        # result has passed sanitization and controller verification.
+        dispatch_physical_effects(request_id, result)
+
         publish_progress(
             request_id,
             progress_payload(plan, "complete", "Ava finished and verified this response.", "verify"),
