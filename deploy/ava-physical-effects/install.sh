@@ -239,23 +239,45 @@ if [ -n "\$PREVIOUS" ]; then
     systemctl daemon-reload
 
     if systemctl restart ava-physical-effects-broker.service; then
-        ROLLBACK_PID=\$(
-            systemctl show ava-physical-effects-broker.service \
-                --property=MainPID --value
-        )
-
-        ROLLBACK_CWD=\$(
-            readlink -f "/proc/\$ROLLBACK_PID/cwd" 2>/dev/null || true
-        )
-
+        ROLLBACK_PID=""
+        ROLLBACK_CWD=""
         EXPECTED_ROLLBACK=\$(
             readlink -f '$CURRENT' 2>/dev/null || true
         )
 
-        if [ "\$ROLLBACK_CWD" = "\$EXPECTED_ROLLBACK" ]; then
+        for ATTEMPT in 1 2 3 4 5 6 7 8 9 10; do
+            ROLLBACK_PID=\$(
+                systemctl show ava-physical-effects-broker.service \
+                    --property=MainPID --value 2>/dev/null || true
+            )
+
+            if [ -n "\$ROLLBACK_PID" ] &&
+               [ "\$ROLLBACK_PID" != "0" ] &&
+               systemctl is-active --quiet \
+                   ava-physical-effects-broker.service
+            then
+                ROLLBACK_CWD=\$(
+                    readlink -f \
+                        "/proc/\$ROLLBACK_PID/cwd" \
+                        2>/dev/null || true
+                )
+
+                if [ "\$ROLLBACK_CWD" = "\$EXPECTED_ROLLBACK" ]; then
+                    break
+                fi
+            fi
+
+            sleep 0.2
+        done
+
+        if [ -n "\$ROLLBACK_PID" ] &&
+           [ "\$ROLLBACK_PID" != "0" ] &&
+           [ "\$ROLLBACK_CWD" = "\$EXPECTED_ROLLBACK" ]
+        then
             echo "PASS: rollback broker uses restored immutable release"
         else
             echo "FAIL: rollback broker release mismatch"
+            echo "rollback_pid=\$ROLLBACK_PID"
             echo "rollback_cwd=\$ROLLBACK_CWD"
             echo "expected_rollback=\$EXPECTED_ROLLBACK"
             exit 1
@@ -364,9 +386,9 @@ ROLLBACK
             STATE_DIR=/var/lib/ava-physical-effects
 
             if [ "$(stat -c '%U:%G:%a' "$STATE_DIR" 2>/dev/null)" = \
-                 "root:root:700" ]
+                 "root:bigbird-ai:700" ]
             then
-                echo "PASS: state directory root:root 0700"
+                echo "PASS: state directory root:bigbird-ai 0700"
             else
                 echo "FAIL: state directory ownership/mode mismatch"
                 stat -c '%U:%G:%a %n' "$STATE_DIR" 2>/dev/null || true
