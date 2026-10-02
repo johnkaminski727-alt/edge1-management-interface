@@ -80,5 +80,68 @@ class AvaReadonlyGatewayTests(unittest.TestCase):
         self.assertEqual(int(status), 502)
         self.assertIn("operations", result["detail"])
 
+class AvaSemanticIntentEnvelopeTests(unittest.TestCase):
+    def load(self):
+        old = dict(os.environ)
+        os.environ["BB_RELAY_KEY_ID"] = "test-key"
+        os.environ["BB_RELAY_SECRET"] = "x" * 32
+        spec = importlib.util.spec_from_file_location("ava_gateway_semantic_test", MODULE)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        os.environ.clear()
+        os.environ.update(old)
+        return module
+
+    def test_semantic_envelope_accepts_allowed_blue_tit_effect(self):
+        module = self.load()
+        answer, effects = module._semantic_envelope({
+            "answer": "I may have interpreted that request differently.",
+            "ui_effects": ["blue_tit_easter_egg"],
+        })
+        self.assertTrue(answer)
+        self.assertEqual(effects, ["blue_tit_easter_egg"])
+
+    def test_semantic_envelope_drops_unknown_effects(self):
+        module = self.load()
+        answer, effects = module._semantic_envelope({
+            "answer": "Safe answer.",
+            "ui_effects": [
+                "run_shell_command",
+                "blue_tit_easter_egg",
+                "enable_contacts",
+                "blue_tit_easter_egg",
+            ],
+        })
+        self.assertEqual(answer, "Safe answer.")
+        self.assertEqual(effects, ["blue_tit_easter_egg"])
+
+    def test_semantic_envelope_cannot_encode_capabilities(self):
+        module = self.load()
+        answer, effects = module._semantic_envelope({
+            "answer": "Safe answer.",
+            "ui_effects": ["contacts:write", "operator:actions:routine"],
+            "requested_capabilities": ["contacts:write"],
+            "scopes": ["operator:actions:routine"],
+        })
+        self.assertEqual(answer, "Safe answer.")
+        self.assertEqual(effects, [])
+
+    def test_semantic_envelope_requires_answer(self):
+        module = self.load()
+        with self.assertRaises(RuntimeError):
+            module._semantic_envelope({
+                "ui_effects": ["blue_tit_easter_egg"],
+            })
+
+    def test_plain_text_compatibility_has_no_ui_effects(self):
+        module = self.load()
+        answer, effects = module._semantic_envelope("Ordinary answer")
+        self.assertEqual(answer, "Ordinary answer")
+        self.assertEqual(effects, [])
+
+
 if __name__ == "__main__":
     unittest.main()

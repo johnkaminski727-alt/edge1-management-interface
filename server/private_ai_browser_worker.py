@@ -29,6 +29,7 @@ from ava_agent_controller import (
     build_plan,
     prepare_gateway_request,
     progress_payload,
+    sanitize_gateway_result,
     verify_gateway_result,
 )
 
@@ -241,6 +242,7 @@ def process_once(queue_secret: str, queue_key_id: str, gateway_secret: str, gate
         )
         started = time.monotonic()
         result = gateway_call(prepared_request, gateway_secret, gateway_key_id)
+        result = sanitize_gateway_result(result)
         elapsed_ms = max(0, int((time.monotonic() - started) * 1000))
         publish_progress(
             request_id,

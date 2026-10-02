@@ -209,6 +209,28 @@ def _reject_sensitive_keys(value: Any, path: str = "result") -> None:
             _reject_sensitive_keys(child, f"{path}[{index}]")
 
 
+ALLOWED_UI_EFFECTS = frozenset({"blue_tit_easter_egg"})
+
+
+def sanitize_gateway_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy with presentation-only UI effects independently allowlisted."""
+    sanitized = dict(result)
+    raw_effects = result.get("ui_effects", [])
+
+    effects: list[str] = []
+    if isinstance(raw_effects, list):
+        for effect in raw_effects[:8]:
+            if (
+                isinstance(effect, str)
+                and effect in ALLOWED_UI_EFFECTS
+                and effect not in effects
+            ):
+                effects.append(effect)
+
+    sanitized["ui_effects"] = effects
+    return sanitized
+
+
 def verify_gateway_result(request_id: str, result: dict[str, Any], plan: AgentPlan) -> dict[str, Any]:
     if str(result.get("request_id", "")) != request_id:
         raise AgentControllerError("gateway response request identifier mismatch")

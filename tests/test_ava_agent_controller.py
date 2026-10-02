@@ -142,5 +142,55 @@ class AvaAgentControllerTests(unittest.TestCase):
             }, plan)
 
 
+    def test_ui_effects_are_independently_allowlisted(self) -> None:
+        result = agent.sanitize_gateway_result({
+            "request_id": "a" * 32,
+            "answer": "Safe answer.",
+            "mode": "read-only",
+            "ui_effects": [
+                "run_shell_command",
+                "blue_tit_easter_egg",
+                "contacts:write",
+                "blue_tit_easter_egg",
+            ],
+        })
+        self.assertEqual(result["ui_effects"], ["blue_tit_easter_egg"])
+
+    def test_ui_effects_malformed_value_fails_closed(self) -> None:
+        for value in (
+            None,
+            "blue_tit_easter_egg",
+            {"effect": "blue_tit_easter_egg"},
+            123,
+        ):
+            result = agent.sanitize_gateway_result({
+                "request_id": "a" * 32,
+                "answer": "Safe answer.",
+                "mode": "read-only",
+                "ui_effects": value,
+            })
+            self.assertEqual(result["ui_effects"], [])
+
+    def test_ui_effect_sanitizer_does_not_mutate_gateway_result(self) -> None:
+        original = {
+            "request_id": "a" * 32,
+            "answer": "Safe answer.",
+            "mode": "read-only",
+            "ui_effects": ["blue_tit_easter_egg", "operator:actions:routine"],
+        }
+        sanitized = agent.sanitize_gateway_result(original)
+
+        self.assertIsNot(original, sanitized)
+        self.assertEqual(
+            original["ui_effects"],
+            ["blue_tit_easter_egg", "operator:actions:routine"],
+        )
+        self.assertEqual(
+            sanitized["ui_effects"],
+            ["blue_tit_easter_egg"],
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()

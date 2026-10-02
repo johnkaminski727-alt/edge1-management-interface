@@ -82,5 +82,15 @@ class BrowserWorkerTests(unittest.TestCase):
             worker.queue_call = original
 
 
+    def test_worker_uses_controller_ui_effect_sanitizer(self) -> None:
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn("sanitize_gateway_result", source)
+        self.assertIn(
+            "result = sanitize_gateway_result(result)",
+            source,
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
