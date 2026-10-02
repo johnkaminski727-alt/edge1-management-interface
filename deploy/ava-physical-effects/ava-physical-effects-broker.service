@@ -6,7 +6,7 @@ ConditionPathExists=/usr/local/libexec/ava-physical-effects/current/server/ava_p
 [Service]
 Type=simple
 User=root
-Group=root
+Group=bigbird-ai
 
 WorkingDirectory=/usr/local/libexec/ava-physical-effects/current
 

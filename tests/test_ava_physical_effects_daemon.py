@@ -65,24 +65,25 @@ class AvaPhysicalEffectsDaemonTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "effects.sock"
 
-            ownership = []
-
-            def fake_chown(target, uid, gid):
-                ownership.append((Path(target), uid, gid))
-
             listener = daemon_mod.create_listener(
                 path,
                 socket_gid=os.getgid(),
-                owner_uid=os.getuid(),
-                chown_fn=fake_chown,
             )
 
             try:
-                stat = path.stat()
-                self.assertEqual(stat.st_mode & 0o777, 0o660)
+                socket_stat = path.stat()
+
                 self.assertEqual(
-                    ownership,
-                    [(path, os.getuid(), os.getgid())],
+                    socket_stat.st_uid,
+                    os.getuid(),
+                )
+                self.assertEqual(
+                    socket_stat.st_gid,
+                    os.getgid(),
+                )
+                self.assertEqual(
+                    socket_stat.st_mode & 0o777,
+                    0o660,
                 )
             finally:
                 listener.close()

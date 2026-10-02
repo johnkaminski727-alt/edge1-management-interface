@@ -60,8 +60,6 @@ def create_listener(
     path: Path,
     *,
     socket_gid: int,
-    owner_uid: int = 0,
-    chown_fn=os.chown,
 ) -> socket.socket:
     prepare_socket_path(path)
 
@@ -69,7 +67,6 @@ def create_listener(
 
     try:
         listener.bind(str(path))
-        chown_fn(path, owner_uid, socket_gid)
         os.chmod(path, DEFAULT_SOCKET_MODE)
         listener.listen(8)
     except Exception:
