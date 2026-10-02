@@ -104,21 +104,22 @@ rollback() {
 trap rollback EXIT INT TERM
 
 install -d -m 0755 -o root -g root "$RUNTIME_ROOT" "$RELEASES"
-if [ ! -d "$RELEASE" ]; then
+if [ -e "$RELEASE" ]; then
+    [ -d "$RELEASE" ] || { echo "release path is not a directory: $RELEASE" >&2; exit 4; }
+    cmp -s "$REPO_ROOT/services/bigbird-ai-gateway/app/__init__.py" "$RELEASE/app/__init__.py"
+    cmp -s "$REPO_ROOT/services/bigbird-ai-gateway/app/library_engine.py" "$RELEASE/app/library_engine.py"
+    cmp -s "$REPO_ROOT/services/bigbird-ai-gateway/app/main.py" "$RELEASE/app/main.py"
+    cmp -s "$REPO_ROOT/server/ava_contacts_gateway.py" "$RELEASE/server/ava_contacts_gateway.py"
+    cmp -s "$REPO_ROOT/server/phone_intelligence_gateway.py" "$RELEASE/server/phone_intelligence_gateway.py"
+else
     install -d -m 0755 -o root -g root "$RELEASE" "$RELEASE/app" "$RELEASE/server"
     CREATED_RELEASE=1
+    install -m 0444 -o root -g root "$REPO_ROOT/services/bigbird-ai-gateway/app/__init__.py" "$RELEASE/app/__init__.py"
+    install -m 0444 -o root -g root "$REPO_ROOT/services/bigbird-ai-gateway/app/library_engine.py" "$RELEASE/app/library_engine.py"
+    install -m 0555 -o root -g root "$REPO_ROOT/services/bigbird-ai-gateway/app/main.py" "$RELEASE/app/main.py"
+    install -m 0444 -o root -g root "$REPO_ROOT/server/ava_contacts_gateway.py" "$RELEASE/server/ava_contacts_gateway.py"
+    install -m 0444 -o root -g root "$REPO_ROOT/server/phone_intelligence_gateway.py" "$RELEASE/server/phone_intelligence_gateway.py"
 fi
-
-install -m 0444 -o root -g root "$REPO_ROOT/services/bigbird-ai-gateway/app/__init__.py" "$RELEASE/app/__init__.py"
-install -m 0444 -o root -g root "$REPO_ROOT/services/bigbird-ai-gateway/app/library_engine.py" "$RELEASE/app/library_engine.py"
-install -m 0555 -o root -g root "$REPO_ROOT/services/bigbird-ai-gateway/app/main.py" "$RELEASE/app/main.py"
-install -m 0444 -o root -g root "$REPO_ROOT/server/ava_contacts_gateway.py" "$RELEASE/server/ava_contacts_gateway.py"
-install -m 0444 -o root -g root "$REPO_ROOT/server/phone_intelligence_gateway.py" "$RELEASE/server/phone_intelligence_gateway.py"
-
-cmp -s "$REPO_ROOT/services/bigbird-ai-gateway/app/library_engine.py" "$RELEASE/app/library_engine.py"
-cmp -s "$REPO_ROOT/services/bigbird-ai-gateway/app/main.py" "$RELEASE/app/main.py"
-cmp -s "$REPO_ROOT/server/ava_contacts_gateway.py" "$RELEASE/server/ava_contacts_gateway.py"
-cmp -s "$REPO_ROOT/server/phone_intelligence_gateway.py" "$RELEASE/server/phone_intelligence_gateway.py"
 
 ln -sfn "$RELEASE" "$CURRENT.new"
 mv -Tf "$CURRENT.new" "$CURRENT"
