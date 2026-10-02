@@ -65,6 +65,7 @@ server/ava_physical_effects.py
 server/ava_physical_effects_broker.py
 server/ava_physical_effects_protocol.py
 server/ava_physical_effects_transport.py
+server/ava_physical_effects_state.py
 server/ava_physical_effects_daemon.py
 $UNIT_SOURCE
 "
@@ -99,11 +100,20 @@ DAEMON="$(
 )"
 
 if printf '%s\n' "$DAEMON" |
-   grep -Fq 'BrokerPolicy(enabled=False)'
+   grep -Fq 'enabled=False'
 then
     echo "PASS: broker master-disabled"
 else
     echo "FAIL: broker is not provably master-disabled"
+    OK=0
+fi
+
+if printf '%s\n' "$DAEMON" |
+   grep -Fq 'durable_ledger=self.ledger'
+then
+    echo "PASS: durable reservation ledger wired"
+else
+    echo "FAIL: durable reservation ledger is not wired"
     OK=0
 fi
 
@@ -127,7 +137,9 @@ for CONTRACT in \
     'RestrictAddressFamilies=AF_UNIX' \
     'CapabilityBoundingSet=' \
     'AmbientCapabilities=' \
-    'NoNewPrivileges=true'
+    'NoNewPrivileges=true' \
+    'StateDirectory=ava-physical-effects' \
+    'StateDirectoryMode=0700'
 do
     if printf '%s\n' "$UNIT" | grep -Fqx "$CONTRACT"; then
         echo "PASS: $CONTRACT"
@@ -172,6 +184,7 @@ else
             server/ava_physical_effects_broker.py \
             server/ava_physical_effects_protocol.py \
             server/ava_physical_effects_transport.py \
+            server/ava_physical_effects_state.py \
             server/ava_physical_effects_daemon.py
         do
             TARGET="$RELEASE/$FILE"
@@ -311,6 +324,52 @@ ROLLBACK
                 echo "FAIL: broker process did not restart"
                 echo "before_pid=$BEFORE_PID"
                 echo "after_pid=$AFTER_PID"
+                OK=0
+            fi
+        fi
+
+        if [ "$OK" -eq 1 ]; then
+            INSTALLED_STATE="$(
+                systemctl show \
+                    ava-physical-effects-broker.service \
+                    --property=StateDirectory \
+                    --value 2>/dev/null || true
+            )"
+
+            INSTALLED_STATE_MODE="$(
+                systemctl show \
+                    ava-physical-effects-broker.service \
+                    --property=StateDirectoryMode \
+                    --value 2>/dev/null || true
+            )"
+
+            if [ "$INSTALLED_STATE" = "ava-physical-effects" ]; then
+                echo "PASS: installed StateDirectory"
+            else
+                echo "FAIL: installed StateDirectory mismatch"
+                echo "state_directory=$INSTALLED_STATE"
+                OK=0
+            fi
+
+            if [ "$INSTALLED_STATE_MODE" = "0700" ]; then
+                echo "PASS: installed StateDirectoryMode 0700"
+            else
+                echo "FAIL: installed StateDirectoryMode mismatch"
+                echo "state_directory_mode=$INSTALLED_STATE_MODE"
+                OK=0
+            fi
+        fi
+
+        if [ "$OK" -eq 1 ]; then
+            STATE_DIR=/var/lib/ava-physical-effects
+
+            if [ "$(stat -c '%U:%G:%a' "$STATE_DIR" 2>/dev/null)" = \
+                 "root:root:700" ]
+            then
+                echo "PASS: state directory root:root 0700"
+            else
+                echo "FAIL: state directory ownership/mode mismatch"
+                stat -c '%U:%G:%a %n' "$STATE_DIR" 2>/dev/null || true
                 OK=0
             fi
         fi
