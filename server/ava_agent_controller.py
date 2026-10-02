@@ -209,7 +209,12 @@ def _reject_sensitive_keys(value: Any, path: str = "result") -> None:
             _reject_sensitive_keys(child, f"{path}[{index}]")
 
 
-ALLOWED_UI_EFFECTS = frozenset({"blue_tit_easter_egg"})
+ALLOWED_UI_EFFECTS = frozenset({
+    "blue_tit_easter_egg",
+    "donkey_easter_egg",
+    "cat_easter_egg",
+    "moist_owlette_easter_egg",
+})
 
 
 def sanitize_gateway_result(result: dict[str, Any]) -> dict[str, Any]:

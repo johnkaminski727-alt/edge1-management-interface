@@ -142,6 +142,30 @@ class AvaAgentControllerTests(unittest.TestCase):
             }, plan)
 
 
+    def test_v2_ui_effect_allowlist_is_exact(self) -> None:
+        self.assertEqual(
+            agent.ALLOWED_UI_EFFECTS,
+            frozenset({
+                "blue_tit_easter_egg",
+                "donkey_easter_egg",
+                "cat_easter_egg",
+                "moist_owlette_easter_egg",
+            }),
+        )
+
+    def test_v2_ui_effects_are_independently_preserved(self) -> None:
+        expected = [
+            "blue_tit_easter_egg",
+            "donkey_easter_egg",
+            "cat_easter_egg",
+            "moist_owlette_easter_egg",
+        ]
+        result = agent.sanitize_gateway_result({
+            "answer": "Presentation request accepted.",
+            "ui_effects": expected + ["operator:actions:routine"],
+        })
+        self.assertEqual(result["ui_effects"], expected)
+
     def test_ui_effects_are_independently_allowlisted(self) -> None:
         result = agent.sanitize_gateway_result({
             "request_id": "a" * 32,

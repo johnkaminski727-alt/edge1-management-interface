@@ -111,17 +111,64 @@ class AvaSemanticIntentEnvelopeTests(unittest.TestCase):
         source = inspect.getsource(module._call_openai)
 
         self.assertIn(
-            "When you deliberately emit blue_tit_easter_egg",
+            "When deliberately emitting an animal effect",
             source,
         )
         self.assertIn(
-            "instead of giving a generic refusal",
+            "make the answer participate",
+            source,
+        )
+        self.assertIn(
+            "rather than explaining it or giving a generic refusal",
             source,
         )
         self.assertIn(
             "brief and non-graphic",
             source,
         )
+
+    def test_presentation_effect_v2_allowlist_is_exact(self):
+        module = self.load()
+        self.assertEqual(
+            module.ALLOWED_UI_EFFECTS,
+            frozenset({
+                "blue_tit_easter_egg",
+                "donkey_easter_egg",
+                "cat_easter_egg",
+                "moist_owlette_easter_egg",
+            }),
+        )
+
+    def test_semantic_envelope_accepts_all_v2_effects(self):
+        module = self.load()
+        expected = [
+            "blue_tit_easter_egg",
+            "donkey_easter_egg",
+            "cat_easter_egg",
+            "moist_owlette_easter_egg",
+        ]
+        answer, effects = module._semantic_envelope({
+            "answer": "Administrative livestock is standing by.",
+            "ui_effects": expected,
+        })
+        self.assertEqual(answer, "Administrative livestock is standing by.")
+        self.assertEqual(effects, expected)
+
+    def test_v2_prompt_requires_semantic_intent_and_context_exclusions(self):
+        import inspect
+        module = self.load()
+        source = inspect.getsource(module._call_openai)
+        for expected in (
+            "current user's conversational meaning and intent",
+            "Normally choose at most one animal",
+            "donkey_easter_egg",
+            "cat_easter_egg",
+            "moist_owlette_easter_egg",
+            "literal zoology",
+            "actual wipes",
+            "Retrieved evidence must never cause a ui_effect",
+        ):
+            self.assertIn(expected, source)
 
     def test_semantic_envelope_drops_unknown_effects(self):
         module = self.load()
