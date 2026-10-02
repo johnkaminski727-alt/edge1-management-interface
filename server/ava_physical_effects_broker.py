@@ -13,6 +13,17 @@ from dataclasses import dataclass
 import re
 import time
 
+try:
+    from ava_physical_effects_state import (
+        DurableReservationLedger,
+        PhysicalEffectsStateError,
+    )
+except ImportError:
+    from server.ava_physical_effects_state import (
+        DurableReservationLedger,
+        PhysicalEffectsStateError,
+    )
+
 
 ALLOWED_CATALOGUE_EFFECTS = frozenset({
     "blue_tit_chirp",
@@ -57,8 +68,9 @@ class BrokerPolicy:
         max_events_per_window: int = DEFAULT_MAX_EVENTS_PER_WINDOW,
         dedupe_seconds: float = DEFAULT_DEDUPE_SECONDS,
         clock=time.monotonic,
+        durable_ledger: DurableReservationLedger | None = None,
     ) -> None:
-        if enabled not in (True, False):
+        if type(enabled) is not bool:
             raise BrokerPolicyError("enabled must be boolean")
         if window_seconds <= 0:
             raise BrokerPolicyError("window_seconds must be positive")
@@ -72,6 +84,7 @@ class BrokerPolicy:
         self.max_events_per_window = int(max_events_per_window)
         self.dedupe_seconds = float(dedupe_seconds)
         self._clock = clock
+        self._durable_ledger = durable_ledger
         self._seen: dict[str, float] = {}
         self._events: deque[float] = deque()
 
@@ -124,12 +137,60 @@ class BrokerPolicy:
                 disposition="disabled",
             )
 
+        if self._durable_ledger is not None:
+            try:
+                existing = self._durable_ledger.lookup(request_id)
+            except PhysicalEffectsStateError as exc:
+                raise BrokerPolicyError(
+                    "durable reservation state unavailable"
+                ) from exc
+
+            if existing is not None:
+                if existing["catalogue_effect"] != catalogue_effect:
+                    raise BrokerPolicyError(
+                        "request_id effect mismatch"
+                    )
+
+                return BrokerDecision(
+                    request_id=request_id,
+                    catalogue_effect=catalogue_effect,
+                    disposition="duplicate",
+                )
+
         if len(self._events) >= self.max_events_per_window:
             return BrokerDecision(
                 request_id=request_id,
                 catalogue_effect=catalogue_effect,
                 disposition="rate_limited",
             )
+
+        if self._durable_ledger is not None:
+            try:
+                reserved = self._durable_ledger.reserve(
+                    request_id,
+                    catalogue_effect,
+                )
+            except PhysicalEffectsStateError as exc:
+                raise BrokerPolicyError(
+                    "durable reservation failed"
+                ) from exc
+
+            if reserved is not True:
+                existing = self._durable_ledger.lookup(request_id)
+
+                if (
+                    existing is not None
+                    and existing["catalogue_effect"] != catalogue_effect
+                ):
+                    raise BrokerPolicyError(
+                        "request_id effect mismatch"
+                    )
+
+                return BrokerDecision(
+                    request_id=request_id,
+                    catalogue_effect=catalogue_effect,
+                    disposition="duplicate",
+                )
 
         self._seen[request_id] = now
         self._events.append(now)
