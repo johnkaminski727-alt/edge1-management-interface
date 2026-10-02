@@ -104,6 +104,25 @@ class AvaSemanticIntentEnvelopeTests(unittest.TestCase):
         self.assertTrue(answer)
         self.assertEqual(effects, ["blue_tit_easter_egg"])
 
+    def test_blue_tit_prompt_requires_joke_aware_answer_guidance(self):
+        module = self.load()
+        import inspect
+
+        source = inspect.getsource(module._call_openai)
+
+        self.assertIn(
+            "When you deliberately emit blue_tit_easter_egg",
+            source,
+        )
+        self.assertIn(
+            "instead of giving a generic refusal",
+            source,
+        )
+        self.assertIn(
+            "brief and non-graphic",
+            source,
+        )
+
     def test_semantic_envelope_drops_unknown_effects(self):
         module = self.load()
         answer, effects = module._semantic_envelope({
