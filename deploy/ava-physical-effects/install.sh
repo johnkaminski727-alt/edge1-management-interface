@@ -213,20 +213,51 @@ else
 #!/bin/bash
 set -u
 
-systemctl disable --now ava-physical-effects-broker.service 2>/dev/null || true
-rm -f '$UNIT_TARGET'
+systemctl stop ava-physical-effects-broker.service 2>/dev/null || true
 
 PREVIOUS=\$(cat '$EVID/current.before.txt' 2>/dev/null || true)
 
 if [ -n "\$PREVIOUS" ]; then
     TMP='$ROOT/.rollback-current'
+    rm -f "\$TMP"
     ln -s "\$PREVIOUS" "\$TMP"
     mv -Tf "\$TMP" '$CURRENT'
+
+    systemctl daemon-reload
+
+    if systemctl restart ava-physical-effects-broker.service; then
+        ROLLBACK_PID=\$(
+            systemctl show ava-physical-effects-broker.service \
+                --property=MainPID --value
+        )
+
+        ROLLBACK_CWD=\$(
+            readlink -f "/proc/\$ROLLBACK_PID/cwd" 2>/dev/null || true
+        )
+
+        EXPECTED_ROLLBACK=\$(
+            readlink -f '$CURRENT' 2>/dev/null || true
+        )
+
+        if [ "\$ROLLBACK_CWD" = "\$EXPECTED_ROLLBACK" ]; then
+            echo "PASS: rollback broker uses restored immutable release"
+        else
+            echo "FAIL: rollback broker release mismatch"
+            echo "rollback_cwd=\$ROLLBACK_CWD"
+            echo "expected_rollback=\$EXPECTED_ROLLBACK"
+            exit 1
+        fi
+    else
+        echo "FAIL: rollback broker restart failed"
+        exit 1
+    fi
 else
+    systemctl disable ava-physical-effects-broker.service 2>/dev/null || true
+    rm -f '$UNIT_TARGET'
     rm -f '$CURRENT'
+    systemctl daemon-reload
 fi
 
-systemctl daemon-reload
 echo "AVA physical effects inert broker rollback complete."
 ROLLBACK
 
@@ -236,12 +267,31 @@ ROLLBACK
         fi
 
         if [ "$OK" -eq 1 ]; then
-            systemctl enable --now \
+            systemctl enable \
+                ava-physical-effects-broker.service || OK=0
+        fi
+
+        if [ "$OK" -eq 1 ]; then
+            BEFORE_PID="$(
+                systemctl show \
+                    ava-physical-effects-broker.service \
+                    --property=MainPID \
+                    --value 2>/dev/null || true
+            )"
+
+            systemctl restart \
                 ava-physical-effects-broker.service || OK=0
         fi
 
         if [ "$OK" -eq 1 ]; then
             sleep 1
+
+            AFTER_PID="$(
+                systemctl show \
+                    ava-physical-effects-broker.service \
+                    --property=MainPID \
+                    --value 2>/dev/null || true
+            )"
 
             if systemctl is-active --quiet \
                 ava-physical-effects-broker.service
@@ -249,6 +299,18 @@ ROLLBACK
                 echo "PASS: broker active"
             else
                 echo "FAIL: broker inactive"
+                OK=0
+            fi
+
+            if [ -n "$AFTER_PID" ] &&
+               [ "$AFTER_PID" != "0" ] &&
+               [ "$AFTER_PID" != "$BEFORE_PID" ]
+            then
+                echo "PASS: broker process restarted"
+            else
+                echo "FAIL: broker process did not restart"
+                echo "before_pid=$BEFORE_PID"
+                echo "after_pid=$AFTER_PID"
                 OK=0
             fi
         fi
@@ -274,6 +336,21 @@ ROLLBACK
                 echo "PASS: immutable current release"
             else
                 echo "FAIL: current release mismatch"
+                OK=0
+            fi
+        fi
+
+        if [ "$OK" -eq 1 ]; then
+            PROCESS_CWD="$(
+                readlink -f "/proc/$AFTER_PID/cwd" 2>/dev/null || true
+            )"
+
+            if [ "$PROCESS_CWD" = "$RELEASE" ]; then
+                echo "PASS: running broker uses immutable release"
+            else
+                echo "FAIL: running broker release mismatch"
+                echo "process_cwd=$PROCESS_CWD"
+                echo "expected_release=$RELEASE"
                 OK=0
             fi
         fi
