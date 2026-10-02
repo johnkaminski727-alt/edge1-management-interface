@@ -16,6 +16,8 @@ on:
       - 'tests/test_ava_readonly_gateway.py'
       - 'tests/test_bigbird_private_library_engine.py'
       - 'tests/test_ava_phase3o_commissioning.py'
+      - 'tests/test_ava_phase3o_preflight.py'
+      - 'deploy/preflight-ava-phase3o-release.sh'
       - 'tests/test_ava_visual_generator.py'
       - 'deploy/private-ai-browser-worker.service'
       - 'deploy/install-ava-browser-worker.sh'
@@ -94,12 +96,14 @@ jobs:
             tests.test_ava_readonly_gateway \
             tests.test_bigbird_private_library_engine \
             tests.test_ava_phase3o_commissioning \
+            tests.test_ava_phase3o_preflight \
             tests.test_ava_visual_generator
       - name: Verify immutable Ava commissioning assets
         run: |
           sh -n deploy/install-ava-readonly-gateway.sh
           sh -n deploy/install-ava-browser-worker.sh
           sh -n deploy/install-bigbird-private-library-runtime.sh
+          sh -n deploy/preflight-ava-phase3o-release.sh
           systemd-analyze verify deploy/systemd/bigbird-ai-gateway.service deploy/private-ai-browser-worker.service
           grep -F 'WorkingDirectory=/opt/bigbird-ai-gateway/current' deploy/systemd/bigbird-ai-gateway.service
           grep -F 'ExecStart=/usr/bin/python3 /opt/bigbird-ai-gateway/current/app/main.py' deploy/systemd/bigbird-ai-gateway.service
