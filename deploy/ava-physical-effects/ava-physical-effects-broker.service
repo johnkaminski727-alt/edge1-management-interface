@@ -15,6 +15,9 @@ ExecStart=/usr/bin/python3 -B /usr/local/libexec/ava-physical-effects/current/se
 RuntimeDirectory=ava-physical-effects
 RuntimeDirectoryMode=0750
 
+StateDirectory=ava-physical-effects
+StateDirectoryMode=0700
+
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true

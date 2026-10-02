@@ -19,14 +19,17 @@ from typing import Optional
 try:
     from ava_physical_effects_broker import BrokerPolicy
     from ava_physical_effects_protocol import PhysicalEffectsProtocol
+    from ava_physical_effects_state import DurableReservationLedger
     from ava_physical_effects_transport import handle_connection
 except ImportError:
     from server.ava_physical_effects_broker import BrokerPolicy
     from server.ava_physical_effects_protocol import PhysicalEffectsProtocol
+    from server.ava_physical_effects_state import DurableReservationLedger
     from server.ava_physical_effects_transport import handle_connection
 
 
 DEFAULT_SOCKET_PATH = "/run/ava-physical-effects/control.sock"
+DEFAULT_STATE_PATH = "/var/lib/ava-physical-effects/broker-state.json"
 DEFAULT_ALLOWED_USER = "bigbird-ai"
 DEFAULT_ALLOWED_GROUP = "bigbird-ai"
 DEFAULT_SOCKET_MODE = 0o660
@@ -89,15 +92,26 @@ class BrokerDaemon:
         *,
         allowed_user: str = DEFAULT_ALLOWED_USER,
         allowed_group: str = DEFAULT_ALLOWED_GROUP,
+        state_path: str = DEFAULT_STATE_PATH,
     ) -> None:
         self.path = Path(socket_path)
+        self.state_path = Path(state_path)
         self.allowed_uid, self.allowed_gid = resolve_identity(
             allowed_user,
             allowed_group,
         )
 
         # Deliberately fixed false in this phase.
-        self.policy = BrokerPolicy(enabled=False)
+        # The ledger is wired now, but disabled requests do not read or
+        # write durable reservation state.
+        self.ledger = DurableReservationLedger(
+            self.state_path,
+            dedupe_seconds=300,
+        )
+        self.policy = BrokerPolicy(
+            enabled=False,
+            durable_ledger=self.ledger,
+        )
 
         self.protocol = PhysicalEffectsProtocol(
             self.policy,
@@ -162,6 +176,10 @@ def main() -> int:
         default=DEFAULT_SOCKET_PATH,
     )
     parser.add_argument(
+        "--state",
+        default=DEFAULT_STATE_PATH,
+    )
+    parser.add_argument(
         "--allowed-user",
         default=DEFAULT_ALLOWED_USER,
     )
@@ -176,6 +194,7 @@ def main() -> int:
         args.socket,
         allowed_user=args.allowed_user,
         allowed_group=args.allowed_group,
+        state_path=args.state,
     )
 
     signal.signal(signal.SIGTERM, daemon.request_stop)

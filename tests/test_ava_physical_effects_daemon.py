@@ -127,6 +127,47 @@ class AvaPhysicalEffectsDaemonTests(unittest.TestCase):
             left.close()
             right.close()
 
+    def test_daemon_wires_durable_ledger_but_remains_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "broker-state.json"
+
+            instance = daemon_mod.BrokerDaemon(
+                "/tmp/ava-physical-effects-test.sock",
+                state_path=str(state_path),
+            )
+
+            self.assertFalse(instance.policy.enabled)
+            self.assertIs(
+                instance.policy._durable_ledger,
+                instance.ledger,
+            )
+            self.assertEqual(
+                instance.state_path,
+                state_path,
+            )
+            self.assertFalse(state_path.exists())
+
+    def test_disabled_decision_creates_no_state_file(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "broker-state.json"
+
+            instance = daemon_mod.BrokerDaemon(
+                "/tmp/ava-physical-effects-test.sock",
+                state_path=str(state_path),
+            )
+
+            result = instance.policy.decide(
+                "request-daemon-disabled-state-0001",
+                "donkey_braying",
+            )
+
+            self.assertEqual(
+                result.disposition,
+                "disabled",
+            )
+            self.assertFalse(state_path.exists())
+
+
     def test_daemon_source_contains_no_hardware_executor(self) -> None:
         source = (
             SERVER / "ava_physical_effects_daemon.py"
