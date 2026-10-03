@@ -13,6 +13,10 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 [ -d "$REPO/.git" ] || die "Edge1 repository is unavailable"
 [ -f "$UNIT_SRC" ] || die "browser worker unit is unavailable"
 [ -f "$REPO/server/private_ai_browser_worker.py" ] || die "browser worker source is unavailable"
+[ -f "$REPO/server/ava_agent_controller.py" ] || die "Ava agent controller source is unavailable"
+[ -f "$REPO/server/ava_physical_effects.py" ] || die "physical effects policy source is unavailable"
+[ -f "$REPO/server/ava_physical_effects_client.py" ] || die "physical effects client source is unavailable"
+[ -f "$REPO/server/ava_physical_effects_protocol.py" ] || die "physical effects protocol source is unavailable"
 [ -f "$GATEWAY_ENV" ] || die "Ava gateway environment is unavailable"
 getent passwd bigbird-ai >/dev/null 2>&1 || die "bigbird-ai service account is unavailable"
 
