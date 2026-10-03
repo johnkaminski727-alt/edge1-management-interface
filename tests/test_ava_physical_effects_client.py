@@ -182,6 +182,22 @@ class PhysicalEffectsClientTests(unittest.TestCase):
 
         self.assertEqual(response["disposition"], "disabled")
 
+    def test_nonfinite_timeout_fails_closed(self) -> None:
+        for timeout in (
+            float("nan"),
+            float("inf"),
+            float("-inf"),
+        ):
+            with self.subTest(timeout=timeout):
+                with self.assertRaises(
+                    client.PhysicalEffectsClientError
+                ):
+                    client.submit(
+                        "request-client-timeout-0001",
+                        "donkey_braying",
+                        timeout=timeout,
+                    )
+
     def test_module_contains_no_hardware_or_shell_primitive(self) -> None:
         source = MODULE.read_text(encoding="utf-8")
         for forbidden in (

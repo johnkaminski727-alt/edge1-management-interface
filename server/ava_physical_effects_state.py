@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 import tempfile
@@ -46,6 +47,7 @@ class DurableReservationLedger:
         if (
             isinstance(dedupe_seconds, bool)
             or not isinstance(dedupe_seconds, (int, float))
+            or not math.isfinite(dedupe_seconds)
             or dedupe_seconds <= 0
         ):
             raise PhysicalEffectsStateError(
@@ -280,6 +282,7 @@ class DurableReservationLedger:
         if (
             isinstance(window_seconds, bool)
             or not isinstance(window_seconds, (int, float))
+            or not math.isfinite(window_seconds)
             or window_seconds <= 0
         ):
             raise PhysicalEffectsStateError(

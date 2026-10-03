@@ -293,7 +293,15 @@ class DurableReservationLedgerTests(unittest.TestCase):
             clock = FakeWallClock()
             ledger = self.make_ledger(td, clock)
 
-            for bad in (True, 0, -1, "60"):
+            for bad in (
+                True,
+                0,
+                -1,
+                "60",
+                float("nan"),
+                float("inf"),
+                float("-inf"),
+            ):
                 with self.subTest(window_seconds=bad):
                     with self.assertRaises(
                         state.PhysicalEffectsStateError
@@ -320,7 +328,7 @@ class DurableReservationLedgerTests(unittest.TestCase):
             clock = FakeWallClock()
             path = Path(td) / "broker-state.json"
 
-            for bad in (True, 0, -1, "300"):
+            for bad in (True, 0, -1, "300", float("nan"), float("inf"), float("-inf")):
                 with self.subTest(dedupe_seconds=bad):
                     with self.assertRaises(
                         state.PhysicalEffectsStateError

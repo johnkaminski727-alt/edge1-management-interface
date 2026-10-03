@@ -9,6 +9,7 @@ authoritative for enablement, dedupe, rate limiting, persistence and execution.
 from __future__ import annotations
 
 import json
+import math
 import socket
 from typing import Any
 
@@ -154,6 +155,7 @@ def submit(
     if (
         isinstance(timeout, bool)
         or not isinstance(timeout, (int, float))
+        or not math.isfinite(timeout)
         or timeout <= 0
         or timeout > 2.0
     ):
