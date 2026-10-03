@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import logging
@@ -347,14 +348,25 @@ class AvaPhysicalEffectsAuditTests(unittest.TestCase):
         self.assertEqual(records, [])
 
     def test_audit_source_does_not_log_raw_payload_or_peer_identity(self):
-        source = PROTOCOL_PATH.read_text(encoding="utf-8")
+        tree = ast.parse(
+            PROTOCOL_PATH.read_text(encoding="utf-8")
+        )
 
-        audit_start = source.index("def audit_decision(")
-        audit_end = source.index("\n\n", audit_start)
-        audit_source = source[audit_start:audit_end]
+        functions = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "audit_decision"
+        ]
 
-        self.assertNotIn("payload", audit_source)
-        self.assertNotIn("peer", audit_source)
-        self.assertNotIn("uid", audit_source)
-        self.assertNotIn("gid", audit_source)
-        self.assertNotIn("pid", audit_source)
+        self.assertEqual(len(functions), 1)
+
+        referenced_names = {
+            child.id
+            for child in ast.walk(functions[0])
+            if isinstance(child, ast.Name)
+        }
+
+        for forbidden in ("payload", "peer", "uid", "gid", "pid"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, referenced_names)
