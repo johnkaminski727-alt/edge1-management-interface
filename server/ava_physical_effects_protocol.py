@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import logging
 
 try:
     from ava_physical_effects_broker import BrokerPolicy, BrokerPolicyError
@@ -19,6 +20,22 @@ except ImportError:
 
 PROTOCOL_VERSION = 1
 MAX_REQUEST_BYTES = 512
+
+_AUDIT_LOGGER = logging.getLogger("ava.physical_effects.audit")
+
+
+def audit_decision(
+    request_id: str,
+    catalogue_effect: str,
+    disposition: str,
+) -> None:
+    """Emit only already-validated bounded broker decision fields."""
+    _AUDIT_LOGGER.info(
+        "physical_effect request_id=%s catalogue_effect=%s disposition=%s",
+        request_id,
+        catalogue_effect,
+        disposition,
+    )
 
 
 class ProtocolError(ValueError):
@@ -123,6 +140,12 @@ class PhysicalEffectsProtocol:
             decision = self.policy.decide(request_id, catalogue_effect)
         except BrokerPolicyError as exc:
             raise ProtocolError("broker policy rejected request") from exc
+
+        audit_decision(
+            decision.request_id,
+            decision.catalogue_effect,
+            decision.disposition,
+        )
 
         response = {
             "version": PROTOCOL_VERSION,

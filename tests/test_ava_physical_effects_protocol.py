@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import logging
 import sys
 import unittest
 from pathlib import Path
@@ -266,3 +267,94 @@ class AvaPhysicalEffectsProtocolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+# ---------------------------------------------------------------------------
+# Phase 2F.1C.2 — bounded broker decision audit
+# ---------------------------------------------------------------------------
+
+class AvaPhysicalEffectsAuditTests(unittest.TestCase):
+    def make_protocol(self, *, enabled=False):
+        policy = broker.BrokerPolicy(enabled=enabled)
+        return protocol.PhysicalEffectsProtocol(
+            policy,
+            allowed_uid=ALLOWED_UID,
+            allowed_gid=ALLOWED_GID,
+        )
+
+    def test_successful_disabled_decision_emits_bounded_audit(self):
+        service = self.make_protocol(enabled=False)
+
+        with self.assertLogs(
+            "ava.physical_effects.audit",
+            level="INFO",
+        ) as captured:
+            response = json.loads(
+                service.handle(
+                    request(
+                        "request-audit-disabled-0001",
+                        "donkey_braying",
+                    ),
+                    GOOD_PEER,
+                )
+            )
+
+        self.assertEqual(response["disposition"], "disabled")
+        self.assertEqual(len(captured.output), 1)
+
+        event = captured.output[0]
+
+        self.assertIn(
+            "request_id=request-audit-disabled-0001",
+            event,
+        )
+        self.assertIn(
+            "catalogue_effect=donkey_braying",
+            event,
+        )
+        self.assertIn(
+            "disposition=disabled",
+            event,
+        )
+
+    def test_rejected_request_does_not_emit_decision_audit(self):
+        service = self.make_protocol(enabled=False)
+
+        logger = protocol._AUDIT_LOGGER
+        handler = logging.Handler()
+        records = []
+
+        def emit(record):
+            records.append(record)
+
+        handler.emit = emit
+        logger.addHandler(handler)
+        old_level = logger.level
+        logger.setLevel(logging.INFO)
+
+        try:
+            with self.assertRaises(protocol.ProtocolError):
+                service.handle(
+                    request(
+                        "request-audit-rejected-0001",
+                        "arbitrary_frequency",
+                    ),
+                    GOOD_PEER,
+                )
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(old_level)
+
+        self.assertEqual(records, [])
+
+    def test_audit_source_does_not_log_raw_payload_or_peer_identity(self):
+        source = PROTOCOL_PATH.read_text(encoding="utf-8")
+
+        audit_start = source.index("def audit_decision(")
+        audit_end = source.index("\n\n", audit_start)
+        audit_source = source[audit_start:audit_end]
+
+        self.assertNotIn("payload", audit_source)
+        self.assertNotIn("peer", audit_source)
+        self.assertNotIn("uid", audit_source)
+        self.assertNotIn("gid", audit_source)
+        self.assertNotIn("pid", audit_source)
