@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-import logging
+import sys
 
 try:
     from ava_physical_effects_broker import BrokerPolicy, BrokerPolicyError
@@ -21,20 +21,17 @@ except ImportError:
 PROTOCOL_VERSION = 1
 MAX_REQUEST_BYTES = 512
 
-_AUDIT_LOGGER = logging.getLogger("ava.physical_effects.audit")
-
-
 def audit_decision(
     request_id: str,
     catalogue_effect: str,
     disposition: str,
 ) -> None:
     """Emit only already-validated bounded broker decision fields."""
-    _AUDIT_LOGGER.info(
-        "physical_effect request_id=%s catalogue_effect=%s disposition=%s",
-        request_id,
-        catalogue_effect,
-        disposition,
+    print(
+        "physical_effect request_id=%s catalogue_effect=%s disposition=%s"
+        % (request_id, catalogue_effect, disposition),
+        file=sys.stderr,
+        flush=True,
     )
 
 

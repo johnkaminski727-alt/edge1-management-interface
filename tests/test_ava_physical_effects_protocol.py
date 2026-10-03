@@ -283,12 +283,13 @@ class AvaPhysicalEffectsAuditTests(unittest.TestCase):
         )
 
     def test_successful_disabled_decision_emits_bounded_audit(self):
-        service = self.make_protocol(enabled=False)
+        import contextlib
+        import io
 
-        with self.assertLogs(
-            "ava.physical_effects.audit",
-            level="INFO",
-        ) as captured:
+        service = self.make_protocol(enabled=False)
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
             response = json.loads(
                 service.handle(
                     request(
@@ -300,39 +301,22 @@ class AvaPhysicalEffectsAuditTests(unittest.TestCase):
             )
 
         self.assertEqual(response["disposition"], "disabled")
-        self.assertEqual(len(captured.output), 1)
-
-        event = captured.output[0]
-
-        self.assertIn(
-            "request_id=request-audit-disabled-0001",
-            event,
-        )
-        self.assertIn(
-            "catalogue_effect=donkey_braying",
-            event,
-        )
-        self.assertIn(
-            "disposition=disabled",
-            event,
+        self.assertEqual(
+            stderr.getvalue(),
+            "physical_effect "
+            "request_id=request-audit-disabled-0001 "
+            "catalogue_effect=donkey_braying "
+            "disposition=disabled\n",
         )
 
     def test_rejected_request_does_not_emit_decision_audit(self):
+        import contextlib
+        import io
+
         service = self.make_protocol(enabled=False)
+        stderr = io.StringIO()
 
-        logger = protocol._AUDIT_LOGGER
-        handler = logging.Handler()
-        records = []
-
-        def emit(record):
-            records.append(record)
-
-        handler.emit = emit
-        logger.addHandler(handler)
-        old_level = logger.level
-        logger.setLevel(logging.INFO)
-
-        try:
+        with contextlib.redirect_stderr(stderr):
             with self.assertRaises(protocol.ProtocolError):
                 service.handle(
                     request(
@@ -341,11 +325,8 @@ class AvaPhysicalEffectsAuditTests(unittest.TestCase):
                     ),
                     GOOD_PEER,
                 )
-        finally:
-            logger.removeHandler(handler)
-            logger.setLevel(old_level)
 
-        self.assertEqual(records, [])
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_audit_source_does_not_log_raw_payload_or_peer_identity(self):
         tree = ast.parse(
