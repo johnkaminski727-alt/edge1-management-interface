@@ -11,7 +11,8 @@ INSTALLER = (ROOT / "deploy/edge1-tunnel/install-edge1-secure-mcp-tunnel.sh").re
 
 class SecureMcpTunnelAssetsTests(unittest.TestCase):
     def test_profile_targets_only_loopback_operator(self):
-        self.assertIn("url: http://127.0.0.1:8102/mcp", PROFILE)
+        self.assertIn("url: http://127.0.0.1:8114/mcp", PROFILE)
+        self.assertNotIn("url: http://127.0.0.1:8102/mcp", PROFILE)
         self.assertIn("listen_addr: 127.0.0.1:0", PROFILE)
         self.assertNotIn("0.0.0.0", PROFILE)
         self.assertNotIn("edge1.ww.cx", PROFILE)

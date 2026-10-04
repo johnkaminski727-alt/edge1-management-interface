@@ -10,12 +10,12 @@ SERVICE_UNIT=${EDGE1_TUNNEL_SERVICE_UNIT:-/etc/systemd/system/edge1-secure-mcp-t
 TUNNEL_ID_FILE=${EDGE1_TUNNEL_ID_FILE:-/etc/edge1-tunnel/tunnel-id}
 API_KEY_FILE=${EDGE1_TUNNEL_API_KEY_FILE:-/etc/edge1-tunnel/runtime-api-key}
 TOKEN_FILE=${EDGE1_OPERATOR_MCP_TOKEN_FILE:-/etc/edge1-operator/mcp-token}
-EXPECTED_CLIENT_SHA=937347720ef32ef3ef2f68f4496b2dd7917ca5e575452ed87a4ce78d0262a100
-EXPECTED_CLIENT_VERSION='0.0.10+105e17a79a36e4e5c897fd698ed2b8dbf935b144'
+EXPECTED_CLIENT_SHA=286769f6b1b1837e89896b4684a3ec59c919f860fa2bc159442e3839b6468711
+EXPECTED_CLIENT_VERSION='0.0.15+a390c168ff1b2d14e73a95991c186c6aba3ff5a0'
 EXPECTED_LAUNCHER_SHA=c0b7788bc40c3668b75b6f6410885bd9ce89a39e08c962b80a2e86f4497868f4
-EXPECTED_CONFIG_SHA=afd2572a7a87f653e746350f4ae75e62244684e1a981aa429165014e755a2ede
+EXPECTED_CONFIG_SHA=100ca14363a0595f4ba3a070c747ff6d05d398b5781126d3588caa1619214bbe
 EXPECTED_SERVICE_SHA=e8070f5acca3b747ec61a8a0a0c83982be8731262d88907c4b29bb280a58042d
-MCP_URL=http://127.0.0.1:8102/mcp
+MCP_URL=http://127.0.0.1:8114/mcp
 
 fail() {
     echo "EDGE1_TUNNEL_COMPAT_DOCTOR=FAIL"
@@ -46,8 +46,8 @@ require_metadata "$TUNNEL_CLIENT" '755:root:root'
 require_metadata "$LAUNCHER" '755:root:root'
 require_metadata "$CONFIG" '640:root:edge1-operator'
 require_metadata "$SERVICE_UNIT" '644:root:root'
-require_metadata "$TUNNEL_ID_FILE" '640:root:edge1-operator'
-require_metadata "$API_KEY_FILE" '640:root:edge1-operator'
+require_metadata "$TUNNEL_ID_FILE" '600:edge1-operator:edge1-operator'
+require_metadata "$API_KEY_FILE" '600:edge1-operator:edge1-operator'
 require_metadata "$TOKEN_FILE" '600:edge1-operator:edge1-operator'
 
 CLIENT_SHA=$(sha256sum "$TUNNEL_CLIENT" | awk '{print $1}')
@@ -98,7 +98,7 @@ def status(url, authorization=False):
     except urllib.error.URLError as exc:
         raise SystemExit(f"local MCP probe failed: {type(exc.reason).__name__}") from exc
 
-base = "http://127.0.0.1:8102"
+base = "http://127.0.0.1:8114"
 checks = {
     "unauthenticated_mcp": status(mcp_url, authorization=False),
     "authenticated_mcp": status(mcp_url, authorization=True),
@@ -125,19 +125,14 @@ set -e
 
 echo "raw_doctor_rc=$DOCTOR_RC"
 
-# This validator is intentionally pinned to the exact old client build whose
-# doctor-only OAuth false negative was reviewed. Raw success from this pinned
-# build means the environment/authentication contract changed and requires a
-# new review; it is not silently accepted.
-[ "$DOCTOR_RC" -eq 2 ] || fail "pinned raw doctor result changed; re-review required (rc=$DOCTOR_RC)"
+# tunnel-client 0.0.15 treats absent optional OAuth metadata as a reviewed
+# PASS when the MCP bearer boundary and target are otherwise healthy.
+[ "$DOCTOR_RC" -eq 0 ] || fail "raw doctor failed (rc=$DOCTOR_RC)"
 
-FAILED_CHECKS=$(sed -n 's/^FAILED_CHECKS[[:space:]]*//p' "$TMP" | tail -n 1)
-[ "$FAILED_CHECKS" = "oauth_metadata" ] || \
-    fail "raw doctor failed checks are not exactly oauth_metadata"
-
+grep -Fq 'CHECK mcp_target' "$TMP" || fail "mcp_target result missing"
+grep -Fq 'PASS http://127.0.0.1:8114/mcp' "$TMP" || fail "doctor did not validate Agent Shell main target"
 grep -Fq 'CHECK oauth_metadata' "$TMP" || fail "oauth_metadata result missing"
-grep -Fq 'HTTP 404 from http://127.0.0.1:8102/.well-known/oauth-protected-resource/mcp' "$TMP" || \
-    fail "doctor OAuth failure is not the reviewed path-specific 404"
+grep -Fq 'PASS OAuth metadata not advertised' "$TMP" || fail "optional OAuth metadata contract changed"
+grep -Fq 'RESULT ok' "$TMP" || fail "doctor did not report success"
 
-echo "compatibility_override=known_0.0.10_optional_oauth_metadata_false_negative"
 echo "EDGE1_TUNNEL_COMPAT_DOCTOR=PASS"

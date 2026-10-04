@@ -35,7 +35,7 @@ from pathlib import Path
 p = Path(__import__('sys').argv[1])
 text = p.read_text(encoding='utf-8')
 required = (
-    'url: http://127.0.0.1:8102/mcp',
+    'url: http://127.0.0.1:8114/mcp',
     'Authorization: env:EDGE1_MCP_AUTHORIZATION',
     'api_key: file:/etc/edge1-tunnel/runtime-api-key',
     'listen_addr: 127.0.0.1:0',
@@ -87,7 +87,7 @@ systemd-analyze verify "$UNIT"
 [ ! -e "$ETC_DIR/runtime-api-key" ] || {
     owner=$(stat -c '%U:%G' "$ETC_DIR/runtime-api-key")
     mode=$(stat -c '%a' "$ETC_DIR/runtime-api-key")
-    [ "$owner" = root:edge1-operator ] && [ "$mode" = 640 ] || {
+    [ "$owner" = edge1-operator:edge1-operator ] && [ "$mode" = 600 ] || {
         echo "existing runtime-api-key has unexpected owner/mode: $owner $mode" >&2
         exit 8
     }
@@ -96,7 +96,7 @@ systemd-analyze verify "$UNIT"
 [ ! -e "$ETC_DIR/tunnel-id" ] || {
     owner=$(stat -c '%U:%G' "$ETC_DIR/tunnel-id")
     mode=$(stat -c '%a' "$ETC_DIR/tunnel-id")
-    [ "$owner" = root:edge1-operator ] && [ "$mode" = 640 ] || {
+    [ "$owner" = edge1-operator:edge1-operator ] && [ "$mode" = 600 ] || {
         echo "existing tunnel-id has unexpected owner/mode: $owner $mode" >&2
         exit 9
     }

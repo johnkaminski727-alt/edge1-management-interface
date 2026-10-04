@@ -77,11 +77,11 @@ class Edge1AgentShellTests(unittest.TestCase):
         self.assertIn('127.0.0.1:$PORT/healthz', self.installer)
         self.assertIn('listener verification failed', self.installer)
 
-    def test_existing_tunnel_carries_second_channel(self):
+    def test_shell_operator_tunnel_targets_agent_shell_as_main(self):
         self.assertIn('channel: main', self.tunnel)
-        self.assertIn('url: http://127.0.0.1:8102/mcp', self.tunnel)
-        self.assertIn('channel: agent-shell', self.tunnel)
         self.assertIn('url: http://127.0.0.1:8114/mcp', self.tunnel)
+        self.assertNotIn('url: http://127.0.0.1:8102/mcp', self.tunnel)
+        self.assertNotIn('channel: agent-shell', self.tunnel)
         self.assertIn('Authorization: env:EDGE1_MCP_AUTHORIZATION', self.tunnel)
 
     def test_audit_does_not_log_command_text_or_file_content(self):
