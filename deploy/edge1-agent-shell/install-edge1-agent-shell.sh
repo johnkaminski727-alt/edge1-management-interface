@@ -39,13 +39,14 @@ SERVICE_SOURCE="$REPO/deploy/edge1-agent-shell/edge1-agent-shell.service"
 
 command -v git >/dev/null 2>&1 || { echo "git is required" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "node is required" >&2; exit 1; }
-command -v npm >/dev/null 2>&1 || { echo "npm is required" >&2; exit 1; }
+command -v corepack >/dev/null 2>&1 || { echo "corepack is required" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 1; }
 command -v systemctl >/dev/null 2>&1 || { echo "systemctl is required" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || { echo "installer must run as root" >&2; exit 1; }
 [ -d "$REPO/.git" ] || { echo "repo is not a Git checkout: $REPO" >&2; exit 1; }
 [ -f "$PACKAGE/package.json" ] || { echo "missing agent shell package" >&2; exit 1; }
+[ -f "$PACKAGE/package-lock.json" ] || { echo "missing agent shell package lock" >&2; exit 1; }
 [ -f "$PACKAGE/src/index.js" ] || { echo "missing agent shell entrypoint" >&2; exit 1; }
 [ -f "$SERVICE_SOURCE" ] || { echo "missing systemd unit source" >&2; exit 1; }
 [ -f "$TOKEN" ] || { echo "missing existing Edge1 MCP token file" >&2; exit 1; }
@@ -101,12 +102,13 @@ if [ ! -d "$RELEASE" ]; then
   rm -rf "$TMP"
   mkdir -p "$TMP/src"
   cp "$PACKAGE/package.json" "$TMP/package.json"
+  cp "$PACKAGE/package-lock.json" "$TMP/package-lock.json"
   cp "$PACKAGE/README.md" "$TMP/README.md"
   cp "$PACKAGE/src/index.js" "$TMP/src/index.js"
   (
     cd "$TMP"
-    npm install --omit=dev --ignore-scripts --no-audit --no-fund
-    npm run check
+    corepack npm@10.9.4 ci --omit=dev --ignore-scripts --no-audit --no-fund
+    corepack npm@10.9.4 run check
   )
   chmod -R go-w "$TMP"
   mv "$TMP" "$RELEASE"
