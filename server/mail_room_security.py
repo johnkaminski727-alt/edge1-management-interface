@@ -156,7 +156,7 @@ def rspamd_scan(raw, transport=None):
     request=urllib.request.Request('http://127.0.0.1:11333/checkv2',data=raw,headers=headers)
     with urllib.request.urlopen(request,timeout=45) as response:
         result=json.loads(response.read(1024*1024))
-    if result.get('is_skipped') or not isinstance(result.get('symbols'),dict) or not isinstance(result.get('score'),(int,float)) or not math.isfinite(result['score']):
+    if (result.get('is_skipped') and result.get('action') not in {'reject','quarantine'}) or not isinstance(result.get('symbols'),dict) or not isinstance(result.get('score'),(int,float)) or not math.isfinite(result['score']):
         raise ValueError('Incomplete spam scan')
     return result
 
@@ -180,6 +180,7 @@ def classify(result, attachment_states, *, transport=None, domain='', policy=Non
     state='released'
     if blocked: state='quarantine'; reasons.append('attachment_security_block')
     elif incomplete: state='pending'; reasons.append('attachment_scan_incomplete')
+    elif result.get('is_skipped'): state='quarantine'; reasons.append('filter_rejected_before_all_checks'); incomplete=True
     elif symbols & {'R_SPF_DNSFAIL','DKIM_TEMPFAIL','DMARC_DNSFAIL'}: state='pending'; reasons.append('authentication_check_unavailable'); incomplete=True
     elif phishing: state='quarantine'; reasons.append('phishing_or_sender_authentication_failure')
     elif result['score']>=limits['quarantine_score']: state='quarantine'; reasons.append('high_spam_score')

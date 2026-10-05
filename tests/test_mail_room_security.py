@@ -87,6 +87,8 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(classify({**clean,'symbols':{'PHISHING':{}}},[])['state'],'quarantine')
         self.assertEqual(classify({**clean,'score':8},[])['state'],'junk')
         self.assertEqual(classify({**clean,'symbols':{'DKIM_TEMPFAIL':{}}},[])['state'],'pending')
+        rejected=classify({**clean,'score':15,'symbols':{'GTUBE':{}},'action':'reject','is_skipped':True},[])
+        self.assertEqual(rejected['state'],'quarantine');self.assertFalse(rejected['scan_complete'])
     def test_embedded_file_policy_and_whole_message_scanning(self):
         raw=RAW.replace(b'Content-Type: text/plain',b'Content-Type: application/octet-stream\nContent-Disposition: inline; filename="attack.ps1"')
         decision,parts,_=inspect(raw,scan=lambda _: 'clean_download_disabled',spam_scan=lambda *a:{'score':0,'symbols':{}})
@@ -110,5 +112,36 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(self.security.settings()['domains']['ww.cx']['junk_score'],5)
         for invalid in [{**data,'domain':'external.test'},{**data,'junk_score':0},{**data,'quarantine_score':4},{**data,'trusted_senders':['*']}]:
             with self.assertRaises(ValueError):self.security.settings(invalid)
+
+    def test_http_review_requires_acknowledgement_and_never_calls_ava(self):
+        from http.server import ThreadingHTTPServer
+        from server.mail_room_http import make_handler,PREFIX
+        import threading
+        import urllib.request
+        import urllib.error
+        prefs=DraftStore(self.root/'drafts.sqlite3')
+        features=MailRoomFeatures(prefs,self.path,{'domains':{'ww.cx':{}}})
+        class Mail:
+            def correspondence_message(inner,*,message_id):return self.reader.read_message(message_id)
+        class Assistant:
+            def assist(*args):raise AssertionError('Review called AI')
+        server=ThreadingHTTPServer(('127.0.0.1',0),make_handler(Mail(),prefs,'k'*48,features,Assistant(),self.security))
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        def request(route,data,key='k'*48):
+            req=urllib.request.Request('http://127.0.0.1:'+str(server.server_port)+PREFIX+route,data=json.dumps(data).encode(),headers={'X-Mail-Room-Proxy-Key':key,'Content-Type':'application/json','Origin':'https://edge1.ww.cx','X-Mail-Room-Request':'1'})
+            try:
+                with urllib.request.urlopen(req) as response:return response.status,json.load(response)
+            except urllib.error.HTTPError as e:return e.code,json.load(e)
+        try:
+            self.assertEqual(request('review',{'message_id':self.ids[0],'acknowledged':False})[0],400)
+            self.assertEqual(request('review',{'message_id':self.ids[0],'acknowledged':True},key='')[0],403)
+            status,result=request('review',{'message_id':self.ids[0],'acknowledged':True})
+            self.assertEqual(status,200);self.assertFalse(result['ai_available']);self.assertFalse(result['downloads_enabled'])
+            self.security.write(self.ids[0],'a'*64,CLEAN)
+            self.assertEqual(request('security-action',{'message_id':self.ids[0],'action':'phishing','interacted':True})[0],200)
+            with self.assertRaises(CorrespondenceStoreError):self.reader.read_message(self.ids[0])
+            self.assertEqual(request('security-action',{'message_id':self.ids[0],'action':'release'})[0],400)
+            self.assertEqual(request('security-action',{'message_id':self.ids[0],'action':'release','reviewed':True})[0],200)
+        finally:server.shutdown();server.server_close();thread.join()
 
 if __name__=='__main__':unittest.main()
