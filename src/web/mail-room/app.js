@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily"];
+  const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering"];
   let mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
@@ -41,9 +41,42 @@
     const a=element("article","","thread-message");a.append(element("h2",m.subject||"(No subject)"));const meta=element("div","","mail-meta");meta.append(element("p","From: "+m.sender),element("p","Original recipients: "+(m.recipients||[]).join(", ")),element("p",new Date(m.occurred_at).toLocaleString()));
     const email=(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1];const link=element("a","Find sender in Contacts");link.href="/edge1-ops/contacts/?q="+encodeURIComponent(email);link.target="_blank";link.rel="noopener";meta.append(link);a.append(meta,element("div",m.body_text||"(No plain-text body)","mail-text"));container.append(a);
   }
+  function securityDetails(decision, container){
+    container.append(element("h2", "Security · "+decision.state),element("p", "Sender: "+(decision.authentication?.status||"not_verified").replaceAll("_"," ")),element("p", "SPF: "+(decision.authentication?.spf||"not verified")+" · DKIM: "+(decision.authentication?.dkim||"not verified")+" · DMARC: "+(decision.authentication?.dmarc||"not verified")),element("p", (decision.reasons||[]).join(" · ").replaceAll("_"," ")),element("p", "Domain authentication does not verify the person or guarantee safe content.", "small"));
+  }
+  function securityActions(m, container, decision){
+    const actions=element("div","","actions");
+    for(const [label,action] of [["Spam","spam"],["Not spam","not_spam"],["Report phishing","phishing"],...(decision?.state==="quarantine"?[["Confirm phishing","confirmed_phishing"],["Release after review","release"]]:[])]){
+      const b=element("button",label);b.type="button";
+      b.onclick=safely(async()=>{
+        if(action==="release"&&!window.confirm("Release this message to the inbox and AVA after your review? Malware and incomplete checks cannot be overridden."))return;
+        let interacted=false;
+        if(action==="phishing"){
+          if(!window.confirm("Report this message as suspected phishing and move it to quarantine? Related messages may also be held for review."))return;
+          interacted=window.confirm("Did you click a link, enter credentials, or open an attachment from this message? OK records an interaction; Cancel records no interaction.");
+        }
+        if(action==="confirmed_phishing"&&!window.confirm("Record this as confirmed phishing? Ordinary release will remain blocked."))return;
+        const result=await request("security-action",{message_id:m.message_id,action,interacted,reviewed:action==="release"});
+        $("reading").replaceChildren(element("h2","Message moved to "+result.state));await load();
+        say(interacted?"Phishing reported. Stop interacting with the message. If you entered a password, change it through the service’s known website and revoke active sessions; if you opened a file, arrange a device security check.":"Security classification saved. Related messages flagged: "+result.related_flagged);
+      });actions.append(b);
+    }container.append(actions);
+  }
   async function openMessage(m){
-    if(!canLeave())return;const current=++generation;say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
+    if(!canLeave())return;const current=++generation;
+    const decision=await request("security/"+encodeURIComponent(m.message_id));
+    if(current!==generation)return;
+    if(decision.state!=="released"){
+      clearTimeout(autosave);$("editor").hidden=true;dirty=false;$("reading").replaceChildren(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender));securityDetails(decision,$("reading"));
+      const review=element("button","Review plain text without AVA");review.onclick=safely(async()=>{
+        if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
+        const result=await request("review",{message_id:m.message_id,acknowledged:true});
+        const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;
+      });$("reading").append(review);securityActions(m,$("reading"),decision);say("Held mail stays outside AVA and the normal inbox.");return;
+    }
+    say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
     clearTimeout(autosave);$("editor").hidden=true;dirty=false;$("reading").replaceChildren();for(const item of data.thread.messages)renderMail(item,$("reading"));
+    securityDetails(decision,$("reading"));securityActions(m,$("reading"),decision);
     const actions=element("div","","actions"),reply=element("button","Draft a reply"),archive=element("button",m.archived?"Move to inbox":"Archive"),read=element("button","Mark unread"),tag=element("button","Edit tags");
     const replyData=()=>({to:[(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1]],subject:/^re:/i.test(m.subject)?m.subject:"Re: "+m.subject,original_recipient:m.recipients.length===1?m.recipients[0]:"",thread_id:m.thread_id,source_message_id:m.message_id,in_reply_to:m.message_id});
     reply.onclick=()=>showEditor(replyData());archive.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,archived:!m.archived});await load();say(m.archived?"Moved to inbox.":"Archived in Mail Room. Source mail is retained.");});read.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,is_read:false});await load();say("Marked unread.");});tag.onclick=safely(async()=>{const text=window.prompt("Tags, separated by commas",(m.tags||[]).join(", "));if(text===null)return;await request("flags",{message_id:m.message_id,tags:text.split(",").map(t=>t.trim()).filter(Boolean)});await load();say("Tags saved.");});actions.append(reply,archive,read,tag);$("reading").append(actions);
@@ -55,10 +88,26 @@
   }
   async function load(){
     const current=++generation;$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
+    if(mode==="filtering"){
+      const config=await request("filter-settings");if(current!==generation)return;$("list").replaceChildren(element("p","Choose a receiving domain to tune spam thresholds."));
+      for(const [domain,settings] of Object.entries(config.domains)){
+        const b=element("button",domain,"message");b.onclick=()=>{
+          if(!canLeave())return;clearTimeout(autosave);$("editor").hidden=true;dirty=false;
+          const form=element("form","");form.append(element("h2","Filtering · "+domain));
+          const fields={};for(const [name,label] of [["junk_score","Junk score"],["quarantine_score","Quarantine score"],["trusted_senders","Trusted sender addresses, one per line"]]){
+            const l=element("label",label),input=document.createElement(name==="trusted_senders"?"textarea":"input");
+            if(name!=="trusted_senders"){input.type="number";input.min=3;input.max=30;input.step=0.5;input.required=true;}else input.rows=5;
+            input.value=Array.isArray(settings[name])?settings[name].join("\n"):settings[name];fields[name]=input;l.append(input);form.append(l);
+          }
+          form.append(element("p","Trusted senders receive only a small spam-score adjustment when aligned authentication passes. Malware and phishing checks remain in force."),element("button","Save domain settings"));
+          form.onsubmit=safely(async()=>{await request("filter-settings",{domain,junk_score:Number(fields.junk_score.value),quarantine_score:Number(fields.quarantine_score.value),trusted_senders:fields.trusted_senders.value.split(/\n/).map(s=>s.trim()).filter(Boolean)});say("Domain filtering settings saved. Future scans use these settings.");});$("reading").replaceChildren(form);
+        };$("list").append(b);
+      }$("previous").disabled=$("next").disabled=true;$("page").textContent="Per-domain rules";return;
+    }
     if(mode==="daily"){
       const reports=await request("reports");if(current!==generation)return;$("list").replaceChildren();
       for(const day of reports.dates){const b=element("button",day,"message");b.onclick=safely(async()=>{if(!canLeave())return;const r=await request("report/"+day);$("editor").hidden=true;clearTimeout(autosave);dirty=false;$("reading").replaceChildren(element("h2","Daily activity · "+r.date),element("p",r.timezone+" · "+(r.complete_day?"Completed day":"Today so far")+" · Updated "+new Date(r.generated_at).toLocaleString()));
-        const labels={successful_logins:"Successful logins",unique_login_users:"Users who logged in",failed_logins:"Failed login attempts",logouts:"Logouts",messages_sent:"Messages submitted to provider",messages_received:"Messages received",commissioning_messages_received:"Commissioning messages",drafts_prepared:"Draft preparations",new_contacts:"New contacts",new_contact_points:"New contact points",new_contact_relationships:"New relationships"};
+        const labels={successful_logins:"Successful logins",unique_login_users:"Users who logged in",failed_logins:"Failed login attempts",logouts:"Logouts",messages_sent:"Messages submitted to provider",messages_received:"Messages received",commissioning_messages_received:"Commissioning messages",drafts_prepared:"Draft preparations",messages_classified_junk:"Junk classifications",messages_quarantined:"Quarantine classifications",messages_held_pending:"Pending-check classifications",phishing_reports:"Reported phishing",confirmed_phishing:"Confirmed phishing",spam_reports:"Spam reports",not_spam_corrections:"Not spam corrections",manual_releases:"Reviewed releases",related_phishing_holds:"Related messages held",new_contacts:"New contacts",new_contact_points:"New contact points",new_contact_relationships:"New relationships"};
         for(const [key,value] of Object.entries(r.counts))$("reading").append(element("p",(labels[key]||key)+": "+(value===null?"Unavailable":value)));
         for(const note of r.notes)$("reading").append(element("p",note,"small"));for(const [source,state] of Object.entries(r.sources))if(state!=="available")$("reading").append(element("p",source+": "+state,"notice"));});$("list").append(b);}
       if(!reports.dates.length)$("list").append(element("p","First report is being generated."));$("previous").disabled=$("next").disabled=true;$("page").textContent="Saskatchewan time";return;
@@ -79,5 +128,5 @@
   $("editor").onsubmit=safely(async()=>{clearTimeout(autosave);const d=await save();const result=await request("prepare",{id:d.id});if(draftId!==d.id||JSON.stringify(payload())!==JSON.stringify(d.payload)){say("Earlier version prepared. Prepare your new changes for an updated preview.");return;}$("prepared").textContent="Prepared for review — not sent\n\nFrom: "+result.request.from_address+"\nTo: "+result.request.recipients.join(", ")+"\nSubject: "+result.request.subject+"\n\n"+result.body;$("prepared").hidden=false;say("Prepared with organization signature and footer. Nothing sent.");});
   window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
   request("senders").then(d=>{senders=d;$("from").replaceChildren();for(const s of d.senders){const o=element("option",s.address+" — "+s.organization+(s.live_enabled?"":" · draft only"));o.value=s.address;$("from").append(o);}$("from").value=d.default_sender;for(const domain of d.domains){const o=element("option",domain);o.value=domain;$("domain").append(o);}if(!$("editor").hidden)signature();}).catch(e=>say(e.message));
-  request("status").then(s=>{$("connection").textContent=s.provider_connected?"Provider connected · Sending disabled":"Local Mail Room ready · Provider credentials pending · Sending disabled";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
+  request("status").then(s=>{$("connection").textContent=s.provider_connected?"Provider connected · Sending disabled":"Local Mail Room ready · Security gate active · Provider credentials pending · Sending disabled";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
 })();

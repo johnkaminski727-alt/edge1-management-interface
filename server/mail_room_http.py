@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from integrations.bigbird_mail.tools import BigBirdMailTools, MailToolConfig
 from server.mail_room_features import MailRoomFeatures
 from server.mail_room_ava import AvaMailAssistant
+from server.mail_room_security import SecurityStore, required as security_required
 import hashlib
 import time
 
@@ -70,9 +71,21 @@ class DraftStore:
         return self.get(key)
 
 
-def make_handler(mail, store, proxy_key, features=None, assistant=None):
+def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None):
     if len(proxy_key) < 32:
         raise ValueError("Mail Room proxy key is required")
+
+    def review_record(message_id):
+        if not security or not features or not features.source_path:
+            raise ValueError('Security review unavailable')
+        # Human review is isolated from signed mail/AVA read routes. No active content.
+        from server.mail_correspondence_store import MailCorrespondenceStore
+        canonical=MailCorrespondenceStore._message_id(message_id)
+        with sqlite3.connect('file:'+str(features.source_path)+'?mode=ro',uri=True) as db:
+            db.row_factory=sqlite3.Row
+            row=db.execute("SELECT * FROM correspondence WHERE message_id=? AND source_authoritative=1 AND source_scope IN ('local_native','production_native')",(canonical,)).fetchone()
+        if not row: raise ValueError('Message unavailable')
+        return MailCorrespondenceStore._projection(row)
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
@@ -118,7 +131,12 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None):
                     if date.fromisoformat(requested).isoformat() != requested: raise ValueError("Invalid report date")
                     data = json.loads((Path("/var/lib/wwcx-mail-room-reports") / (requested + ".json")).read_text())
                 elif route == "status":
-                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False}
+                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False, "security_gate_enabled":security_required()}
+                elif route.startswith('security/') and security:
+                    message_id=unquote(route[9:]); review_record(message_id)
+                    data=security.get(message_id)
+                elif route == 'filter-settings' and security:
+                    data=security.settings()
                 elif route == "senders" and features:
                     data = features.options()
                 elif route == "activity" and features:
@@ -172,6 +190,16 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None):
                 data = json.loads(self.rfile.read(length))
                 if self.path == PREFIX + "drafts":
                     result = store.save(data)
+                elif self.path == PREFIX + 'security-action' and security:
+                    if not isinstance(data,dict) or set(data)-{'message_id','action','interacted','reviewed'} or not {'message_id','action'} <= set(data): raise ValueError('Invalid security action')
+                    if data['action']=='release' and data.get('reviewed') is not True: raise ValueError('Reviewed release required')
+                    review_record(data['message_id'])
+                    result=security.action(data['message_id'],data['action'],data.get('interacted',False))
+                elif self.path == PREFIX + 'filter-settings' and security:
+                    result=security.settings(data)
+                elif self.path == PREFIX + 'review' and security:
+                    if not isinstance(data,dict) or set(data)!={'message_id','acknowledged'} or data['acknowledged'] is not True: raise ValueError('Review acknowledgement required')
+                    result={'message':review_record(data['message_id']),'security':security.get(data['message_id']),'content_is_untrusted':True,'ai_available':False,'downloads_enabled':False}
                 elif self.path == PREFIX + "prepare":
                     if not isinstance(data, dict) or set(data) != {"id"}:
                         raise ValueError("Draft ID required")
@@ -193,7 +221,7 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None):
                     self.reply(404, {"error": "Not found"}); return
                 self.reply(200, result)
             except (ValueError, TypeError, KeyError):
-                self.reply(400, {"error": "Invalid draft request"})
+                self.reply(400, {"error": "Security action unavailable or release blocked. Complete checks and no hard security finding are required." if self.path in {PREFIX+'security-action',PREFIX+'review'} else "Invalid draft request"})
             except Exception:
                 self.reply(503 if self.path == PREFIX + "assist" else 422, {"error": "AVA is unavailable; no draft was changed." if self.path == PREFIX + "assist" else "Preparation could not complete. Check required signature, sender and recipient fields. Draft remains saved; nothing sent."})
 
@@ -210,7 +238,7 @@ def main():
     store = DraftStore(args.database)
     identities = json.loads(Path("/etc/wwcx/outbound-mail/identities.json").read_text())
     features = MailRoomFeatures(store, "/var/lib/wwcx-mail-room/correspondence.sqlite3", identities)
-    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant())
+    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(), SecurityStore() if security_required() else None)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     server.timeout = 10
     server.serve_forever()

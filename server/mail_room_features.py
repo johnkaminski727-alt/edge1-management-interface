@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
         get = lambda k, default='': q.get(k, [default])[0]
         query, recipient, domain, folder, room, tag = [get(k, default) for k, default in [('q', ''), ('recipient', ''), ('domain', ''), ('folder', 'inbox'), ('room', 'all'), ('tag', '')]]
         offset = int(get('offset', '0'))
-        if len(query) > 200 or any(ord(c) < 32 for c in query) or len(recipient) > 320 or (recipient and '@' not in recipient) or not 0 <= offset <= 10000 or len(tag) > 40 or domain not in ['', *self.identities.get('domains', {})] or folder not in {'inbox','archive','unread','all','quarantine'} or room not in {'all','private','shared'}:
+        if len(query) > 200 or any(ord(c) < 32 for c in query) or len(recipient) > 320 or (recipient and '@' not in recipient) or not 0 <= offset <= 10000 or len(tag) > 40 or domain not in ['', *self.identities.get('domains', {})] or folder not in {'inbox','archive','unread','all','quarantine','junk','pending'} or room not in {'all','private','shared'}:
             raise ValueError('Invalid filters')
         if not self.source_path or not self.source_path.is_file():
             raise RuntimeError('Mail source unavailable')
@@ -86,7 +86,15 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
             where.append("EXISTS (SELECT 1 FROM json_each(m.recipients_json) WHERE lower(substr(value,instr(value,'@')+1))=?)"); values.append(domain)
         if folder in {'inbox','unread'}: where.append('coalesce(f.archived,0)=0')
         if folder == 'archive': where.append('coalesce(f.archived,0)=1')
-        if folder == 'quarantine': where.append("json_extract(a.payload,'$.quarantined')=1")
+        from server.mail_room_security import required, attach, release_clause
+        secured = required()
+        if secured:
+            if folder in {'junk','quarantine','pending'}:
+                state = "coalesce((SELECT state FROM mail_security.decisions s WHERE s.message_hash=mail_hash(m.message_id)),'pending')"
+                where.append(state + '=?'); values.append(folder)
+            else:
+                where.append(release_clause('m'))
+        elif folder == 'quarantine': where.append("json_extract(a.payload,'$.quarantined')=1")
         if folder == 'unread': where.append('coalesce(f.is_read,0)=0')
         if tag:
             where.append("EXISTS (SELECT 1 FROM json_each(coalesce(f.tags,'[]')) WHERE value=?)"); values.append(tag)
@@ -95,6 +103,7 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
             where.append(('' if room == 'private' else 'NOT ') + is_private); values.append(private_json)
         with self.store.connect() as db:
             db.row_factory = sqlite3.Row
+            if secured: attach(db)
             import hashlib
             db.create_function('message_hash', 1, lambda v: hashlib.sha256(v.encode()).hexdigest())
             uri = 'file:' + quote(str(self.source_path), safe='/') + '?mode=ro'

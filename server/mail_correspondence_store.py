@@ -83,7 +83,20 @@ class MailCorrespondenceStore:
         else:
             connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
+        if self.read_only and os.getenv('WWCX_MAIL_SECURITY_REQUIRED') == 'true':
+            try:
+                from mail_room_security import attach
+                attach(connection)
+            except Exception as exc:
+                connection.close()
+                raise CorrespondenceStoreError('Mail security decisions unavailable; reads held') from exc
         return connection
+
+    def _release_clause(self):
+        if self.read_only and os.getenv('WWCX_MAIL_SECURITY_REQUIRED') == 'true':
+            from mail_room_security import release_clause
+            return ' AND ' + release_clause()
+        return ''
 
     @staticmethod
     def _required_columns() -> set[str]:
@@ -282,7 +295,7 @@ class MailCorrespondenceStore:
         canonical = self._message_id(message_id)
         with self._connect() as db:
             row = db.execute(
-                "SELECT * FROM correspondence WHERE message_id = ?", (canonical,)
+                "SELECT * FROM correspondence WHERE message_id = ?" + self._release_clause(), (canonical,)
             ).fetchone()
         if row is None:
             raise CorrespondenceStoreError("message not found")
@@ -294,8 +307,8 @@ class MailCorrespondenceStore:
             raise CorrespondenceStoreError("thread result limit is invalid")
         with self._connect() as db:
             rows = db.execute(
-                "SELECT * FROM correspondence WHERE thread_id = ? "
-                "ORDER BY occurred_at, message_id LIMIT ?",
+                "SELECT * FROM correspondence WHERE thread_id = ? " + self._release_clause() +
+                " ORDER BY occurred_at, message_id LIMIT ?",
                 (canonical_thread, limit),
             ).fetchall()
         if not rows:
@@ -322,6 +335,8 @@ class MailCorrespondenceStore:
         if type(offset) is not int or not 0 <= offset <= 10000:
             raise CorrespondenceStoreError("search offset is invalid")
         where = ["source_authoritative = 1", "source_scope IN ('local_native', 'production_native')"]
+        if self._release_clause():
+            where.append(self._release_clause()[5:])
         values: list[Any] = []
         if query.strip():
             # instr treats wildcard and SQL-looking input as literal text.

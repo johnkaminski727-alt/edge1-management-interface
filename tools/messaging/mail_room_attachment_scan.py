@@ -18,7 +18,7 @@ import time
 
 
 def scanner_ready(database_dir=Path('/var/lib/clamav')):
-    dbs = list(database_dir.glob('*.c[lv]d'))
+    dbs = list(database_dir.glob('daily.c[lv]d'))
     return bool(shutil.which('clamscan') and dbs and max(p.stat().st_mtime for p in dbs)>time.time()-3*86400)
 
 
