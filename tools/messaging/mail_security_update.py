@@ -41,7 +41,17 @@ def versions():
             'packages': run(['dpkg-query', '-W', '-f=${Package}=${Version}\n', *PACKAGES], capture=True).stdout.splitlines()}
 
 
+def wait_scanner():
+    for _ in range(90):
+        try:
+            if clam_command('PING') == 'PONG': return
+        except (OSError, TimeoutError): pass
+        time.sleep(2)
+    raise RuntimeError('Scanner startup timed out')
+
+
 def scanner_probe():
+    wait_scanner()
     if clam_command('PING') != 'PONG': raise RuntimeError('Scanner unavailable')
     for data, expected in [(b'Harmless update acceptance probe', 0),
                            (b'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*', 1)]:
@@ -51,6 +61,7 @@ def scanner_probe():
 
 
 def definitions():
+    wait_scanner()
     run(['freshclam', '--config-file=/etc/clamav/freshclam.conf', '--daemon-notify=/etc/clamav/wwcx-mail-clamd.conf'], timeout=1200)
     # Explicitly reload even when FreshClam found no changes (e.g. after recovery).
     if '/'+daily_version()+'/' not in clam_command('VERSION'):
