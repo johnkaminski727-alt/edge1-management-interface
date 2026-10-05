@@ -142,38 +142,39 @@ location ^~ /edge1-ops/mail-room/ {
     subprocess.run(['systemctl', 'restart', 'wwcx-outbound-mail-gateway'], check=True)
     subprocess.run(['systemctl', 'restart', 'wwcx-mail-room'], check=True)
     subprocess.run(['systemctl', 'reload', 'nginx'], check=True)
-    scan_unit = Path('/etc/systemd/system/wwcx-mail-room-attachment-scan.service')
-    scan_timer = Path('/etc/systemd/system/wwcx-mail-room-attachment-scan.timer')
-    scan_unit.write_text(f"""[Unit]
-Description=Private native mail attachment inventory and scanner
-[Service]
-Type=oneshot
-User=wwcx-mail-gateway
-Group=wwcx-mail-gateway
-WorkingDirectory={release}
-ExecStart=/usr/bin/python3 -B {release}/tools/messaging/mail_room_attachment_scan.py --archive-root /var/lib/wwcx-mail-gateway/inbound --database {state}/drafts.sqlite3
-UMask=0077
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths={state}
-MemoryMax=1G
-CPUQuota=35%
-TimeoutStartSec=600
-""")
-    scan_timer.write_text("""[Unit]
-Description=Periodic private mail attachment checks
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=5min
-Persistent=true
-[Install]
-WantedBy=timers.target
-""")
-    subprocess.run(['systemctl', 'daemon-reload'], check=True)
-    subprocess.run(['systemctl', 'enable', '--now', 'wwcx-mail-room-attachment-scan.timer'], check=True)
-    subprocess.run(['systemctl', 'start', '--no-block', 'wwcx-mail-room-attachment-scan'], check=True)
+    if 'WWCX_MAIL_SECURITY_REQUIRED=true' not in Path('/etc/wwcx/mail-gateway.env').read_text().splitlines():
+        scan_unit = Path('/etc/systemd/system/wwcx-mail-room-attachment-scan.service')
+        scan_timer = Path('/etc/systemd/system/wwcx-mail-room-attachment-scan.timer')
+        scan_unit.write_text(f"""[Unit]
+    Description=Private native mail attachment inventory and scanner
+    [Service]
+    Type=oneshot
+    User=wwcx-mail-gateway
+    Group=wwcx-mail-gateway
+    WorkingDirectory={release}
+    ExecStart=/usr/bin/python3 -B {release}/tools/messaging/mail_room_attachment_scan.py --archive-root /var/lib/wwcx-mail-gateway/inbound --database {state}/drafts.sqlite3
+    UMask=0077
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectSystem=strict
+    ProtectHome=true
+    ReadWritePaths={state}
+    MemoryMax=1G
+    CPUQuota=35%
+    TimeoutStartSec=600
+    """)
+        scan_timer.write_text("""[Unit]
+    Description=Periodic private mail attachment checks
+    [Timer]
+    OnBootSec=2min
+    OnUnitActiveSec=5min
+    Persistent=true
+    [Install]
+    WantedBy=timers.target
+    """)
+        subprocess.run(['systemctl', 'daemon-reload'], check=True)
+        subprocess.run(['systemctl', 'enable', '--now', 'wwcx-mail-room-attachment-scan.timer'], check=True)
+        subprocess.run(['systemctl', 'start', '--no-block', 'wwcx-mail-room-attachment-scan'], check=True)
     report_unit = Path('/etc/systemd/system/wwcx-mail-room-daily-summary.service')
     report_timer = Path('/etc/systemd/system/wwcx-mail-room-daily-summary.timer')
     for path in [report_unit, report_timer]:

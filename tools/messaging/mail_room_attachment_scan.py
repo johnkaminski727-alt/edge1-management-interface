@@ -25,6 +25,14 @@ def scanner_ready(database_dir=Path('/var/lib/clamav')):
 def scan_bytes(data):
     if not scanner_ready():
         return 'unscanned_blocked'
+    if Path('/etc/clamav/wwcx-mail-clamd.conf').exists() and not Path('/run/wwcx-mail-clamd/scan.sock').exists():
+        return 'unscanned_blocked'
+    if shutil.which('clamdscan') and Path('/run/wwcx-mail-clamd/scan.sock').exists():
+        try:
+            result=subprocess.run(['clamdscan','--config-file=/etc/clamav/wwcx-mail-clamd.conf','--stream','--no-summary','-'],input=data,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=90)
+        except (subprocess.TimeoutExpired,OSError):
+            return 'unscanned_blocked'
+        return 'clean_download_disabled' if result.returncode==0 else 'quarantined' if result.returncode==1 else 'unscanned_blocked'
     with tempfile.TemporaryDirectory(prefix='mail-attachment-') as directory:
         path = Path(directory)/'attachment.bin'; path.write_bytes(data); path.chmod(0o600)
         try:

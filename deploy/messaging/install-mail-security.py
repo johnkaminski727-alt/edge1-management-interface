@@ -19,7 +19,7 @@ def main():
     if os.geteuid()!=0 or release.parent!=Path('/opt/wwcx-email/releases') or release.stat().st_uid!=0 or release.stat().st_mode & 0o022: raise SystemExit('Approved root-owned release required')
     sys.path.insert(0,str(release))
     from server.mail_room_security import SecurityStore, DEFAULT_POLICY
-    if not shutil.which('rspamd') or not shutil.which('redis-server'): raise SystemExit('Rspamd and Redis packages required')
+    if not all(shutil.which(c) for c in ['rspamd','redis-server','clamd','clamdscan']): raise SystemExit('Rspamd, Redis and ClamAV daemon packages required')
     os.umask(0o077)
     backup=Path('/var/backups/wwcx-email-recovery')/('mail-security-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ'));backup.mkdir(mode=0o700,parents=True)
     paths=['/etc/postfix/master.cf','/etc/wwcx/mail-gateway.env','/etc/systemd/system/wwcx-mail-room.service','/etc/systemd/system/wwcx-outbound-mail-gateway.service']
@@ -58,6 +58,50 @@ def main():
     }
     for name,content in configs.items():
         target=local/name;target.write_text(content);target.chmod(0o640);os.chown(target,0,rspamd_user.pw_gid)
+    clamconf=Path('/etc/clamav/wwcx-mail-clamd.conf')
+    clamconf.write_text('''User clamav
+DatabaseDirectory /var/lib/clamav
+LocalSocket /run/wwcx-mail-clamd/scan.sock
+LocalSocketGroup wwcx-mail-gateway
+LocalSocketMode 660
+FixStaleSocket yes
+Foreground yes
+LogTime yes
+MaxThreads 2
+StreamMaxLength 30M
+MaxFileSize 25M
+MaxScanSize 30M
+MaxRecursion 10
+MaxFiles 1000
+MaxScanTime 60000
+AlertExceedsMax yes
+AlertEncrypted yes
+SelfCheck 600
+''');clamconf.chmod(0o644)
+    Path('/etc/systemd/system/wwcx-mail-clamd.service').write_text('''[Unit]
+Description=Private local mail malware scanner
+After=clamav-freshclam.service
+[Service]
+Type=simple
+User=clamav
+Group=wwcx-mail-gateway
+RuntimeDirectory=wwcx-mail-clamd
+RuntimeDirectoryMode=0750
+ExecStart=/usr/sbin/clamd --config-file=/etc/clamav/wwcx-mail-clamd.conf
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/wwcx-mail-clamd
+RestrictAddressFamilies=AF_UNIX
+MemoryMax=1400M
+CPUQuota=35%
+[Install]
+WantedBy=multi-user.target
+''')
     subprocess.run(['rspamadm','configtest'],check=True,stdout=subprocess.DEVNULL)
     subprocess.run(['redis-cli','CONFIG','SET','maxmemory','64mb'],check=True,stdout=subprocess.DEVNULL)
     subprocess.run(['redis-cli','CONFIG','SET','maxmemory-policy','allkeys-lru'],check=True,stdout=subprocess.DEVNULL)
@@ -85,7 +129,7 @@ def main():
     unit=Path('/etc/systemd/system/wwcx-mail-security-scan.service')
     unit.write_text(f'''[Unit]
 Description=Unified private mail security release gate
-After=rspamd.service redis-server.service
+After=rspamd.service redis-server.service wwcx-mail-clamd.service
 [Service]
 Type=oneshot
 User=wwcx-mail-gateway
@@ -101,7 +145,7 @@ PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/wwcx-mail-security /var/lib/wwcx-mail-room-drafts
-MemoryMax=1G
+MemoryMax=256M
 CPUQuota=35%
 TimeoutStartSec=600
 ''')
@@ -115,7 +159,7 @@ Persistent=true
 WantedBy=timers.target
 ''')
     subprocess.run(['systemctl','daemon-reload'],check=True)
-    subprocess.run(['systemctl','enable','--now','rspamd','redis-server','wwcx-mail-security-scan.timer'],check=True)
+    subprocess.run(['systemctl','enable','--now','rspamd','redis-server','wwcx-mail-clamd','wwcx-mail-security-scan.timer'],check=True)
     subprocess.run(['systemctl','restart','rspamd','wwcx-outbound-mail-gateway','wwcx-mail-room'],check=True)
     subprocess.run(['postfix','check'],check=True)
     subprocess.run(['systemctl','reload','postfix'],check=True)
