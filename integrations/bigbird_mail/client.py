@@ -8,7 +8,7 @@ import time
 import urllib.error
 import urllib.request
 from typing import Any
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 
 class MailGatewayError(RuntimeError):
@@ -142,6 +142,15 @@ class MailGatewayClient:
 
     def correspondence_status(self) -> dict[str, Any]:
         return self._request("GET", "/outbound-mail/api/v1/correspondence/status")
+
+    def correspondence_search(
+        self, *, query: str = "", recipient: str | None = None,
+        limit: int = 25, offset: int = 0,
+    ) -> dict[str, Any]:
+        filters = {"q": query, "limit": limit, "offset": offset}
+        if recipient is not None:
+            filters["recipient"] = recipient
+        return self._request("GET", "/outbound-mail/api/v1/correspondence/search?" + urlencode(filters))
 
     def correspondence_message(self, message_id: str) -> dict[str, Any]:
         canonical = str(message_id).strip()

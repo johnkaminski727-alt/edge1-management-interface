@@ -1,0 +1,29 @@
+name: Unified email AVA discovery
+on:
+  pull_request:
+    paths:
+      - 'server/mail_*.py'
+      - 'server/outbound_mail*.py'
+      - 'integrations/bigbird_mail/**'
+      - 'integrations/bigbird-mail/**'
+      - 'tests/*mail*'
+      - '.github/workflows/unified-email-ava.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python3 tests/validate_mail_correspondence_functional.py
+          python3 tests/validate_mail_ai_adapter.py
+          python3 tests/validate_mail_correspondence_client_isolation.py
+          python3 tests/validate_unified_communications_completion.py
+          python3 tests/validate_outbound_mail_runtime_paths.py
+          python3 tests/validate_edge1_mail_gateway_v1.py
+          python3 tests/validate_edge1_mail_gateway_local_intake.py

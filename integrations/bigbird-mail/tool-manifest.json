@@ -28,6 +28,14 @@
       "mutating": false
     },
     {
+      "name": "mail.correspondence.search",
+      "description": "List or search authoritative Mail Room headers by literal subject/sender and exact recipient; returns identifiers for message/thread reads.",
+      "required_scope": "mail.correspondence.read",
+      "method": "GET",
+      "path": "/outbound-mail/api/v1/correspondence/search",
+      "mutating": false
+    },
+    {
       "name": "mail.draft.prepare",
       "description": "Prepare a policy-aware Mail Room draft without delivery or send authority.",
       "required_scope": "mail.draft.prepare",

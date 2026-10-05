@@ -144,6 +144,7 @@ assert mail_manifest["default_enabled"] is False
 assert {tool["name"] for tool in mail_manifest["tools"]} == {
     "mail.status.read",
     "mail.correspondence.read",
+    "mail.correspondence.search",
     "mail.draft.prepare",
 }
 assert "mail.send" in mail_manifest["forbidden_capabilities"]

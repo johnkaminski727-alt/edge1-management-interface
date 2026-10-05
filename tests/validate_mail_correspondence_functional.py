@@ -263,6 +263,50 @@ def main() -> int:
             assert correspondence_status["production_provider_ready"] is False
             assert "database" not in correspondence_status
 
+            discovered = tools.correspondence_search(query="Local", limit=1)
+            assert discovered["count"] == 1 and discovered["has_more"] is True
+            assert "body_text" not in discovered["messages"][0]
+            next_page = tools.correspondence_search(query="Local", limit=1, offset=discovered["next_offset"])
+            assert next_page["messages"][0]["message_id"] != discovered["messages"][0]["message_id"]
+            assert next_page["has_more"] is False
+            assert tools.correspondence_search(query="Synthetic")["count"] == 0
+            assert tools.correspondence_search(recipient="maildesk@example.test")["count"] == 2
+            assert tools.correspondence_search(recipient="desk@example.test")["count"] == 0
+            assert tools.correspondence_search(query="%_'")["count"] == 0
+            search_path = "/outbound-mail/api/v1/correspondence/search?q=Local"
+            assert unsigned_get(port, search_path)[0] == 401
+            other = BigBirdMailTools(MailToolConfig("http://127.0.0.1:8104", SECRET, "wwcx-website-admin"))
+            other.client.base_url = f"http://127.0.0.1:{port}"
+            from integrations.bigbird_mail.client import MailGatewayError
+            try:
+                other.correspondence_search()
+                raise AssertionError("unrelated client discovered correspondence")
+            except MailGatewayError:
+                pass
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("GET", search_path + "changed", headers=tools.client._headers("GET", search_path, b""))
+            resp = conn.getresponse()
+            assert resp.status == 401, resp.read()
+            resp.read()
+            conn.close()
+            for filters in ({"limit": 0}, {"offset": -1}, {"query": "x" * 201}):
+                try:
+                    tools.correspondence_search(**filters)
+                    raise AssertionError("invalid search accepted")
+                except MailGatewayError:
+                    pass
+            for filters in ({"limit": True}, {"offset": False}, {"query": "x\n"}):
+                try:
+                    read_only.search_authoritative(**filters)
+                    raise AssertionError("invalid store search accepted")
+                except CorrespondenceStoreError:
+                    pass
+            try:
+                mail_ai_adapter.search_correspondence(db_path=db_path, enabled=False)
+                raise AssertionError("disabled reads accepted")
+            except mail_ai_adapter.MailAIAdapterError:
+                pass
+
             api_message = tools.correspondence_message(message_id="<local-root@example.test>")
             assert api_message["message"]["thread_id"] == first["thread_id"]
             assert api_message["content_is_untrusted"] is True

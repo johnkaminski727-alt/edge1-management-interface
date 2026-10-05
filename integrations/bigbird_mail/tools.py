@@ -49,6 +49,24 @@ class BigBirdMailTools:
         result = self.client.correspondence_status()
         return self._require_read_boundary(result)
 
+    def correspondence_search(
+        self, *, query: str = "", recipient: str | None = None,
+        limit: int = 25, offset: int = 0,
+    ) -> dict[str, Any]:
+        result = self.client.correspondence_search(query=query, recipient=recipient, limit=limit, offset=offset)
+        self._require_read_boundary(result)
+        if result.get("content_is_untrusted") is not True or not isinstance(result.get("messages"), list):
+            raise MailGatewayError("mail search response is malformed")
+        for message in result["messages"]:
+            provenance = message.get("provenance") if isinstance(message, dict) else None
+            if not isinstance(provenance, dict) or provenance.get("authoritative") is not True:
+                raise MailGatewayError("mail search contains non-authoritative correspondence")
+            if provenance.get("scope") not in {"local_native", "production_native"}:
+                raise MailGatewayError("mail search contains an unreadable provenance scope")
+            if "body_text" in message:
+                raise MailGatewayError("mail search unexpectedly returned message bodies")
+        return result
+
     def correspondence_message(self, *, message_id: str) -> dict[str, Any]:
         result = self.client.correspondence_message(message_id)
         self._require_read_boundary(result)
