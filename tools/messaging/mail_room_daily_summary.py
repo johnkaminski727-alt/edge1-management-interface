@@ -9,6 +9,8 @@ import json
 import os
 import pwd
 import sqlite3
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 TZ = ZoneInfo('America/Regina')
 # Exact local commissioning message, not a subject-based guess about customer mail.
@@ -76,7 +78,8 @@ def build(day, paths, now=None):
     counts.update(security_counts)
     contact, contact_state = db_counts(paths['contacts'], {k: 'SELECT count(*) FROM '+table+' WHERE julianday(created_at)>=julianday(?) AND julianday(created_at)<julianday(?)' for k, table in [('new_contacts','contact_entities'),('new_contact_points','contact_points'),('new_contact_relationships','contact_relationships')]}, start, end)
     counts.update(contact)
-    return {'contract': 'wwcx.daily-activity.v1', 'date': day.isoformat(), 'timezone': 'America/Regina', 'generated_at': now.isoformat(), 'period_start_utc': start.isoformat(), 'period_end_utc': end.isoformat(), 'complete_day': now >= end, 'counts': counts, 'sources': {'authentication': auth_state,'outbound_audit': mail_state,'received_mail': receive_state,'contacts': contact_state, 'mail_security':security_state}, 'notes': ['Logins count successful Edge1 portal session issuance, not page refreshes or SSH sessions.', 'Sent means provider submission was recorded; delivery or recipient reading is not implied.', 'Received counts authoritative intake by its recorded event time; the known commissioning canary is separate.', 'Preparation counts include recorded commissioning tests; preparation never means sent.', 'Contacts count newly created entities; imports are included. Contact points and relationships are separate.', 'Security counts are classification transitions and operator reports; a rescan may create another transition. Reports are not confirmations.', 'Totals cover retained records. Missing or malformed sources are marked unavailable/partial.'], 'content_included': False}
+    from server.mail_security_updates import update_health
+    return {'security_updates': update_health(), 'contract': 'wwcx.daily-activity.v1', 'date': day.isoformat(), 'timezone': 'America/Regina', 'generated_at': now.isoformat(), 'period_start_utc': start.isoformat(), 'period_end_utc': end.isoformat(), 'complete_day': now >= end, 'counts': counts, 'sources': {'authentication': auth_state,'outbound_audit': mail_state,'received_mail': receive_state,'contacts': contact_state, 'mail_security':security_state}, 'notes': ['Logins count successful Edge1 portal session issuance, not page refreshes or SSH sessions.', 'Sent means provider submission was recorded; delivery or recipient reading is not implied.', 'Received counts authoritative intake by its recorded event time; the known commissioning canary is separate.', 'Preparation counts include recorded commissioning tests; preparation never means sent.', 'Contacts count newly created entities; imports are included. Contact points and relationships are separate.', 'Security counts are classification transitions and operator reports; a rescan may create another transition. Reports are not confirmations.', 'Totals cover retained records. Missing or malformed sources are marked unavailable/partial.'], 'content_included': False}
 
 
 def main():

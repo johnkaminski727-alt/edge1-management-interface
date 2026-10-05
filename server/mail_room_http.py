@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from integrations.bigbird_mail.tools import BigBirdMailTools, MailToolConfig
 from server.mail_room_features import MailRoomFeatures
+from server.mail_security_updates import update_health
 from server.mail_room_ava import AvaMailAssistant
 from server.mail_room_security import SecurityStore, required as security_required
 import hashlib
@@ -131,7 +132,7 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                     if date.fromisoformat(requested).isoformat() != requested: raise ValueError("Invalid report date")
                     data = json.loads((Path("/var/lib/wwcx-mail-room-reports") / (requested + ".json")).read_text())
                 elif route == "status":
-                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False, "security_gate_enabled":security_required()}
+                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False, "security_gate_enabled":security_required(), "updates":update_health()}
                 elif route.startswith('security/') and security:
                     message_id=unquote(route[9:]); review_record(message_id)
                     data=security.get(message_id)

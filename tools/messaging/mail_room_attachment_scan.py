@@ -19,7 +19,19 @@ import time
 
 def scanner_ready(database_dir=Path('/var/lib/clamav')):
     dbs = list(database_dir.glob('daily.c[lv]d'))
-    return bool(shutil.which('clamscan') and dbs and max(p.stat().st_mtime for p in dbs)>time.time()-3*86400)
+    if not shutil.which('clamscan') or not dbs: return False
+    if Path('/etc/clamav/wwcx-mail-clamd.conf').exists():
+        # A successful check with unchanged signatures is still fresh. Only the
+        # root maintenance job can refresh this timestamp after loaded-version
+        # verification and clean/EICAR probes.
+        path=Path('/var/lib/wwcx-mail-updates/definitions.json')
+        try:
+            stat=path.stat()
+            if path.is_symlink() or stat.st_uid!=0 or stat.st_mode & 0o022: return False
+            checked=float(json.loads(path.read_text()).get('last_success') or 0)
+            return time.time()-86400 < checked <= time.time()+300
+        except (OSError, ValueError, TypeError): return False
+    return max(p.stat().st_mtime for p in dbs)>time.time()-3*86400
 
 
 def scan_bytes(data):

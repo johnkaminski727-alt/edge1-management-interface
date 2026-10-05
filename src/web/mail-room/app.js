@@ -110,6 +110,7 @@
       for(const day of reports.dates){const b=element("button",day,"message");b.onclick=safely(async()=>{if(!canLeave())return;const r=await request("report/"+day);$("editor").hidden=true;clearTimeout(autosave);dirty=false;$("reading").replaceChildren(element("h2","Daily activity · "+r.date),element("p",r.timezone+" · "+(r.complete_day?"Completed day":"Today so far")+" · Updated "+new Date(r.generated_at).toLocaleString()));
         const labels={successful_logins:"Successful logins",unique_login_users:"Users who logged in",failed_logins:"Failed login attempts",logouts:"Logouts",messages_sent:"Messages submitted to provider",messages_received:"Messages received",commissioning_messages_received:"Commissioning messages",drafts_prepared:"Draft preparations",messages_classified_junk:"Junk classifications",messages_quarantined:"Quarantine classifications",messages_held_pending:"Pending-check classifications",phishing_reports:"Reported phishing",confirmed_phishing:"Confirmed phishing",spam_reports:"Spam reports",not_spam_corrections:"Not spam corrections",manual_releases:"Reviewed releases",related_phishing_holds:"Related messages held",new_contacts:"New contacts",new_contact_points:"New contact points",new_contact_relationships:"New relationships"};
         for(const [key,value] of Object.entries(r.counts))$("reading").append(element("p",(labels[key]||key)+": "+(value===null?"Unavailable":value)));
+        showUpdates(r.security_updates,$("reading"));
         for(const note of r.notes)$("reading").append(element("p",note,"small"));for(const [source,state] of Object.entries(r.sources))if(state!=="available")$("reading").append(element("p",source+": "+state,"notice"));});$("list").append(b);}
       if(!reports.dates.length)$("list").append(element("p","First report is being generated."));$("previous").disabled=$("next").disabled=true;$("page").textContent="Saskatchewan time";return;
     }
@@ -129,5 +130,14 @@
   $("editor").onsubmit=safely(async()=>{clearTimeout(autosave);const d=await save();const result=await request("prepare",{id:d.id});if(draftId!==d.id||JSON.stringify(payload())!==JSON.stringify(d.payload)){say("Earlier version prepared. Prepare your new changes for an updated preview.");return;}$("prepared").textContent="Prepared for review — not sent\n\nFrom: "+result.request.from_address+"\nTo: "+result.request.recipients.join(", ")+"\nSubject: "+result.request.subject+"\n\n"+result.body;$("prepared").hidden=false;say("Prepared with organization signature and footer. Nothing sent.");});
   window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
   request("senders").then(d=>{senders=d;$("from").replaceChildren();for(const s of d.senders){const o=element("option",s.address+" — "+s.organization+(s.live_enabled?"":" · draft only"));o.value=s.address;$("from").append(o);}$("from").value=d.default_sender;for(const domain of d.domains){const o=element("option",domain);o.value=domain;$("domain").append(o);}if(!$("editor").hidden)signature();}).catch(e=>say(e.message));
-  request("status").then(s=>{$("connection").textContent=s.provider_connected?"Provider connected · Sending disabled":"Local Mail Room ready · Security gate active · Provider credentials pending · Sending disabled";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
+  function showUpdates(updates, target){
+    if(!updates)return;
+    target.append(element("h2","Definition and rule updates"));
+    for(const [name,job] of Object.entries(updates.jobs)){
+      const success=job.last_success?new Date(job.last_success*1000).toLocaleString():"No successful check recorded";
+      target.append(element("p",(name==="definitions"?"Malware definitions":"Packaged spam rules and scanner engines")+": "+job.schedule+" · Last success: "+success+" · "+job.last_result+(job.stale?" · OVERDUE":""),job.stale||job.last_result!=="success"?"notice":"small"));
+    }
+    target.append(element("p","Warnings after 3 hours without a definition check or 36 hours without package maintenance. New mail is held if definitions have not been verified for 24 hours. Custom domain policy stays versioned; Spam/Not spam corrections are learned during the minute-by-minute scan job.","small"));
+  }
+  request("status").then(s=>{$("connection").textContent=s.provider_connected?"Provider connected · Sending disabled":"Local Mail Room ready · Security gate active · Provider credentials pending · Sending disabled";if(s.updates?.warnings?.length)$("connection").textContent+=" · Security updates need attention";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
 })();

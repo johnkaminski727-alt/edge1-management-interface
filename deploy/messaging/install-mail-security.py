@@ -77,6 +77,7 @@ MaxScanTime 60000
 AlertExceedsMax yes
 AlertEncrypted yes
 SelfCheck 600
+ConcurrentDatabaseReload no
 ''');clamconf.chmod(0o644)
     apparmor=Path('/etc/apparmor.d/local/usr.sbin.clamd')
     if Path('/etc/apparmor.d/usr.sbin.clamd').is_file():
