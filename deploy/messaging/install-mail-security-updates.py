@@ -26,6 +26,15 @@ def main():
     if not re.search(r'^ConcurrentDatabaseReload ',config,re.M):
         clamconf.write_text(config+'\nConcurrentDatabaseReload no\n');clamconf.chmod(0o644)
         subprocess.run(['systemctl','restart','wwcx-mail-clamd'],check=True)
+    profile=Path('/etc/apparmor.d/usr.bin.freshclam')
+    if profile.exists():
+        local=Path('/etc/apparmor.d/local/usr.bin.freshclam')
+        if local.exists():shutil.copy2(local,backup/'freshclam-apparmor-local')
+        rules=local.read_text() if local.exists() else ''
+        marker='# WW.CX private mail updater'
+        if marker not in rules:
+            local.write_text(rules+'\n'+marker+'\n/etc/clamav/wwcx-mail-clamd.conf r,\n/run/wwcx-mail-clamd/scan.sock rw,\n');local.chmod(0o644)
+        subprocess.run(['apparmor_parser','-r',str(profile)],check=True)
     group=pwd.getpwnam('wwcx-mail-gateway').pw_gid
     state=Path('/var/lib/wwcx-mail-updates');state.mkdir(exist_ok=True);state.chmod(0o750);os.chown(state,0,group)
     # Stop the distributor's daemon before the first hourly job to avoid lock contention.

@@ -122,6 +122,7 @@ def main():
         save()
         try:
             globals()[job]()
+            record.pop('error_type',None)
             record.update(last_success=time.time(),last_result='success',versions=versions()); save()
         except Exception as error:
             record.update(last_result='failed',error_type=type(error).__name__); save()
