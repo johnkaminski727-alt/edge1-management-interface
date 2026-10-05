@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 CONTROLLER_VERSION = "0.3.0"
-MAX_STEPS = 9
+MAX_STEPS = 10
 
 
 class AgentControllerError(RuntimeError):
@@ -75,7 +75,10 @@ SOURCE_RULES: tuple[SourceRule, ...] = (
     )),
 )
 
-OPTIONAL_SCOPES = {rule.scope for rule in SOURCE_RULES} | {"library:document:read"}
+WEB_RULE = SourceRule("web", "Research public websites", "include_web", "web:search",
+    ("web", "website", "online", "research", "latest", "current", "search", "look up"))
+
+OPTIONAL_SCOPES = {"web:search"} | {rule.scope for rule in SOURCE_RULES} | {"library:document:read"}
 FORBIDDEN_RESULT_KEYS = {
     "body", "raw_body", "raw_article_body", "raw_mime", "password", "passwd", "secret",
     "api_key", "token", "authorization", "sip_password", "private_key",
@@ -83,7 +86,7 @@ FORBIDDEN_RESULT_KEYS = {
 
 
 def _message(payload: dict[str, Any]) -> str:
-    value = payload.get("message", "")
+    value = payload.get("routing_message", payload.get("message", ""))
     return value.lower() if isinstance(value, str) else ""
 
 
@@ -100,9 +103,9 @@ def build_plan(payload: dict[str, Any]) -> AgentPlan:
     source_flags: dict[str, bool] = {}
     steps: list[AgentStep] = [AgentStep("understand", "Understand the request", "chat")]
 
-    for rule in SOURCE_RULES:
+    for rule in SOURCE_RULES + ((WEB_RULE,) if "include_web" in payload else ()):
         enabled = payload.get(rule.flag) is True
-        selected = enabled and (not auto_route or _keyword_match(message, rule.keywords))
+        selected = enabled and ((rule.flag == "include_web" and bool(payload.get("web_query"))) or not auto_route or _keyword_match(message, rule.keywords))
         source_flags[rule.flag] = selected
         if selected:
             steps.append(AgentStep(rule.step_id, rule.label, rule.scope))
@@ -172,6 +175,10 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
                 allowed_optional.add("contacts:read")
             if prepared.get("include_telephony") is True:
                 allowed_optional.add("telephony:read")
+            if prepared.get("include_web") is True:
+                allowed_optional.add("web:search")
+            else:
+                prepared.pop("web_query", None)
             clean_user["scopes"] = [
                 scope for scope in scopes
                 if isinstance(scope, str) and (scope not in OPTIONAL_SCOPES or scope in allowed_optional)

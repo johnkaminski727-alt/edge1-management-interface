@@ -66,6 +66,8 @@ def normalize_result(item: Any, index: int) -> dict[str, Any]:
         "title": str(result_attr(item, "title", "") or result_attr(item, "name", "") or result_attr(item, "safe_name", "") or "Untitled result"),
         "collection": str(result_attr(item, "collection", "") or result_attr(item, "collection_name", "") or "operations"),
         "path": str(result_attr(item, "source_path", "") or result_attr(item, "path", "") or result_attr(item, "committed_path", "") or result_attr(item, "source", "")),
+        "locator": str(result_attr(item, "locator", "")),
+        "classification": str(result_attr(item, "classification", "internal")),
         "updated_at": str(result_attr(item, "updated_at", "") or result_attr(item, "updated", "") or result_attr(item, "created_at", "")),
         "score": float(result_attr(item, "score", 0) or result_attr(item, "rank", 0) or 0),
         "snippet": str(result_attr(item, "excerpt", "") or result_attr(item, "snippet", "") or result_attr(item, "summary", "") or result_attr(item, "text", "")),
