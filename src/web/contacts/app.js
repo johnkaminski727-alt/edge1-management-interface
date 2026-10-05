@@ -1,12 +1,13 @@
 const state = {
   view: "all",
-  query: "",
+  query: (new URLSearchParams(window.location.search).get("q") || "").slice(0, 200),
   verification: "",
   rows: [],
   selected: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
+if (state.query) { const searchInput = $("#search"); if (searchInput) searchInput.value = state.query; }
 
 function escapeHtml(value) {
   return String(value ?? "")

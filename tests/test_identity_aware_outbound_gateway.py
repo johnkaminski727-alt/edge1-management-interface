@@ -41,6 +41,15 @@ class IdentityAwareOutboundGatewayTests(unittest.TestCase):
             "mailing_address": "151 2 Street South, Invermay, SK",
         }
 
+    def test_footer_follows_selected_sender_organization(self):
+        for hint, legal, operating in [("john-omegafx", "OmegaFX Marketing Group Inc.", "OmegaFX"), ("john-creekco", "Spirit Creek Gardens Inc.", "CreekCo / Spirit Creek Communications")]:
+            payload = self.base_payload()
+            payload["identity_hint"] = hint
+            preview = MODULE.compose_preview(self.config, self.policy, self.identities, payload)
+            self.assertIn(operating + " | " + legal, preview["body"])
+            self.assertIn("CONFIDENTIALITY AND RECORDS NOTICE", preview["body"])
+            self.assertNotIn("WW.CX | Christmas Island Worldwide", preview["body"])
+
     def test_status_exposes_safe_sender_selection_configuration(self) -> None:
         status = MODULE.status_payload(self.config, self.policy, self.identities)
         selection = status["sender_selection"]

@@ -17,3 +17,16 @@ Deploy the approved root-owned staged release with `deploy/messaging/install-man
 To roll back the UI, stop/disable `wwcx-mail-room`, restore the backed-up nginx main configuration and navigation/card files, validate nginx and reload. Preserve the draft database. An existing installation also backs up its service, assets and nginx snippet.
 
 Validation: `python3 -m unittest discover -s tests -p test_mail_room_http.py` covers proxy denial, cross-origin/request-header/content-type denial, persistent drafts, prepared-only results, absence of send, private DB permissions and bounded input. Existing mail gateway correspondence and client isolation checks remain applicable.
+
+
+## Daily-use upgrades
+
+The visible From selector lists registered full addresses and organizations, with draft-only readiness when outbound is not commissioned. Replies keep the original receiving identity. Organization names in the prepared footer follow the canonical sender. Signature details can be remembered per sender in the private preferences DB; unset mailing addresses are left blank and must be supplied by the operator. A commercial draft also accepts an unsubscribe URL.
+
+Drafts autosave after a 1.5 second pause, with unsaved/failed status. Edits invalidate the prepared state. Inbox controls persist unread/archive/tags without mutating or deleting source mail; filtering by domain, private John addresses, shared role addresses and quarantine is available. Private/company views organize an operator-only surface: shared-user authorization is not enabled by these views. Contact links open a prefilled directory search; the installer patches only the startup-query behavior in the live Contacts asset.
+
+AVA summary/reply buttons explicitly submit bounded thread excerpts to the existing configured AVA model through its server-side signed gateway. No additional retrieval or web research is requested. Suggestions are plain text; using a reply requires an operator click and creates an editable draft. Neither operation sends or modifies mail. The signed relay configuration is held in `/etc/wwcx/mail-room-ava.env`, not browser assets. It is a limited bridge implementation using the existing relay signing identity; future relay key separation remains a maintenance improvement.
+
+Activity currently shows prepared-not-sent records. Provider queued/sent/bounce receipts require first-domain outbound commissioning and must not be inferred from a prepared draft.
+
+ClamAV indexes and scans attachments from verified native raw archives using a periodic service/timer. Unknown, stale-scanner, oversized, scan-limit and encrypted-file outcomes remain blocked or quarantined. No attachment download/release endpoint exists. The scanner checks at most 25 archives per run from the latest bounded 10,000 archive records, and revisits checks after an hour. Provider-native archives require the equivalent archive/index path during commissioning. A clean scanner result is not a delivery or download approval.

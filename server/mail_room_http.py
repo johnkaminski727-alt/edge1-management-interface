@@ -17,20 +17,25 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from integrations.bigbird_mail.tools import BigBirdMailTools, MailToolConfig
+from server.mail_room_features import MailRoomFeatures
+from server.mail_room_ava import AvaMailAssistant
+import hashlib
+import time
 
 PREFIX = "/edge1-ops/mail-room/api/"
-FIELDS = {"to", "cc", "bcc", "subject", "body", "message_class", "signer_name", "signer_title", "mailing_address", "original_recipient", "identity_hint", "thread_id", "source_message_id", "in_reply_to", "references"}
+FIELDS = {"to", "cc", "bcc", "subject", "body", "message_class", "signer_name", "signer_title", "mailing_address", "original_recipient", "identity_hint", "thread_id", "source_message_id", "in_reply_to", "references", "unsubscribe_url"}
 
 
 class DraftStore:
     def __init__(self, path):
         self.path = str(path)
         with self.connect() as db:
+            db.execute("CREATE TABLE IF NOT EXISTS preparations (draft_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS drafts (id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated TEXT NOT NULL)")
         os.chmod(self.path, 0o600)
 
     def connect(self):
-        return sqlite3.connect(self.path, timeout=5)
+        return sqlite3.connect(self.path, timeout=5, uri=True)
 
     def list(self):
         with self.connect() as db:
@@ -61,10 +66,11 @@ class DraftStore:
         now = datetime.now(timezone.utc).isoformat()
         with self.connect() as db:
             db.execute("INSERT INTO drafts VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated=excluded.updated", (key, json.dumps(data), now))
+            db.execute("DELETE FROM preparations WHERE draft_id=?", (key,))
         return self.get(key)
 
 
-def make_handler(mail, store, proxy_key):
+def make_handler(mail, store, proxy_key, features=None, assistant=None):
     if len(proxy_key) < 32:
         raise ValueError("Mail Room proxy key is required")
 
@@ -104,6 +110,21 @@ def make_handler(mail, store, proxy_key):
             try:
                 if route == "status":
                     data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False}
+                elif route == "senders" and features:
+                    data = features.options()
+                elif route == "activity" and features:
+                    data = features.activity()
+                elif route.startswith("attachments/") and features:
+                    message_id = unquote(route[12:])
+                    mail.correspondence_message(message_id=message_id)
+                    with store.connect() as db:
+                        try:
+                            row = db.execute("SELECT payload FROM attachment_checks WHERE message_hash=?", (hashlib.sha256(message_id.encode()).hexdigest(),)).fetchone()
+                        except sqlite3.OperationalError:
+                            row = None
+                    data = json.loads(row[0]) if row else {"attachments": [], "indexed": False, "downloads_enabled": False, "scanner_ready": False}
+                elif route == "messages" and features:
+                    data = features.messages(parse_qs(parsed.query))
                 elif route == "messages":
                     q = parse_qs(parsed.query)
                     if set(q) - {"q", "recipient", "offset"} or any(len(v) != 1 for v in q.values()):
@@ -145,14 +166,27 @@ def make_handler(mail, store, proxy_key):
                 elif self.path == PREFIX + "prepare":
                     if not isinstance(data, dict) or set(data) != {"id"}:
                         raise ValueError("Draft ID required")
-                    result = mail.prepare_draft(store.get(data["id"])["payload"])
+                    draft = store.get(data["id"])
+                    result = mail.prepare_draft(draft["payload"])
+                    if features:
+                        features.record_preparation(draft["id"], result, datetime.now(timezone.utc).isoformat())
+                elif self.path == PREFIX + "flags" and features:
+                    if not isinstance(data, dict): raise ValueError("Invalid flags")
+                    mail.correspondence_message(message_id=data.get("message_id", ""))
+                    result = features.flags(data)
+                elif self.path == PREFIX + "signature" and features:
+                    result = features.signature(data)
+                elif self.path == PREFIX + "assist" and assistant:
+                    if not isinstance(data, dict) or set(data) != {"operation", "thread_id"}: raise ValueError("Invalid assistance request")
+                    thread = mail.correspondence_thread(thread_id=data["thread_id"])["thread"]
+                    result = assistant.assist(data["operation"], thread)
                 else:
                     self.reply(404, {"error": "Not found"}); return
                 self.reply(200, result)
             except (ValueError, TypeError, KeyError):
                 self.reply(400, {"error": "Invalid draft request"})
             except Exception:
-                self.reply(422, {"error": "Preparation could not complete. Check required signature, sender and recipient fields. Draft remains saved; nothing sent."})
+                self.reply(503 if self.path == PREFIX + "assist" else 422, {"error": "AVA is unavailable; no draft was changed." if self.path == PREFIX + "assist" else "Preparation could not complete. Check required signature, sender and recipient fields. Draft remains saved; nothing sent."})
 
     return Handler
 
@@ -164,7 +198,10 @@ def main():
     args = parser.parse_args()
     os.umask(0o077)
     mail = BigBirdMailTools(MailToolConfig.from_environment())
-    handler = make_handler(mail, DraftStore(args.database), os.environ["WWCX_MAIL_ROOM_PROXY_KEY"])
+    store = DraftStore(args.database)
+    identities = json.loads(Path("/etc/wwcx/outbound-mail/identities.json").read_text())
+    features = MailRoomFeatures(store, "/var/lib/wwcx-mail-room/correspondence.sqlite3", identities)
+    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant())
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     server.timeout = 10
     server.serve_forever()

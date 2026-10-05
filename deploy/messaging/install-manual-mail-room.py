@@ -31,8 +31,19 @@ def main():
     backup.mkdir(mode=0o700, parents=True)
     navigation = Path('/var/www/edge1-status/operator-shell/navigation.json')
     portal = Path('/var/www/edge1-status/index.html')
+    contacts = Path('/var/www/contacts/app.js')
     for path, name in [(nginx, 'nginx-private.conf'), (navigation, 'navigation.json'), (portal, 'operations-index.html')]:
         shutil.copy2(path, backup / name)
+    if contacts.exists():
+        shutil.copy2(contacts, backup / 'contacts-app.js')
+        source = contacts.read_text()
+        # Apply only the small startup-query change to the live Contacts UI.
+        if 'new URLSearchParams(window.location.search).get("q")' not in source:
+            if '  query: "",' not in source or 'const $ = (selector) => document.querySelector(selector);' not in source:
+                raise SystemExit('Contacts startup differs; no blind overwrite is allowed')
+            source = source.replace('  query: "",', '  query: (new URLSearchParams(window.location.search).get("q") || "").slice(0, 200),', 1)
+            source = source.replace('const $ = (selector) => document.querySelector(selector);', 'const $ = (selector) => document.querySelector(selector);\nif (state.query) { const searchInput = $("#search"); if (searchInput) searchInput.value = state.query; }', 1)
+            contacts.write_text(source)
     env = Path('/etc/wwcx/mail-room.env')
     if env.exists():
         key = dict(line.split('=', 1) for line in env.read_text().splitlines() if '=' in line)['WWCX_MAIL_ROOM_PROXY_KEY']
@@ -63,6 +74,7 @@ Group=wwcx-mail-gateway
 WorkingDirectory={release}
 EnvironmentFile=/etc/wwcx/mail-gateway.env
 EnvironmentFile=/etc/wwcx/mail-room.env
+EnvironmentFile=-/etc/wwcx/mail-room-ava.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 -B -m server.mail_room_http --database {state}/drafts.sqlite3
 Restart=on-failure
@@ -89,7 +101,7 @@ location ^~ /edge1-ops/mail-room/api/ {
     proxy_set_header X-Mail-Room-Proxy-Key "''' + key + '''";
     proxy_set_header Host edge1.ww.cx;
     proxy_connect_timeout 5s;
-    proxy_read_timeout 15s;
+    proxy_read_timeout 90s;
     client_max_body_size 150k;
     access_log off;
     add_header Cache-Control "no-store" always;
@@ -117,10 +129,51 @@ location ^~ /edge1-ops/mail-room/ {
     if check.returncode:
         nginx.write_text(original)
         raise SystemExit('nginx validation failed; main configuration restored')
+    gateway_unit = Path('/etc/systemd/system/wwcx-outbound-mail-gateway.service')
+    if gateway_unit.exists():
+        shutil.copy2(gateway_unit, backup / 'outbound-mail-gateway.service')
+        import re
+        current = gateway_unit.read_text()
+        updated = re.sub(r'/opt/wwcx-email/releases/[0-9a-f]{40}', str(release), current)
+        if updated != current:
+            gateway_unit.write_text(updated)
     subprocess.run(['systemctl', 'daemon-reload'], check=True)
     subprocess.run(['systemctl', 'enable', '--now', 'wwcx-mail-room'], check=True)
+    subprocess.run(['systemctl', 'restart', 'wwcx-outbound-mail-gateway'], check=True)
     subprocess.run(['systemctl', 'restart', 'wwcx-mail-room'], check=True)
     subprocess.run(['systemctl', 'reload', 'nginx'], check=True)
+    scan_unit = Path('/etc/systemd/system/wwcx-mail-room-attachment-scan.service')
+    scan_timer = Path('/etc/systemd/system/wwcx-mail-room-attachment-scan.timer')
+    scan_unit.write_text(f"""[Unit]
+Description=Private native mail attachment inventory and scanner
+[Service]
+Type=oneshot
+User=wwcx-mail-gateway
+Group=wwcx-mail-gateway
+WorkingDirectory={release}
+ExecStart=/usr/bin/python3 -B {release}/tools/messaging/mail_room_attachment_scan.py --archive-root /var/lib/wwcx-mail-gateway/inbound --database {state}/drafts.sqlite3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={state}
+MemoryMax=1G
+CPUQuota=35%
+TimeoutStartSec=600
+""")
+    scan_timer.write_text("""[Unit]
+Description=Periodic private mail attachment checks
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+[Install]
+WantedBy=timers.target
+""")
+    subprocess.run(['systemctl', 'daemon-reload'], check=True)
+    subprocess.run(['systemctl', 'enable', '--now', 'wwcx-mail-room-attachment-scan.timer'], check=True)
+    subprocess.run(['systemctl', 'start', '--no-block', 'wwcx-mail-room-attachment-scan'], check=True)
     registry = json.loads(navigation.read_text())
     module = next(m for m in registry['modules'] if m['id'] == 'mail-room')
     module.update(browser_route='/edge1-ops/mail-room/', runtime_route='/edge1-ops/mail-room/', availability='accepted_live', authorization='existing_route_policy', description='Browse mail, read threads, and save or prepare drafts. Provider commissioning pending; sending disabled.', palette=True, toolbox=True, evidence_status='private_authenticated_route_installed', menu_visibility='primary')

@@ -6,6 +6,7 @@ on:
       - 'server/outbound_mail*.py'
       - 'src/web/mail-room/**'
       - 'deploy/messaging/install-manual-mail-room.py'
+      - 'tools/messaging/mail_room_attachment_scan.py'
       - 'integrations/bigbird_mail/**'
       - 'integrations/bigbird-mail/**'
       - 'tests/*mail*'
@@ -22,7 +23,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: |
-          python3 -m unittest discover -s tests -p test_mail_room_http.py
+          python3 -m unittest discover -s tests -p 'test_mail_room*.py'
+          python3 -m unittest discover -s tests -p test_identity_aware_outbound_gateway.py
           python3 tests/validate_mail_correspondence_functional.py
           python3 tests/validate_mail_ai_adapter.py
           python3 tests/validate_mail_correspondence_client_isolation.py
