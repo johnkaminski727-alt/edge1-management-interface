@@ -78,6 +78,15 @@ AlertExceedsMax yes
 AlertEncrypted yes
 SelfCheck 600
 ''');clamconf.chmod(0o644)
+    apparmor=Path('/etc/apparmor.d/local/usr.sbin.clamd')
+    if Path('/etc/apparmor.d/usr.sbin.clamd').is_file():
+        if apparmor.exists():shutil.copy2(apparmor,backup/'clamd-apparmor-local')
+        original=apparmor.read_text() if apparmor.exists() else ''
+        marker='# WW.CX private mail scanner'
+        if marker not in original:
+            apparmor.write_text(original+'\n'+marker+'\n/etc/clamav/wwcx-mail-clamd.conf r,\n/run/wwcx-mail-clamd/ rw,\n/run/wwcx-mail-clamd/scan.sock rw,\n')
+        subprocess.run(['apparmor_parser','-r','/etc/apparmor.d/usr.sbin.clamd'],check=True)
+    subprocess.run(['runuser','-u','clamav','--','/usr/sbin/clamd','--config-file='+str(clamconf),'--version'],check=True,stdout=subprocess.DEVNULL)
     Path('/etc/systemd/system/wwcx-mail-clamd.service').write_text('''[Unit]
 Description=Private local mail malware scanner
 After=clamav-freshclam.service
