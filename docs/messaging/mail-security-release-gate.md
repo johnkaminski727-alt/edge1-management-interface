@@ -48,12 +48,18 @@ state remain on Edge1. AVA receives no quarantine management or release capabili
 
 ## Deployment and validation
 
-Install Debian Rspamd and Redis packages, stage an immutable approved git release,
+Install Debian Rspamd, Redis, ClamAV daemon and clamdscan packages, stage an immutable approved git release,
 then run `deploy/messaging/install-mail-security.py --release /opt/wwcx-email/releases/SHA`
 on Edge1. The installer backs up SQLite state and affected configuration, keeps all
 workers on loopback, applies resource limits, enables the shared read gate, and
 replaces advisory attachment scanning with `wwcx-mail-security-scan.timer`.
 Existing portal authentication, private routing and disabled outbound delivery remain.
+ClamAV runs under a resource-limited daemon and its existing AppArmor profile, with
+only the custom configuration and private socket added to its local rules.
+
+Run `tests/mail_security_live_acceptance.py` explicitly under the mail service account
+on Edge1 after scanner startup. This acceptance uses disposable stores and harmless
+GTUBE/EICAR fixtures; it is deliberately outside generic offline CI discovery.
 
 Regression coverage verifies search, direct message and mixed-thread exclusion,
 inbox folders, missing-store failures, reports surviving rescans, related holds,
