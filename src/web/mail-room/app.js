@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity"];
+  const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily"];
   let mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
@@ -55,6 +55,14 @@
   }
   async function load(){
     const current=++generation;$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
+    if(mode==="daily"){
+      const reports=await request("reports");if(current!==generation)return;$("list").replaceChildren();
+      for(const day of reports.dates){const b=element("button",day,"message");b.onclick=safely(async()=>{if(!canLeave())return;const r=await request("report/"+day);$("editor").hidden=true;clearTimeout(autosave);dirty=false;$("reading").replaceChildren(element("h2","Daily activity · "+r.date),element("p",r.timezone+" · "+(r.complete_day?"Completed day":"Today so far")+" · Updated "+new Date(r.generated_at).toLocaleString()));
+        const labels={successful_logins:"Successful logins",unique_login_users:"Users who logged in",failed_logins:"Failed login attempts",logouts:"Logouts",messages_sent:"Messages submitted to provider",messages_received:"Messages received",commissioning_messages_received:"Commissioning messages",drafts_prepared:"Draft preparations",new_contacts:"New contacts",new_contact_points:"New contact points",new_contact_relationships:"New relationships"};
+        for(const [key,value] of Object.entries(r.counts))$("reading").append(element("p",(labels[key]||key)+": "+(value===null?"Unavailable":value)));
+        for(const note of r.notes)$("reading").append(element("p",note,"small"));for(const [source,state] of Object.entries(r.sources))if(state!=="available")$("reading").append(element("p",source+": "+state,"notice"));});$("list").append(b);}
+      if(!reports.dates.length)$("list").append(element("p","First report is being generated."));$("previous").disabled=$("next").disabled=true;$("page").textContent="Saskatchewan time";return;
+    }
     const result=await request(mode==="inbox"?"messages?"+filters:mode==="drafts"?"drafts":"activity");if(current!==generation)return;const items=mode==="inbox"?result.messages:mode==="drafts"?result.drafts:result.events;more=!!result.has_more;$("list").replaceChildren();
     for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));b.append(element("strong",m.subject||"(No subject)"),element("span",mode==="inbox"?m.sender:mode==="drafts"?"Saved draft":"Prepared · not sent"),element("span",new Date(m.occurred_at||m.updated).toLocaleString()));if(m.tags?.length)b.append(element("span",m.tags.join(" · ")));b.onclick=safely(()=>mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>showEditor(d.payload,d.id)));$("list").append(b);}
     if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages. Provider intake is pending.":mode==="drafts"?"No saved drafts yet.":"No prepared messages yet. Sending and provider delivery receipts remain unavailable."));

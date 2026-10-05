@@ -30,3 +30,10 @@ AVA summary/reply buttons explicitly submit bounded thread excerpts to the exist
 Activity currently shows prepared-not-sent records. Provider queued/sent/bounce receipts require first-domain outbound commissioning and must not be inferred from a prepared draft.
 
 ClamAV indexes and scans attachments from verified native raw archives using a periodic service/timer. Unknown, stale-scanner, oversized, scan-limit and encrypted-file outcomes remain blocked or quarantined. No attachment download/release endpoint exists. The scanner checks at most 25 archives per run from the latest bounded 10,000 archive records, and revisits checks after an hour. Provider-native archives require the equivalent archive/index path during commissioning. A clean scanner result is not a delivery or download approval.
+
+
+## Daily activity reports
+
+Daily summary shows portal login success/failure, unique login users and logouts; provider-submitted messages and draft preparations; authoritative received-mail events (commissioning canary separate); and new contact entities, contact points and relationships. Counts use America/Regina calendar boundaries. Prepared is never counted as sent, and provider submission does not mean delivery. Missing sources are null/unavailable, malformed audit input is partial, and retained-record limits are stated in the report. Reports contain no message bodies, subjects, addresses, actor identities or session values.
+
+A hardened root oneshot reads the source audit/database files in read-only mode and writes only aggregate JSON under /var/lib/wwcx-mail-room-reports (root:wwcx-mail-gateway, directory0750/files0640). Its timer refreshes today-so-far and yesterday’s completed report every five minutes; older completed date files are retained. The existing authenticated bridge reads these aggregate reports without receiving access to the auth or contacts stores.

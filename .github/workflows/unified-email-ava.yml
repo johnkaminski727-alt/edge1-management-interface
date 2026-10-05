@@ -7,6 +7,7 @@ on:
       - 'src/web/mail-room/**'
       - 'deploy/messaging/install-manual-mail-room.py'
       - 'tools/messaging/mail_room_attachment_scan.py'
+      - 'tools/messaging/mail_room_daily_summary.py'
       - 'integrations/bigbird_mail/**'
       - 'integrations/bigbird-mail/**'
       - 'tests/*mail*'

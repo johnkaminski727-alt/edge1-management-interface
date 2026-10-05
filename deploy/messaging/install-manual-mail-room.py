@@ -174,6 +174,39 @@ WantedBy=timers.target
     subprocess.run(['systemctl', 'daemon-reload'], check=True)
     subprocess.run(['systemctl', 'enable', '--now', 'wwcx-mail-room-attachment-scan.timer'], check=True)
     subprocess.run(['systemctl', 'start', '--no-block', 'wwcx-mail-room-attachment-scan'], check=True)
+    report_unit = Path('/etc/systemd/system/wwcx-mail-room-daily-summary.service')
+    report_timer = Path('/etc/systemd/system/wwcx-mail-room-daily-summary.timer')
+    for path in [report_unit, report_timer]:
+        if path.exists(): shutil.copy2(path, backup / path.name)
+    report_unit.write_text(f"""[Unit]
+Description=Aggregate-only Edge1 daily activity summary
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory={release}
+ExecStart=/usr/bin/python3 -B {release}/tools/messaging/mail_room_daily_summary.py
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wwcx-mail-room-reports
+""")
+    report_timer.write_text("""[Unit]
+Description=Refresh current-day summary and retain completed day reports
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* *:0/5:00 America/Regina
+Persistent=true
+[Install]
+WantedBy=timers.target
+""")
+    reports = Path('/var/lib/wwcx-mail-room-reports')
+    reports.mkdir(mode=0o750, exist_ok=True)
+    os.chown(reports, 0, user.pw_gid)
+    subprocess.run(['systemctl', 'daemon-reload'], check=True)
+    subprocess.run(['systemctl', 'enable', '--now', 'wwcx-mail-room-daily-summary.timer'], check=True)
+    subprocess.run(['systemctl', 'start', 'wwcx-mail-room-daily-summary'], check=True)
     registry = json.loads(navigation.read_text())
     module = next(m for m in registry['modules'] if m['id'] == 'mail-room')
     module.update(browser_route='/edge1-ops/mail-room/', runtime_route='/edge1-ops/mail-room/', availability='accepted_live', authorization='existing_route_policy', description='Browse mail, read threads, and save or prepare drafts. Provider commissioning pending; sending disabled.', palette=True, toolbox=True, evidence_status='private_authenticated_route_installed', menu_visibility='primary')

@@ -108,7 +108,16 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None):
                 self.reply(404, {"error": "Not found"}); return
             route = parsed.path[len(PREFIX):]
             try:
-                if route == "status":
+                if route == "reports":
+                    directory = Path("/var/lib/wwcx-mail-room-reports")
+                    dates = sorted((p.stem for p in directory.glob("????-??-??.json")), reverse=True)[:31]
+                    data = {"dates": dates, "timezone": "America/Regina"}
+                elif route.startswith("report/"):
+                    from datetime import date
+                    requested = route[7:]
+                    if date.fromisoformat(requested).isoformat() != requested: raise ValueError("Invalid report date")
+                    data = json.loads((Path("/var/lib/wwcx-mail-room-reports") / (requested + ".json")).read_text())
+                elif route == "status":
                     data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False}
                 elif route == "senders" and features:
                     data = features.options()
