@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mail Room | Edge1</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css"></head>
+<body data-edge1-module="mail-room"><div id="wwcx-operator-shell"></div><main>
+<header><div><p class="eyebrow">EDGE1 · COMMUNICATIONS</p><h1>Your Mail Room</h1><p>Read, reply and prepare correspondence alongside AVA.</p></div><button id="compose">New draft</button></header>
+<p id="connection" class="notice" role="status">Checking mail connection…</p><p id="feedback" role="status" aria-live="polite"></p>
+<div class="workspace"><aside class="panel"><nav aria-label="Mail views"><button id="inbox" class="active">Inbox</button><button id="drafts">Saved drafts</button></nav>
+<form id="search"><label>Subject or sender<input name="q" type="search" maxlength="200" placeholder="Search mail"></label><label>Original recipient<input name="recipient" type="email" maxlength="320" placeholder="Any managed address"></label><button>Search</button></form>
+<div id="list" class="message-list" aria-label="Messages"></div><div class="pages"><button id="previous">Previous</button><span id="page"></span><button id="next">Next</button></div></aside>
+<section class="panel reader"><div id="reading"><h2>Choose a message</h2><p>Open a message to read its thread, or start a new draft.</p></div>
+<form id="editor" hidden><div class="editor-heading"><h2>Draft correspondence</h2><span>Nothing is sent from this screen.</span></div>
+<label>To<input name="to" required placeholder="recipient@example.com"></label><div class="two"><label>CC<input name="cc"></label><label>BCC<input name="bcc"></label></div>
+<label>Subject<input name="subject" maxlength="998" required></label><label>Message<textarea name="body" rows="10" required></textarea></label>
+<details><summary>Sender and signature details</summary><div class="two"><label>Original receiving address<input name="original_recipient" type="email" placeholder="Address this reply answers"></label><label>Sender profile<input name="identity_hint" placeholder="e.g. john-wwcx"></label><label>Signer name<input name="signer_name" maxlength="160" required></label><label>Signer title<input name="signer_title" maxlength="160" required></label></div><label>Mailing address<textarea name="mailing_address" rows="2" maxlength="500" required></textarea></label><label>Message class<select name="message_class"><option value="business_correspondence">Business correspondence</option><option value="support">Support</option><option value="legal_notice">Legal notice</option><option value="commercial">Commercial</option></select></label></details>
+<div class="actions"><button type="button" id="save">Save draft</button><button type="submit">Prepare for review</button><button type="button" id="close">Close draft</button></div><p id="saved"></p><pre id="prepared" hidden></pre></form>
+</section></div><footer>Plain-text mail view · Original recipients preserved · Attachments are not opened in this view</footer>
+</main><script src="app.js" defer></script><script src="/edge1-ops/status/operator-shell/shell.js" data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="mail-room" defer></script></body></html>

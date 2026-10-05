@@ -4,6 +4,8 @@ on:
     paths:
       - 'server/mail_*.py'
       - 'server/outbound_mail*.py'
+      - 'src/web/mail-room/**'
+      - 'deploy/messaging/install-manual-mail-room.py'
       - 'integrations/bigbird_mail/**'
       - 'integrations/bigbird-mail/**'
       - 'tests/*mail*'
@@ -20,6 +22,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: |
+          python3 -m unittest discover -s tests -p test_mail_room_http.py
           python3 tests/validate_mail_correspondence_functional.py
           python3 tests/validate_mail_ai_adapter.py
           python3 tests/validate_mail_correspondence_client_isolation.py
