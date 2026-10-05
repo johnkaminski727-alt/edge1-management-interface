@@ -19,6 +19,10 @@ def main():
         raise SystemExit('Root and an approved staged release are required')
     if release.stat().st_uid != 0 or release.stat().st_mode & 0o022:
         raise SystemExit('Release must be root-owned and not group/world writable')
+    # Connector staging may inherit umask 0077. Source is public, config is separate.
+    for path in [release, *release.rglob('*')]:
+        if path.is_dir():
+            path.chmod(0o755)
     nginx = Path('/etc/nginx/sites-enabled/edge1-private.conf').resolve()
     original = nginx.read_text()
     if 'listen 10.77.0.1:443 ssl;' not in original or 'location = /_edge1_status_session_check' not in original:
@@ -62,6 +66,7 @@ EnvironmentFile=/etc/wwcx/mail-room.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 -B -m server.mail_room_http --database {state}/drafts.sqlite3
 Restart=on-failure
+RestartSec=3
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

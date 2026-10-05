@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id), api = "./api/";
-  let mode = "inbox", offset = 0, more = false, draftId = null, metadata = {}, dirty = false, generation = 0;
+  let mode = "inbox", offset = 0, more = false, draftId = null, metadata = {}, dirty = false, generation = 0, editorSession = 0, saving = false;
   function say(text) { $("feedback").textContent = text; }
   async function request(path, data) {
     const response = await fetch(api + path, {credentials:"same-origin", cache:"no-store", ...(data === undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json", "X-Mail-Room-Request":"1"}, body:JSON.stringify(data)})});
@@ -13,7 +13,7 @@
   function canLeave() { return !dirty || window.confirm("Leave this unsaved draft? Save it first to keep your changes."); }
   function showEditor(payload = {}, id = null) {
     if (!canLeave()) return;
-    $("editor").reset(); draftId = id; metadata = {};
+    editorSession++; $("editor").reset(); draftId = id; metadata = {};
     for(const key of ["thread_id","source_message_id","in_reply_to","references"]) if(payload[key]) metadata[key]=payload[key];
     for(const field of $("editor").elements) if(field.name) field.value = Array.isArray(payload[field.name]) ? payload[field.name].join(", ") : payload[field.name] || (field.name === "message_class" ? "business_correspondence" : "");
     $("editor").hidden=false; $("prepared").hidden=true; $("saved").textContent=id ? "Saved draft opened." : "New draft — not saved yet."; dirty=false;
@@ -24,7 +24,12 @@
     return data;
   }
   async function save() {
-    const d = await request("drafts", {id:draftId, payload:payload()}); draftId=d.id; dirty=false; $("saved").textContent="Saved on Edge1 · " + new Date(d.updated).toLocaleString(); say("Draft saved. Nothing sent."); return d;
+    if(saving) throw new Error("A draft save is already in progress.");
+    saving=true; const session=editorSession, snapshot=payload();
+    try { const d = await request("drafts", {id:draftId, payload:snapshot});
+      if(session===editorSession) { draftId=d.id; dirty=JSON.stringify(payload())!==JSON.stringify(snapshot); $("saved").textContent=dirty ? "Saved earlier version · New changes not saved" : "Saved on Edge1 · " + new Date(d.updated).toLocaleString(); }
+      say("Draft saved. Nothing sent."); return d;
+    } finally { saving=false; }
   }
   function renderMail(m, container) {
     const article=element("article", "", "thread-message"); article.append(element("h2",m.subject || "(No subject)"));
@@ -58,7 +63,7 @@
   $("editor").addEventListener("invalid",()=>{$("editor").querySelector("details").open=true;},true);
   $("editor").oninput=()=>{dirty=true;$("prepared").hidden=true;$("saved").textContent="Unsaved changes";};
   $("save").onclick=safely(save);
-  $("editor").onsubmit=safely(async e=>{e.preventDefault();const d=await save();const result=await request("prepare",{id:d.id});$("prepared").textContent="Prepared for review — not sent\n\nFrom: " + (result.request?.from_address || "Selected by identity policy") + "\nTo: " + (result.request?.recipients || d.payload.to || []).join(", ") + "\nSubject: " + (result.request?.subject || d.payload.subject) + "\n\n" + (result.body || d.payload.body);$("prepared").hidden=false;say("Prepared for review. Nothing sent.");});
+  $("editor").onsubmit=safely(async e=>{e.preventDefault();const d=await save();const result=await request("prepare",{id:d.id});if(draftId!==d.id || JSON.stringify(payload())!==JSON.stringify(d.payload)){say("Earlier draft version prepared. Save and prepare your new changes for an updated preview.");return;}$("prepared").textContent="Prepared for review — not sent\n\nFrom: " + (result.request?.from_address || "Selected by identity policy") + "\nTo: " + (result.request?.recipients || d.payload.to || []).join(", ") + "\nSubject: " + (result.request?.subject || d.payload.subject) + "\n\n" + (result.body || d.payload.body);$("prepared").hidden=false;say("Prepared for review. Nothing sent.");});
   window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
   request("status").then(s=>{$("connection").textContent=s.provider_connected ? "Provider connected · Sending disabled · Manual drafts available" : "Local Mail Room ready · Provider credentials still needed · Only commissioning mail is available · Sending disabled";}).catch(e=>{$("connection").textContent=e.message;});
   safely(load)();
