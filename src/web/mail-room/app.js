@@ -42,6 +42,7 @@
     const email=(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1];const link=element("a","Find sender in Contacts");link.href="/edge1-ops/contacts/?q="+encodeURIComponent(email);link.target="_blank";link.rel="noopener";meta.append(link);a.append(meta,element("div",m.body_text||"(No plain-text body)","mail-text"));container.append(a);
   }
   function securityDetails(decision, container){
+    if(decision.operator_report)container.append(element("p",decision.operator_report==="phishing"?"Reported phishing · Awaiting confirmation":decision.operator_report==="confirmed_phishing"?"Confirmed phishing":decision.operator_report.startsWith("reviewed_release:")?"Released after manual review":"Operator classification: "+decision.operator_report.replaceAll("_"," ")));
     container.append(element("h2", "Security · "+decision.state),element("p", "Sender: "+(decision.authentication?.status||"not_verified").replaceAll("_"," ")),element("p", "SPF: "+(decision.authentication?.spf||"not verified")+" · DKIM: "+(decision.authentication?.dkim||"not verified")+" · DMARC: "+(decision.authentication?.dmarc||"not verified")),element("p", (decision.reasons||[]).join(" · ").replaceAll("_"," ")),element("p", "Domain authentication does not verify the person or guarantee safe content.", "small"));
   }
   function securityActions(m, container, decision){

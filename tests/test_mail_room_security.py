@@ -75,6 +75,15 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(self.security.get(self.ids[2])['state'],'quarantine')
         self.security.write(self.ids[0],'a'*64,CLEAN);self.security.write(self.ids[0],'b'*64,CLEAN);self.security.write(self.ids[0],'b'*64,CLEAN)
         self.assertTrue(self.security.get(self.ids[0])['hard_block'])
+
+    def test_reviewed_release_survives_same_findings_but_not_new_risks(self):
+        held={**CLEAN,'state':'quarantine','reasons':['unregistered_catch_all_recipient_review']}
+        self.security.write(self.ids[0],'a'*64,held)
+        self.security.action(self.ids[0],'release')
+        self.security.write(self.ids[0],'a'*64,held)
+        self.assertEqual(self.security.get(self.ids[0])['state'],'released')
+        self.security.write(self.ids[0],'a'*64,{**held,'reasons':['new_phishing_finding'],'symbols':['PHISHING']})
+        self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
     def test_authentication_and_scan_failures(self):
         clean={'score':0,'symbols':{},'action':'no action'}
         decision,_,_=inspect(RAW,scan=lambda _: 'clean_download_disabled',spam_scan=lambda *a:clean)

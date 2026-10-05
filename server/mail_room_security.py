@@ -33,6 +33,12 @@ def message_hash(message_id):
     return hashlib.sha256(message_id.encode()).hexdigest()
 
 
+def decision_fingerprint(decision):
+    # Human release is bound to reviewed findings, never future changed findings.
+    facts={'state':decision['state'],'reasons':sorted(decision.get('reasons',[])),'symbols':sorted(decision.get('symbols',[]))}
+    return hashlib.sha256(json.dumps(facts,sort_keys=True).encode()).hexdigest()
+
+
 def attach(db):
     path = database_path()
     if not path.is_file() or path.is_symlink() or path.stat().st_mode & 0o077:
@@ -89,6 +95,7 @@ CREATE TABLE IF NOT EXISTS filter_settings(domain TEXT PRIMARY KEY, payload TEXT
             if override in {'phishing','confirmed_phishing'}: state='quarantine'
             elif override == 'spam' and state == 'released': state='junk'
             elif override == 'not_spam' and state == 'junk' and decision.get('scan_complete') and not decision.get('hard_block'): state='released'
+            elif override == 'reviewed_release:'+decision_fingerprint(decision) and decision.get('scan_complete') and not decision.get('hard_block') and state != 'pending': state='released'
             db.execute('INSERT INTO decisions VALUES (?,?,?,?,?,?,?) ON CONFLICT(message_hash) DO UPDATE SET raw_hash=excluded.raw_hash,state=excluded.state,automatic_state=excluded.automatic_state,payload=excluded.payload,checked=excluded.checked', (key,raw_hash,state,decision['state'],json.dumps(decision),time.time(),override))
             if not old or old[1] != state:
                 db.execute('INSERT INTO events(message_hash,action,occurred) VALUES (?,?,?)',(key,'classified_'+state,time.time()))
@@ -112,7 +119,7 @@ CREATE TABLE IF NOT EXISTS filter_settings(domain TEXT PRIMARY KEY, payload TEXT
                     raise ValueError('Quarantine requires explicit reviewed release')
                 if not payload.get('scan_complete') or payload.get('hard_block') or row[2]=='confirmed_phishing':
                     raise ValueError('Release blocked: complete checks and no hard security finding required')
-                state='released'; override='not_spam'
+                state='released'; override='not_spam' if action=='not_spam' else 'reviewed_release:'+decision_fingerprint(payload)
             elif action=='spam': state='quarantine' if state in {'quarantine','pending'} else 'junk'; override=row[2] if row[2] in {'phishing','confirmed_phishing'} else 'spam'
             else: state='quarantine'; override=action
             db.execute('UPDATE decisions SET state=?,override=? WHERE message_hash=?',(state,override,key))
