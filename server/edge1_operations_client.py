@@ -20,6 +20,14 @@ ACTION_PATHS = {
     "contacts.correlation.accept": "/v1/actions/contacts.correlation.accept/run",
     "contacts.correlation.reject": "/v1/actions/contacts.correlation.reject/run",
     "contacts.correlation.promote": "/v1/actions/contacts.correlation.promote/run",
+    "contacts.entity.create": "/v1/actions/contacts.entity.create/run",
+    "contacts.entity.update": "/v1/actions/contacts.entity.update/run",
+    "contacts.entity.archive": "/v1/actions/contacts.entity.archive/run",
+    "contacts.entity.restore": "/v1/actions/contacts.entity.restore/run",
+    "contacts.entity.merge": "/v1/actions/contacts.entity.merge/run",
+    "contacts.point.add": "/v1/actions/contacts.point.add/run",
+    "contacts.point.update": "/v1/actions/contacts.point.update/run",
+    "contacts.point.detach": "/v1/actions/contacts.point.detach/run",
 }
 
 
@@ -39,6 +47,7 @@ class OperationsResult:
     message: str
     duration_ms: int | None
     exit_code: int | None
+    result: dict[str, Any] | None = None
 
 
 class Edge1OperationsClient:
@@ -163,6 +172,16 @@ class Edge1OperationsClient:
             message = "The validation request could not be completed."
         duration = payload.get("duration_ms")
         exit_code = payload.get("exit_code")
+
+        typed_result = payload.get("result")
+        if (
+            typed_result is not None
+            and not isinstance(typed_result, dict)
+        ):
+            raise OperationsClientError(
+                "Operations API typed result is invalid"
+            )
+
         return OperationsResult(
             event_id=event_id,
             action_id=action_id,
@@ -170,4 +189,5 @@ class Edge1OperationsClient:
             message=message,
             duration_ms=duration if isinstance(duration, int) and duration >= 0 else None,
             exit_code=exit_code if isinstance(exit_code, int) else None,
+            result=typed_result,
         )

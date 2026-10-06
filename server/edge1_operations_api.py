@@ -47,6 +47,7 @@ DB_PATH = Path(os.environ.get("EDGE1_OPS_DB", "/var/lib/edge1-operations-api/aud
 SECRET_FILE = Path(os.environ.get("EDGE1_OPS_SECRET_FILE", "/etc/edge1-operations-api.secret"))
 MUTATIONS_ENABLED = os.environ.get("EDGE1_OPS_MUTATIONS_ENABLED", "false").lower() == "true"
 MUTATION_GATE_ENV = {
+    "contacts_crud_mutations": "EDGE1_OPS_CONTACTS_CRUD_WRITES_ENABLED",
     "contacts_relationship_mutations": "EDGE1_OPS_CONTACTS_RELATIONSHIP_WRITES_ENABLED",
     "telephony_safe_controls": "EDGE1_OPS_TELEPHONY_SAFE_CONTROLS_ENABLED",
     "vpn_registration": "EDGE1_VPN_REGISTRATION_WRITES_ENABLED",
@@ -317,7 +318,11 @@ def run_typed_action(name, actor, body_hash, parameters):
 
     started = time.monotonic()
     try:
-        result_payload = run_typed_handler(handler, validated)
+        result_payload = run_typed_handler(
+            handler,
+            validated,
+            actor=actor,
+        )
         duration = int((time.monotonic() - started) * 1000)
         if duration > timeout * 1000:
             raise RuntimeError("typed action exceeded configured timeout")

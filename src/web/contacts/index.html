@@ -1,12 +1,18 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/edge1-ops/status/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/edge1-ops/status/favicon.ico" sizes="any">
+  <link rel="icon" href="/edge1-ops/status/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/edge1-ops/status/apple-touch-icon.png">
+  <link rel="manifest" href="/edge1-ops/status/site.webmanifest">
   <meta charset="utf-8">
   <meta name="viewport"
         content="width=device-width,initial-scale=1">
-  <title>Unified Contacts | Edge1</title>
+  <title>Contacts & Relationships | Edge1</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="/edge1-status/operator-shell/shell.css">
+  <link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css">
+  <link rel="stylesheet" href="/edge1-ops/status/operator-shell/theme.css">
 </head>
 
 <body data-edge1-module="contacts">
@@ -16,25 +22,19 @@
   <header class="page-header">
     <div>
       <div class="eyebrow">EDGE1 INTELLIGENCE</div>
-      <h1>Unified Contacts</h1>
+      <h1>Contacts & Relationships</h1>
       <p class="subtitle">
-        People, organizations, phone numbers, email addresses,
-        sources and verified contact relationships.
+        A unified workspace for people, organizations, contact points,
+        provenance, observations and relationship intelligence.
       </p>
     </div>
 
-    <span class="readonly">Read-only</span>
+    <span
+      class="readonly contacts-capability-badge"
+      title="Unified Contacts management workspace"
+    >Contact Manager</span>
   </header>
 
-  <!-- EDGE1_INTELLIGENCE_NAV_START -->
-  <nav class="module-nav" aria-label="Edge1 modules">
-    <a href="/">Private Library Search</a>
-    <a href="/communications/">Communications</a>
-    <a href="/number-portability/">Number Portability</a>
-    <a href="/phone-directory/">Phone Directory</a>
-    <a href="/contacts/" aria-current="page">Unified Contacts</a>
-  </nav>
-<!-- EDGE1_INTELLIGENCE_NAV_END -->
 
   <section class="notice">
     <strong>Private intelligence workspace.</strong>
@@ -43,7 +43,14 @@
     points are retained without being assigned to an identity.
   </section>
 
-  <section id="metrics" class="metrics">
+  <details class="contacts-overview">
+    <summary>
+      <span>Overview</span>
+      <span class="contacts-overview-hint">
+        Directory statistics
+      </span>
+    </summary>
+    <section id="metrics" class="metrics">
     <article>
       <span>ENTITIES</span>
       <strong id="metric-entities">—</strong>
@@ -80,7 +87,8 @@
       <span>OBSERVATIONS</span>
       <strong id="metric-observations">—</strong>
     </article>
-  </section>
+    </section>
+  </details>
 
   <nav id="view-tabs" class="view-tabs" aria-label="Contacts views">
     <button class="active" data-view="all">All Contacts</button>
@@ -95,83 +103,194 @@
     <button data-view="connections">Connections</button>
   </nav>
 
-  <section class="directory-layout">
+  <section class="directory-layout contacts-workspace">
 
-    <aside class="filter-panel panel">
-      <div class="section-label">FILTER</div>
-      <h2>Find a contact</h2>
+    <section class="directory-workspace panel">
 
-      <label for="search">
-        Name, number or email
-      </label>
+      <header class="directory-toolbar">
 
-      <input
-        id="search"
-        type="search"
-        placeholder="306 563 5411 or Canora"
-        autocomplete="off">
+        <div class="directory-toolbar-top">
+          <div>
+            <div class="section-label">DIRECTORY</div>
+            <div class="contacts-directory-heading">
+              <h2 id="directory-title">All Contacts</h2>
+              <button
+                id="new-contact-button"
+                class="primary contacts-create-button"
+                type="button"
+              >
+                + New Contact
+              </button>
+            </div>
+          </div>
 
-      <label for="verification">
-        Verification
-      </label>
-
-      <select id="verification">
-        <option value="">All statuses</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="probable">Probable</option>
-        <option value="verified">Verified</option>
-        <option value="document_sourced">Document sourced</option>
-        <option value="unverified">Unverified</option>
-        <option value="missing_source">Missing source</option>
-      </select>
-
-      <button id="search-button" class="primary">
-        Search directory
-      </button>
-
-      <button id="clear-button" class="secondary">
-        Clear filters
-      </button>
-
-      <div class="filter-note">
-        Global search also checks unassigned contact points.
-        A match does not create an identity association.
-      </div>
-    </aside>
-
-    <section class="directory-panel panel">
-      <header class="panel-header">
-        <div>
-          <div class="section-label">DIRECTORY</div>
-          <h2 id="directory-title">All Contacts</h2>
+          <span id="result-count">—</span>
         </div>
 
-        <span id="result-count">—</span>
+        <div class="directory-search-row">
+
+          <label class="directory-search-field" for="search">
+            <span class="sr-only">
+              Name, number or email
+            </span>
+            <input
+              id="search"
+              type="search"
+              placeholder="Search contacts, numbers or email"
+              autocomplete="off">
+          </label>
+
+          <label class="directory-filter-field" for="verification">
+            <span class="sr-only">Verification</span>
+            <select id="verification">
+              <option value="">All statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="probable">Probable</option>
+              <option value="verified">Verified</option>
+              <option value="document_sourced">
+                Document sourced
+              </option>
+              <option value="unverified">Unverified</option>
+              <option value="missing_source">
+                Missing source
+              </option>
+            </select>
+          </label>
+
+          <button
+            id="search-button"
+            class="primary directory-search-button"
+            type="button"
+          >
+            Search
+          </button>
+
+          <button
+            id="clear-button"
+            class="secondary directory-clear-button"
+            type="button"
+            title="Clear filters"
+          >
+            Clear
+          </button>
+
+        </div>
+
+        <div class="directory-safety-note">
+          Matches do not create identity associations.
+        </div>
+
       </header>
 
-      <div id="results" class="results">
+      <div id="results" class="results directory-results">
         <div class="loading">Loading directory…</div>
       </div>
+
     </section>
 
-    <aside class="detail-panel panel">
-      <header class="panel-header">
+    <aside class="detail-panel panel contact-workspace">
+
+      <header class="panel-header contact-record-header">
         <div>
           <div class="section-label">CONTACT RECORD</div>
           <h2 id="detail-title">Select a contact</h2>
         </div>
       </header>
 
-      <div id="detail-content" class="detail-empty">
+      <div
+        id="detail-content"
+        class="detail-empty contact-record-body"
+      >
         Select a directory entry to inspect its identity,
         contact points and verification state.
       </div>
+
     </aside>
 
   </section>
+
+  <div
+    id="contact-editor-modal"
+    class="contact-editor-modal"
+    hidden
+  >
+    <div
+      class="contact-editor-backdrop"
+      data-editor-close
+    ></div>
+
+    <section
+      class="contact-editor-dialog panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contact-editor-title"
+    >
+      <div class="contact-editor-header">
+        <div>
+          <div class="detail-label">
+            Contact Manager
+          </div>
+          <h2 id="contact-editor-title">
+            Edit contact
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          class="secondary"
+          data-editor-close
+          aria-label="Close editor"
+        >
+          Close
+        </button>
+      </div>
+
+      <div
+        id="contact-editor-message"
+        class="contact-editor-message"
+        hidden
+      ></div>
+
+      <form id="contact-editor-form">
+        <input
+          id="editor-mode"
+          type="hidden"
+        >
+        <input
+          id="editor-entity-id"
+          type="hidden"
+        >
+        <input
+          id="editor-contact-point-id"
+          type="hidden"
+        >
+
+        <div id="editor-fields"></div>
+
+        <div class="contact-editor-actions">
+          <button
+            id="editor-submit"
+            type="submit"
+            class="primary"
+          >
+            Save
+          </button>
+
+          <button
+            type="button"
+            class="secondary"
+            data-editor-close
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
 </main>
 
 <script src="app.js"></script>
-<script src="/edge1-status/operator-shell/shell.js" defer data-registry="/edge1-status/operator-shell/navigation.json" data-module="contacts-relationships"></script>
+<script src="/edge1-ops/status/operator-shell/shell.js" defer data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="contacts-relationships"></script>
 </body>
 </html>

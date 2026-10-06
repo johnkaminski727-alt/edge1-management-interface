@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Disaster Recovery · Edge1</title>
+<link rel="stylesheet" href="/edge1-status/operator-shell/theme.css">
+<link rel="stylesheet" href="/edge1-status/operator-shell/shell.css">
+<script src="/edge1-status/operator-shell/shell.js" defer data-registry="/edge1-status/operator-shell/navigation.json" data-module="disaster-recovery"></script>
+<style>
+main{max-width:1180px;margin:0 auto;padding:24px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{border:1px solid var(--border,#334155);border-radius:12px;padding:16px;background:var(--panel,#111827)}.value{font-size:1.35rem;font-weight:700;margin-top:8px}.ok{color:#3fb950}.warn{color:#d29922}.muted{opacity:.72}code{word-break:break-all}</style>
+</head>
+<body>
+<main>
+<h1>Disaster Recovery</h1>
+<p class="muted">Read-only recovery posture, off-site backup integrity and recovery-key readiness.</p>
+<div class="grid" id="cards">
+  <div class="card"><div>Dropbox backup</div><div class="value" id="remote">Loading…</div></div>
+  <div class="card"><div>Remote checksum</div><div class="value" id="checksum">Loading…</div></div>
+  <div class="card"><div>Latest recovery point</div><div class="value" id="latest">Loading…</div></div>
+  <div class="card"><div>Recovery private key on Edge1</div><div class="value" id="key">Loading…</div></div>
+</div>
+<section class="card" style="margin-top:14px">
+<h2>Recovery policy</h2>
+<p id="policy">Loading…</p>
+<p class="muted">Archives are encrypted before upload. The recovery private key should be held and tested off-host. This page does not expose recovery secrets or provide restore controls.</p>
+</section>
+<script>
+(async()=>{try{const r=await fetch('/edge1-ops/status/disaster-recovery/status.json',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();const set=(id,text,ok)=>{const e=document.getElementById(id);e.textContent=text;e.className='value '+(ok===true?'ok':ok===false?'warn':'')};set('remote',d.remote_present?'Present':'Unavailable',d.remote_present);set('checksum',d.remote_checksum_verified?'Verified':'Not verified',d.remote_checksum_verified);set('latest',d.latest_remote||'Unknown');set('key',d.local_recovery_secret_key_present?'Present':'Off-host / absent',d.local_recovery_secret_key_present?null:true);document.getElementById('policy').textContent=d.recovery_key_policy||'Off-host recovery key required.';}catch(e){['remote','checksum','latest','key'].forEach(id=>{document.getElementById(id).textContent='Status unavailable';document.getElementById(id).className='value warn'});document.getElementById('policy').textContent='Unable to read disaster-recovery status.'}})();
+</script>
+</main>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Edge1 approved SSH repeat-offender ladder; native persistent Fail2Ban history.
+[sshd]
+bantime = 172800
+bantime.increment = true
+bantime.formula = [172800, 604800, 2592000, 63115200][min(ban.Count, 3)]
+bantime.maxtime = 63115200
+bantime.rndtime = 0
+bantime.overalljails = false

@@ -18,6 +18,7 @@ from .edge1_security_auth_http_config import HttpAdapterConfig
 from .edge1_security_auth_http_helpers import SecurityHttpHelpersMixin
 from .edge1_security_auth_http_types import LOOPBACKS, HttpRequest, HttpResponse
 from .unified_contacts_review_http import ContactsReviewAdapter
+from .unified_contacts_crud_http import ContactsCrudAdapter
 from .edge1_vpn_account_client import VPNAccountBackend, VPNAccountBackendError
 
 CONSOLE_READ_SCOPE = "edge1.security.read"
@@ -46,6 +47,51 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
         self.contacts_review = ContactsReviewAdapter(
             self.gateway,
             self.operations,
+        )
+        self.contacts_crud = ContactsCrudAdapter(
+            self.gateway,
+            self.operations,
+        )
+
+    def _contacts_crud_action(
+        self,
+        request,
+        operation,
+    ):
+        session_token = self._session_token(request)
+
+        if not session_token:
+            raise AuthorizationError(
+                "authentication_required"
+            )
+
+        request_id = self._request_id()
+
+        context = self.gateway.authenticate_session(
+            session_token,
+            request_id,
+        )
+
+        self._require_csrf(
+            request,
+            context.session_identifier_hash,
+        )
+
+        parameters = self.contacts_crud.parse_payload(
+            request.body
+        )
+
+        result = self.contacts_crud.mutate(
+            session_token=session_token,
+            request_id=request_id,
+            csrf_validated=True,
+            operation=operation,
+            parameters=parameters,
+        )
+
+        return self._json(
+            result.status_code,
+            result.payload,
         )
 
     def _contacts_review_action(
@@ -116,6 +162,19 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             if request.path == route["validate"]:
                 return self._method(request, {"POST"}, self._validate_action)
 
+            crud_route = self.contacts_crud.parse_path(
+                request.path
+            )
+            if crud_route is not None:
+                return self._method(
+                    request,
+                    {"POST"},
+                    lambda req: self._contacts_crud_action(
+                        req,
+                        crud_route,
+                    ),
+                )
+
             contacts_route = self.contacts_review.parse_path(request.path)
             if contacts_route is not None:
                 return self._method(
@@ -132,8 +191,9 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             return self._json(400, {"error": "bad_request"})
         except AuthenticationError:
             return self._json(401, {"error": "authentication_required"})
-        except AuthorizationError:
-            return self._json(403, {"error": "forbidden"})
+        except AuthorizationError as exc:
+            response = self._json(403, {"error": "forbidden"})
+            return dataclasses.replace(response, headers=response.headers + (("X-Edge1-Denial-Reason", str(exc)),))
         except GatewayError:
             return self._json(503, {"error": "authentication_service_unavailable"})
         except Exception:
@@ -291,12 +351,40 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
         except UnicodeDecodeError as exc:
             raise ValueError("form_encoding_invalid") from exc
         form = parse_qs(form_text, strict_parsing=True, max_num_fields=4)
-        if set(form) != {"assertion", "request_id"} or any(len(values) != 1 for values in form.values()):
+        required_fields = {"assertion", "request_id"}
+        allowed_fields = required_fields | {"return_to"}
+        if (
+            not required_fields.issubset(form)
+            or not set(form).issubset(allowed_fields)
+            or any(len(values) != 1 for values in form.values())
+        ):
             raise ValueError("form_invalid")
+
         assertion = form["assertion"][0]
         request_id = form["request_id"][0]
+
         if not valid_event_id(request_id):
             raise ValueError("request_id_invalid")
+
+        redirect_target = self.config.routes["redirect_after_exchange"]
+        requested_return_to = (
+            form.get("return_to", [None])[0]
+        )
+
+        if (
+            isinstance(requested_return_to, str)
+            and requested_return_to.startswith("/edge1-ops/")
+            and not requested_return_to.startswith("//")
+            and "://" not in requested_return_to
+            and "\\"
+            not in requested_return_to
+            and "\r"
+            not in requested_return_to
+            and "\n"
+            not in requested_return_to
+        ):
+            redirect_target = requested_return_to
+
         session_token, context = self.gateway.exchange_assertion(assertion, request_id)
         csrf_token = secrets.token_urlsafe(32)
         self.gateway.store.set_csrf(
@@ -305,7 +393,7 @@ class Edge1SecurityAuthHttpAdapter(SecurityHttpActionMixin, SecurityHttpHelpersM
             context.expires_at,
         )
         headers = self._base_headers() + (
-            ("Location", self.config.routes["redirect_after_exchange"]),
+            ("Location", redirect_target),
             ("Set-Cookie", self._session_cookie(session_token)),
             ("Set-Cookie", self._csrf_cookie(csrf_token)),
         )

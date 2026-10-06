@@ -200,7 +200,9 @@ class UnifiedContacts:
         q = query.strip()
         like = f"%{q}%"
 
-        clauses = []
+        clauses = [
+            "e.lifecycle_status='active'"
+        ]
         params = []
 
         if q:
@@ -244,15 +246,19 @@ class UnifiedContacts:
                 e.entity_type,
                 e.canonical_name,
                 e.display_name,
+                e.lifecycle_status AS entity_lifecycle_status,
                 e.verification_status,
                 ca.id AS assertion_id,
+                ca.valid_from AS assertion_valid_from,
+                ca.valid_to AS assertion_valid_to,
                 ca.confidence,
                 ca.assertion_type,
                 cp.id AS contact_point_id,
                 cp.point_type,
                 cp.normalized_value,
                 cp.display_value,
-                cp.lifecycle_status
+                cp.lifecycle_status,
+                cp.lifecycle_status AS contact_point_lifecycle_status
             FROM contact_entities AS e
             LEFT JOIN contact_assertions AS ca
               ON ca.entity_id=e.id

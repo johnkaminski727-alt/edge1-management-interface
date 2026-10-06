@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/edge1-ops/status/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/edge1-ops/status/favicon.ico" sizes="any">
+  <link rel="icon" href="/edge1-ops/status/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/edge1-ops/status/apple-touch-icon.png">
+  <link rel="manifest" href="/edge1-ops/status/site.webmanifest">
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WW.CX Network Defense</title>
@@ -8,6 +14,7 @@
 :root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;--bg:#0b1015;--panel:#151c22;--card:#202830;--line:#394854;--muted:#9aa8b3;--good:#45b879;--warn:#d6a13c;--bad:#df6b6b;--info:#6aa9df}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3f6}.shell{width:min(1320px,100%);margin:auto;padding:24px}a{color:#9bcaf0}nav{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}nav a{text-decoration:none}nav a[aria-current=page]{color:#fff;font-weight:700}header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}h1{margin:0 0 8px;font-size:clamp(1.8rem,4vw,2.5rem)}h2{margin-top:0;font-size:1.2rem}.panel{background:var(--panel);border:1px solid #34404a;border-radius:16px;padding:20px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px}.card.good{border-color:var(--good)}.card.warning{border-color:var(--warn)}.card.bad{border-color:var(--bad)}.card.info{border-color:var(--info)}.label{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}.value{font-size:1.25rem;font-weight:750;margin-top:5px;overflow-wrap:anywhere}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 11px}.status:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--muted)}.status.good:before{background:var(--good)}.status.warning:before{background:var(--warn)}.status.bad:before{background:var(--bad)}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar .spacer{flex:1}button{font:inherit;background:var(--card);color:#eef3f6;border:1px solid var(--line);border-radius:8px;padding:9px 14px;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.muted,small{color:var(--muted)}.notice{border-left:4px solid var(--info);background:#101a22;padding:10px 14px}.error{display:none}.error.visible{display:block;border-color:var(--bad)}ul{margin-bottom:0}@media(max-width:760px){.shell{padding:16px}header{display:block}}
 </style>
 <link rel="stylesheet" href="/edge1-status/operator-shell/shell.css">
+<link rel="stylesheet" href="/edge1-status/operator-shell/theme.css">
 <script src="/edge1-status/operator-shell/shell.js" defer data-registry="/edge1-status/operator-shell/navigation.json" data-module="network-defense"></script>
 
 <style>

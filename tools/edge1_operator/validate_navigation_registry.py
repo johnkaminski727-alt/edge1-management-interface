@@ -13,11 +13,14 @@ UNIFIED_COMMS = ROOT / "config" / "communications" / "unified-communications.jso
 
 FORBIDDEN_ROUTE_PARTS = ("/api/", "/actions/", "/callback", "/include", "/private/", "/src/")
 ALLOWED_AVAILABILITY = {
-    "accepted_live",
-    "loopback_only",
-    "runtime_only",
-    "staged_disabled",
-    "browser_acceptance_unverified",
+    'accepted_live',
+    'browser_acceptance_unverified',
+    'deployed_unaccepted_route',
+    'repository_built_unaccepted',
+    'repository_runtime_built',
+    'runtime_only',
+    'service_live_ui_unaccepted',
+    'staged_disabled',
 }
 
 

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "contract": "wwcx.legacy-wireguard-ownership.v1",
+  "migration_state": "candidate",
+  "owner_display_name": "John",
+  "owner_subject": "wwcx-user-2",
+  "subject_resolution": "resolved_from_edge1_authenticated_session_store",
+  "devices": [
+    {"name": "john-phone", "address": "10.77.0.3/32"},
+    {"name": "john-android-2", "address": "10.77.0.4/32"},
+    {"name": "john-windows-v2", "address": "10.77.0.5/32"}
+  ],
+  "safety": {
+    "changes_live_wireguard": false,
+    "changes_registration_db": false,
+    "changes_dns_enforcement": false
+  }
+}

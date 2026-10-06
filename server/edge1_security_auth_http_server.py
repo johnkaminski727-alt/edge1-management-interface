@@ -17,6 +17,7 @@ LOOPBACKS = {"127.0.0.1", "::1"}
 
 class Handler(BaseHTTPRequestHandler):
     adapter: Edge1SecurityAuthHttpAdapter
+    doom_guard = None
     server_version = "Edge1SecurityAuth/1"
     protocol_version = "HTTP/1.1"
 
@@ -42,7 +43,10 @@ class Handler(BaseHTTPRequestHandler):
                 scheme=headers.get("X-Forwarded-Proto", ""),
                 host=headers.get("Host", "").split(":", 1)[0],
             )
-            response = self.adapter.handle(request)
+            try:
+                response = self.doom_guard.handle(self.adapter, request) if self.doom_guard else self.adapter.handle(request)
+            except Exception:
+                response = self.adapter._json(503, {"error": "service_unavailable"})
         self.send_response(response.status)
         has_length = False
         for key, value in response.headers:
@@ -95,6 +99,11 @@ def main() -> int:
     if not adapter.config.enabled or not adapter.config.deployment_authorized:
         raise SystemExit("HTTP adapter is disabled")
     Handler.adapter = adapter
+    key_path = os.environ.get("EDGE1_DOOM_KEY")
+    if key_path:
+        from .edge1_doom_cookie import DoomStore, DoomGuard
+        Handler.doom_guard = DoomGuard(DoomStore(
+            os.environ["EDGE1_DOOM_DATABASE"], Path(key_path).read_bytes()))
     ThreadingHTTPServer((host, port), Handler).serve_forever()
     return 0
 

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/python3 -B -c 'import sys; sys.path.insert(0,"/usr/local/lib"); from edge1_navigation.edge1_navigation_admin_http import main; main()'

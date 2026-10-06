@@ -240,7 +240,7 @@ SENSOR_PID_COUNT="$(printf '%s\n' "$SENSOR_PIDS" | awk 'NF {count += 1} END {pri
 set -- $SENSOR_PIDS
 SENSOR_PID=$1
 tr '\0' ' ' < "/proc/$SENSOR_PID/cmdline" > "$EVIDENCE_DIR/suricata-command-after.txt"
-grep -Fq -- '--pcap=' "$EVIDENCE_DIR/suricata-command-after.txt" || fail "remaining Suricata process is not the managed libpcap sensor"
+grep -Eq -- '--pcap(=|[[:space:]]|$)' "$EVIDENCE_DIR/suricata-command-after.txt" || fail "remaining Suricata process is not the managed libpcap sensor"
 systemctl is-active --quiet "$SENSOR_SERVICE"
 
 refresh_pipeline

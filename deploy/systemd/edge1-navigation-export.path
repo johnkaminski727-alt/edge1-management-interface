@@ -1,0 +1,11 @@
+[Unit]
+Description=Regenerate Edge1 navigation when navigation database changes
+
+[Path]
+PathChanged=/var/lib/edge1-navigation/navigation.sqlite3
+PathChanged=/var/lib/edge1-navigation/navigation.sqlite3-wal
+PathChanged=/var/lib/edge1-navigation/refresh.trigger
+Unit=edge1-navigation-export.service
+
+[Install]
+WantedBy=multi-user.target

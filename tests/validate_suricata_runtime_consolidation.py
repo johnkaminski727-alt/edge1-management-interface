@@ -31,7 +31,7 @@ required_script = (
     'systemctl cat "$SENSOR_SERVICE"',
     'systemctl disable --now "$LEGACY_SERVICE"',
     "expected exactly one Suricata main process",
-    "--pcap=",
+    "--pcap(=|[[:space:]]|$)",
     "capture_failure_evidence",
     "failure-service-journal.txt",
     "restore_legacy_state",

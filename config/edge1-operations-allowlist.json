@@ -117,6 +117,48 @@
       "timeout_seconds": 30,
       "typed_handler": "contacts_candidate_reject"
     },
+    "contacts.entity.archive": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_entity_archive"
+    },
+    "contacts.entity.create": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_entity_create"
+    },
+    "contacts.entity.restore": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_entity_restore"
+    },
+    "contacts.entity.update": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_entity_update"
+    },
+    "contacts.point.add": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_point_add"
+    },
+    "contacts.point.detach": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_point_detach"
+    },
+    "contacts.point.update": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_point_update"
+    },
     "control_surfaces.listeners": {
       "argv": [
         "python3",
@@ -362,6 +404,12 @@
       ],
       "mutating": false,
       "timeout_seconds": 300
+    },
+    "contacts.entity.merge": {
+      "typed_handler": "contacts_entity_merge",
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 120
     }
   },
   "version": 6

@@ -72,14 +72,28 @@
     mount.className = "wwcx-operator-shell";
 
     const bar = make("div", "wwcx-shell-bar");
-    const brand = make("div", "wwcx-shell-brand", "WW.CX");
-    brand.append(make("small", "", "Edge1 Operator"));
+    const brand = make("a", "wwcx-shell-brand");
+    brand.href = "/edge1-ops/status/";
+    brand.setAttribute("aria-label", "WW.CX Edge1 Control Center home");
+    const brandMark = make("span", "wwcx-shell-brand-mark");
+    const brandImage = document.createElement("img");
+    brandImage.src = "/edge1-ops/status/favicon.svg";
+    brandImage.alt = "";
+    brandMark.append(brandImage);
+    const brandCopy = make("span", "wwcx-shell-brand-copy");
+    brandCopy.append(make("strong", "", "WW.CX"), make("small", "", "Edge1 Control Center"));
+    brand.append(brandMark, brandCopy);
 
-    const breadcrumb = make(
-      "div",
-      "wwcx-shell-breadcrumb",
-      "Edge1 / " + ((modules.find((item) => item.id === activeId) || {}).label || "Control Center")
-    );
+    const activeModule = (modules.find((item) => item.id === activeId) || {});
+    // Theme belongs to the navigation/module registry, not to a page-specific rail.
+    // "inherit" preserves an application-provided theme; light/dark makes the
+    // shared rail deterministic for that module.
+    if (activeModule.theme === "light" || activeModule.theme === "dark") {
+      document.body.dataset.edge1Theme = activeModule.theme;
+    }
+    const breadcrumb = make("div", "wwcx-shell-breadcrumb");
+    breadcrumb.append(make("span", "wwcx-shell-breadcrumb-root", "EDGE1"));
+    breadcrumb.append(make("strong", "", activeModule.label || "Control Center"));
 
     const mobile = make("button", "wwcx-shell-action wwcx-shell-mobile", "Menu");
     mobile.type = "button";
@@ -109,8 +123,26 @@
     const jump = make("button", "wwcx-shell-action", "Jump to…  Ctrl/⌘ K");
     jump.type = "button";
     const safety = make("span", "wwcx-shell-safety", "Read-only · mutations disabled");
-    bar.append(brand, mobile, breadcrumb, nav, toolbox, make("span", "wwcx-shell-spacer"), jump, safety);
+    const utility = make("div", "wwcx-shell-utility");
+    utility.append(jump, safety);
+    bar.append(brand, mobile, breadcrumb, nav, toolbox, make("span", "wwcx-shell-spacer"), utility);
     mount.replaceChildren(bar);
+
+    if (!document.querySelector(".wwcx-control-footer")) {
+      const footer = make("footer", "wwcx-control-footer");
+      footer.setAttribute("role", "contentinfo");
+      const footerInner = make("div", "wwcx-control-footer-inner");
+      const footerBrand = make("div", "wwcx-control-footer-brand");
+      footerBrand.append(make("strong", "", "WW.CX Edge1 Control Center"), make("span", "", "Authorized administrative access only."));
+      const footerLegal = make("div", "wwcx-control-footer-legal");
+      footerLegal.append(
+        make("span", "", "Unauthorized access is prohibited. Security and administrative activity may be logged."),
+        make("span", "", `© ${new Date().getFullYear()} WW.CX. All rights reserved.`)
+      );
+      footerInner.append(footerBrand, footerLegal);
+      footer.append(footerInner);
+      document.body.append(footer);
+    }
 
     const drawer = make("nav", "wwcx-shell-drawer");
     drawer.id = "wwcx-shell-drawer";
@@ -220,7 +252,7 @@
       const escape = make("a", "wwcx-shell-action", "Operations Center");
       escape.href = "/edge1-ops/status/";
       bar.append(
-        make("div", "wwcx-shell-brand", "WW.CX Edge1 Operator"),
+        make("div", "wwcx-shell-brand wwcx-shell-brand-fallback", "WW.CX Edge1 Control Center"),
         escape,
         make("span", "wwcx-shell-spacer"),
         make("span", "wwcx-shell-safety", "Navigation unavailable · safety state unknown")

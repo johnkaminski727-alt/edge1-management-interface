@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email Gateway & Security · Edge1</title>
+<link rel="stylesheet" href="/edge1-status/operator-shell/theme.css">
+<link rel="stylesheet" href="/edge1-status/operator-shell/shell.css">
+<style>
+main{max-width:1200px;margin:0 auto;padding:2rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.card{border:1px solid var(--border,#38404a);border-radius:14px;padding:1rem;background:var(--panel,#15191f)}.ok{font-weight:700}.warn{font-weight:700}.muted{opacity:.72}.rows{display:grid;gap:.55rem}.row{display:flex;justify-content:space-between;gap:1rem;border-bottom:1px solid rgba(127,127,127,.18);padding:.35rem 0}.domains{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:.55rem;border-bottom:1px solid rgba(127,127,127,.18);white-space:nowrap}</style>
+<script src="/edge1-status/operator-shell/shell.js" defer data-registry="/edge1-status/operator-shell/navigation.json" data-module="email-gateway-security"></script>
+</head>
+<body>
+<main>
+<p class="muted">Communications / Email & Messaging</p>
+<h1>Email Gateway & Security</h1>
+<p>Read-only commissioning and protection status for the Edge1 mail platform. Message content and credentials are not exposed here.</p>
+<div class="grid" id="summary"></div>
+<h2>Services</h2><div class="grid" id="services"></div>
+<h2>Domain migration readiness</h2><div class="card domains"><table><thead><tr><th>Domain</th><th>Migration</th><th>Commissioned</th><th>Sending</th><th>MX answers</th></tr></thead><tbody id="domains"></tbody></table></div>
+<h2>Update & recovery posture</h2><div class="grid" id="posture"></div>
+<p class="muted" id="stamp"></p>
+</main>
+<script>
+const esc=s=>String(s??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const card=(t,v,d='')=>`<section class="card"><div class="muted">${esc(t)}</div><div class="ok">${esc(v)}</div>${d?`<div class="muted">${esc(d)}</div>`:''}</section>`;
+async function load(){
+ const r=await fetch('/edge1-ops/status/email-gateway/status.json',{cache:'no-store'}); if(!r.ok) throw new Error('status unavailable'); const d=await r.json();
+ const svc=Object.entries(d.services||{}); const healthy=svc.filter(([,v])=>v.active==='active').length;
+ document.querySelector('#summary').innerHTML=card('Gateway services',`${healthy}/${svc.length} active`)+card('Outbound sending',d.send_enabled?'ENABLED':'Disabled','Intentional until migration approval')+card('Mail backlog',(d.backlog||{}).pending_or_unchecked??0,'Pending / unchecked')+card('Recovery acceptance',(d.recovery||{}).state||'unknown');
+ document.querySelector('#services').innerHTML=svc.map(([k,v])=>card(k,v.active,`enabled: ${v.enabled}`)).join('');
+ document.querySelector('#domains').innerHTML=(d.domains||[]).map(x=>`<tr><td>${esc(x.domain)}</td><td>${esc(x.migration_state)}</td><td>${x.commissioned?'yes':'no'}</td><td>${x.sending_enabled?'enabled':'disabled'}</td><td>${esc(x.mx_answer_count)}</td></tr>`).join('');
+ const defs=(((d.updates||{}).jobs||{}).definitions)||{}, pkgs=(((d.updates||{}).jobs||{}).packages)||{};
+ document.querySelector('#posture').innerHTML=card('Security definitions',defs.last_result||'unknown',defs.schedule||'')+card('Package maintenance',pkgs.last_result||'unknown',pkgs.schedule||'')+card('Restore rehearsal',(d.recovery||{}).state||'unknown',`SQLite verified: ${(d.recovery||{}).sqlite_databases_verified??'—'}`)+card('DNS changes',d.dns_changes_applied?'Applied':'Not applied','Migration remains separately gated');
+ document.querySelector('#stamp').textContent='Status generated: '+(d.generated_at||'unknown');
+}
+load().catch(e=>{document.querySelector('#summary').innerHTML=card('Status','Unavailable',e.message)}); setInterval(load,60000);
+</script>
+</body></html>

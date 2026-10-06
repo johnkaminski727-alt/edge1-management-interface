@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+[ "${RENEWED_LINEAGE:-}" = /etc/letsencrypt/live/edge1.ww.cx ] || exit 0
+/usr/sbin/nginx -t
+/usr/bin/systemctl reload nginx.service

@@ -1,0 +1,124 @@
+:root{
+  --edge1-page:#f5f1e8;
+  --edge1-page-cool:#f3f7fa;
+  --edge1-panel:rgba(255,255,255,.94);
+  --edge1-card:#ffffff;
+  --edge1-border:#d9e4ea;
+  --edge1-border-strong:#c5d5df;
+  --edge1-text:#123f61;
+  --edge1-text-strong:#0f3653;
+  --edge1-muted:#647988;
+  --edge1-blue:#176fa8;
+  --edge1-blue-dark:#105d90;
+  --edge1-blue-soft:#eef6fb;
+  --edge1-green:#248655;
+  --edge1-green-soft:#edf8f1;
+  --edge1-amber:#946a0b;
+  --edge1-amber-soft:#fff8e6;
+  --edge1-red:#b33a31;
+  --edge1-red-soft:#fff3f1;
+  --edge1-shadow:0 12px 34px rgba(18,63,97,.07);
+  --edge1-shadow-strong:0 24px 70px rgba(18,63,97,.11);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{background:var(--edge1-page)}
+body{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.46),rgba(255,255,255,0) 300px),
+    radial-gradient(circle at 12% 4%,rgba(23,111,168,.08),transparent 28%),
+    radial-gradient(circle at 90% 3%,rgba(245,130,43,.07),transparent 24%),
+    var(--edge1-page)!important;
+  color:var(--edge1-text)!important;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  min-height:100vh;
+}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(rgba(18,63,97,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(18,63,97,.018) 1px,transparent 1px);background-size:36px 36px;mask-image:linear-gradient(to bottom,black,transparent 74%)}
+a{color:var(--edge1-blue-dark)!important;text-underline-offset:3px}
+a:hover{color:var(--edge1-blue)!important}
+.shell,.ops-page,.workspace,.app-shell{color:var(--edge1-text)!important}
+.ops-page,.shell{padding-top:28px!important}
+h1,h2,h3,strong,.value{color:var(--edge1-text-strong)!important}
+h1{letter-spacing:-.035em;line-height:1.08}
+h2{letter-spacing:-.018em}
+p{line-height:1.55}
+.panel{
+  background:var(--edge1-panel)!important;
+  border:1px solid rgba(18,63,97,.12)!important;
+  border-radius:18px!important;
+  box-shadow:var(--edge1-shadow)!important;
+  backdrop-filter:blur(10px);
+}
+.ops-page>.panel:first-of-type{
+  position:relative;
+  overflow:hidden;
+  padding:30px 32px!important;
+  border-radius:22px!important;
+  box-shadow:var(--edge1-shadow-strong)!important;
+  background:linear-gradient(120deg,rgba(255,255,255,.98),rgba(247,251,253,.93))!important;
+}
+.ops-page>.panel:first-of-type:after{content:"EDGE1  /  OPERATIONS";position:absolute;right:30px;top:25px;font-size:.68rem;font-weight:800;letter-spacing:.14em;color:#7d95a5}
+.ops-page>.panel:first-of-type h1{font-size:clamp(2rem,3vw,3rem);margin:.15rem 0 20px!important}
+.ops-page>.panel:first-of-type p{margin-bottom:0;color:var(--edge1-muted)}
+.ops-nav{gap:8px!important;margin:0 0 20px!important}
+.ops-nav a{display:inline-flex;align-items:center;min-height:36px;padding:7px 11px;border:1px solid var(--edge1-border);border-radius:999px;background:#fff;text-decoration:none!important;font-size:.87rem;font-weight:700;box-shadow:0 2px 7px rgba(18,63,97,.035)}
+.ops-nav a:hover{background:var(--edge1-blue-soft);border-color:#a9cde3}
+.grid{gap:14px!important}
+.card,.detail-item{
+  background:var(--edge1-card)!important;
+  border:1px solid var(--edge1-border)!important;
+  border-radius:14px!important;
+  color:var(--edge1-text)!important;
+  box-shadow:0 3px 14px rgba(18,63,97,.035);
+}
+a.card,.module-card{transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease,background .15s ease}
+a.card:hover,.module-card[href]:hover{transform:translateY(-2px);border-color:#a9cde3!important;box-shadow:0 12px 28px rgba(18,63,97,.085);background:#fcfeff!important;text-decoration:none}
+.card h3{margin-bottom:.65rem}
+.card.good,.good{border-color:#b7dcc6!important}
+.card.warning,.warning{border-color:#e8d18a!important}
+.card.bad,.bad{border-color:#e6b4ae!important}
+.card.info,.info{border-color:#a7cde6!important}
+.label,.muted,small,.empty{color:var(--edge1-muted)!important}
+.label{font-weight:750;letter-spacing:.045em}
+.value{letter-spacing:-.025em}
+button,.button{
+  background:#fff!important;color:var(--edge1-blue-dark)!important;
+  border:1px solid var(--edge1-border-strong)!important;border-radius:10px!important;
+  min-height:40px;padding:8px 13px!important;font-weight:700!important;
+  box-shadow:0 2px 8px rgba(18,63,97,.035);
+}
+button:hover,button:focus-visible,.button:hover{border-color:#8db9d9!important;background:#f7fbfe!important}
+input,select{background:#fff!important;color:var(--edge1-text)!important;border:1px solid var(--edge1-border-strong)!important;border-radius:10px!important}
+input:focus,select:focus{outline:3px solid rgba(23,111,168,.12)!important;outline-offset:0!important;border-color:#79aed0!important}
+.status,.badge{background:#fff!important;border-color:var(--edge1-border)!important;color:var(--edge1-muted)!important;box-shadow:0 2px 7px rgba(18,63,97,.025)}
+.notice,.chain,.alert{background:#fbfdff!important;color:var(--edge1-text)!important}
+.rank-list li,.event,.alert-details{border-color:var(--edge1-border)!important}
+.safety-banner{background:var(--edge1-amber-soft)!important;border:1px solid #ead79c!important;border-left:4px solid #c99a2e!important;border-radius:14px!important;color:#624c13!important;padding:14px 16px!important;box-shadow:0 3px 14px rgba(18,63,97,.025)}
+details.panel>summary{color:var(--edge1-text-strong);border-radius:10px}
+header{padding:4px 0 8px}
+header h1{font-size:clamp(2rem,3vw,2.8rem)!important}
+/* Shared operator shell: visually related to the new WW.CX gateway without sacrificing density. */
+.wwcx-operator-shell{background:rgba(255,255,255,.94)!important;border-color:rgba(18,63,97,.12)!important;box-shadow:7px 0 28px rgba(18,63,97,.045);backdrop-filter:blur(16px)}
+.wwcx-shell-brand{font-size:1.02rem!important;letter-spacing:.035em!important;color:var(--edge1-text-strong)!important;padding-top:3px!important}
+.wwcx-shell-brand small{margin-top:4px;color:#698093!important;letter-spacing:.13em!important}
+.wwcx-shell-section-title{color:#62798a!important;font-size:.64rem!important;letter-spacing:.14em!important;margin-top:2px}
+.wwcx-shell-module{border-radius:11px!important;padding:9px 10px!important}
+a.wwcx-shell-module:hover{background:#f5fafd!important;border-color:#c8dce9!important}
+.wwcx-shell-module[aria-current="page"]{background:linear-gradient(180deg,#eef7fc,#e8f2f8)!important;border-color:#c5dce9!important;box-shadow:inset 3px 0 0 var(--edge1-blue)}
+.wwcx-shell-module-badge{background:#fff!important;border-color:#d5e1e8!important}
+.wwcx-shell-safety{background:#fffaf0!important;border-color:#ead79c!important;color:#776126!important}
+.wwcx-shell-dialog{border-radius:18px!important;box-shadow:0 30px 90px rgba(18,63,97,.18)!important}
+@media(min-width:901px){html.wwcx-shell-active body{padding-left:244px!important}.wwcx-operator-shell{width:244px!important}.wwcx-shell-bar{padding:20px 14px!important}.ops-page{max-width:1280px!important;padding-left:34px!important;padding-right:34px!important}}
+@media(max-width:900px){body:before{display:none}.ops-page,.shell{padding-top:18px!important}.panel{border-radius:14px!important}.ops-page>.panel:first-of-type{padding:22px!important}.ops-page>.panel:first-of-type:after{display:none}.wwcx-operator-shell{box-shadow:0 5px 22px rgba(18,63,97,.06)}.ops-nav a{font-size:.8rem}}
+@media(prefers-reduced-motion:reduce){a.card,.module-card[href]{transition:none!important}}
+
+
+/* Keep the shared footer visually attached to authenticated workspaces. */
+.wwcx-control-footer{box-shadow:0 -8px 26px rgba(18,63,97,.025)}
+@media(min-width:901px){html.wwcx-shell-active body>.wwcx-control-footer{margin-left:0!important}}
+
+/* Keep the content canvas and navigation rail visually continuous. */
+@media(min-width:901px){
+  body{background:linear-gradient(90deg,#f8f6f0 0 232px,transparent 232px),linear-gradient(180deg,rgba(255,255,255,.46),rgba(255,255,255,0) 300px),radial-gradient(circle at 12% 4%,rgba(23,111,168,.08),transparent 28%),radial-gradient(circle at 90% 3%,rgba(245,130,43,.07),transparent 24%),var(--edge1-page)!important}
+  .ops-page{padding-left:38px!important;padding-right:38px!important}
+}

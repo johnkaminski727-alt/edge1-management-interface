@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WireGuard & Device Access · Edge1</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div><p class="eyebrow">Network identity</p><h1>WireGuard & Device Access</h1></div>
+      <span class="readonly">Read-only identity projection</span>
+    </header>
+    <section class="notice"><strong>Identity chain</strong><span>User → Device → WireGuard peer → DNS identity → security telemetry</span></section>
+    <section class="metrics" id="metrics" aria-label="VPN identity summary"></section>
+    <section class="panel">
+      <div class="panel-head"><div><p class="eyebrow">Managed devices</p><h2>WireGuard peers</h2></div><span id="freshness">Loading…</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Device</th><th>VPN address</th><th>Owner</th><th>Registration</th><th>DNS</th><th>Security</th></tr></thead><tbody id="devices"></tbody></table></div>
+    </section>
+    <section class="grid">
+      <article class="panel"><p class="eyebrow">DNS policy</p><h2>Edge1 exclusive target</h2><p>Managed WireGuard profiles target <code>10.77.0.1</code>. Private/public split-DNS routing remains preserved behind Edge1.</p></article>
+      <article class="panel"><p class="eyebrow">Security correlation</p><h2>Shared device identity</h2><p>DNS filtering, Spamhaus posture, quarantine state and future CrowdSec/Suricata observations attach to the same device identity.</p></article>
+      <article class="panel"><p class="eyebrow">Administration</p><h2>Mutations remain gated</h2><p>Enrollment, rename, revoke and policy acceptance use the authenticated VPN account API. Browser-side direct WireGuard mutation is not enabled.</p></article>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -566,3 +566,1816 @@ h2 {
   margin-top: 0.65rem;
   font-size: 0.9rem;
 }
+
+/* Contact Manager editor */
+.contacts-directory-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.contacts-directory-heading h2 {
+  margin: 0;
+}
+
+.contacts-create-button {
+  white-space: nowrap;
+}
+
+.contact-record-actions,
+.contact-point-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.contact-record-actions button,
+.contact-point-actions button {
+  min-height: 2.25rem;
+}
+
+.contact-editor-modal[hidden] {
+  display: none;
+}
+
+.contact-editor-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.contact-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.contact-editor-dialog {
+  position: relative;
+  width: min(42rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+}
+
+.contact-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.contact-editor-header h2 {
+  margin: 0.15rem 0 0;
+}
+
+.contact-editor-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.contact-editor-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.contact-editor-field.wide {
+  grid-column: 1 / -1;
+}
+
+.contact-editor-field label {
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.contact-editor-field input,
+.contact-editor-field select,
+.contact-editor-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.contact-editor-field textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.contact-editor-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.contact-editor-message {
+  margin-bottom: 0.8rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 0.35rem;
+}
+
+.contact-editor-message.error {
+  color: var(--danger, #9f1c1c);
+}
+
+.contact-editor-message.success {
+  color: var(--success, #176b38);
+}
+
+.contact-editor-note {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  opacity: 0.78;
+}
+
+@media (max-width: 720px) {
+  .contact-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-editor-field.wide {
+    grid-column: auto;
+  }
+
+  .contacts-directory-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Edge1 Contact Manager usability */
+.contact-record-actions button::before {
+  display: inline-block;
+  margin-right: .42rem;
+  font-weight: 700;
+}
+
+.contact-record-actions button[data-action="edit-entity"]::before {
+  content: "✎";
+}
+
+.contact-record-actions button[data-action="add-point"]::before {
+  content: "+";
+}
+
+.contact-record-actions button[data-action="edit-point"]::before {
+  content: "✎";
+}
+
+.contact-record-actions button[data-action="detach-point"]::before {
+  content: "−";
+}
+
+.verification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: 999px;
+  padding: .2rem .55rem;
+  font-weight: 700;
+}
+
+.verification-badge[data-verification="verified"]::before {
+  content: "✓";
+}
+
+.verification-badge[data-verification="unverified"]::before {
+  content: "✕";
+}
+
+/* ==========================================================
+   Edge1 Contacts — UX Pass 2
+   Real two-pane contact workspace.
+   ========================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.directory-layout.contacts-workspace {
+  display: grid;
+  grid-template-columns:
+    minmax(360px, 0.82fr)
+    minmax(520px, 1.35fr);
+  gap: 14px;
+  align-items: stretch;
+  height: calc(100vh - 235px);
+  min-height: 560px;
+}
+
+.directory-workspace,
+.contact-workspace {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.directory-workspace {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.directory-toolbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.directory-toolbar-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.contacts-directory-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contacts-directory-heading h2 {
+  margin: 0;
+}
+
+.contacts-create-button {
+  width: auto;
+  min-height: 32px;
+  margin: 0;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+}
+
+.directory-search-row {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1fr)
+    minmax(120px, 0.48fr)
+    auto
+    auto;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.directory-search-field,
+.directory-filter-field {
+  margin: 0;
+}
+
+.directory-search-row input,
+.directory-search-row select {
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+}
+
+.directory-search-button,
+.directory-clear-button {
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 10px;
+}
+
+.directory-safety-note {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.directory-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px 18px;
+  overscroll-behavior: contain;
+}
+
+.contact-workspace {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.contact-record-header {
+  flex: 0 0 auto;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.contact-record-header h2 {
+  margin: 2px 0 0;
+}
+
+.contact-record-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+
+.contact-record-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.contact-record-actions button,
+.contact-point-actions button {
+  width: auto;
+  margin: 0;
+}
+
+.contact-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px !important;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--blue-dark);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.contact-icon-action:hover {
+  background: #f5f8fb;
+}
+
+.contact-add-action {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #075985;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.contact-more-action {
+  color: #52657d;
+}
+
+.contact-point-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.contact-point-actions .contact-icon-action {
+  width: 28px !important;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  font-size: 13px;
+}
+
+.verification-verified,
+[data-verification="verified"] {
+  color: #166534;
+  font-weight: 700;
+}
+
+.verification-unverified,
+[data-verification="unverified"] {
+  color: #8b2635;
+}
+
+.verification-verified::before,
+[data-verification="verified"]::before {
+  content: "✓ ";
+  font-weight: 900;
+}
+
+.verification-unverified::before,
+[data-verification="unverified"]::before {
+  content: "× ";
+  font-weight: 900;
+}
+
+.contact-editor-dialog {
+  max-width: 760px;
+}
+
+.contact-editor-field label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.contact-editor-field input,
+.contact-editor-field select,
+.contact-editor-field textarea {
+  border-radius: 7px;
+}
+
+.field-help {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.contact-editor-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.contact-editor-actions button {
+  width: auto;
+  min-width: 110px;
+}
+
+@media (max-width: 1050px) {
+  .directory-layout.contacts-workspace {
+    display: block;
+    height: auto;
+    min-height: 0;
+  }
+
+  .directory-workspace,
+  .contact-workspace {
+    overflow: visible;
+  }
+
+  .directory-results,
+  .contact-record-body {
+    overflow: visible;
+  }
+
+  .contact-workspace {
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 700px) {
+  .directory-search-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .directory-search-field {
+    grid-column: 1 / -1;
+  }
+
+  .directory-toolbar-top {
+    display: block;
+  }
+
+  #result-count {
+    display: block;
+    margin-top: 6px;
+  }
+}
+
+/* ==========================================================
+   Contacts — compact directory toolbar correction
+   The pane is stable; only directory results scroll.
+   ========================================================== */
+
+.directory-workspace {
+  position: relative;
+}
+
+.directory-toolbar {
+  position: static;
+  padding: 12px 14px 10px;
+  box-shadow: none;
+}
+
+.directory-toolbar .section-label {
+  font-size: 10px;
+}
+
+.directory-toolbar-top {
+  align-items: center;
+}
+
+.contacts-directory-heading {
+  gap: 8px;
+}
+
+.contacts-directory-heading h2 {
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.contacts-create-button {
+  min-height: 29px;
+  padding: 4px 8px;
+  font-size: 0.76rem;
+}
+
+.directory-search-row {
+  grid-template-columns:
+    minmax(180px, 1fr)
+    minmax(125px, 0.42fr)
+    auto
+    auto;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.directory-search-row input,
+.directory-search-row select {
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 0.84rem;
+}
+
+.directory-search-button,
+.directory-clear-button {
+  min-height: 34px;
+  padding: 5px 9px;
+  font-size: 0.8rem;
+}
+
+.directory-safety-note {
+  margin-top: 5px;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.directory-results {
+  padding-top: 10px;
+}
+
+/*
+ * Explicitly neutralize the old standalone filter presentation
+ * if stale markup is ever encountered.
+ */
+.contacts-workspace .filter-panel {
+  position: static;
+  top: auto;
+  margin: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 700px) {
+  .directory-search-row {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(110px, 0.55fr);
+  }
+
+  .directory-search-button,
+  .directory-clear-button {
+    width: 100%;
+  }
+}
+
+/* ==========================================================
+   Contacts — address-book record presentation
+   ========================================================== */
+
+.contact-identity-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+}
+
+.contact-identity-copy {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contact-verification {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.contact-verification.verified {
+  background: #e8f7ed;
+  color: #166534;
+}
+
+.contact-verification.unverified {
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.contact-entity-kind {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.contact-record-section {
+  padding: 17px 0;
+  border-top: 1px solid var(--border);
+}
+
+.contact-record-section h3 {
+  margin: 0 0 11px;
+  font-size: 0.95rem;
+}
+
+.contact-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.contact-section-heading h3 {
+  margin: 0;
+}
+
+.contact-info-list {
+  display: grid;
+  gap: 7px;
+}
+
+.contact-info-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 56px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.contact-info-row.selected {
+  border-color: #9bc6e5;
+  background: #f5faff;
+}
+
+.contact-info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #36546f;
+  font-size: 15px;
+}
+
+.contact-info-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.contact-info-value {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.contact-info-meta {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.contact-info-row .contact-point-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.contact-secondary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.contact-secondary-row span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.contact-section-empty {
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.contact-evidence-summary {
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.contact-technical-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.contact-technical-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.contact-technical-details dl {
+  margin: 10px 0 0;
+}
+
+.contact-technical-details dl > div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.contact-technical-details dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.contact-technical-details dd {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.contact-record-body > .detail-block {
+  margin-bottom: 0;
+}
+
+@media (max-width: 700px) {
+  .contact-identity-summary {
+    display: block;
+  }
+
+  .contact-identity-summary .contact-record-actions {
+    margin-top: 10px;
+  }
+
+  .contact-info-row {
+    align-items: flex-start;
+  }
+}
+
+/* ==========================================================
+   Contacts — explicit overflow action menus
+   ========================================================== */
+
+.contact-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.contact-menu-popover {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 175px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+.contact-menu-popover[hidden] {
+  display: none;
+}
+
+.contact-menu-item {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.contact-menu-item:hover {
+  background: #f5f7fa;
+}
+
+.contact-menu-item.destructive {
+  color: #9f1239;
+}
+
+.contact-menu-item.destructive:hover {
+  background: #fff1f2;
+}
+
+/* Contacts — verification symbol refinement */
+.badge.verified,
+.badge.unverified,
+.badge.confirmed,
+.contact-verification {
+  white-space: nowrap;
+}
+
+.contact-verification.verified::first-letter,
+.contact-verification.unverified::first-letter {
+  font-weight: 900;
+}
+
+/* Edge1 Contacts progressive disclosure */
+.contact-editor-field[hidden] {
+  display: none !important;
+}
+
+/* Edge1 Contacts editor persistent actions */
+.contact-editor-actions {
+  position: sticky;
+  bottom: -1rem;
+  z-index: 4;
+  padding: 0.85rem 0 1rem;
+  background: var(--panel-bg, #fff);
+  border-top: 1px solid
+    var(--border-color, #d9e0e7);
+}
+
+.contact-editor-actions::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -0.75rem;
+  height: 0.75rem;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent,
+      var(--panel-bg, #fff)
+    );
+}
+
+/* Edge1 entity-centric Contact Manager */
+.results,
+.results-list,
+.contact-results,
+.directory-results {
+  align-content: start;
+  align-items: stretch;
+  justify-content: start;
+}
+
+.entity-contact-methods {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+}
+
+.entity-contact-method {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.entity-contact-type {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.contact-merge-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.38);
+}
+
+.contact-merge-dialog {
+  width: min(880px, 100%);
+  max-height: min(820px, 92vh);
+  overflow: auto;
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.25);
+  padding: 1rem;
+}
+
+.contact-merge-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.contact-merge-header h2 {
+  margin: 0;
+}
+
+.contact-merge-header p {
+  margin: 0.3rem 0 0;
+}
+
+.merge-close {
+  border: 0;
+  background: transparent;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+
+.merge-source-panel,
+.merge-preview {
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border: 1px solid
+    var(--border-color, #d8dee8);
+  border-radius: 9px;
+}
+
+.merge-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.merge-search-label {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+.merge-search {
+  width: 100%;
+}
+
+.merge-candidate-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.merge-candidate {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem;
+  border: 1px solid
+    var(--border-color, #d8dee8);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.merge-candidate:hover {
+  background: rgb(0 0 0 / 0.035);
+}
+
+.merge-contact-summary ul {
+  margin: 0.45rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.merge-contact-meta {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  opacity: 0.68;
+}
+
+.merge-compare {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.merge-survivor-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.75rem;
+  border: 1px solid
+    var(--border-color, #d8dee8);
+  border-radius: 8px;
+}
+
+.merge-warning,
+.merge-history-note,
+.merge-disabled-note {
+  font-size: 0.86rem;
+}
+
+.merge-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.merge-ready {
+  margin-top: 0.8rem;
+  padding: 0.7rem;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.035);
+}
+
+@media (max-width: 700px) {
+  .merge-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-merge-dialog {
+    max-height: 96vh;
+  }
+}
+
+
+/* ==================================================
+   Contacts entity-centric presentation
+   ================================================== */
+
+.entity-contact-method {
+  display: flex;
+  gap: 0.45rem;
+  align-items: baseline;
+  margin-top: 0.18rem;
+}
+
+.entity-contact-type {
+  min-width: 3.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.entity-contact-value {
+  overflow-wrap: anywhere;
+}
+
+
+
+
+
+
+/* ==================================================
+   Contacts Contact Record empty-state watermark
+   Authoritative presentation rule.
+   ================================================== */
+
+
+
+
+
+
+
+.contact-record-body {
+  position: relative;
+}
+
+
+
+
+/* Contacts watermark final visual sizing */
+
+
+
+
+
+/* Contacts directory scroll recovery */
+.directory-results {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+  justify-content: start;
+}
+
+.results,
+.results-list,
+.contact-results {
+  align-content: start;
+  justify-content: start;
+}
+
+
+
+/* ==================================================
+   Contacts empty-record watermark — authoritative
+   ================================================== */
+
+
+
+
+
+
+
+
+
+
+/* ==================================================
+   Contacts watermark containment correction
+   ================================================== */
+
+
+
+
+
+
+
+
+
+
+
+/* ==================================================
+   Contacts empty-record background watermark
+   ================================================== */
+
+.contact-record-empty-state {
+  position: relative;
+  box-sizing: border-box;
+
+  width: 100%;
+  height: min(46vh, 460px);
+  min-height: 280px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  padding: clamp(1.5rem, 5vh, 3rem) 1.5rem 1rem;
+  overflow: hidden;
+
+  isolation: isolate;
+}
+
+/*
+ * Decorative CIWW artwork.
+ * Because this is a pseudo-element it never participates in
+ * document layout and cannot affect directory scrolling.
+ */
+.contact-record-empty-state::before {
+  content: "";
+  position: absolute;
+
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+
+  width: min(46%, 430px);
+  height: min(72%, 390px);
+
+  background-image:
+    url("/edge1-ops/contacts/assets/ciww-official-logo.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+
+  opacity: 0.085;
+  filter: grayscale(12%) saturate(88%);
+
+  pointer-events: none;
+  user-select: none;
+
+  z-index: 0;
+}
+
+.contact-record-empty-copy {
+  position: relative;
+  z-index: 1;
+
+  margin: 0;
+
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+
+  opacity: 0.48;
+}
+
+/* Keep the known-good directory scroll behavior. */
+.directory-results {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+  justify-content: start;
+}
+
+@media (max-width: 900px) {
+  .contact-record-empty-state {
+    height: min(38vh, 340px);
+    min-height: 220px;
+    padding-top: 1.4rem;
+  }
+
+  .contact-record-empty-state::before {
+    top: 56%;
+    width: min(52%, 300px);
+    height: min(68%, 260px);
+  }
+}
+
+
+/* Contacts background watermark final visual tune */
+.contact-record-empty-state::before {
+  width: min(58%, 500px) !important;
+  height: min(78%, 430px) !important;
+  opacity: 0.11 !important;
+}
+
+@media (max-width: 900px) {
+  .contact-record-empty-state::before {
+    width: min(58%, 330px) !important;
+    height: min(72%, 290px) !important;
+  }
+}
+
+
+/* ==================================================
+   Contacts polished empty Contact Record state V3
+   Authoritative presentation layer.
+   ================================================== */
+
+.contact-record-empty-state {
+  position: relative !important;
+  box-sizing: border-box !important;
+
+  width: 100% !important;
+  min-height: 390px !important;
+  height: min(54vh, 560px) !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  padding:
+    clamp(2rem, 4.5vh, 3.2rem)
+    clamp(1.25rem, 4vw, 3rem)
+    1.5rem !important;
+
+  overflow: hidden !important;
+  isolation: isolate;
+}
+
+.contact-record-empty-copy {
+  position: relative !important;
+  z-index: 2 !important;
+
+  width: min(90%, 620px) !important;
+  margin: 0 !important;
+
+  text-align: center !important;
+}
+
+.contact-record-empty-title {
+  color: #657286;
+
+  font-size: clamp(
+    0.9rem,
+    1.1vw,
+    1.02rem
+  );
+
+  font-weight: 650;
+  letter-spacing: 0.015em;
+}
+
+.contact-record-empty-detail {
+  margin-top: 0.45rem;
+
+  color: #778396;
+
+  font-size: clamp(
+    0.77rem,
+    0.95vw,
+    0.87rem
+  );
+
+  font-weight: 400;
+  line-height: 1.45;
+
+  opacity: 0.86;
+}
+
+.contact-record-empty-state::before {
+  content: "" !important;
+
+  position: absolute !important;
+  z-index: 0 !important;
+
+  left: 50% !important;
+  top: 64% !important;
+
+  transform:
+    translate(-50%, -50%) !important;
+
+  width: min(64%, 540px) !important;
+  height: min(74%, 470px) !important;
+
+  background-image:
+    url("/edge1-ops/contacts/assets/ciww-official-logo.png")
+    !important;
+
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
+
+  opacity: 0.135 !important;
+
+  filter:
+    grayscale(8%)
+    saturate(92%) !important;
+
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+@media (max-width: 1100px) {
+  .contact-record-empty-state::before {
+    width: min(67%, 470px) !important;
+    height: min(71%, 410px) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .contact-record-empty-state {
+    min-height: 300px !important;
+    height: min(46vh, 420px) !important;
+    padding-top: 1.7rem !important;
+  }
+
+  .contact-record-empty-state::before {
+    top: 65% !important;
+    width: min(70%, 340px) !important;
+    height: min(68%, 310px) !important;
+  }
+}
+
+
+/* ==================================================
+   Contacts empty state — centered final composition
+   ================================================== */
+
+/*
+ * Center the complete text + artwork composition
+ * within the visible Contact Record frame.
+ */
+.contact-record-empty-state {
+  justify-content: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/*
+ * Move the copy upward from the composition center,
+ * leaving the artwork visually balanced underneath.
+ */
+.contact-record-empty-copy {
+  transform: translateY(-118px);
+}
+
+/*
+ * Position the seal relative to the actual center
+ * instead of the previous top-origin composition.
+ */
+.contact-record-empty-state::before {
+  top: 58% !important;
+  width: min(64%, 540px) !important;
+  height: min(74%, 470px) !important;
+}
+
+@media (max-width: 1100px) {
+  .contact-record-empty-copy {
+    transform: translateY(-105px);
+  }
+
+  .contact-record-empty-state::before {
+    top: 59% !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .contact-record-empty-copy {
+    transform: translateY(-82px);
+  }
+
+  .contact-record-empty-state::before {
+    top: 60% !important;
+  }
+}
+
+
+/* ==================================================
+   Contacts structural empty-state centering
+   Empty artwork lives in the flexible record body.
+   ================================================== */
+
+.contact-record-body.detail-empty:has(.contact-record-empty-state) {
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.contact-record-body > .contact-record-empty-state {
+  position: relative !important;
+  box-sizing: border-box !important;
+
+  width: min(100%, 680px) !important;
+  height: min(100%, 500px) !important;
+  min-height: 360px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  padding: 0 !important;
+  margin: 0 auto !important;
+
+  transform: none !important;
+  overflow: hidden !important;
+}
+
+.contact-record-body > .contact-record-empty-state
+.contact-record-empty-copy {
+  position: relative !important;
+  z-index: 2 !important;
+
+  width: min(92%, 620px) !important;
+  margin: 0 !important;
+
+  transform: translateY(-125px) !important;
+  text-align: center !important;
+}
+
+.contact-record-body > .contact-record-empty-state::before {
+  left: 50% !important;
+  top: 58% !important;
+
+  width: min(72%, 540px) !important;
+  height: min(70%, 390px) !important;
+
+  transform: translate(-50%, -50%) !important;
+}
+
+@media (max-width: 900px) {
+  .contact-record-body > .contact-record-empty-state {
+    min-height: 300px !important;
+  }
+
+  .contact-record-body > .contact-record-empty-state
+  .contact-record-empty-copy {
+    transform: translateY(-95px) !important;
+  }
+
+  .contact-record-body > .contact-record-empty-state::before {
+    top: 60% !important;
+    width: min(76%, 340px) !important;
+    height: min(68%, 300px) !important;
+  }
+}
+
+
+/* ==========================================================
+   Unified Contacts UX polish
+   ========================================================== */
+
+.contacts-capability-badge {
+  white-space: nowrap;
+}
+
+.contacts-overview {
+  margin: 0 0 14px;
+  border: 1px solid #d7e0eb;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.contacts-overview > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #173a5e;
+  user-select: none;
+}
+
+.contacts-overview-hint {
+  margin-left: auto;
+  color: #6d7f92;
+  font-size: .82rem;
+  font-weight: 500;
+}
+
+.contacts-overview .metrics {
+  margin: 0;
+  padding: 0 12px 12px;
+}
+
+.merge-survivor-fieldset {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.merge-survivor-fieldset > legend {
+  width: 100%;
+  margin: 0 0 3px;
+  padding: 0;
+  font-weight: 700;
+}
+
+.merge-choice {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid #ccd8e5;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color .12s ease,
+    background-color .12s ease,
+    box-shadow .12s ease;
+}
+
+.merge-choice:hover:not(.is-disabled) {
+  border-color: #7ba8cc;
+  background: #f7fbff;
+}
+
+.merge-choice.is-selected {
+  border-color: #176fa8;
+  background: #f1f8fd;
+  box-shadow: inset 3px 0 0 #176fa8;
+}
+
+.merge-choice.is-disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}
+
+.merge-choice input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  justify-self: center;
+}
+
+.merge-choice-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.merge-choice-copy strong {
+  color: #122b46;
+}
+
+.merge-choice-copy > span {
+  color: #536b83;
+  overflow-wrap: anywhere;
+}
+
+.merge-confirmation {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  margin-top: 5px;
+  padding: 12px 14px;
+  border: 1px solid #ccd8e5;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.merge-confirmation input {
+  width: 17px;
+  height: 17px;
+  margin: 3px 0 0;
+  justify-self: center;
+}
+
+.merge-confirmation > span {
+  display: grid;
+  gap: 3px;
+}
+
+.merge-confirmation strong {
+  color: #122b46;
+}
+
+.merge-confirmation span span {
+  color: #536b83;
+  font-size: .9rem;
+  line-height: 1.35;
+}
+
+.merge-safety-note {
+  grid-column: 1 / -1;
+  margin: -2px 2px 2px;
+  color: #6d7f92;
+  font-size: .82rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .contacts-overview-hint {
+    display: none;
+  }
+
+  .merge-choice,
+  .merge-confirmation {
+    padding: 11px;
+  }
+}
+
+/* Contacts directory spacing: content-sized rows and pane-responsive toolbar. */
+body[data-edge1-module="contacts"] .directory-results {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: max-content;
+  align-content: start;
+  justify-content: stretch;
+  gap: 10px;
+}
+body[data-edge1-module="contacts"] .directory-results > .result {
+  display: block;
+  height: auto;
+  min-height: min-content;
+  max-height: none;
+  min-width: 0;
+  padding: 12px 13px !important;
+  line-height: 1.4;
+  white-space: normal;
+}
+body[data-edge1-module="contacts"] .result-head > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+body[data-edge1-module="contacts"] .result-head > .badge {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+body[data-edge1-module="contacts"] .result-name,
+body[data-edge1-module="contacts"] .result-value,
+body[data-edge1-module="contacts"] .entity-contact-value {
+  overflow-wrap: anywhere;
+}
+body[data-edge1-module="contacts"] .entity-contact-method {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+body[data-edge1-module="contacts"] .directory-workspace {
+  container-type: inline-size;
+}
+body[data-edge1-module="contacts"] .directory-toolbar-top,
+body[data-edge1-module="contacts"] .contacts-directory-heading {
+  flex-wrap: wrap;
+}
+body[data-edge1-module="contacts"] .directory-search-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, .65fr) auto auto;
+}
+body[data-edge1-module="contacts"] .directory-search-row > *,
+body[data-edge1-module="contacts"] .directory-search-row input,
+body[data-edge1-module="contacts"] .directory-search-row select {
+  min-width: 0;
+}
+@container (max-width: 560px) {
+  body[data-edge1-module="contacts"] .directory-search-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  body[data-edge1-module="contacts"] .directory-search-field {
+    grid-column: 1 / -1;
+  }
+  body[data-edge1-module="contacts"] .directory-filter-field {
+    grid-column: 1 / -1;
+  }
+  body[data-edge1-module="contacts"] .directory-search-row button {
+    width: 100%;
+  }
+}
+
+/* Contacts phone layout: bounded directory, readable inputs, touch targets. */
+@media (max-width: 700px) {
+  body[data-edge1-module="contacts"] .directory-results {
+    max-height: 55vh;
+    max-height: 55dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: auto;
+  }
+  body[data-edge1-module="contacts"] .directory-search-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  body[data-edge1-module="contacts"] .directory-search-field,
+  body[data-edge1-module="contacts"] .directory-filter-field {
+    grid-column: 1 / -1;
+  }
+  body[data-edge1-module="contacts"] .directory-search-row input,
+  body[data-edge1-module="contacts"] .directory-search-row select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  body[data-edge1-module="contacts"] .directory-search-row button,
+  body[data-edge1-module="contacts"] .contacts-create-button,
+  body[data-edge1-module="contacts"] .view-tabs button {
+    min-height: 44px;
+  }
+  body[data-edge1-module="contacts"] .directory-search-row button {
+    width: 100%;
+  }
+  body[data-edge1-module="contacts"] .view-tabs button {
+    flex: 0 0 auto;
+  }
+  body[data-edge1-module="contacts"] .contact-info-row,
+  body[data-edge1-module="contacts"] .contact-secondary-row {
+    flex-wrap: wrap;
+  }
+  body[data-edge1-module="contacts"] .contact-secondary-row > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 480px) {
+  body[data-edge1-module="contacts"] .result-head {
+    flex-wrap: wrap;
+  }
+  body[data-edge1-module="contacts"] .result-head > div {
+    flex-basis: 100%;
+  }
+}

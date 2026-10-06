@@ -1,0 +1,16 @@
+[Unit]
+Description=Export Edge1 database-backed navigation registry
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/local/sbin/edge1-navigation-db export
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/lib/edge1-navigation /opt/edge1-management-interface
+ReadWritePaths=/var/www/edge1-status/operator-shell

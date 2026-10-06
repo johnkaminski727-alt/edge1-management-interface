@@ -11,6 +11,7 @@ from typing import Any, Mapping
 CONTRACT = "wwcx.edge1-security-auth-gateway.v1"
 ALLOWED_SCOPES = frozenset({
     "edge1.security.read", "edge1.security.validate",
+    "edge1.contacts.manage",
     "edge1.vpn.self.read", "edge1.vpn.self.enroll", "edge1.vpn.self.rename",
     "edge1.vpn.self.revoke", "edge1.vpn.self.policy.accept",
 })
@@ -24,6 +25,14 @@ MUTATION_SCOPES = frozenset(
 ACTION_SCOPES = {
     "security.console.read": "edge1.security.read",
     "security.validate_config": "edge1.security.validate",
+    "contacts.entity.create": "edge1.contacts.manage",
+    "contacts.entity.update": "edge1.contacts.manage",
+    "contacts.entity.archive": "edge1.contacts.manage",
+    "contacts.entity.restore": "edge1.contacts.manage",
+    "contacts.entity.merge": "edge1.contacts.manage",
+    "contacts.point.add": "edge1.contacts.manage",
+    "contacts.point.update": "edge1.contacts.manage",
+    "contacts.point.detach": "edge1.contacts.manage",
 }
 EVENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 SUBJECT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$")

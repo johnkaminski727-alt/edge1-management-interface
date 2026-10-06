@@ -1,0 +1,15 @@
+[edge1-public-abuse]
+enabled = true
+filter = edge1-public-abuse
+backend = polling
+logpath = /var/log/nginx/edge1-public-abuse.log
+usedns = no
+findtime = 120
+maxretry = 10
+bantime = 172800
+bantime.increment = true
+bantime.formula = [172800, 604800, 2592000, 63115200][min(ban.Count, 3)]
+bantime.maxtime = 63115200
+bantime.rndtime = 0
+bantime.overalljails = false
+banaction = edge1-public-web-ufw

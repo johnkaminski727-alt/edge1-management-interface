@@ -30,7 +30,7 @@ def config_mapping(**overrides):
             "session": "/edge1-ops/session",
             "logout": "/edge1-ops/session/logout",
             "validate": "/edge1-ops/api/v1/security/validate",
-            "redirect_after_exchange": "/edge1-ops/security/",
+            "redirect_after_exchange": "/edge1-ops/status/",
         },
         "cookies": {
             "session_name": "__Secure-wwcx_edge1_ops_session",
@@ -204,6 +204,61 @@ class AdapterTests(unittest.TestCase):
         self.assertTrue(payload["authenticated"])
         self.assertEqual(payload["scopes"],["edge1.security.read","edge1.security.validate"])
         self.assertNotIn("subject",payload)
+    def test_exchange_preserves_valid_local_return_to_and_falls_back(self):
+        headers={
+            "Origin":"https://ww.cx",
+            "Content-Type":"application/x-www-form-urlencoded",
+        }
+
+        cases=(
+            ("/edge1-ops/contacts/", "/edge1-ops/contacts/"),
+            ("/edge1-ops/security/", "/edge1-ops/security/"),
+            ("https://evil.example/", "/edge1-ops/status/"),
+            ("//evil.example/", "/edge1-ops/status/"),
+            ("/admin/", "/edge1-ops/status/"),
+        )
+
+        for index,(return_to,expected) in enumerate(cases):
+            body=urlencode({
+                "assertion":"valid-assertion",
+                "request_id":(
+                    "b159-"
+                    + f"{index + 100:032x}"
+                ),
+                "return_to":return_to,
+            }).encode()
+
+            response=self.request(
+                "POST",
+                "/edge1-ops/session/exchange",
+                headers=headers,
+                body=body,
+            )
+
+            self.assertEqual(response.status,303)
+            self.assertEqual(
+                dict(response.headers)["Location"],
+                expected,
+            )
+
+        body=urlencode({
+            "assertion":"valid-assertion",
+            "request_id":"b159-00000000000000000000000000000100",
+        }).encode()
+
+        response=self.request(
+            "POST",
+            "/edge1-ops/session/exchange",
+            headers=headers,
+            body=body,
+        )
+
+        self.assertEqual(response.status,303)
+        self.assertEqual(
+            dict(response.headers)["Location"],
+            "/edge1-ops/status/",
+        )
+
     def test_console_requires_session_and_uses_nonce_csp(self):
         self.assertEqual(self.request("GET","/edge1-ops/security/").status,401)
         session,csrf,_=self.exchange()

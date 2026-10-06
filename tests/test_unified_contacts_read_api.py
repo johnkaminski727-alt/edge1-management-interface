@@ -33,6 +33,8 @@ CREATE TABLE contact_assertions (
     contact_point_id INTEGER NOT NULL,
     assertion_type TEXT NOT NULL,
     confidence TEXT NOT NULL,
+    valid_from TEXT,
+    valid_to TEXT,
     notes TEXT,
     FOREIGN KEY(entity_id)
         REFERENCES contact_entities(id),
@@ -633,6 +635,104 @@ class UnifiedContactsReadApiTests(unittest.TestCase):
             rows[0]["canonical_name"],
             "Example Org",
         )
+
+
+    def test_search_excludes_inactive_entities_while_matching_active_alias(self):
+        con = sqlite3.connect(str(self.path))
+
+        try:
+            con.execute(
+                """
+                INSERT INTO contact_entities (
+                    id,
+                    entity_type,
+                    canonical_name,
+                    display_name,
+                    lifecycle_status,
+                    verification_status
+                )
+                VALUES (
+                    9001,
+                    'person',
+                    'Retired Search Fixture',
+                    'Retired Search Fixture',
+                    'inactive',
+                    'unverified'
+                )
+                """
+            )
+
+            con.execute(
+                """
+                INSERT INTO contact_entities (
+                    id,
+                    entity_type,
+                    canonical_name,
+                    display_name,
+                    lifecycle_status,
+                    verification_status
+                )
+                VALUES (
+                    9002,
+                    'person',
+                    'Active Search Survivor',
+                    'Active Search Survivor',
+                    'active',
+                    'unverified'
+                )
+                """
+            )
+
+            con.execute(
+                """
+                INSERT INTO contact_entity_aliases (
+                    id,
+                    entity_id,
+                    alias_name,
+                    alias_type,
+                    confidence
+                )
+                VALUES (
+                    9001,
+                    9002,
+                    'Retired Search Fixture',
+                    'former_name',
+                    'unverified'
+                )
+                """
+            )
+
+            con.commit()
+
+        finally:
+            con.close()
+
+        rows = self.store.search(
+            query="Retired Search Fixture",
+            limit=20,
+        )
+
+        entity_ids = {
+            row["entity_id"]
+            for row in rows
+        }
+
+        self.assertIn(9002, entity_ids)
+        self.assertNotIn(9001, entity_ids)
+
+        for row in rows:
+            if row["entity_id"] == 9002:
+                self.assertEqual(
+                    row["entity_lifecycle_status"],
+                    "active",
+                )
+                self.assertEqual(
+                    row["lifecycle_status"],
+                    row[
+                        "contact_point_lifecycle_status"
+                    ],
+                )
+
 
     def test_entity_evidence_keeps_new_layers_separate(self):
         result = self.store.evidence(

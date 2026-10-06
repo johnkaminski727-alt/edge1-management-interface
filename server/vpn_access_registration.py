@@ -81,15 +81,23 @@ class RegistrationStore:
         db_path: Path | str,
         registration_days: int = REGISTRATION_DAYS,
         clock: Callable[[], datetime] = utcnow,
+        read_only: bool = False,
     ) -> None:
         self.db_path = Path(db_path)
+        self.read_only = bool(read_only)
         if registration_days < 1 or registration_days > 365:
             raise ValueError("registration_days must be between 1 and 365")
         self.registration_days = registration_days
         self.clock = clock
-        self.initialize()
+        if not self.read_only:
+            self.initialize()
 
     def connect(self) -> sqlite3.Connection:
+        if self.read_only:
+            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, timeout=10)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys=ON")
+            return conn
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self.db_path), timeout=10)
         conn.row_factory = sqlite3.Row
@@ -415,6 +423,26 @@ class RegistrationStore:
                 "SELECT * FROM vpn_devices ORDER BY last_seen_at DESC, id"
             ).fetchall()
             return [self._enrich_device(conn, row, at) for row in rows]
+
+    def assign_owner(self, device_id: str, owner: str, actor: str) -> dict[str, Any]:
+        """Assign or clear the account subject that owns a managed VPN device."""
+        owner = owner.strip()
+        if len(owner) > 200:
+            raise ValueError("owner must be at most 200 characters")
+        with self.transaction() as conn:
+            row = conn.execute("SELECT owner FROM vpn_devices WHERE id=?", (device_id,)).fetchone()
+            if row is None:
+                raise KeyError("unknown device")
+            previous = row["owner"]
+            conn.execute(
+                "UPDATE vpn_devices SET owner=?, updated_at=? WHERE id=?",
+                (owner, iso(self._now()), device_id),
+            )
+            self._audit(
+                conn, actor, "device.owner_changed", device_id,
+                {"previous_owner": previous, "owner": owner},
+            )
+        return self.get_device(device_id)
 
     def accept_policy(
         self,

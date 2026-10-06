@@ -1,0 +1,19 @@
+{
+  "name": "WW.CX Edge1",
+  "short_name": "Edge1",
+  "icons": [
+    {
+      "src": "/edge1-ops/status/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/edge1-ops/status/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#0b1118",
+  "background_color": "#0b1118",
+  "display": "standalone"
+}

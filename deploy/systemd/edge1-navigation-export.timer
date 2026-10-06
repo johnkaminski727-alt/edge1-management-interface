@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic reconciliation of Edge1 generated navigation
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=60s
+AccuracySec=10s
+Unit=edge1-navigation-export.service
+
+[Install]
+WantedBy=timers.target
