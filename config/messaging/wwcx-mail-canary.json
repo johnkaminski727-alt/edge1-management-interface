@@ -84,6 +84,8 @@
     "dmarc_monitoring_published": false,
     "inbound_loopback_acceptance": true,
     "outbound_one_message_pilot": false,
-    "rollback_rehearsal": false
+    "rollback_rehearsal": false,
+    "external_smtp_reachable": false,
+    "inbound_security_acceptance": false
   }
 }

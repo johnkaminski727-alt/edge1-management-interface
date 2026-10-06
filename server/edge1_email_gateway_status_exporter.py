@@ -6,6 +6,8 @@ READINESS=pathlib.Path('/var/lib/wwcx-mail-room-reports/readiness.json')
 CANARY_CONFIG=pathlib.Path('/opt/edge1-management-interface/config/messaging/wwcx-mail-canary.json')
 DST=pathlib.Path('/var/www/edge1-status/email-gateway/status.json')
 CANARY_DST=pathlib.Path('/var/www/edge1-status/email-gateway/wwcx-canary-status.json')
+EXTERNAL_SMTP=pathlib.Path('/var/lib/wwcx-mail-gateway/external-smtp-acceptance.json')
+SECURITY_ACCEPTANCE=pathlib.Path('/var/lib/wwcx-mail-gateway/inbound-security-acceptance.json')
 
 def active(unit):
     p=subprocess.run(['systemctl','is-active',unit],capture_output=True,text=True)
@@ -36,8 +38,15 @@ def canary_status():
     gates['dmarc_monitoring_published']=any('v=DMARC1' in x and 'p=none' in x for x in dmarc)
     gates['ptr_forward_confirmed']=any(x.rstrip('.')=='mail.ww.cx' for x in ptr)
     gates['tls_certificate_ready']=pathlib.Path('/etc/letsencrypt/live/mail.ww.cx/fullchain.pem').is_file()
-    state='staged_pre_dns'
-    if all(gates.get(k) is True for k in ('mail_a_published','ptr_forward_confirmed','tls_certificate_ready','dkim_published','spf_overlap_published','dmarc_monitoring_published','inbound_loopback_acceptance')):
+    external=json.loads(EXTERNAL_SMTP.read_text()) if EXTERNAL_SMTP.is_file() else {}
+    security=json.loads(SECURITY_ACCEPTANCE.read_text()) if SECURITY_ACCEPTANCE.is_file() else {}
+    gates['external_smtp_reachable']=external.get('result')=='pass' and external.get('nodes_connected',0)>=3
+    gates['inbound_security_acceptance']=security.get('result')=='pass'
+    foundational=('mail_a_published','tls_certificate_ready','dkim_published','spf_overlap_published','dmarc_monitoring_published','inbound_loopback_acceptance','external_smtp_reachable','inbound_security_acceptance')
+    state='pre_cutover_staging'
+    if all(gates.get(k) is True for k in foundational):
+        state='waiting_ptr_and_final_gates'
+    if all(gates.get(k) is True for k in (*foundational,'ptr_forward_confirmed','outbound_one_message_pilot','rollback_rehearsal')):
         state='pre_cutover_ready'
     if (cfg.get('activation') or {}).get('production_mx_changed'): state='smoke_test_live'
     return {
@@ -45,7 +54,7 @@ def canary_status():
       'domain':'ww.cx','state':state,'smoke_test_hours':'24-48','activation':cfg.get('activation',{}),
       'cutover_gates':gates,'public_observed':{'mail_a':a,'mx':mx,'ptr':ptr},
       'remaining_blockers':[k for k,v in gates.items() if v is not True],
-      'other_domains_untouched':True,
+      'other_domains_untouched':True,'acceptance_evidence':{'external_smtp':external,'inbound_security':security},
     }
 
 def main():
