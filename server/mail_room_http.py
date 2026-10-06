@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from integrations.bigbird_mail.tools import BigBirdMailTools, MailToolConfig
 from server.mail_room_features import MailRoomFeatures
 from server.mail_security_updates import update_health
+from server.mail_room_access import admin_session, ACCESS_POLICY
 from server.mail_room_ava import AvaMailAssistant
 from server.mail_room_security import SecurityStore, required as security_required
 import hashlib
@@ -72,7 +73,7 @@ class DraftStore:
         return self.get(key)
 
 
-def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None):
+def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None, session_check=None):
     if len(proxy_key) < 32:
         raise ValueError("Mail Room proxy key is required")
 
@@ -108,6 +109,8 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
 
         def authorized(self, mutation=False):
             valid = hmac.compare_digest(self.headers.get("X-Mail-Room-Proxy-Key", ""), proxy_key)
+            if valid and session_check:
+                valid = session_check(self.headers)
             if mutation:
                 valid = valid and self.headers.get("Origin") == "https://edge1.ww.cx" and self.headers.get("X-Mail-Room-Request") == "1" and self.headers.get("Content-Type", "").split(";")[0] == "application/json"
             if not valid:
@@ -122,7 +125,10 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                 self.reply(404, {"error": "Not found"}); return
             route = parsed.path[len(PREFIX):]
             try:
-                if route == "reports":
+                if route == "readiness":
+                    data=json.loads(Path('/var/lib/wwcx-mail-room-reports/readiness.json').read_text())
+                    data['access_policy']=ACCESS_POLICY
+                elif route == "reports":
                     directory = Path("/var/lib/wwcx-mail-room-reports")
                     dates = sorted((p.stem for p in directory.glob("????-??-??.json")), reverse=True)[:31]
                     data = {"dates": dates, "timezone": "America/Regina"}
@@ -239,7 +245,7 @@ def main():
     store = DraftStore(args.database)
     identities = json.loads(Path("/etc/wwcx/outbound-mail/identities.json").read_text())
     features = MailRoomFeatures(store, "/var/lib/wwcx-mail-room/correspondence.sqlite3", identities)
-    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(), SecurityStore() if security_required() else None)
+    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(), SecurityStore() if security_required() else None, session_check=admin_session)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     server.timeout = 10
     server.serve_forever()

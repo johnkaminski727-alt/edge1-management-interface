@@ -10,6 +10,10 @@ on:
       - 'tools/messaging/mail_room_security_scan.py'
       - 'deploy/messaging/install-mail-security.py'
       - 'tools/messaging/mail_room_daily_summary.py'
+      - 'tools/messaging/mail_room_readiness.py'
+      - 'tools/messaging/mail_room_recovery_rehearsal.py'
+      - 'tools/messaging/mail_security_update.py'
+      - 'deploy/messaging/install-mail-readiness.py'
       - 'integrations/bigbird_mail/**'
       - 'integrations/bigbird-mail/**'
       - 'tests/*mail*'
@@ -27,6 +31,7 @@ jobs:
           python-version: '3.12'
       - run: |
           python3 -m unittest discover -s tests -p 'test_mail_room*.py'
+          python3 -m unittest tests.test_mail_security_updates
           python3 -m unittest discover -s tests -p test_identity_aware_outbound_gateway.py
           python3 tests/validate_mail_correspondence_functional.py
           python3 tests/validate_mail_ai_adapter.py

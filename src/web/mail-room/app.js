@@ -1,12 +1,13 @@
 "use strict";
 (() => {
-  const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering"];
+  const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering","readiness"];
   let mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
     const r=await fetch(api+path,{credentials:"same-origin",cache:"no-store",...(data===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-Mail-Room-Request":"1"},body:JSON.stringify(data)})});
     if(r.status===401||r.redirected)throw new Error("Your session has expired. Sign in to Edge1 again; unsaved text stays on this page.");
     if(!(r.headers.get("content-type")||"").includes("application/json"))throw new Error("Mail Room is unavailable or requires an Edge1 login.");
+    if(r.status===403)throw new Error("Mail Room requires an authenticated admin session. Unsaved text stays on this page.");
     const result=await r.json();if(!r.ok)throw new Error(result.error||"Request failed");return result;
   }
   function element(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
@@ -89,6 +90,30 @@
   }
   async function load(){
     const current=++generation;$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
+    if(mode==="readiness"){
+      const report=await request("readiness");if(current!==generation)return;
+      $("list").replaceChildren(element("p","Readiness evidence for each domain. No routing changes or sending are enabled."));
+      const render=()=>{
+        if(!canLeave())return;clearTimeout(autosave);$("editor").hidden=true;dirty=false;
+        $("reading").replaceChildren(element("h2","Mail readiness & health"),element("p","Updated "+new Date(report.generated_at).toLocaleString()));
+        if(Date.now()-Date.parse(report.generated_at)>15*60000)$("reading").append(element("p","Monitoring report is stale; live health is not confirmed.","notice"));
+        for(const warning of report.warnings)$("reading").append(element("p",warning.replaceAll("_"," "),"notice"));
+        const q=report.backlog;
+        $("reading").append(element("h2","Intake monitoring"),element("p","Pending or unchecked: "+q.pending_or_unchecked+" · Oldest pending: "+(q.oldest_pending_age_seconds===null?"none":Math.ceil(q.oldest_pending_age_seconds/60)+" minutes")),element("p","Archives: "+q.archives+" · Storage free: "+(report.storage.free_bytes/1024**3).toFixed(1)+" GB · Used: "+report.storage.used_percent+"%"));
+        for(const [unit,state] of Object.entries(report.services))$("reading").append(element("p",unit+": "+state,"small"));
+        showUpdates(report.updates,$("reading"));
+        $("reading").append(element("h2","Recovery rehearsal"),element("p",report.recovery.state==="passed"?"Passed "+new Date(report.recovery.completed_at).toLocaleString()+" · SQLite, archive/config hashes and isolated spam-learning store verified. Production was not restored.":"Not yet rehearsed."));
+        $("reading").append(element("h2","Access and retention"));for(const [name,value] of Object.entries(report.access_policy))$("reading").append(element("p",name.replaceAll("_"," ")+": "+value,"small"));
+      };
+      for(const d of report.domains){const b=element("button",d.domain+" · Not commissioned","message");b.onclick=()=>{
+        if(!canLeave())return;clearTimeout(autosave);$("editor").hidden=true;dirty=false;
+        $("reading").replaceChildren(element("h2","Domain readiness · "+d.domain),element("p",d.registered_senders+" registered sender identities · Sending disabled"));
+        for(const [name,state] of Object.entries(d.checks))$("reading").append(element("p",name.replaceAll("_"," ")+": "+state.replaceAll("_"," "),state==="verified"?"small":"notice"));
+        $("reading").append(element("p","Commissioning evidence must include external DNS checks and real delivery tests. Existing records or local tests alone do not prove migration readiness."));
+      };$("list").append(b);}
+      const health=element("button","Overall health, access & recovery","message");health.onclick=render;$("list").prepend(health);render();
+      $("previous").disabled=$("next").disabled=true;$("page").textContent="Five domains";return;
+    }
     if(mode==="filtering"){
       const config=await request("filter-settings");if(current!==generation)return;$("list").replaceChildren(element("p","Choose a receiving domain to tune spam thresholds."));
       for(const [domain,settings] of Object.entries(config.domains)){
@@ -111,6 +136,7 @@
         const labels={successful_logins:"Successful logins",unique_login_users:"Users who logged in",failed_logins:"Failed login attempts",logouts:"Logouts",messages_sent:"Messages submitted to provider",messages_received:"Messages received",commissioning_messages_received:"Commissioning messages",drafts_prepared:"Draft preparations",messages_classified_junk:"Junk classifications",messages_quarantined:"Quarantine classifications",messages_held_pending:"Pending-check classifications",phishing_reports:"Reported phishing",confirmed_phishing:"Confirmed phishing",spam_reports:"Spam reports",not_spam_corrections:"Not spam corrections",manual_releases:"Reviewed releases",related_phishing_holds:"Related messages held",new_contacts:"New contacts",new_contact_points:"New contact points",new_contact_relationships:"New relationships"};
         for(const [key,value] of Object.entries(r.counts))$("reading").append(element("p",(labels[key]||key)+": "+(value===null?"Unavailable":value)));
         showUpdates(r.security_updates,$("reading"));
+        if(r.mail_health?.warnings)for(const warning of r.mail_health.warnings)$("reading").append(element("p","Mail health: "+warning.replaceAll("_"," "),"notice"));
         for(const note of r.notes)$("reading").append(element("p",note,"small"));for(const [source,state] of Object.entries(r.sources))if(state!=="available")$("reading").append(element("p",source+": "+state,"notice"));});$("list").append(b);}
       if(!reports.dates.length)$("list").append(element("p","First report is being generated."));$("previous").disabled=$("next").disabled=true;$("page").textContent="Saskatchewan time";return;
     }

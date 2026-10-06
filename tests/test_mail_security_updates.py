@@ -29,9 +29,16 @@ class UpdateHealthTests(unittest.TestCase):
             original=Path.exists
             def exists(path):
                 return True if str(path)=='/etc/clamav/wwcx-mail-clamd.conf' else original(path)
+            original_stat=Path.stat
+            def stats(path,*args,**kwargs):
+                result=original_stat(path,*args,**kwargs)
+                if path==marker:
+                    from types import SimpleNamespace
+                    return SimpleNamespace(st_uid=0,st_mode=result.st_mode)
+                return result
             original_path=Path
             def paths(value):return marker if str(value)=='/var/lib/wwcx-mail-updates/definitions.json' else original_path(value)
-            with patch('tools.messaging.mail_room_attachment_scan.shutil.which',return_value='/bin/clamscan'),patch('tools.messaging.mail_room_attachment_scan.time.time',return_value=1000000),patch.object(Path,'exists',exists),patch('tools.messaging.mail_room_attachment_scan.Path',side_effect=paths):
+            with patch('tools.messaging.mail_room_attachment_scan.shutil.which',return_value='/bin/clamscan'),patch('tools.messaging.mail_room_attachment_scan.time.time',return_value=1000000),patch.object(Path,'exists',exists),patch('tools.messaging.mail_room_attachment_scan.Path',side_effect=paths),patch.object(Path,'stat',stats):
                 self.assertTrue(scanner_ready(root))
                 marker.write_text(json.dumps({'last_success':900000}))
                 self.assertFalse(scanner_ready(root))

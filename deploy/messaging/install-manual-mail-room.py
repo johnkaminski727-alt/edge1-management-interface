@@ -100,6 +100,9 @@ location ^~ /edge1-ops/mail-room/api/ {
     proxy_pass http://127.0.0.1:8117;
     proxy_set_header X-Mail-Room-Proxy-Key "''' + key + '''";
     proxy_set_header Host edge1.ww.cx;
+    proxy_set_header Cookie $http_cookie;
+    proxy_set_header X-Edge1-Client-IP $remote_addr;
+    proxy_set_header X-Edge1-Request-ID $request_id;
     proxy_connect_timeout 5s;
     proxy_read_timeout 90s;
     client_max_body_size 150k;
