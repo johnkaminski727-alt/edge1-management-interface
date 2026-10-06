@@ -157,3 +157,61 @@ class MailSecureSubmissionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class MailSecureSubmissionOpenPGPTests(MailSecureSubmissionTests):
+    @staticmethod
+    def encrypted_adapter(plaintext: bytes, request: dict) -> dict:
+        boundary = b"wwcx-openpgp-test"
+        encrypted = (
+            b'MIME-Version: 1.0\r\n'
+            b'From: john@ww.cx\r\nTo: recipient@example.com\r\n'
+            b'Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="wwcx-openpgp-test"\r\n\r\n'
+            b'--' + boundary + b'\r\nContent-Type: application/pgp-encrypted\r\n\r\nVersion: 1\r\n'
+            b'--' + boundary + b'\r\nContent-Type: application/octet-stream\r\n\r\n-----BEGIN PGP MESSAGE-----\r\nsynthetic\r\n-----END PGP MESSAGE-----\r\n'
+            b'--' + boundary + b'--\r\n'
+        )
+        return {
+            "contract": "wwcx.mail-openpgp-transform.v1",
+            "mime_bytes": encrypted,
+            "operation": "sign_encrypt",
+            "signing_fingerprint": "A" * 40,
+            "recipient_fingerprints": ["B" * 40],
+        }
+
+    def test_encrypted_submission_scans_plaintext_then_submits_ciphertext(self) -> None:
+        config = self.active_config()
+        policy = self.active_policy()
+        preview = self.preview(config, policy)
+        scanned = []
+        def scanner(message_bytes: bytes) -> dict:
+            scanned.append(message_bytes)
+            return self.clean_result(message_bytes)
+        delivery = {
+            "provider": "smtp_submission",
+            "provider_type": "smtp",
+            "message_id": "<synthetic@ww.cx>",
+            "recipient_count": 1,
+            "submitted_at": "2026-10-06T00:00:00+00:00",
+        }
+        with mock.patch.object(MODULE, "_submit_smtp_message", return_value=delivery) as submit:
+            result = MODULE.send_preview(
+                config, policy, preview, confirmation=True,
+                final_scanner=scanner,
+                openpgp_adapter=self.encrypted_adapter,
+                openpgp_request={"mode": "require_encryption"},
+            )
+        provider_bytes = submit.call_args.args[2]
+        self.assertEqual(len(scanned), 1)
+        self.assertNotEqual(scanned[0], provider_bytes)
+        self.assertIn(b'application/pgp-encrypted', provider_bytes)
+        self.assertEqual(result["openpgp"]["operation"], "sign_encrypt")
+        self.assertEqual(result["final_scan"]["message_sha256"], hashlib.sha256(scanned[0]).hexdigest())
+        self.assertEqual(result["openpgp"]["ciphertext_sha256"], hashlib.sha256(provider_bytes).hexdigest())
+        self.assertNotIn("mime_bytes", result["openpgp"])
+
+    def test_openpgp_request_without_adapter_fails_before_submission(self) -> None:
+        config = self.active_config(); policy = self.active_policy(); preview = self.preview(config, policy)
+        with mock.patch.object(MODULE, "_submit_smtp_message") as submit:
+            with self.assertRaisesRegex(outbound_mail_gateway.DeliveryDisabledError, "adapter is not configured"):
+                MODULE.send_preview(config, policy, preview, confirmation=True, final_scanner=self.clean_result, openpgp_request={"mode":"require_encryption"})
+        submit.assert_not_called()

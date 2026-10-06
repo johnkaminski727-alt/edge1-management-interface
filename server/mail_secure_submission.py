@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 import mail_final_scan
+import mail_openpgp_mime
 import outbound_mail_gateway
 
 
@@ -83,6 +84,8 @@ def send_preview(
     *,
     confirmation: bool,
     final_scanner: Callable[[bytes], dict[str, Any]] | None,
+    openpgp_adapter: Callable[[bytes, dict[str, Any]], dict[str, Any]] | None = None,
+    openpgp_request: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not isinstance(preview, dict) or not isinstance(preview.get("request"), dict):
         raise outbound_mail_gateway.GatewayError("composed preview is invalid")
@@ -91,11 +94,22 @@ def send_preview(
     outbound_mail_gateway._delivery_gate(config, policy, confirmation)
 
     message = outbound_mail_gateway.build_email_message(preview)
-    message_bytes = message.as_bytes(policy=email.policy.SMTP)
+    plaintext_bytes = message.as_bytes(policy=email.policy.SMTP)
     try:
-        final_scan = mail_final_scan.require_clean(message_bytes, final_scanner)
+        final_scan = mail_final_scan.require_clean(plaintext_bytes, final_scanner)
     except mail_final_scan.FinalScanError as exc:
         raise outbound_mail_gateway.DeliveryDisabledError(str(exc)) from exc
+
+    message_bytes = plaintext_bytes
+    openpgp = None
+    if openpgp_request is not None:
+        try:
+            openpgp = mail_openpgp_mime.require_transform(
+                plaintext_bytes, openpgp_adapter, openpgp_request
+            )
+        except mail_openpgp_mime.OpenPGPMIMEError as exc:
+            raise outbound_mail_gateway.DeliveryDisabledError(str(exc)) from exc
+        message_bytes = openpgp["mime_bytes"]
 
     selected = config["provider"]["selected"]
     provider_type = config["provider"]["profiles"][selected]["type"]
@@ -117,10 +131,17 @@ def send_preview(
 
     event = outbound_mail_gateway.audit_delivery_event(preview, delivery)
     event["final_scan"] = final_scan
+    if openpgp is not None:
+        event["openpgp"] = {
+            key: value for key, value in openpgp.items() if key != "mime_bytes"
+        }
     return {
         "delivery": delivery,
         "control_id": preview["control_id"],
         "action_url": preview["action_url"],
         "audit_event": event,
         "final_scan": final_scan,
+        "openpgp": None if openpgp is None else {
+            key: value for key, value in openpgp.items() if key != "mime_bytes"
+        },
     }

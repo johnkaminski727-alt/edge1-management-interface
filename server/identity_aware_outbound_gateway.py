@@ -172,6 +172,8 @@ def send_message(
     confirmation: bool,
     audit_path: str | Path | None = None,
     final_scanner: Callable[[bytes], dict[str, Any]] | None = None,
+    openpgp_adapter: Callable[[bytes, dict[str, Any]], dict[str, Any]] | None = None,
+    openpgp_request: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     preview = compose_preview(config, policy, identities, payload)
     selection = preview["sender_selection"]
@@ -189,6 +191,8 @@ def send_message(
         preview,
         confirmation=confirmation,
         final_scanner=final_scanner,
+        openpgp_adapter=openpgp_adapter,
+        openpgp_request=openpgp_request,
     )
     event = result["audit_event"]
     event["sender_address"] = selection["address"]

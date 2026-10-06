@@ -18,6 +18,11 @@ from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
+try:
+    import mail_openpgp_mime
+except ModuleNotFoundError:  # package import in tests/tools
+    from . import mail_openpgp_mime
+
 from mail_correspondence_store import (
     MAX_BODY_CHARS,
     CorrespondenceStoreError,
@@ -210,6 +215,15 @@ def normalize_edge1_rfc822(
         message = BytesParser(policy=policy.default).parsebytes(raw)
     except Exception as exc:
         raise Edge1MailGatewaySourceError("RFC822 message cannot be parsed") from exc
+
+    try:
+        openpgp_state = mail_openpgp_mime.detect(raw)
+    except mail_openpgp_mime.OpenPGPMIMEError as exc:
+        raise Edge1MailGatewaySourceError(str(exc)) from exc
+    if openpgp_state["encrypted"]:
+        raise Edge1MailGatewaySourceError(
+            "OpenPGP encrypted message held for isolated decryption"
+        )
 
     recipient = _envelope_recipient(message, envelope_recipient)
     message_id = _canonical_message_id(message.get("Message-ID"), "Message-ID")

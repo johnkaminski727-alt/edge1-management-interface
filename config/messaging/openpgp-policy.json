@@ -1,0 +1,47 @@
+{
+  "contract": "wwcx.mail-openpgp-policy.v1",
+  "enabled": false,
+  "deployment_authorized": false,
+  "format": "pgp_mime",
+  "default_mode": "encrypt_if_verified_key",
+  "allowed_modes": ["disabled", "sign_only", "encrypt_if_verified_key", "require_encryption"],
+  "algorithms": {
+    "minimum_rsa_bits": 3072,
+    "allow_ed25519": true,
+    "allow_curve25519": true,
+    "symmetric": "AES256",
+    "digest": "SHA256",
+    "compression": "ZIP"
+  },
+  "keys": {
+    "private_key_runtime": "isolated_gnupg_service",
+    "private_key_export_prohibited": true,
+    "ai_private_key_access": false,
+    "application_private_key_access": false,
+    "verified_recipient_key_required_for_encryption": true,
+    "allow_keyserver_autofetch": false,
+    "allow_wkd_autofetch": false
+  },
+  "inbound": {
+    "detect_pgp_mime": true,
+    "decrypt_enabled": false,
+    "hold_encrypted_until_decryptor_ready": true,
+    "preserve_encrypted_original": true,
+    "persist_decrypted_working_copy": false
+  },
+  "outbound": {
+    "sign_enabled": false,
+    "encrypt_enabled": false,
+    "scan_plaintext_before_encryption": true,
+    "require_clean_plaintext_scan": true,
+    "never_encrypt_without_verified_recipient_key": true,
+    "refuse_plaintext_when_encryption_required": true
+  },
+  "audit": {
+    "record_fingerprints": true,
+    "record_plaintext_sha256": true,
+    "record_ciphertext_sha256": true,
+    "record_plaintext_body": false,
+    "record_private_key_material": false
+  }
+}
