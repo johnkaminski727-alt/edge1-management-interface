@@ -37,6 +37,11 @@ def make_app(config:dict[str,Any],engine:GPGEngine):
             raw=base64.b64decode(request['plaintext_b64'],validate=True)
             out=engine.encrypt(raw,list(request['recipient_fingerprints']),signing)
             return {'ciphertext_b64':base64.b64encode(out).decode(),'operation':'sign_encrypt' if signing else 'encrypt'}
+        if op=='sign':
+            if not config['sign_enabled']: raise ServerError('signing disabled')
+            raw=base64.b64decode(request['plaintext_b64'],validate=True)
+            out=engine.sign(raw,str(request['signing_fingerprint']))
+            return {'signature_b64':base64.b64encode(out).decode(),'operation':'sign'}
         if op=='decrypt':
             if not config['decrypt_enabled']: raise ServerError('decryption disabled')
             raw=base64.b64decode(request['ciphertext_b64'],validate=True)

@@ -43,13 +43,27 @@ def _outer_headers(source:EmailMessage,target:EmailMessage)->None:
 def transform(plaintext:bytes,request:dict[str,Any],*,rpc:Callable[[dict[str,Any]],dict[str,Any]]|None=None)->dict[str,Any]:
     if not isinstance(request,dict): raise OpenPGPAdapterError('OpenPGP transform request is invalid')
     recipients=request.get('recipient_fingerprints')
-    if not isinstance(recipients,list) or not recipients: raise OpenPGPAdapterError('verified recipient fingerprints are required')
     operation=str(request.get('operation','encrypt'))
-    if operation not in {'encrypt','sign_encrypt'}: raise OpenPGPAdapterError('unsupported OpenPGP transform operation')
+    recipients=request.get('recipient_fingerprints')
+    if operation in {'encrypt','sign_encrypt'} and (not isinstance(recipients,list) or not recipients): raise OpenPGPAdapterError('verified recipient fingerprints are required')
+    if operation not in {'sign','encrypt','sign_encrypt'}: raise OpenPGPAdapterError('unsupported OpenPGP transform operation')
     source=BytesParser(policy=policy.SMTP).parsebytes(plaintext)
     if not isinstance(source,EmailMessage): raise OpenPGPAdapterError('plaintext MIME is invalid')
-    service_request={'operation':'encrypt','plaintext_b64':base64.b64encode(_inner_mime(source)).decode(),'recipient_fingerprints':recipients}
+    inner_bytes=_inner_mime(source)
     signing=request.get('signing_fingerprint')
+    if operation=='sign':
+        if not isinstance(signing,str) or not signing.strip(): raise OpenPGPAdapterError('signing fingerprint is required')
+        result=(rpc or _rpc)({'operation':'sign','plaintext_b64':base64.b64encode(inner_bytes).decode(),'signing_fingerprint':signing.strip()})
+        try: armor=base64.b64decode(result['signature_b64'],validate=True).decode('ascii')
+        except Exception as exc: raise OpenPGPAdapterError('isolated OpenPGP signature is invalid') from exc
+        if '-----BEGIN PGP SIGNATURE-----' not in armor: raise OpenPGPAdapterError('isolated OpenPGP signature is not armored')
+        outer=EmailMessage(policy=policy.SMTP);_outer_headers(source,outer)
+        outer.set_type('multipart/signed');outer.set_param('protocol','application/pgp-signature');outer.set_param('micalg','pgp-sha256')
+        signed=BytesParser(policy=policy.SMTP).parsebytes(inner_bytes)
+        signature=EmailMessage(policy=policy.SMTP);signature.set_type('application/pgp-signature');signature.set_payload(armor)
+        outer.attach(signed);outer.attach(signature)
+        return {'contract':CONTRACT,'mime_bytes':outer.as_bytes(policy=policy.SMTP),'operation':'sign','signing_fingerprint':signing.strip(),'recipient_fingerprints':[]}
+    service_request={'operation':'encrypt','plaintext_b64':base64.b64encode(inner_bytes).decode(),'recipient_fingerprints':recipients}
     if operation=='sign_encrypt':
         if not isinstance(signing,str) or not signing.strip(): raise OpenPGPAdapterError('signing fingerprint is required')
         service_request['signing_fingerprint']=signing.strip()

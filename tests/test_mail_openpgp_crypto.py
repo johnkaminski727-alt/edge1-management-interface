@@ -8,4 +8,8 @@ class TestCrypto(unittest.TestCase):
    engine=GPGEngine(home);fps=engine.fingerprints(True);self.assertTrue(fps)
    ciphertext=engine.encrypt(b'synthetic secret', [fps[0]], fps[0]);self.assertIn(b'BEGIN PGP MESSAGE',ciphertext)
    self.assertEqual(engine.decrypt(ciphertext),b'synthetic secret')
+   signature=engine.sign(b'synthetic signed content',fps[0]);self.assertIn(b'BEGIN PGP SIGNATURE',signature)
+   data=home/'signed.txt';sig=home/'signed.asc';data.write_bytes(b'synthetic signed content');sig.write_bytes(signature)
+   verified=subprocess.run(['gpg','--batch','--homedir',td,'--verify',str(sig),str(data)],capture_output=True)
+   self.assertEqual(verified.returncode,0)
 if __name__=='__main__': unittest.main()

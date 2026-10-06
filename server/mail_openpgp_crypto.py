@@ -36,6 +36,9 @@ class GPGEngine:
         for fp in recipients: args += ['--recipient',fp]
         args += ['--encrypt']
         return self._run(args,plaintext,60).stdout
+    def sign(self, plaintext:bytes, signing_fingerprint:str)->bytes:
+        if not plaintext or not signing_fingerprint: raise OpenPGPCryptoError('plaintext and signing fingerprint are required')
+        return self._run(['--armor','--local-user',signing_fingerprint,'--detach-sign'],plaintext,60).stdout
     def decrypt(self, ciphertext:bytes)->bytes:
         if not ciphertext: raise OpenPGPCryptoError('ciphertext is required')
         return self._run(['--decrypt'],ciphertext,60).stdout

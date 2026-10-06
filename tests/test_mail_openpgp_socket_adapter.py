@@ -19,6 +19,18 @@ class TestAdapter(unittest.TestCase):
         self.assertTrue(state['encrypted'])
         self.assertIn(b'Subject: PGP test',out['mime_bytes'])
         self.assertNotIn(b'secret body',out['mime_bytes'])
+
+    def test_builds_pgp_mime_signed_message(self):
+        def signer(request):
+            self.assertEqual(request['operation'],'sign')
+            return {'signature_b64':base64.b64encode(b'-----BEGIN PGP SIGNATURE-----\nsynthetic\n-----END PGP SIGNATURE-----\n').decode(),'operation':'sign'}
+        out=adapter.transform(self.message(),{'operation':'sign','signing_fingerprint':'A'*40},rpc=signer)
+        self.assertEqual(out['operation'],'sign')
+        self.assertIn(b'multipart/signed',out['mime_bytes'])
+        self.assertIn(b'application/pgp-signature',out['mime_bytes'])
+        self.assertIn(b'secret body',out['mime_bytes'])
+        self.assertIn(b'BEGIN PGP SIGNATURE',out['mime_bytes'])
+
     def test_missing_recipient_key_fails(self):
         with self.assertRaises(adapter.OpenPGPAdapterError):
             adapter.transform(self.message(),{'operation':'encrypt','recipient_fingerprints':[]},rpc=self.fake)
