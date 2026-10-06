@@ -4,7 +4,7 @@
   "deployment_authorized": true,
   "senders": {
     "john@ww.cx": {
-      "mode": "sign_only",
+      "mode": "encrypt_if_verified_key",
       "signing_fingerprint": "316F9A96BCC1912631E98D6382A0ACB1EC85FBDF",
       "source_contact_point_id": 696,
       "primary_fingerprint": "E529012FC9B50FD2B8F2ADF0AAA57DEE473CF5AD"

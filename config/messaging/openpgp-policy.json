@@ -36,7 +36,7 @@
   },
   "outbound": {
     "sign_enabled": true,
-    "encrypt_enabled": false,
+    "encrypt_enabled": true,
     "scan_plaintext_before_encryption": true,
     "require_clean_plaintext_scan": true,
     "never_encrypt_without_verified_recipient_key": true,
