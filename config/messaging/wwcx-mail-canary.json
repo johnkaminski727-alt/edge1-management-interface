@@ -88,6 +88,8 @@
     "external_smtp_reachable": false,
     "inbound_security_acceptance": false,
     "outbound_preflight_ready": true,
-    "rollback_transaction_validated": true
+    "rollback_transaction_validated": true,
+    "rspamd_signing_stage_ready": true,
+    "direct_mta_pilot_wrapper_ready": true
   }
 }
