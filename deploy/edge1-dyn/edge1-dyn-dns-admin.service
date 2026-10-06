@@ -1,0 +1,18 @@
+[Unit]
+Description=Edge1 bounded Dyn DNS admin API
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/dns/edge1_dyn_admin.py --listen 127.0.0.1 --port 8798
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/edge1-dyn
+Restart=on-failure
+RestartSec=2
+[Install]
+WantedBy=multi-user.target
