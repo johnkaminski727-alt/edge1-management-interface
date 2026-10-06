@@ -4,7 +4,15 @@ from __future__ import annotations
 import argparse,json,pathlib,socket,sqlite3
 
 def rpc_status(sock:pathlib.Path)->dict:
-    s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(3);s.connect(str(sock));s.sendall(b'{"operation":"status"}\n');line=s.makefile('rb').readline();s.close();r=json.loads(line);return r.get('result',{}) if r.get('ok') else {}
+    try:
+        s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.settimeout(3);s.connect(str(sock));s.sendall(b'{"operation":"status"}\n');line=s.makefile('rb').readline();s.close()
+    except OSError:
+        return {}
+    try:
+        r=json.loads(line)
+    except Exception:
+        return {}
+    return r.get('result',{}) if r.get('ok') else {}
 def main():
     p=argparse.ArgumentParser();p.add_argument('--database',type=pathlib.Path,default=pathlib.Path('/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite'));p.add_argument('--contact-point-id',type=int,default=696);p.add_argument('--socket',type=pathlib.Path,default=pathlib.Path('/run/wwcx-openpgp/crypto.sock'));p.add_argument('--public-dir',type=pathlib.Path,default=pathlib.Path('/var/www/edge1-status/openpgp'));a=p.parse_args()
     svc=rpc_status(a.socket)
