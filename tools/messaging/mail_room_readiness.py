@@ -70,6 +70,8 @@ def build():
     senders=sender_options(registry)
     evidence_path=Path('/etc/wwcx/mail-commissioning.json')
     evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() else {}
+    try: dns=json.loads((ROOT/'dns-baseline.json').read_text())
+    except (OSError,ValueError):dns={}
     domains=[]
     for domain in DOMAINS:
         record=evidence.get('domains',{}).get(domain,{})
@@ -78,6 +80,7 @@ def build():
         checks={name:record.get(name,'not_verified') for name in ['provider_credentials','public_dns','inbound_delivery','outbound_delivery','sender_authentication','rollback_rehearsal']}
         domains.append({'domain':domain,'registered_senders':sum(s['address'].endswith('@'+domain) for s in senders),
                         'live_sender_identities':sum(s['address'].endswith('@'+domain) and s['live_enabled'] for s in senders),
+                        'dns_baseline':{'captured_at':dns.get('captured_at'),'source':dns.get('source'),'mx_answer_count':len(dns.get('domains',{}).get(domain,{}).get('mx',{}).get('answers',[]))},
                         'checks':checks,'commissioned':False,'sending_enabled':False,'migration_state':'not_migrated'})
     recovery=ROOT/'recovery-acceptance.json'
     try: recovery_record=json.loads(recovery.read_text())

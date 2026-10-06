@@ -14,6 +14,10 @@ The browser bridge verifies the existing portal session with the auth service an
 
 No automatic deletion is enabled. Decide retention for delivered mail, raw archives, drafts, quarantine, audit events and backups separately; do not activate deletion or impose invented legal periods during commissioning.
 
+## Observed routing baseline
+
+Run `tools/messaging/mail_dns_baseline.py` to capture current NS, SOA, MX, domain TXT and DMARC observations for all five domains. The private aggregate report and root-only backup record capture time. These use Edge1’s configured resolver and are observations, not proof of public authoritative propagation. DKIM selectors, desired routing and provider-owned aliases remain inputs from the DNS/provider commissioning workstream. Refresh and externally verify this baseline immediately before migration, because DNS work may change it.
+
 ## Per-domain evidence template
 
 Record these fields in root-managed `/etc/wwcx/mail-commissioning.json`, under `domains.DOMAIN`: provider_credentials, public_dns, inbound_delivery, outbound_delivery, sender_authentication, rollback_rehearsal. Values should be concise states such as not_verified, pending, verified. Store detailed evidence in the private operations register, never credentials in this JSON. Recording verified does not enable delivery: readiness keeps sending disabled and migration uncommissioned until a separate deployment implements and validates activation.

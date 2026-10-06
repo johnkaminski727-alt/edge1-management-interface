@@ -11,6 +11,7 @@ on:
       - 'deploy/messaging/install-mail-security.py'
       - 'tools/messaging/mail_room_daily_summary.py'
       - 'tools/messaging/mail_room_readiness.py'
+      - 'tools/messaging/mail_dns_baseline.py'
       - 'tools/messaging/mail_room_recovery_rehearsal.py'
       - 'tools/messaging/mail_security_update.py'
       - 'deploy/messaging/install-mail-readiness.py'
