@@ -174,6 +174,7 @@ def send_message(
     final_scanner: Callable[[bytes], dict[str, Any]] | None = None,
     openpgp_adapter: Callable[[bytes, dict[str, Any]], dict[str, Any]] | None = None,
     openpgp_request: dict[str, Any] | None = None,
+    openpgp_request_resolver: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     preview = compose_preview(config, policy, identities, payload)
     selection = preview["sender_selection"]
@@ -185,6 +186,9 @@ def send_message(
         raise outbound_mail_gateway.DeliveryDisabledError(
             "selected sender identity is not authorized for live delivery"
         )
+    resolved_openpgp_request = openpgp_request
+    if resolved_openpgp_request is None and openpgp_request_resolver is not None:
+        resolved_openpgp_request = openpgp_request_resolver(preview["request"])
     result = mail_secure_submission.send_preview(
         config,
         policy,
@@ -192,7 +196,7 @@ def send_message(
         confirmation=confirmation,
         final_scanner=final_scanner,
         openpgp_adapter=openpgp_adapter,
-        openpgp_request=openpgp_request,
+        openpgp_request=resolved_openpgp_request,
     )
     event = result["audit_event"]
     event["sender_address"] = selection["address"]

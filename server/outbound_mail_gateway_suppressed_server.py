@@ -36,9 +36,18 @@ def guarded_send(
     confirmation: bool,
     audit_path: str | Path,
     suppression_database: str | Path,
+    openpgp_adapter=None,
+    openpgp_request_resolver=None,
 ) -> dict[str, Any]:
+    def send_with_openpgp(*args, **kwargs):
+        return base.identity_gateway.send_message(
+            *args,
+            **kwargs,
+            openpgp_adapter=openpgp_adapter,
+            openpgp_request_resolver=openpgp_request_resolver,
+        )
     return suppression_gate.guarded_identity_send(
-        base.identity_gateway.send_message,
+        send_with_openpgp,
         config,
         policy,
         identities,
@@ -55,6 +64,14 @@ class SuppressedGatewayHandler(base.GatewayHandler):
     @property
     def suppression_database(self) -> Path:
         return self.server.suppression_database  # type: ignore[attr-defined]
+
+    @property
+    def openpgp_adapter(self):
+        return getattr(self.server, "openpgp_adapter", None)
+
+    @property
+    def openpgp_request_resolver(self):
+        return getattr(self.server, "openpgp_request_resolver", None)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -74,6 +91,8 @@ class SuppressedGatewayHandler(base.GatewayHandler):
                 confirmation=confirmation,
                 audit_path=audit_path,
                 suppression_database=self.suppression_database,
+                openpgp_adapter=self.openpgp_adapter,
+                openpgp_request_resolver=self.openpgp_request_resolver,
             )
             self._send_json(HTTPStatus.ACCEPTED, result)
         except Exception as exc:
@@ -86,10 +105,15 @@ class SuppressedGatewayServer(ThreadingHTTPServer):
         address: tuple[str, int],
         application: base.GatewayApplication,
         suppression_database: Path,
+        *,
+        openpgp_adapter=None,
+        openpgp_request_resolver=None,
     ) -> None:
         super().__init__(address, SuppressedGatewayHandler)
         self.application = application
         self.suppression_database = suppression_database.resolve()
+        self.openpgp_adapter = openpgp_adapter
+        self.openpgp_request_resolver = openpgp_request_resolver
 
 
 def parse_args() -> argparse.Namespace:

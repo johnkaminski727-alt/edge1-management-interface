@@ -1,10 +1,15 @@
 {
   "contract": "wwcx.mail-openpgp-policy.v1",
-  "enabled": false,
-  "deployment_authorized": false,
+  "enabled": true,
+  "deployment_authorized": true,
   "format": "pgp_mime",
   "default_mode": "encrypt_if_verified_key",
-  "allowed_modes": ["disabled", "sign_only", "encrypt_if_verified_key", "require_encryption"],
+  "allowed_modes": [
+    "disabled",
+    "sign_only",
+    "encrypt_if_verified_key",
+    "require_encryption"
+  ],
   "algorithms": {
     "minimum_rsa_bits": 3072,
     "allow_ed25519": true,
@@ -30,7 +35,7 @@
     "persist_decrypted_working_copy": false
   },
   "outbound": {
-    "sign_enabled": false,
+    "sign_enabled": true,
     "encrypt_enabled": false,
     "scan_plaintext_before_encryption": true,
     "require_clean_plaintext_scan": true,

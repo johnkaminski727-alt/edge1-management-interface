@@ -16,6 +16,8 @@ import outbound_mail_gateway_server as base
 import outbound_mail_gateway_suppressed_server as suppressed
 import outbound_mail_runtime_application as runtime_application
 import outbound_mail_runtime_paths as runtime_paths
+import mail_openpgp_outbound_runtime
+import mail_openpgp_socket_adapter
 
 
 DEFAULT_SUPPRESSION_DATABASE = (
@@ -80,10 +82,13 @@ def main() -> int:
             sort_keys=True,
         )
     )
+    openpgp_resolver = mail_openpgp_outbound_runtime.RuntimeOpenPGPResolver()
     server = suppressed.SuppressedGatewayServer(
         (host, port),
         application,
         suppression_database,
+        openpgp_adapter=mail_openpgp_socket_adapter.transform,
+        openpgp_request_resolver=openpgp_resolver,
     )
     try:
         server.serve_forever()
