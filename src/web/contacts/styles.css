@@ -2379,3 +2379,10 @@ body[data-edge1-module="contacts"] .directory-search-row select {
     flex-basis: 100%;
   }
 }
+
+/* Contacts — OpenPGP email security metadata */
+.contact-security-section .contact-key-fingerprint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+  letter-spacing: .02em;
+}

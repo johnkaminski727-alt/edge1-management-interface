@@ -621,6 +621,8 @@ function detailBlock(label, value) {
 function evidenceHtml(detail) {
   const evidence = detail.assertion_evidence || [];
   const observations = detail.observations || [];
+  const openpgpKeys = detail.openpgp_keys || [];
+  const openpgpPolicies = detail.openpgp_policies || [];
 
   const identity = evidence.length
     ? evidence.map((row) => `
@@ -968,6 +970,25 @@ function entityEvidenceHtml(
         `
         : ""
     }
+
+    ${openpgpKeys.length || openpgpPolicies.length ? `
+      <section class="contact-record-section contact-security-section">
+        <h3>Email security</h3>
+        ${openpgpPolicies.map((item) => `
+          <div class="contact-secondary-row">
+            <strong>${escapeHtml(item.email_address || "Email")}</strong>
+            <span>OpenPGP policy · ${escapeHtml(item.mode || "disabled")}</span>
+          </div>
+        `).join("")}
+        ${openpgpKeys.map((item) => `
+          <div class="contact-secondary-row">
+            <strong>OpenPGP ${escapeHtml(item.verification_status || "unverified")}</strong>
+            <span class="contact-key-fingerprint">${escapeHtml(item.fingerprint || "")}</span>
+            <span>${escapeHtml(item.expires_at ? `expires ${item.expires_at}` : "no recorded expiry")}</span>
+          </div>
+        `).join("")}
+      </section>
+    ` : ""}
 
     <section class="contact-record-section">
       <h3>Evidence &amp; provenance</h3>
