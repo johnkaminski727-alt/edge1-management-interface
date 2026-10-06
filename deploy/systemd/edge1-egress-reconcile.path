@@ -1,0 +1,7 @@
+[Unit]
+Description=Watch Edge1 egress policy changes
+[Path]
+PathChanged=/var/lib/edge1-egress/reconcile.trigger
+Unit=edge1-egress-reconcile.service
+[Install]
+WantedBy=multi-user.target

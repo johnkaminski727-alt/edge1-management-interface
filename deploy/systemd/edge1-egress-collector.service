@@ -1,0 +1,11 @@
+[Unit]
+Description=Edge1 service-aware egress DNS destination collector
+After=edge1-egress-reconcile.service AdGuardHome.service
+Requires=edge1-egress-reconcile.service
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/edge1-egress-collector
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=multi-user.target

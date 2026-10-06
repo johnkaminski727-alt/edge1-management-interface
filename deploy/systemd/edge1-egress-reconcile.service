@@ -1,0 +1,10 @@
+[Unit]
+Description=Edge1 selective egress routing reconciler
+After=network-online.target AdGuardHome.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/edge1-egress-reconcile
+NoNewPrivileges=false
+[Install]
+WantedBy=multi-user.target

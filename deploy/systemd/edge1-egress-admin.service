@@ -1,0 +1,19 @@
+[Unit]
+Description=Edge1 Egress Routing Admin API
+After=network.target
+[Service]
+Type=simple
+User=wwadmin
+Group=wwadmin
+ExecStart=/usr/local/sbin/edge1-egress-admin-http
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge1-egress
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+[Install]
+WantedBy=multi-user.target

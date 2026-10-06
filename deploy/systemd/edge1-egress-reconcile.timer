@@ -1,0 +1,8 @@
+[Unit]
+Description=Periodic Edge1 egress health reconciliation
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=edge1-egress-reconcile.service
+[Install]
+WantedBy=timers.target

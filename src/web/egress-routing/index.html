@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Egress Routing | Edge1</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css"></head>
+<body data-edge1-module="egress-routing"><div id="wwcx-operator-shell"></div><main>
+<header><div><p class="eyebrow">EDGE1 · NETWORK</p><h1>Egress Routing</h1><p>Automatic service-aware routing through isolated country exits. Direct remains the default path.</p></div><button id="refresh">Refresh</button></header>
+<div id="notice" class="notice">Loading live egress state…</div>
+<section><h2>Gateways</h2><div id="gateways" class="gateway-grid"></div></section>
+<section class="panel"><div class="panel-head"><div><h2>Automatic routing policies</h2><p>Only traffic matching an enabled service policy is diverted. Private Edge1 networks are excluded.</p></div></div><div class="table-wrap"><table><thead><tr><th>Enabled</th><th>Service</th><th>Exit</th><th>Fail behavior</th><th>Destinations learned</th><th>Status</th></tr></thead><tbody id="services"></tbody></table></div></section>
+<section class="split"><div class="panel"><h2>Safety boundary</h2><div id="safety"></div></div><div class="panel"><h2>Recent policy changes</h2><div id="audit"></div></div></section>
+</main><script src="app.js" defer></script><script src="/edge1-ops/status/operator-shell/shell.js" data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="egress-routing" defer></script></body></html>
