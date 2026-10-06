@@ -4,7 +4,7 @@
   "service_hostname": "mail.ww.cx",
   "approved_strategy": "ww.cx-first-24-48h-smoke-test",
   "activation": {
-    "public_smtp_listener_enabled": false,
+    "public_smtp_listener_enabled": true,
     "production_mx_changed": false,
     "outbound_delivery_enabled": false,
     "other_domains_migration_enabled": false
