@@ -24,6 +24,16 @@ sign_local = true;
 sign_networks = ["127.0.0.0/8"];
 allow_envfrom_empty = true;
 try_fallback = false;
+domain {
+  "ww.cx" {
+    selector = "edge1-202610";
+    path = "/var/lib/rspamd/dkim/ww.cx.edge1-202610.key";
+  }
+  "spiritcreekgardens.com" {
+    selector = "edge1-202610";
+    path = "/var/lib/rspamd/dkim/spiritcreekgardens.com.edge1-202610.key";
+  }
+}
 CFG
 
 cat > /etc/rspamd/local.d/worker-proxy.inc <<'CFG'
