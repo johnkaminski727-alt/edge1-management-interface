@@ -1,0 +1,24 @@
+[Unit]
+Description=WW.CX isolated OpenPGP crypto service
+After=local-fs.target
+
+[Service]
+Type=simple
+User=wwcx-openpgp
+Group=wwcx-mail-gateway
+RuntimeDirectory=wwcx-openpgp
+RuntimeDirectoryMode=0750
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/server/mail_openpgp_crypto_server.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wwcx-openpgp /run/wwcx-openpgp
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

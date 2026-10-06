@@ -1,0 +1,7 @@
+{
+  "contract": "wwcx.openpgp-crypto-service.v1",
+  "encrypt_enabled": false,
+  "decrypt_enabled": false,
+  "sign_enabled": false,
+  "allow_private_key_export": false
+}
