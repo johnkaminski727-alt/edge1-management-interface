@@ -18,7 +18,7 @@ main{max-width:1200px;margin:0 auto;padding:2rem}.grid{display:grid;grid-templat
 <div class="grid" id="summary"></div>
 <h2>Services</h2><div class="grid" id="services"></div>
 <h2>Domain migration readiness</h2><div class="card domains"><table><thead><tr><th>Domain</th><th>Migration</th><th>Commissioned</th><th>Sending</th><th>MX answers</th></tr></thead><tbody id="domains"></tbody></table></div>
-<h2>WW.CX canary</h2><div class="grid" id="canary"></div><h2>Update & recovery posture</h2><div class="grid" id="posture"></div>
+<h2>WW.CX canary</h2><div class="grid" id="canary"></div><h2>OpenPGP email security</h2><div class="grid" id="openpgp"></div><h2>Update & recovery posture</h2><div class="grid" id="posture"></div>
 <p class="muted" id="stamp"></p>
 </main>
 <script>
@@ -31,6 +31,7 @@ async function load(){
  document.querySelector('#services').innerHTML=svc.map(([k,v])=>card(k,v.active,`enabled: ${v.enabled}`)).join('');
  document.querySelector('#domains').innerHTML=(d.domains||[]).map(x=>`<tr><td>${esc(x.domain)}</td><td>${esc(x.migration_state)}</td><td>${x.commissioned?'yes':'no'}</td><td>${x.sending_enabled?'enabled':'disabled'}</td><td>${esc(x.mx_answer_count)}</td></tr>`).join('');
  const c=d.canary||{}; const g=c.cutover_gates||{}; const passed=Object.values(g).filter(Boolean).length; const total=Object.keys(g).length; document.querySelector('#canary').innerHTML=card('WW.CX state',c.state||'not staged',c.smoke_test_hours?`${c.smoke_test_hours} smoke test`:'' )+card('Cutover gates',`${passed}/${total} passed`,(c.remaining_blockers||[]).join(', '))+card('Public MX',((c.public_observed||{}).mx||[]).join(' · ')||'none')+card('Other domains',c.other_domains_untouched?'Untouched':'Check required');
+ const pgp=d.openpgp||{}; document.querySelector('#openpgp').innerHTML=card('Crypto service',pgp.available?(pgp.service_active||'unknown'):'Unavailable',`secret keys: ${pgp.secret_key_count??'—'} · public keys: ${pgp.public_key_count??'—'}`)+card('Contacts key',pgp.contacts_key_registered?(pgp.contacts_key_verified?'Verified':'Registered'):'Not commissioned',pgp.contacts_policy?`policy: ${pgp.contacts_policy}`:'no policy')+card('Public key',pgp.public_key_published?'Published':'Not published')+card('Sign-only readiness',pgp.ready_for_sign_only?'READY':'Waiting',`sign ${pgp.sign_enabled?'enabled':'disabled'} · encrypt ${pgp.encrypt_enabled?'enabled':'disabled'} · decrypt ${pgp.decrypt_enabled?'enabled':'disabled'}`);
  const defs=(((d.updates||{}).jobs||{}).definitions)||{}, pkgs=(((d.updates||{}).jobs||{}).packages)||{};
  document.querySelector('#posture').innerHTML=card('Security definitions',defs.last_result||'unknown',defs.schedule||'')+card('Package maintenance',pkgs.last_result||'unknown',pkgs.schedule||'')+card('Restore rehearsal',(d.recovery||{}).state||'unknown',`SQLite verified: ${(d.recovery||{}).sqlite_databases_verified??'—'}`)+card('DNS changes',d.dns_changes_applied?'Applied':'Not applied','Migration remains separately gated');
  document.querySelector('#stamp').textContent='Status generated: '+(d.generated_at||'unknown');

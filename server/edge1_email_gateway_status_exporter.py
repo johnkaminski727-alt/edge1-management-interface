@@ -24,6 +24,32 @@ def write_json(path,payload,mode=0o644):
     tmp.write_text(json.dumps(payload,indent=2)+'\n')
     tmp.chmod(mode);tmp.replace(path)
 
+def openpgp_status():
+    tool='/opt/edge1-management-interface/tools/messaging/openpgp_commissioning_status.py'
+    try:
+        p=subprocess.run(['/usr/bin/python3',tool],capture_output=True,text=True,timeout=5,check=False)
+        if p.returncode!=0: return {'available':False,'error':'status command failed'}
+        data=json.loads(p.stdout)
+        service=data.get('service') or {}
+        key=data.get('contacts_key') or {}
+        return {
+          'available':True,
+          'service_active':active('wwcx-openpgp-crypto'),
+          'public_key_count':service.get('public_key_count',0),
+          'secret_key_count':service.get('secret_key_count',0),
+          'sign_enabled':bool(service.get('sign_enabled',False)),
+          'encrypt_enabled':bool(service.get('encrypt_enabled',False)),
+          'decrypt_enabled':bool(service.get('decrypt_enabled',False)),
+          'contacts_key_registered':bool(key),
+          'contacts_key_verified':key.get('verification_status')=='verified',
+          'contacts_policy':data.get('contacts_policy'),
+          'public_key_published':bool(data.get('public_key_published',False)),
+          'ready_for_sign_only':bool(data.get('ready_for_sign_only',False)),
+          'private_key_export_supported':False,
+        }
+    except (OSError,subprocess.TimeoutExpired,json.JSONDecodeError):
+        return {'available':False,'error':'status unavailable'}
+
 def canary_status():
     if not CANARY_CONFIG.is_file(): return None
     cfg=json.loads(CANARY_CONFIG.read_text())
@@ -62,9 +88,10 @@ def main():
     domains=[]
     for x in raw.get('domains',[]):
         domains.append({'domain':x.get('domain'),'migration_state':x.get('migration_state'),'commissioned':bool(x.get('commissioned',False)),'sending_enabled':bool(x.get('sending_enabled',False)),'registered_senders':x.get('registered_senders'),'checks':x.get('checks',{}),'mx_answer_count':(x.get('dns_baseline') or {}).get('mx_answer_count')})
-    units=['postfix','rspamd','wwcx-mail-clamd','wwcx-outbound-mail-gateway','wwcx-mail-room','wwcx-mail-security-scan.timer','wwcx-mail-readiness.timer','wwcx-mail-update-definitions.timer','wwcx-mail-update-packages.timer']
+    units=['postfix','rspamd','wwcx-openpgp-crypto','wwcx-mail-clamd','wwcx-outbound-mail-gateway','wwcx-mail-room','wwcx-mail-security-scan.timer','wwcx-mail-readiness.timer','wwcx-mail-update-definitions.timer','wwcx-mail-update-packages.timer']
     canary=canary_status()
-    out={'contract':'wwcx.edge1-email-gateway-status.v1','generated_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'source_generated_at':raw.get('generated_at'),'services':{u:{'active':active(u),'enabled':enabled(u)} for u in units},'domains':domains,'backlog':raw.get('backlog',{}),'updates':raw.get('updates',{}),'recovery':raw.get('recovery',{}),'access_policy':raw.get('access_policy',{}),'dns_changes_applied':raw.get('dns_changes_applied'),'send_enabled':raw.get('send_enabled'),'canary':canary,'content_included':False}
+    openpgp=openpgp_status()
+    out={'contract':'wwcx.edge1-email-gateway-status.v1','generated_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'source_generated_at':raw.get('generated_at'),'services':{u:{'active':active(u),'enabled':enabled(u)} for u in units},'domains':domains,'backlog':raw.get('backlog',{}),'updates':raw.get('updates',{}),'recovery':raw.get('recovery',{}),'access_policy':raw.get('access_policy',{}),'dns_changes_applied':raw.get('dns_changes_applied'),'send_enabled':raw.get('send_enabled'),'canary':canary,'openpgp':openpgp,'content_included':False}
     write_json(DST,out)
     if canary: write_json(CANARY_DST,canary)
     print(json.dumps({'exported':True,'domains':len(domains),'send_enabled':out['send_enabled'],'canary_state':canary.get('state') if canary else None}))
