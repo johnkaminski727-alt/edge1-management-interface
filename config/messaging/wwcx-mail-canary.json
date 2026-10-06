@@ -86,6 +86,8 @@
     "outbound_one_message_pilot": false,
     "rollback_rehearsal": false,
     "external_smtp_reachable": false,
-    "inbound_security_acceptance": false
+    "inbound_security_acceptance": false,
+    "outbound_preflight_ready": true,
+    "rollback_transaction_validated": true
   }
 }
