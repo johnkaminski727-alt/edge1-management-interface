@@ -145,7 +145,13 @@ def compose_preview(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     prepared, selection = prepare_payload(identities, payload)
-    preview = outbound_mail_gateway.compose_preview(config, policy, prepared)
+    # Footer organization follows the canonical sender, not submitted From text.
+    sender_policy = copy.deepcopy(policy)
+    domain = selection.address.rsplit("@", 1)[1]
+    organization = identities["domains"][domain]
+    sender_policy["organization"]["legal_name"] = organization["legal_name"]
+    sender_policy["organization"]["operating_name"] = organization["operating_name"]
+    preview = outbound_mail_gateway.compose_preview(config, sender_policy, prepared)
     preview["sender_selection"] = selection.to_dict()
     preview["request"]["sender_selection_reason"] = selection.reason
     preview["request"]["sender_identity_key"] = selection.identity_key

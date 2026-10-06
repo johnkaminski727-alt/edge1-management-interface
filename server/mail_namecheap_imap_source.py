@@ -296,12 +296,15 @@ def ingest_namecheap_private_email(
                 continue
 
             try:
+                from mail_room_security import required, stage_provider
+                if required():
+                    stage_provider(raw, recipient['address'], message_id)
                 record = normalize_rfc822(
                     raw,
                     _RecipientBoundStore(store, recipient["address"]),
                     direction="inbound",
                 )
-            except LocalMailSourceError:
+            except (LocalMailSourceError, OSError, ValueError):
                 failed.append(
                     {
                         "uid": uid_text,

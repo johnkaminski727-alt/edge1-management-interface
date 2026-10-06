@@ -83,7 +83,20 @@ class MailCorrespondenceStore:
         else:
             connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
+        if self.read_only and os.getenv('WWCX_MAIL_SECURITY_REQUIRED') == 'true':
+            try:
+                from mail_room_security import attach
+                attach(connection)
+            except Exception as exc:
+                connection.close()
+                raise CorrespondenceStoreError('Mail security decisions unavailable; reads held') from exc
         return connection
+
+    def _release_clause(self):
+        if self.read_only and os.getenv('WWCX_MAIL_SECURITY_REQUIRED') == 'true':
+            from mail_room_security import release_clause
+            return ' AND ' + release_clause()
+        return ''
 
     @staticmethod
     def _required_columns() -> set[str]:
@@ -282,7 +295,7 @@ class MailCorrespondenceStore:
         canonical = self._message_id(message_id)
         with self._connect() as db:
             row = db.execute(
-                "SELECT * FROM correspondence WHERE message_id = ?", (canonical,)
+                "SELECT * FROM correspondence WHERE message_id = ?" + self._release_clause(), (canonical,)
             ).fetchone()
         if row is None:
             raise CorrespondenceStoreError("message not found")
@@ -294,8 +307,8 @@ class MailCorrespondenceStore:
             raise CorrespondenceStoreError("thread result limit is invalid")
         with self._connect() as db:
             rows = db.execute(
-                "SELECT * FROM correspondence WHERE thread_id = ? "
-                "ORDER BY occurred_at, message_id LIMIT ?",
+                "SELECT * FROM correspondence WHERE thread_id = ? " + self._release_clause() +
+                " ORDER BY occurred_at, message_id LIMIT ?",
                 (canonical_thread, limit),
             ).fetchall()
         if not rows:
@@ -307,6 +320,64 @@ class MailCorrespondenceStore:
             "count": len(rows),
             "content_is_untrusted": True,
             "mutation_authorized": False,
+            "send_authorized": False,
+        }
+
+    def search_authoritative(
+        self, *, query: str = "", recipient: str | None = None,
+        limit: int = 25, offset: int = 0,
+    ) -> dict[str, Any]:
+        """Discover readable mail without returning bodies or upgrading provenance."""
+        if not isinstance(query, str) or len(query) > 200 or any(ord(c) < 32 for c in query):
+            raise CorrespondenceStoreError("search query is invalid")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise CorrespondenceStoreError("search limit is invalid")
+        if type(offset) is not int or not 0 <= offset <= 10000:
+            raise CorrespondenceStoreError("search offset is invalid")
+        where = ["source_authoritative = 1", "source_scope IN ('local_native', 'production_native')"]
+        if self._release_clause():
+            where.append(self._release_clause()[5:])
+        values: list[Any] = []
+        if query.strip():
+            # instr treats wildcard and SQL-looking input as literal text.
+            where.append("(instr(lower(subject), lower(?)) > 0 OR instr(lower(sender), lower(?)) > 0)")
+            values.extend([query.strip(), query.strip()])
+        if recipient is not None:
+            if not isinstance(recipient, str):
+                raise CorrespondenceStoreError("recipient is invalid")
+            canonical = self._address(recipient, "recipient")
+            where.append("EXISTS (SELECT 1 FROM json_each(recipients_json) WHERE lower(value) = lower(?))")
+            values.append(canonical)
+        sql = "SELECT * FROM correspondence WHERE " + " AND ".join(where)
+        # Stop expensive scans after a bounded amount of SQLite VM work.
+        with self._connect() as db:
+            steps = 0
+            def bounded_work() -> int:
+                nonlocal steps
+                steps += 1
+                return int(steps > 2000)
+            db.set_progress_handler(bounded_work, 1000)
+            try:
+                rows = db.execute(
+                    sql + " ORDER BY julianday(occurred_at) DESC, message_id DESC LIMIT ? OFFSET ?",
+                    (*values, limit + 1, offset),
+                ).fetchall()
+            except sqlite3.OperationalError as exc:
+                raise CorrespondenceStoreError("mail search unavailable or work budget exceeded") from exc
+        messages = []
+        for row in rows[:limit]:
+            item = self._projection(row)
+            for field in ("body_text", "references", "in_reply_to", "provider_message_id", "provider_thread_id"):
+                item.pop(field, None)
+            messages.append(item)
+        has_more = len(rows) > limit
+        return {
+            "contract": "wwcx.mail-correspondence-search.v1",
+            "messages": messages, "count": len(messages), "limit": limit,
+            "offset": offset, "has_more": has_more,
+            "next_offset": offset + limit if has_more else None,
+            "search_fields": ["subject", "sender"],
+            "content_is_untrusted": True, "mutation_authorized": False,
             "send_authorized": False,
         }
 

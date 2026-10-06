@@ -309,3 +309,17 @@ def read_correspondence_thread(
         "send_authorized": False,
         "mutation_authorized": False,
     }
+
+
+def search_correspondence(
+    *, query: str = "", recipient: str | None = None, limit: int = 25,
+    offset: int = 0, db_path: Path | None = None, enabled: bool | None = None,
+) -> dict[str, Any]:
+    store = _require_correspondence_ready(db_path, enabled)
+    try:
+        result = store.search_authoritative(query=query, recipient=recipient, limit=limit, offset=offset)
+    except CorrespondenceStoreError as exc:
+        raise MailAIAdapterError(str(exc)) from exc
+    if not all(_record_is_authorized(item) for item in result["messages"]):
+        raise MailAIAdapterError("mail search returned unreadable provenance")
+    return result

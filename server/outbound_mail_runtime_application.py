@@ -87,6 +87,12 @@ class RuntimeGatewayApplication:
             enabled=self.correspondence_enabled,
         )
 
+    def correspondence_search(self, **filters: Any) -> dict[str, Any]:
+        return mail_ai_adapter.search_correspondence(
+            **filters, db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
+
     def correspondence_message(self, message_id: str) -> dict[str, Any]:
         return mail_ai_adapter.read_correspondence_message(
             message_id,

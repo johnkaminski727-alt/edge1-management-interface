@@ -222,6 +222,7 @@ def archive_and_normalize(
     config_path: pathlib.Path,
     archive_root: pathlib.Path,
     store_path: pathlib.Path,
+    transport: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     config = _load_config(config_path)
     canonical_recipient, domain = _recipient(recipient, _managed_domains(config))
@@ -259,6 +260,12 @@ def archive_and_normalize(
         "provider_mutation_authorized": False,
     }
     _atomic_json(metadata_path, metadata)
+    if transport:
+        import ipaddress
+        ipaddress.ip_address(transport['client_ip'])
+        if transport.get('source') != 'postfix_pipe' or any(c in transport.get('envelope_sender','') for c in '\r\n'):
+            raise ArchiveError('invalid MTA transport evidence')
+        metadata['transport'] = transport
 
     # Durable raw archival is the delivery boundary. Normalization is best-effort
     # processing after that boundary and must not turn supported raw mail into a
@@ -303,6 +310,8 @@ def main() -> int:
     parser.add_argument("--recipient", required=True)
     parser.add_argument("--queue-id", required=True)
     parser.add_argument("--stdin", action="store_true")
+    parser.add_argument("--client-ip")
+    parser.add_argument("--envelope-sender", default="")
     args = parser.parse_args()
     if not args.stdin:
         print("--stdin is required for Postfix pipe intake", file=sys.stderr)
@@ -315,6 +324,7 @@ def main() -> int:
             config_path=pathlib.Path(args.config).absolute(),
             archive_root=pathlib.Path(args.archive_root).absolute(),
             store_path=pathlib.Path(args.store).absolute(),
+            transport={'source':'postfix_pipe','client_ip':args.client_ip,'envelope_sender':args.envelope_sender} if args.client_ip else None,
         )
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 0

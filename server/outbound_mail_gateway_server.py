@@ -69,6 +69,12 @@ class GatewayApplication:
             enabled=self.correspondence_enabled,
         )
 
+    def correspondence_search(self, **filters: Any) -> dict[str, Any]:
+        return mail_ai_adapter.search_correspondence(
+            **filters, db_path=self.correspondence_db_path,
+            enabled=self.correspondence_enabled,
+        )
+
     def correspondence_message(self, message_id: str) -> dict[str, Any]:
         return mail_ai_adapter.read_correspondence_message(
             message_id,
@@ -93,6 +99,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         return self.server.application  # type: ignore[attr-defined]
 
     def log_message(self, format: str, *args: Any) -> None:
+        if urlparse(self.path).path.startswith("/outbound-mail/api/v1/correspondence/"):
+            sys.stderr.write("Mail correspondence request (details redacted)\n")
+            return
         sys.stderr.write(
             "%s - - [%s] %s\n"
             % (self.address_string(), self.log_date_time_string(), format % args)
@@ -268,6 +277,22 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if parsed.path == "/outbound-mail/api/v1/correspondence/status":
                 client = self._authenticated_correspondence_get(config, nonce_path, parsed.path)
                 payload = self.application.correspondence_state()
+                payload["authenticated_client_id"] = client.client_id
+                self._send_json(HTTPStatus.OK, payload)
+                return
+
+            if parsed.path == "/outbound-mail/api/v1/correspondence/search":
+                # Bind filters into the HMAC; changing the query invalidates the signature.
+                client = self._authenticated_correspondence_get(config, nonce_path, self.path)
+                query = parse_qs(parsed.query, keep_blank_values=True, max_num_fields=4)
+                if set(query) - {"q", "recipient", "limit", "offset"} or any(len(v) != 1 for v in query.values()):
+                    raise ValueError("mail search filters are invalid")
+                payload = self.application.correspondence_search(
+                    query=query.get("q", [""])[0],
+                    recipient=query.get("recipient", [None])[0],
+                    limit=int(query.get("limit", ["25"])[0]),
+                    offset=int(query.get("offset", ["0"])[0]),
+                )
                 payload["authenticated_client_id"] = client.client_id
                 self._send_json(HTTPStatus.OK, payload)
                 return
