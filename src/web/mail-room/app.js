@@ -13,21 +13,37 @@
   function element(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
   function safely(fn){return(...args)=>{if(args[0]?.type==="submit")args[0].preventDefault();return Promise.resolve().then(()=>fn(...args)).catch(e=>say(e.message));};}
   function canLeave(){return !dirty||window.confirm("Leave this unsaved draft? Save it first to keep your changes.");}
-  function selected(){return senders?.senders.find(s=>s.address===$("from").value);}
+  function selected(){
+    const address=$("from").value, known=senders?.senders.find(s=>s.address===address);
+    if(known)return known;
+    const policy=senders?.catch_all_domains?.[address.split("@")[1]], contact=policy&&senders.senders.find(s=>s.address===policy.default_sender);
+    return contact?{...contact,address}:undefined;
+  }
+  function senderChoices(original="",hint=""){
+    original=original.trim().toLowerCase();
+    const policy=senders.catch_all_domains?.[original.split("@")[1]];
+    const choices=policy?[...new Set([original,policy.default_sender])]:senders.senders.map(s=>s.address);
+    $("from").replaceChildren();
+    for(const address of choices){const o=element("option",address);o.value=address;$("from").append(o);}
+    const domainPolicy=senders.catch_all_domains?.[$("domain").value];
+    const fallback=policy?original:senders.recipient_to_sender[original]||(domainPolicy?.default_sender)||senders.default_sender;
+    $("from").value=choices.includes(hint)?hint:fallback;
+  }
   function signature(overwrite=false){
     const item=selected();if(!item)return;
     const original=$("editor").elements.original_recipient.value.trim().toLowerCase(),mapped=senders.recipient_to_sender[original];
-    $("from").disabled=!!original; // Replies retain canonical original-recipient policy.
-    if(mapped)$("from").value=mapped;
+    const policy=senders.catch_all_domains?.[original.split("@")[1]];
+    $("from").disabled=!!original&&!policy;
+    if(mapped&&!policy)$("from").value=mapped;
     const effective=selected()||item;
-    $("sender-note").textContent=original ? "Reply sender follows the original receiving address. Sending is disabled." : effective.organization+" · "+(effective.live_enabled?"Outbound identity enabled; sending is currently disabled":"Available for drafting; outbound commissioning pending");
+    $("sender-note").textContent=original ? "Reply sender selected below. Sending is disabled." : effective.organization+" · "+(effective.live_enabled?"Outbound identity enabled; sending is currently disabled":"Available for drafting; outbound commissioning pending");
     for(const name of ["signer_name","signer_title","mailing_address"]){const f=$("editor").elements[name];if(overwrite||!f.value)f.value=effective.signature[name]||"";}
   }
   function showEditor(data={},id=null){
     if(!canLeave())return;clearTimeout(autosave);editorSession++;$("editor").reset();draftId=id;metadata={};
     for(const key of ["thread_id","source_message_id","in_reply_to","references"])if(data[key])metadata[key]=data[key];
     for(const field of $("editor").elements)if(field.name)field.value=Array.isArray(data[field.name])?data[field.name].join(", "):data[field.name]||(field.name==="message_class"?"business_correspondence":"");
-    if(senders){$("from").value=data.identity_hint||senders.recipient_to_sender[data.original_recipient]||senders.default_sender;signature();}
+    if(senders){senderChoices(data.original_recipient||"",data.identity_hint||"");signature();}
     $("editor").hidden=false;$("prepared").hidden=true;$("saved").textContent=id?"Saved draft opened.":"New draft — not saved yet.";$("autosave-state").textContent="Drafts autosave on Edge1 after a short pause.";dirty=false;
     $("editor").scrollIntoView({behavior:"smooth",block:"start"});
   }
@@ -151,7 +167,7 @@
   $("previous").onclick=safely(()=>{offset=Math.max(0,offset-25);return load();});$("next").onclick=safely(()=>{offset+=25;return load();});
   $("compose").onclick=()=>showEditor();$("close").onclick=()=>{if(canLeave()){clearTimeout(autosave);$("editor").hidden=true;dirty=false;editorSession++;}};
   $("editor").addEventListener("invalid",()=>{$("editor").querySelector("details").open=true;},true);$("editor").oninput=changed;
-  $("from").onchange=()=>{signature(true);changed();};$("editor").elements.original_recipient.onchange=()=>{signature();changed();};
+  $("from").onchange=()=>{signature(true);changed();};$("editor").elements.original_recipient.onchange=()=>{senderChoices($("editor").elements.original_recipient.value);signature();changed();};
   $("save").onclick=safely(()=>{clearTimeout(autosave);return save();});
   $("remember-signature").onclick=safely(async()=>{const item=selected();if(!item)throw new Error("Select a sender first.");const signature={};for(const k of ["signer_name","signer_title","mailing_address"])signature[k]=$("editor").elements[k].value.trim();await request("signature",{address:item.address,signature});item.signature=signature;say("Signature remembered for "+item.address);});
   $("editor").onsubmit=safely(async()=>{clearTimeout(autosave);const d=await save();const result=await request("prepare",{id:d.id});if(draftId!==d.id||JSON.stringify(payload())!==JSON.stringify(d.payload)){say("Earlier version prepared. Prepare your new changes for an updated preview.");return;}$("prepared").textContent="Prepared for review — not sent\n\nFrom: "+result.request.from_address+"\nTo: "+result.request.recipients.join(", ")+"\nSubject: "+result.request.subject+"\n\n"+result.body;$("prepared").hidden=false;say("Prepared with organization signature and footer. Nothing sent.");});

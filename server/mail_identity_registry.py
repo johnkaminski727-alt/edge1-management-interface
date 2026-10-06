@@ -98,7 +98,7 @@ def validate_registry(registry: dict[str, Any]) -> None:
             "sender_profiles",
             "sender_selection",
             "rules",
-        },
+        } | ({"catch_all_domains"} if "catch_all_domains" in registry else set()),
         "identity registry",
     )
     if registry["contract"] != CONTRACT:
@@ -129,6 +129,18 @@ def validate_registry(registry: dict[str, Any]) -> None:
         for key in ("legal_name", "operating_name", "purpose", "identity_role"):
             _require_text(definition[key], f"domain.{domain}.{key}")
         _require_bool(definition["preferred_outbound"], f"domain.{domain}.preferred_outbound")
+
+    catch_all = registry.get("catch_all_domains", {})
+    if not isinstance(catch_all, dict):
+        raise IdentityConfigurationError("catch_all_domains must be an object")
+    for domain, definition in catch_all.items():
+        if domain not in normalized_domains or not isinstance(definition, dict):
+            raise IdentityConfigurationError("catch-all domain is not managed")
+        _require_exact_keys(definition, {"default_sender", "delivery_mailbox"}, "catch-all domain")
+        if normalize_address(definition["default_sender"]) != "contact@" + domain:
+            raise IdentityConfigurationError("catch-all default must be the domain contact address")
+        if definition["delivery_mailbox"] != registry["mailboxes"]["shared_role"]["address"]:
+            raise IdentityConfigurationError("catch-all must use the shared mailbox")
 
     mailboxes = registry["mailboxes"]
     if not isinstance(mailboxes, dict):
@@ -405,6 +417,26 @@ def resolve_sender(registry: dict[str, Any], payload: dict[str, Any]) -> SenderS
     if not isinstance(system_generated, bool):
         raise IdentitySelectionError("system_generated must be boolean")
 
+    profiles = registry["sender_profiles"]
+    catch_all = registry.get("catch_all_domains", {})
+    original_domain = original_recipient.rsplit("@", 1)[1] if original_recipient else None
+    catch_config = catch_all.get(original_domain)
+    if catch_config and not system_generated:
+        selected = original_recipient
+        reason = "catch_all_original_recipient"
+        if identity_hint_raw:
+            requested = profiles.get(identity_hint_raw, {}).get("address", identity_hint_raw)
+            if requested not in {original_recipient, catch_config["default_sender"]}:
+                raise IdentitySelectionError("catch-all reply identity must be original recipient or domain contact")
+            selected = requested
+            reason = "catch_all_contact" if selected == catch_config["default_sender"] else reason
+        return SenderSelection(address=selected, identity_key=_profile_key_for_address(registry, selected),
+            reason=reason, submitted_from_present=submitted_from is not None,
+            from_address_replaced=bool(submitted_from and submitted_from != selected),
+            live_enabled=False, reply_to=selected)
+    if not original_recipient and identity_hint_raw in catch_all and not system_generated:
+        identity_hint_raw = catch_all[identity_hint_raw]["default_sender"]
+
     recipient_map = selection["recipient_to_sender"]
     profiles = registry["sender_profiles"]
     if system_generated:
@@ -428,7 +460,7 @@ def resolve_sender(registry: dict[str, Any], payload: dict[str, Any]) -> SenderS
         else:
             hinted_address = _optional_address(identity_hint_raw, "identity_hint")
             assert hinted_address is not None
-            allowed = set(recipient_map.values()) | {selection["system_sender"]}
+            allowed = set(recipient_map.values()) | {selection["system_sender"]} | {v["default_sender"] for v in catch_all.values()}
             if hinted_address not in allowed:
                 raise IdentitySelectionError("identity hint is not a registered sender identity")
             selected = hinted_address
