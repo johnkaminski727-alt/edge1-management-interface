@@ -92,19 +92,28 @@ def audit(action,before,after,result):
     STATE.mkdir(parents=True,exist_ok=True)
     with AUDIT.open('a') as f: f.write(json.dumps({'at':now(),'action':action,'before':before,'after':after,'result':result},separators=(',',':'))+'\n')
 
+def _ensure_record(name, typ, expected, update_lines):
+    ok, obs = verify_exact(name, typ, expected)
+    if ok:
+        return {'ok': True, 'answers': obs, 'changed': False}
+    err = None
+    try:
+        update(update_lines)
+    except Exception as exc:
+        err = str(exc)
+    for delay in (4, 8, 12):
+        time.sleep(delay)
+        ok, obs = verify_exact(name, typ, expected)
+        if ok:
+            return {'ok': True, 'answers': obs, 'changed': True, 'transport_warning': err}
+    return {'ok': False, 'answers': obs, 'changed': True, 'transport_error': err}
+
 def apply_precutover():
-    before=snapshot(); dk=dkim_value()
-    # A: exact controlled name
-    update(['update delete mail.ww.cx. A',f'update add mail.ww.cx. 300 A {MAIL_IP}'])
-    # SPF: delete only the known prior SPF RDATA, preserving unrelated root TXT records
-    update([f'update delete ww.cx. TXT {esc_txt(OLD_SPF)}',f'update add ww.cx. 300 TXT {esc_txt(NEW_SPF)}'])
-    # dedicated names may safely replace their TXT RRsets
-    update(['update delete edge1-202610._domainkey.ww.cx. TXT',f'update add edge1-202610._domainkey.ww.cx. 300 TXT {esc_txt(dk)}'])
-    update(['update delete _dmarc.ww.cx. TXT',f'update add _dmarc.ww.cx. 300 TXT {esc_txt(DMARC)}'])
-    time.sleep(3)
-    checks={}
-    for n,t,e in [('mail.ww.cx','A',MAIL_IP),('ww.cx','TXT',NEW_SPF),('edge1-202610._domainkey.ww.cx','TXT',dk),('_dmarc.ww.cx','TXT',DMARC)]:
-        ok,obs=verify_exact(n,t,e); checks[n]={'ok':ok,'answers':obs}
+    before=snapshot(); dk=dkim_value(); checks={}
+    checks['mail.ww.cx']=_ensure_record('mail.ww.cx','A',MAIL_IP,[f'update add mail.ww.cx. 300 A {MAIL_IP}'])
+    checks['ww.cx']=_ensure_record('ww.cx','TXT',NEW_SPF,[f'update add ww.cx. 300 TXT {esc_txt(NEW_SPF)}'])
+    checks['edge1-202610._domainkey.ww.cx']=_ensure_record('edge1-202610._domainkey.ww.cx','TXT',dk,[f'update add edge1-202610._domainkey.ww.cx. 300 TXT {esc_txt(dk)}'])
+    checks['_dmarc.ww.cx']=_ensure_record('_dmarc.ww.cx','TXT',DMARC,[f'update add _dmarc.ww.cx. 300 TXT {esc_txt(DMARC)}'])
     ok=all(x['ok'] for x in checks.values())
     after=snapshot(); audit('apply_precutover',before,after,{'ok':ok,'checks':checks}); write_status({'last_apply':{'at':now(),'ok':ok}})
     if not ok: raise RuntimeError('authoritative verification failed')
