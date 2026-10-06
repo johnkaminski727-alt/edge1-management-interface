@@ -1,0 +1,16 @@
+[Unit]
+Description=Reconcile Spirit Creek Gardens DNS from Edge1 to Dyn
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/dns/edge1_scg_publish.py --scheduled
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/edge1-dyn
+TimeoutStartSec=120
