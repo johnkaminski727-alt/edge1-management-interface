@@ -38,10 +38,14 @@ def readiness(database:pathlib.Path,contact_point_id:int,sock:pathlib.Path,publi
     return {'service':svc,'contacts_key':key,'contacts_policy':mode,'checks':checks,'ready':all(checks.values())}
 
 def atomic_json(path:pathlib.Path,data:dict):
+    st=path.stat() if path.exists() else None
+    mode=(st.st_mode & 0o777) if st else 0o640
+    uid=st.st_uid if st else 0
+    gid=st.st_gid if st else 0
     fd,tmp=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
     try:
         with os.fdopen(fd,'w') as f: json.dump(data,f,indent=2);f.write('\n');f.flush();os.fsync(f.fileno())
-        os.chmod(tmp,0o640);os.chown(tmp,0,-1);os.replace(tmp,path)
+        os.chmod(tmp,mode);os.chown(tmp,uid,gid);os.replace(tmp,path)
     finally:
         try: os.unlink(tmp)
         except FileNotFoundError: pass

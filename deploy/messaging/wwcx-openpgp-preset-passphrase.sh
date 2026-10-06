@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 GNUPGHOME=/var/lib/wwcx-openpgp/gnupg
+export GNUPGHOME
 CRED_NAME=wwcx-openpgp-passphrase
 PRESET=/usr/lib/gnupg/gpg-preset-passphrase
 
