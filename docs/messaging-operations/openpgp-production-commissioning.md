@@ -31,12 +31,14 @@ No private-key export is required for normal commissioning.
 2. Export **only the public key** from the approved offline/public source to a temporary public `.asc` file.
 3. Register it against Contact point `696` (`john@ww.cx`) with `tools/messaging/register_openpgp_public_key.py --public-key-file <public.asc> --mode sign_only`.
 4. Publish the verified public key with `tools/messaging/publish_openpgp_public_key.py --contact-point-id 696 --slug john-wwcx`.
-5. Re-run `openpgp_commissioning_status.py`; require `ready_for_sign_only=true` before activation.
-6. Enable `sign_enabled=true` only. Keep encryption and decryption false.
-7. Restart `wwcx-openpgp-crypto.service` and perform a controlled local PGP/MIME signed-message test.
-8. Verify the detached signature using a separate public-key-only verification context.
-9. Verify DKIM remains independent and unchanged.
-10. Only after signing acceptance, consider per-recipient encryption.
+5. Publish WKD discovery material with `tools/messaging/publish_openpgp_wkd.py --contact-point-id 696`; the expected WW.CX hash for `john@ww.cx` is `wwq7w9d96wfsd4zkytndq84kpkjod3eb`.
+6. Re-run `openpgp_commissioning_status.py`; require `ready_for_sign_only=true` before activation.
+7. Run `tools/messaging/activate_openpgp_sign_only.py` in audit mode and require every check to pass.
+8. Activate with `tools/messaging/activate_openpgp_sign_only.py --apply`. This operation enables signing only and forcibly leaves encryption/decryption disabled.
+9. Restart `wwcx-openpgp-crypto.service` and perform a controlled local PGP/MIME signed-message test.
+10. Verify the detached signature using a separate public-key-only verification context.
+11. Verify DKIM remains independent and unchanged.
+12. Only after signing acceptance, consider per-recipient encryption.
 
 ## Encryption policy
 
