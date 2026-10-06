@@ -1,0 +1,89 @@
+{
+  "contract": "wwcx.mail-canary.v1",
+  "domain": "ww.cx",
+  "service_hostname": "mail.ww.cx",
+  "approved_strategy": "ww.cx-first-24-48h-smoke-test",
+  "activation": {
+    "public_smtp_listener_enabled": false,
+    "production_mx_changed": false,
+    "outbound_delivery_enabled": false,
+    "other_domains_migration_enabled": false
+  },
+  "dns_provider": {
+    "authoritative_provider": "Dyn",
+    "authoritative_nameservers": [
+      "ns1194.dns.dyn.com",
+      "ns2150.dns.dyn.com",
+      "ns3190.dns.dyn.com",
+      "ns4142.dns.dyn.com"
+    ],
+    "ttl_target_seconds": 300
+  },
+  "edge1": {
+    "public_ipv4": "89.126.248.191",
+    "smtp_hostname": "mail.ww.cx",
+    "dkim_selector": "edge1-202610",
+    "retain_provider_fallback": true,
+    "catch_all_destination": "maildesk@ww.cx"
+  },
+  "recipient_policy": {
+    "explicit_routes": [
+      "john@ww.cx",
+      "records@ww.cx",
+      "privacy@ww.cx",
+      "security@ww.cx",
+      "postmaster@ww.cx",
+      "abuse@ww.cx",
+      "domaincontact@ww.cx",
+      "dmarc@ww.cx"
+    ],
+    "unknown_recipient_policy": "catch_all_to_maildesk",
+    "preserve_original_recipient": true
+  },
+  "public_dns_candidate": {
+    "A": [
+      {
+        "name": "mail",
+        "value": "89.126.248.191",
+        "ttl": 300
+      }
+    ],
+    "MX": [
+      {
+        "priority": 10,
+        "value": "mail.ww.cx.",
+        "ttl": 300
+      },
+      {
+        "priority": 50,
+        "value": "mx1.privateemail.com.",
+        "ttl": 300
+      },
+      {
+        "priority": 60,
+        "value": "mx2.privateemail.com.",
+        "ttl": 300
+      }
+    ],
+    "SPF": "v=spf1 ip4:89.126.248.191 include:spf.privateemail.com ~all",
+    "DMARC": "v=DMARC1; p=none; rua=mailto:dmarc@ww.cx; adkim=r; aspf=r; pct=100",
+    "DKIM": "edge1-202610._domainkey IN TXT ( \"v=DKIM1; k=rsa; \"\n\t\"p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0kDDXyeMqjlagq0nnyUEpzNSObG+biy89UOdPkvogYSHsVxWOekBoUyfhH5E56GItCFoSYoSNAaiaMy+3xJ0KulQ0lxCx65Xqy6t7396Rp0Q3/ujQgybI1K95Yn9AkhGMTK3xGtd1LqjyauBGiTFpK5BwYNdx3IfGEbGmtJPmeEt8oNnv6iR9MjIPsgq3J3wHL2IhYHI0dNX7ZDKv\"\n\t\"JrBRibXR1eRiNhF4kudTtmJ7ydjSw2/vz22gX0mNSREJRkkAWZZDfwbEylIXXhY2mP5KskfczpABhRRn/Ow8e8T43QEY4w3AYix8ezMM8evLglbo0JwSI0TU7R5QeoU2vyiZQIDAQAB\"\n) ;"
+  },
+  "external_prerequisites": {
+    "ptr_target": "mail.ww.cx",
+    "ptr_provider": "1984 Hosting",
+    "mail_tls_certificate_required": true,
+    "dyn_record_publication_required": true
+  },
+  "cutover_gates": {
+    "mail_a_published": false,
+    "ptr_forward_confirmed": false,
+    "tls_certificate_ready": false,
+    "dkim_published": false,
+    "spf_overlap_published": false,
+    "dmarc_monitoring_published": false,
+    "inbound_loopback_acceptance": true,
+    "outbound_one_message_pilot": false,
+    "rollback_rehearsal": false
+  }
+}

@@ -160,26 +160,61 @@ def main() -> int:
         held_metadata = json.loads((held_dir / "metadata.json").read_text(encoding="utf-8"))
         assert held_metadata["normalization"]["status"] == "held"
 
+        # The legacy v1 contract still rejects WW.CX when no approved canary overlay exists.
+        original_canary = archive.DEFAULT_CANARY
+        archive.DEFAULT_CANARY = root / "missing-canary.json"
         try:
-            archive.archive_and_normalize(
-                raw=raw_message("outside@ww.cx", message_id="<outside@example.test>"),
+            try:
+                archive.archive_and_normalize(
+                    raw=raw_message("outside@ww.cx", message_id="<outside@example.test>"),
+                    recipient="outside@ww.cx",
+                    queue_id="OUT123",
+                    config_path=CONFIG,
+                    archive_root=archive_root,
+                    store_path=store,
+                )
+                raise AssertionError("ww.cx unexpectedly archived without canary approval")
+            except archive.ArchiveError:
+                pass
+            assert not (archive_root / "ww.cx").exists()
+
+            # The exact safely-disabled canary overlay authorizes WW.CX local intake only.
+            canary = root / "wwcx-mail-canary.json"
+            canary.write_text(json.dumps({
+                "contract":"wwcx.mail-canary.v1",
+                "domain":"ww.cx",
+                "approved_strategy":"ww.cx-first-24-48h-smoke-test",
+                "activation":{
+                    "public_smtp_listener_enabled":False,
+                    "production_mx_changed":False,
+                    "outbound_delivery_enabled":False,
+                    "other_domains_migration_enabled":False,
+                },
+                "recipient_policy":{
+                    "unknown_recipient_policy":"catch_all_to_maildesk",
+                    "preserve_original_recipient":True,
+                },
+            }))
+            archive.DEFAULT_CANARY = canary
+            canary_result = archive.archive_and_normalize(
+                raw=raw_message("outside@ww.cx", message_id="<canary@example.test>"),
                 recipient="outside@ww.cx",
-                queue_id="OUT123",
+                queue_id="CAN123",
                 config_path=CONFIG,
                 archive_root=archive_root,
                 store_path=store,
             )
-            raise AssertionError("ww.cx unexpectedly archived through candidate intake")
-        except archive.ArchiveError:
-            pass
-        assert not (archive_root / "ww.cx").exists()
+            assert canary_result["domain"] == "ww.cx"
+            assert canary_result["status"] == "archived"
+        finally:
+            archive.DEFAULT_CANARY = original_canary
 
     print("Edge1 Mail Gateway raw archive validation passed")
     print("Raw RFC822 is durable before normalization")
     print("Per-domain and per-recipient queue directories remain separate")
     print("Exact Postfix retries are archive-idempotent")
     print("HTML-only mail is held after archive instead of rejected by delivery")
-    print("ww.cx remains outside candidate-domain intake")
+    print("ww.cx remains outside legacy intake unless the exact canary overlay is approved")
     return 0
 
 

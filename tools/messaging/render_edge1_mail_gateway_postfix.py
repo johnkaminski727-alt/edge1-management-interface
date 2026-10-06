@@ -104,7 +104,7 @@ def render(data: dict) -> dict[str, str]:
             "# LOCAL-ONLY PREPARATION: archive raw RFC822 before Mail Room normalization.",
             "# O preserves X-Original-To; recipient limit 1 is required for exact attribution.",
             "wwcxmail unix - n n - - pipe",
-            "  flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3",
+            "  flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --client-ip ${client_address} --envelope-sender ${sender} --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3",
             "",
         ]
     )

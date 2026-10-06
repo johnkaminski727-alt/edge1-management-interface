@@ -130,8 +130,10 @@ rollback() {
 trap rollback ERR INT TERM
 
 install -d -o wwcx-mail-gateway -g wwcx-mail-gateway -m 0700 "$ARCHIVE_ROOT"
+command -v setfacl >/dev/null 2>&1 || fail "setfacl is required for archive parent traversal"
+setfacl -m u:wwcx-mail-gateway:--x "$(dirname "$ARCHIVE_ROOT")"
 "$POSTCONF_BIN" -e 'message_size_limit=52428800'
-MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3'
+MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --client-ip ${client_address} --envelope-sender ${sender} --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3'
 "$POSTCONF_BIN" -M -e "$MASTER_VALUE"
 
 "$POSTFIX_BIN" check

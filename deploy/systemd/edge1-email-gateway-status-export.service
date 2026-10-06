@@ -1,0 +1,9 @@
+[Unit]
+Description=Export sanitized Edge1 email gateway status for authenticated dashboard
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/edge1-email-gateway-status-export
+User=root
+Group=root

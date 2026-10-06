@@ -139,6 +139,8 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup="$BACKUP_ROOT/local-apply-$stamp"
 install -d -o root -g root -m 0700 "$backup"
 install -d -o wwcx-mail-gateway -g wwcx-mail-gateway -m 0700 "$ARCHIVE_ROOT"
+command -v setfacl >/dev/null 2>&1 || fail "setfacl is required for archive parent traversal"
+setfacl -m u:wwcx-mail-gateway:--x "$(dirname "$ARCHIVE_ROOT")"
 cp -a "$POSTFIX_ETC/main.cf" "$backup/main.cf.before"
 cp -a "$POSTFIX_ETC/master.cf" "$backup/master.cf.before"
 "$POSTCONF_BIN" -n > "$backup/postconf-n.before.txt"
@@ -183,7 +185,7 @@ install -o root -g root -m 0644 \
 "$POSTCONF_BIN" -e 'wwcxmail_destination_recipient_limit=1'
 "$POSTCONF_BIN" -e 'message_size_limit=52428800'
 
-MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3'
+MASTER_VALUE='wwcxmail/unix=wwcxmail unix - n n - - pipe flags=ROq user=wwcx-mail-gateway argv=/usr/bin/python3 /opt/edge1-management-interface/tools/messaging/edge1_mail_gateway_archive.py --stdin --client-ip ${client_address} --envelope-sender ${sender} --recipient ${original_recipient} --queue-id ${queue_id} --archive-root /var/lib/wwcx-mail-gateway/inbound --store /var/lib/wwcx-mail-room/correspondence.sqlite3'
 "$POSTCONF_BIN" -M -e "$MASTER_VALUE"
 
 "$POSTFIX_BIN" check

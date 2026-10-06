@@ -35,6 +35,7 @@ from mail_correspondence_store import (  # noqa: E402
 )
 
 CONFIG = ROOT / "config" / "messaging" / "edge1-mail-gateway-v1.json"
+CANARY = ROOT / "config" / "messaging" / "wwcx-mail-canary.json"
 STORE = pathlib.Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
 ARCHIVE_ROOT = pathlib.Path("/var/lib/wwcx-mail-gateway/inbound")
 ARCHIVE_CONTRACT = "wwcx.edge1-mail-gateway-raw-archive.v1"
@@ -63,6 +64,26 @@ def _load_config(path: pathlib.Path) -> dict[str, Any]:
     return data
 
 
+def _wwcx_canary_enabled(path: pathlib.Path | None = None) -> bool:
+    path = path or CANARY
+    if not path.is_file() or path.is_symlink():
+        return False
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("contract") != "wwcx.mail-canary.v1" or data.get("domain") != "ww.cx":
+        raise AcceptanceError("WW.CX canary contract is invalid")
+    if data.get("approved_strategy") != "ww.cx-first-24-48h-smoke-test":
+        raise AcceptanceError("WW.CX canary strategy is invalid")
+    if data.get("activation") != {
+        "public_smtp_listener_enabled": False,
+        "production_mx_changed": False,
+        "outbound_delivery_enabled": False,
+        "other_domains_migration_enabled": False,
+    }:
+        raise AcceptanceError("WW.CX canary is not safely staged")
+    policy = data.get("recipient_policy") or {}
+    return policy.get("unknown_recipient_policy") == "catch_all_to_maildesk" and policy.get("preserve_original_recipient") is True
+
+
 def _candidate_domain(config: dict[str, Any], requested: str | None) -> str:
     domains = config.get("domains")
     if not isinstance(domains, dict):
@@ -79,6 +100,8 @@ def _candidate_domain(config: dict[str, Any], requested: str | None) -> str:
     candidate_names = [domain for _, domain in candidates]
     if "ww.cx" in candidate_names:
         raise AcceptanceError("ww.cx must remain external in v1")
+    if _wwcx_canary_enabled():
+        candidate_names.insert(0, "ww.cx")
     if requested:
         value = requested.strip().casefold()
         if value not in candidate_names:

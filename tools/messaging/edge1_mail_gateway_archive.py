@@ -33,6 +33,7 @@ from mail_edge1_gateway_source import (  # noqa: E402
 )
 
 DEFAULT_CONFIG = ROOT / "config" / "messaging" / "edge1-mail-gateway-v1.json"
+DEFAULT_CANARY = ROOT / "config" / "messaging" / "wwcx-mail-canary.json"
 DEFAULT_ARCHIVE_ROOT = pathlib.Path("/var/lib/wwcx-mail-gateway/inbound")
 DEFAULT_STORE = pathlib.Path("/var/lib/wwcx-mail-room/correspondence.sqlite3")
 ARCHIVE_CONTRACT = "wwcx.edge1-mail-gateway-raw-archive.v1"
@@ -58,6 +59,30 @@ def _load_config(path: pathlib.Path) -> dict[str, Any]:
     return data
 
 
+def _wwcx_canary_enabled(path: pathlib.Path | None = None) -> bool:
+    path = path or DEFAULT_CANARY
+    if not path.is_file() or path.is_symlink():
+        return False
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("contract") != "wwcx.mail-canary.v1" or data.get("domain") != "ww.cx":
+        raise ArchiveError("WW.CX canary contract is invalid")
+    if data.get("approved_strategy") != "ww.cx-first-24-48h-smoke-test":
+        raise ArchiveError("WW.CX canary strategy is invalid")
+    if data.get("activation") != {
+        "public_smtp_listener_enabled": False,
+        "production_mx_changed": False,
+        "outbound_delivery_enabled": False,
+        "other_domains_migration_enabled": False,
+    }:
+        raise ArchiveError("WW.CX canary is not safely staged")
+    policy = data.get("recipient_policy") or {}
+    if policy.get("unknown_recipient_policy") != "catch_all_to_maildesk":
+        raise ArchiveError("WW.CX canary recipient policy is invalid")
+    if policy.get("preserve_original_recipient") is not True:
+        raise ArchiveError("WW.CX canary must preserve original recipient")
+    return True
+
+
 def _managed_domains(config: dict[str, Any]) -> set[str]:
     domains = config.get("domains")
     if not isinstance(domains, dict):
@@ -73,6 +98,8 @@ def _managed_domains(config: dict[str, Any]) -> set[str]:
             result.add(value)
     if "ww.cx" in result:
         raise ArchiveError("ww.cx must remain external in v1")
+    if _wwcx_canary_enabled():
+        result.add("ww.cx")
     return result
 
 
@@ -222,6 +249,7 @@ def archive_and_normalize(
     config_path: pathlib.Path,
     archive_root: pathlib.Path,
     store_path: pathlib.Path,
+    transport: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     config = _load_config(config_path)
     canonical_recipient, domain = _recipient(recipient, _managed_domains(config))
@@ -259,6 +287,12 @@ def archive_and_normalize(
         "provider_mutation_authorized": False,
     }
     _atomic_json(metadata_path, metadata)
+    if transport:
+        import ipaddress
+        ipaddress.ip_address(transport['client_ip'])
+        if transport.get('source') != 'postfix_pipe' or any(c in transport.get('envelope_sender','') for c in '\r\n'):
+            raise ArchiveError('invalid MTA transport evidence')
+        metadata['transport'] = transport
 
     # Durable raw archival is the delivery boundary. Normalization is best-effort
     # processing after that boundary and must not turn supported raw mail into a
@@ -303,6 +337,8 @@ def main() -> int:
     parser.add_argument("--recipient", required=True)
     parser.add_argument("--queue-id", required=True)
     parser.add_argument("--stdin", action="store_true")
+    parser.add_argument("--client-ip")
+    parser.add_argument("--envelope-sender", default="")
     args = parser.parse_args()
     if not args.stdin:
         print("--stdin is required for Postfix pipe intake", file=sys.stderr)
@@ -315,6 +351,7 @@ def main() -> int:
             config_path=pathlib.Path(args.config).absolute(),
             archive_root=pathlib.Path(args.archive_root).absolute(),
             store_path=pathlib.Path(args.store).absolute(),
+            transport={'source':'postfix_pipe','client_ip':args.client_ip,'envelope_sender':args.envelope_sender} if args.client_ip else None,
         )
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 0

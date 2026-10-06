@@ -83,9 +83,16 @@ def main() -> int:
     assert "ww.cx OK" not in rendered["wwcx-edge1-managed-domains"]
 
     acceptance = load_module(ACCEPTANCE, "edge1_local_acceptance")
-    selected = acceptance._candidate_domain(config, None)
-    assert selected == "creekco.ca"
-    assert acceptance._candidate_domain(config, "omegafx.com") == "omegafx.com"
+    original_canary = acceptance.CANARY
+    acceptance.CANARY = ROOT / "config" / "messaging" / "missing-wwcx-canary.json"
+    try:
+        selected = acceptance._candidate_domain(config, None)
+        assert selected == "creekco.ca"
+        assert acceptance._candidate_domain(config, "omegafx.com") == "omegafx.com"
+    finally:
+        acceptance.CANARY = original_canary
+    assert acceptance._candidate_domain(config, None) == "ww.cx"
+    assert acceptance._candidate_domain(config, "ww.cx") == "ww.cx"
     message_id, sender, raw = acceptance._message(
         "acceptance-unit@creekco.ca", datetime(2026, 8, 22, 7, 40, tzinfo=timezone.utc)
     )
@@ -97,7 +104,7 @@ def main() -> int:
 
     print("Edge1 Mail Gateway local apply validation passed")
     print("Apply is authorization-gated, backup-first, and rollback-armed")
-    print("Postfix remains loopback-only and ww.cx remains external")
+    print("Postfix remains loopback-only; ww.cx intake requires the exact canary overlay")
     print("Pipe delivery archives raw RFC822 before best-effort normalization")
     print("Acceptance submits only to 127.0.0.1:25")
     return 0

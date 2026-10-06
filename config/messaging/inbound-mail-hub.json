@@ -44,43 +44,201 @@
       "enabled": true
     },
     "routes": {
-      "john@ww.cx": {"destination_type": "mailbox", "destination": "john-inbox@ww.cx", "enabled": true},
-      "records@ww.cx": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "privacy@ww.cx": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "security@ww.cx": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "postmaster@ww.cx": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "abuse@ww.cx": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "john@creekco.ca": {"destination_type": "mailbox", "destination": "john-inbox@ww.cx", "enabled": true},
-      "contact@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "support@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "billing@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "sales@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "regulatory@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "complaints@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "porting@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "accessibility@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "noc@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "privacy@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "postmaster@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "abuse@creekco.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "john@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "john-inbox@ww.cx", "enabled": true},
-      "contact@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "records@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "accounts@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "privacy@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "postmaster@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "abuse@spiritcreekgardens.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "john@scgardens.ca": {"destination_type": "mailbox", "destination": "john-inbox@ww.cx", "enabled": true},
-      "contact@scgardens.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "records@scgardens.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "postmaster@scgardens.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "abuse@scgardens.ca": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "john@omegafx.com": {"destination_type": "mailbox", "destination": "john-inbox@ww.cx", "enabled": true},
-      "contact@omegafx.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "records@omegafx.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "privacy@omegafx.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "postmaster@omegafx.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true},
-      "abuse@omegafx.com": {"destination_type": "mailbox", "destination": "maildesk@ww.cx", "enabled": true}
+      "john@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "john-inbox@ww.cx",
+        "enabled": true
+      },
+      "records@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "privacy@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "security@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "postmaster@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "abuse@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "john@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "john-inbox@ww.cx",
+        "enabled": true
+      },
+      "contact@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "support@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "billing@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "sales@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "regulatory@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "complaints@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "porting@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "accessibility@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "noc@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "privacy@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "postmaster@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "abuse@creekco.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "john@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "john-inbox@ww.cx",
+        "enabled": true
+      },
+      "contact@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "records@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "accounts@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "privacy@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "postmaster@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "abuse@spiritcreekgardens.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "john@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "john-inbox@ww.cx",
+        "enabled": true
+      },
+      "contact@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "records@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "postmaster@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "abuse@scgardens.ca": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "john@omegafx.com": {
+        "destination_type": "mailbox",
+        "destination": "john-inbox@ww.cx",
+        "enabled": true
+      },
+      "contact@omegafx.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "records@omegafx.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "privacy@omegafx.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "postmaster@omegafx.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "abuse@omegafx.com": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "domaincontact@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      },
+      "dmarc@ww.cx": {
+        "destination_type": "mailbox",
+        "destination": "maildesk@ww.cx",
+        "enabled": true
+      }
     }
   },
   "limits": {
