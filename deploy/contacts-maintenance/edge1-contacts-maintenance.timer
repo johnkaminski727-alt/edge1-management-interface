@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Edge1 Unified Contacts maintenance daily
+Description=Run Edge1 Unified Contacts maintenance four times daily
 
 [Timer]
-OnCalendar=*-*-* 03:20:00 UTC
+OnCalendar=*-*-* 00,06,12,18:20:00 UTC
 RandomizedDelaySec=20m
 Persistent=true
 Unit=edge1-contacts-maintenance.service
