@@ -27,7 +27,8 @@
       "menu_visibility": "live",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "contacts"
     },
     {
       "id": "ava-agent",
@@ -46,7 +47,8 @@
       "menu_visibility": "live",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "sparkles"
     },
     {
       "id": "phone-directory",
@@ -65,7 +67,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "phone-book"
     },
     {
       "id": "operations-center",
@@ -83,7 +86,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "home"
     },
     {
       "id": "security-operations",
@@ -101,7 +105,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "shield"
     },
     {
       "id": "firewall",
@@ -120,7 +125,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "firewall"
     },
     {
       "id": "security-correlation",
@@ -138,7 +144,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "network"
     },
     {
       "id": "network-sensor",
@@ -157,7 +164,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "network"
     },
     {
       "id": "network-defense",
@@ -175,7 +183,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "shield"
     },
     {
       "id": "wireguard-vpn",
@@ -194,7 +203,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "network"
     },
     {
       "id": "dns-resolver",
@@ -213,7 +223,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "dns"
     },
     {
       "id": "bitcoin-operations",
@@ -232,7 +243,8 @@
       "dashboard_visibility": true,
       "candidate_route": "/edge1-status/bitcoin/",
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "bitcoin"
     },
     {
       "id": "mining-operations",
@@ -251,7 +263,8 @@
       "dashboard_visibility": true,
       "candidate_route": "/edge1-status/mining/",
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "pickaxe"
     },
     {
       "id": "time-authority",
@@ -270,7 +283,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "clock"
     },
     {
       "id": "release-manager",
@@ -289,7 +303,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "release"
     },
     {
       "id": "disaster-recovery",
@@ -307,7 +322,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "backup"
     },
     {
       "id": "email-gateway-security",
@@ -325,7 +341,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "mail-shield"
     },
     {
       "id": "mail-room",
@@ -343,7 +360,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "dark",
-      "enabled": true
+      "enabled": true,
+      "icon": "mail"
     },
     {
       "id": "communications-workspace",
@@ -361,7 +379,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "messages"
     },
     {
       "id": "messaging-operations",
@@ -379,7 +398,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "sms"
     },
     {
       "id": "number-portability",
@@ -398,7 +418,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "phone-book"
     },
     {
       "id": "voice-sip",
@@ -416,7 +437,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "phone-call"
     },
     {
       "id": "carrier-interconnect",
@@ -435,7 +457,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "link"
     },
     {
       "id": "news-relay",
@@ -453,7 +476,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "newspaper"
     },
     {
       "id": "security-console",
@@ -472,7 +496,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "shield"
     },
     {
       "id": "wwcx-ai",
@@ -491,7 +516,8 @@
       "menu_visibility": "hidden",
       "dashboard_visibility": false,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "brain"
     },
     {
       "id": "cookie-monster",
@@ -510,7 +536,8 @@
       "menu_visibility": "primary",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "cookie"
     },
     {
       "id": "control-centre-admin",
@@ -529,7 +556,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "settings"
     },
     {
       "id": "change-control",
@@ -548,7 +576,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "change"
     },
     {
       "id": "audit-history",
@@ -567,7 +596,8 @@
       "menu_visibility": "upcoming",
       "dashboard_visibility": true,
       "theme": "inherit",
-      "enabled": true
+      "enabled": true,
+      "icon": "history"
     }
   ],
   "ui": {

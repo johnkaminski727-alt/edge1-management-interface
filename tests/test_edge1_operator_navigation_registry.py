@@ -52,6 +52,12 @@ class Edge1OperatorNavigationRegistryTests(unittest.TestCase):
         self.assertTrue(module["toolbox"])
         self.assertEqual(module["evidence_status"], "accepted_authenticated_browser")
 
+    def test_every_module_has_database_icon_key(self):
+        data = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        for module in data["modules"]:
+            self.assertIsInstance(module.get("icon"), str)
+            self.assertTrue(module["icon"])
+
 
 if __name__ == "__main__":
     unittest.main()

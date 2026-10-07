@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .edge1_navigation_registry import atomic_write_json, connect, export_registry, migrate
+from .edge1_navigation_registry import ALLOWED_ICONS, atomic_write_json, connect, export_registry, migrate
 
 DEFAULT_DB = Path('/var/lib/edge1-navigation/navigation.sqlite3')
 DEFAULT_OUTPUT = Path('/var/www/edge1-status/operator-shell/navigation.json')
@@ -17,7 +17,7 @@ ALLOWED_MENU_VISIBILITY = {'primary','live','upcoming','hidden'}
 FORBIDDEN_ROUTE_PARTS = ('/api/','/actions/','/callback','/include','/private/','/src/')
 MODULE_ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,63}$')
 EDITABLE_FIELDS = {
-    'enabled','label','section','sort_order','browser_route','theme',
+    'enabled','label','section','sort_order','browser_route','theme','icon',
     'menu_visibility','dashboard_visibility','toolbox','palette','description'
 }
 
@@ -121,6 +121,9 @@ def _normalize_patch(current: dict[str, Any], patch: dict[str, Any]) -> dict[str
     if 'theme' in patch:
         if patch['theme'] not in ALLOWED_THEMES: raise ValueError('theme is invalid')
         clean['theme']=patch['theme']
+    if 'icon' in patch:
+        if patch['icon'] not in ALLOWED_ICONS: raise ValueError('icon is invalid')
+        clean['icon']=patch['icon']
     if 'menu_visibility' in patch:
         if patch['menu_visibility'] not in ALLOWED_MENU_VISIBILITY: raise ValueError('menu_visibility is invalid')
         clean['menu_visibility']=patch['menu_visibility']
@@ -183,7 +186,7 @@ def upsert_management_module(db: Path = DEFAULT_DB, output: Path = DEFAULT_OUTPU
       'runtime_route':'/edge1-ops/status/navigation-management/','availability':'accepted_live','authorization':'authenticated_admin',
       'description':'Manage the database-backed Edge1 navigation registry, menu visibility, ordering, links and shell themes.',
       'palette':1,'toolbox':1,'evidence_status':'database_backed_admin_ui','menu_visibility':'primary',
-      'dashboard_visibility':1,'enabled':1,'theme':'inherit'
+      'dashboard_visibility':1,'enabled':1,'icon':'navigation','theme':'inherit'
     }
     with connect(db) as conn:
         ensure_admin_schema(conn)
@@ -196,9 +199,9 @@ def upsert_management_module(db: Path = DEFAULT_DB, output: Path = DEFAULT_OUTPU
           availability=excluded.availability,authorization=excluded.authorization,description=excluded.description,
           palette=excluded.palette,toolbox=excluded.toolbox,evidence_status=excluded.evidence_status,
           menu_visibility=excluded.menu_visibility,dashboard_visibility=excluded.dashboard_visibility,enabled=excluded.enabled,
-          theme=excluded.theme,updated_at=CURRENT_TIMESTAMP''', tuple(module[k] for k in (
+          icon=excluded.icon,theme=excluded.theme,updated_at=CURRENT_TIMESTAMP''', tuple(module[k] for k in (
             'id','label','section','sort_order','browser_route','candidate_route','runtime_route','availability','authorization','description',
-            'palette','toolbox','evidence_status','menu_visibility','dashboard_visibility','enabled','theme')))
+            'palette','toolbox','evidence_status','menu_visibility','dashboard_visibility','enabled','icon','theme')))
         conn.commit()
     with connect(db,read_only=True) as conn: registry=export_registry(conn)
     atomic_write_json(output,registry)

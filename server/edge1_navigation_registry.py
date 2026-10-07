@@ -15,6 +15,12 @@ from typing import Any
 CONTRACT = "wwcx.edge1-operator-navigation.v1"
 SCHEMA_VERSION = 1
 ALLOWED_THEMES = {"inherit", "light", "dark"}
+ALLOWED_ICONS = {
+    "home", "contacts", "sparkles", "phone-book", "shield", "firewall", "network",
+    "route", "dns", "bitcoin", "pickaxe", "clock", "release", "backup", "mail-shield",
+    "mail", "messages", "sms", "phone-call", "link", "newspaper", "brain", "cookie",
+    "settings", "navigation", "change", "history", "circle",
+}
 SAFETY_DEFAULTS = {
     "navigation_grants_authorization": False,
     "generic_execution_authorized": False,
@@ -54,6 +60,7 @@ CREATE TABLE IF NOT EXISTS navigation_modules (
   menu_visibility TEXT NOT NULL,
   dashboard_visibility INTEGER NOT NULL DEFAULT 1 CHECK (dashboard_visibility IN (0,1)),
   enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0,1)),
+  icon TEXT NOT NULL DEFAULT 'circle',
   theme TEXT NOT NULL DEFAULT 'inherit' CHECK (theme IN ('inherit','light','dark')),
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -65,7 +72,7 @@ FIELDS = (
     "id", "label", "section", "sort_order", "browser_route", "candidate_route",
     "runtime_route", "availability", "authorization", "description", "palette",
     "toolbox", "evidence_status", "menu_visibility", "dashboard_visibility",
-    "enabled", "theme",
+    "enabled", "icon", "theme",
 )
 
 
@@ -81,6 +88,17 @@ def connect(path: Path, *, read_only: bool = False) -> sqlite3.Connection:
 
 def migrate(conn: sqlite3.Connection) -> None:
     conn.executescript(DDL)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(navigation_modules)")}
+    if "icon" not in columns:
+        conn.execute("ALTER TABLE navigation_modules ADD COLUMN icon TEXT NOT NULL DEFAULT 'circle'")
+    conn.commit()
+
+
+def _icon_for(module: dict[str, Any]) -> str:
+    icon = str(module.get("icon") or "circle")
+    if icon not in ALLOWED_ICONS:
+        raise ValueError(f"unsupported icon for {module.get('id')}: {icon}")
+    return icon
 
 
 def _theme_for(module: dict[str, Any]) -> str:
@@ -115,8 +133,8 @@ def import_registry(conn: sqlite3.Connection, registry: dict[str, Any], *, repla
     sql = """INSERT INTO navigation_modules(
       id,label,section,sort_order,browser_route,candidate_route,runtime_route,
       availability,authorization,description,palette,toolbox,evidence_status,
-      menu_visibility,dashboard_visibility,enabled,theme,updated_at
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+      menu_visibility,dashboard_visibility,enabled,icon,theme,updated_at
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       label=excluded.label, section=excluded.section, sort_order=excluded.sort_order,
       browser_route=excluded.browser_route, candidate_route=excluded.candidate_route,
@@ -125,7 +143,7 @@ def import_registry(conn: sqlite3.Connection, registry: dict[str, Any], *, repla
       palette=excluded.palette, toolbox=excluded.toolbox,
       evidence_status=excluded.evidence_status, menu_visibility=excluded.menu_visibility,
       dashboard_visibility=excluded.dashboard_visibility, enabled=excluded.enabled,
-      theme=excluded.theme, updated_at=CURRENT_TIMESTAMP"""
+      icon=excluded.icon, theme=excluded.theme, updated_at=CURRENT_TIMESTAMP"""
     for module in registry.get("modules", []):
         values = (
             module["id"], module["label"], module["section"], int(module["sort_order"]),
@@ -134,7 +152,7 @@ def import_registry(conn: sqlite3.Connection, registry: dict[str, Any], *, repla
             int(bool(module.get("palette"))), int(bool(module.get("toolbox"))),
             module["evidence_status"], module["menu_visibility"],
             int(bool(module.get("dashboard_visibility", True))),
-            int(bool(module.get("enabled", True))), _theme_for(module),
+            int(bool(module.get("enabled", True))), _icon_for(module), _theme_for(module),
         )
         conn.execute(sql, values)
     conn.commit()
