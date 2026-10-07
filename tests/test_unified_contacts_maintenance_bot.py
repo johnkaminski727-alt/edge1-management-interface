@@ -228,5 +228,24 @@ class MaintenanceBotTests(unittest.TestCase):
             dst.close()
 
 
+    def test_known_voicemail_service_number_is_not_queued_for_identity_resolution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA + """
+                ALTER TABLE contact_points ADD COLUMN legacy_phone_number_id INTEGER;
+                CREATE TABLE phone_numbers(id INTEGER PRIMARY KEY,status TEXT,occurrence_count INTEGER);
+                INSERT INTO phone_numbers VALUES(10,'unresolved',122);
+                INSERT INTO contact_points(id,point_type,normalized_value,display_value,classification,lifecycle_status,updated_at,legacy_phone_number_id)
+                VALUES(10,'phone','+13065804001','(306) 580-4001',NULL,'unknown',NULL,10);
+            """)
+            dst = open_state(Path(directory) / 'state.sqlite')
+            summary = run(src, dst)
+            dst.commit()
+            self.assertEqual(summary['known_service_numbers_seen'], 1)
+            self.assertEqual(dst.execute("SELECT COUNT(*) FROM identity_resolution_queue WHERE contact_point_id=10 AND status='pending'").fetchone()[0], 0)
+            src.close(); dst.close()
+
+
 if __name__ == '__main__':
     unittest.main()

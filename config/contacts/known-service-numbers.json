@@ -1,0 +1,24 @@
+{
+  "contract": "edge1.contacts-known-service-numbers.v1",
+  "updated_at": "2026-10-07",
+  "numbers": {
+    "+13065804001": {
+      "label": "TELUS / Public Mobile / Koodo voicemail access",
+      "classification": "telecom_service_number",
+      "identity_resolution": "not_a_person_contact",
+      "confidence": "publicly_verified",
+      "evidence": [
+        {
+          "source_name": "Public Mobile Community",
+          "source_reference": "Voicemail access number guidance; Saskatchewan 306/639 service",
+          "source_url": "https://productioncommunity.publicmobile.ca/t5/Get-Support/Voicemail/td-p/680140"
+        },
+        {
+          "source_name": "Public Mobile Community",
+          "source_reference": "Outgoing call never made — accepted answer identifies 306-580-4001 as voicemail access",
+          "source_url": "https://productioncommunity.publicmobile.ca/t5/Get-Support/Outgoing-call-never-made/td-p/1354922"
+        }
+      ]
+    }
+  }
+}

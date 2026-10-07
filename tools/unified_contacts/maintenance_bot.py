@@ -151,6 +151,18 @@ def _column_exists(connection, table, column):
     return any(row[1] == column for row in connection.execute(f'PRAGMA table_info({table})'))
 
 
+def load_known_service_numbers():
+    path=Path('/opt/edge1-management-interface/config/contacts/known-service-numbers.json')
+    if not path.is_file():
+        return {}
+    try:
+        payload=json.loads(path.read_text())
+    except (OSError,json.JSONDecodeError):
+        return {}
+    numbers=payload.get('numbers') if isinstance(payload,dict) else None
+    return numbers if isinstance(numbers,dict) else {}
+
+
 def source_sha(path):
     digest = hashlib.sha256()
     with open(path, 'rb') as handle:
@@ -765,12 +777,18 @@ def run(src, dst):
         candidate(dst, 'REVIEW_REQUIRED', 'contact_assertions', row['id'], 'ownership', row['ids'], None,
                   'At least one shared ownership assertion is not strongly verified and requires review.', point=row['id'])
 
+    known_services = load_known_service_numbers()
+    known_service_numbers_seen = 0
+
     for row in src.execute('''
         SELECT cp.id,cp.point_type,cp.normalized_value FROM contact_points cp
         WHERE cp.lifecycle_status='active' AND NOT EXISTS(
             SELECT 1 FROM contact_assertions ca WHERE ca.contact_point_id=cp.id
         )
     '''):
+        if row['point_type'] in ('phone','fax') and row['normalized_value'] in known_services:
+            known_service_numbers_seen += 1
+            continue
         suggested_entity = (
             suggested_owner_for_unassigned_email(src, row['normalized_value'])
             if row['point_type'] == 'email'
@@ -817,6 +835,9 @@ def run(src, dst):
             LIMIT 500
         ''').fetchall()
         for row in legacy_rows:
+            if row['normalized_value'] in known_services:
+                known_service_numbers_seen += 1
+                continue
             identity_resolution(
                 dst,
                 row['id'],
@@ -868,6 +889,7 @@ def run(src, dst):
         'open_findings': dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'").fetchone()[0],
         'pending_enrichment': dst.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'").fetchone()[0],
         'pending_candidates': dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'").fetchone()[0],
+        'known_service_numbers_seen': known_service_numbers_seen,
         'mail_contact_candidates': mail_candidates,
     }
 
