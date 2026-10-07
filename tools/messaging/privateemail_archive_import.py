@@ -13,6 +13,10 @@ import sys
 import tempfile
 from email import policy
 from email.parser import BytesParser
+from email.utils import getaddresses
+import pwd
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from server.mail_room_security import stage_provider
 from html.parser import HTMLParser
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server"))
@@ -88,6 +92,22 @@ def readable_bytes(raw):
     message.set_content("".join(parser.text))
     return message.as_bytes(), True
 
+def stage_import(raw, account, message_id):
+    message = BytesParser(policy=policy.default).parsebytes(raw, headersonly=True)
+    domain = account.rsplit("@", 1)[1]
+    recipient = account
+    for header in ("X-Original-To", "Envelope-To", "To", "Delivered-To"):
+        matches = [address for _, address in getaddresses(message.get_all(header, [])) if address.count("@") == 1 and address.rsplit("@", 1)[1].lower() == domain]
+        if len(matches) == 1:
+            recipient = matches[0]
+            break
+    stage_provider(raw, recipient, message_id)
+    directory = Path("/var/lib/wwcx-mail-gateway/inbound") / domain / ("imap-" + hashlib.sha256(raw).hexdigest()[:24])
+    user = pwd.getpwnam("wwcx-mail-gateway")
+    for target in (directory, directory / "message.eml", directory / "metadata.json"):
+        os.chown(target, user.pw_uid, user.pw_gid)
+    return recipient
+
 def project(raw, account, folder, store):
     if folder.strip('"').lower() in {"spam", "junk", "trash", "drafts"}:
         return {"status": "archive_only", "reason": "original_provider_folder"}
@@ -103,6 +123,7 @@ def project(raw, account, folder, store):
         direction = "outbound" if folder.strip('"').lower() == "sent" else "inbound"
         readable, derived = readable_bytes(raw)
         record = normalize_rfc822(readable, store, direction=direction)
+        stage_import(raw, account, record["message_id"])
         return {"status": "imported", "message_id_sha256": hashlib.sha256(record["message_id"].encode()).hexdigest(), "scan": "clean", "html_text_derived": derived}
     except Exception as exc:
         return {"status": "held", "reason": type(exc).__name__}
