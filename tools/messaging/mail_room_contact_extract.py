@@ -19,6 +19,7 @@ DRAFT_DB=Path('/var/lib/wwcx-mail-room-drafts/drafts.sqlite3')
 ARCHIVE_ROOT=Path('/var/lib/wwcx-mail-gateway/inbound')
 STATE_DB=Path('/var/lib/edge1-contacts-maintenance/maintenance.sqlite')
 INTEL_ROOT=Path('/var/lib/wwcx-mail-intelligence')
+IDENTITY_REGISTRY=Path(__file__).resolve().parents[2]/'config/messaging/mail-identities.json'
 MAX_ATTACHMENT=12*1024*1024
 MAX_ATTACHMENT_TEXT=24000
 
@@ -26,7 +27,7 @@ SCHEMA='''
 CREATE TABLE IF NOT EXISTS mail_contact_extractions(
  id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
  message_id TEXT NOT NULL, message_sha256 TEXT NOT NULL, occurred_at TEXT,
- sender TEXT, subject TEXT, security_state TEXT NOT NULL, reviewed INTEGER NOT NULL DEFAULT 0,
+ sender TEXT, subject TEXT, direction TEXT, sender_owned INTEGER NOT NULL DEFAULT 0, security_state TEXT NOT NULL, reviewed INTEGER NOT NULL DEFAULT 0,
  extracted_at TEXT NOT NULL, attachment_count INTEGER NOT NULL DEFAULT 0,
  candidate_count INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'staged'
 );
@@ -54,6 +55,19 @@ POSTAL_RE=re.compile(r'\b([ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ][ -]?\d[ABCEGH
 TITLE_WORDS=('director','manager','president','vice president','owner','founder','coordinator','administrator','representative','officer','accountant','lawyer','counsel')
 
 def utcnow(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
+def _ensure_column(db, table, definition):
+    name=definition.split()[0]
+    columns={r[1] for r in db.execute(f'PRAGMA table_info({table})')}
+    if name not in columns: db.execute(f'ALTER TABLE {table} ADD COLUMN {definition}')
+def managed_mail_domains(path=IDENTITY_REGISTRY):
+    try:
+        data=json.loads(Path(path).read_text())
+        return {str(x).strip().casefold() for x in (data.get('domains') or {}) if str(x).strip()}
+    except Exception:
+        return set()
+def sender_is_owned(sender, domains):
+    address=parseaddr(str(sender or ''))[1].strip().casefold()
+    return bool('@' in address and address.rsplit('@',1)[1] in domains)
 def sha(s): return hashlib.sha256(s.encode()).hexdigest()
 def norm_phone(v):
     v=v.strip(); digits=re.sub(r'\D','',v)
@@ -211,10 +225,10 @@ def run(mail_db=MAIL_DB,security_db=SECURITY_DB,draft_db=DRAFT_DB,state_db=STATE
     for p in (mail_db,security_db,draft_db):
         if not Path(p).is_file(): raise RuntimeError(f'missing source: {p}')
     idx=archive_index(Path(archive_root)); now=utcnow(); processed=0; staged=0; attachments_seen=0
-    state=sqlite3.connect(state_db); state.row_factory=sqlite3.Row; state.execute('PRAGMA foreign_keys=ON'); state.executescript(SCHEMA)
+    state=sqlite3.connect(state_db); state.row_factory=sqlite3.Row; state.execute('PRAGMA foreign_keys=ON'); state.executescript(SCHEMA); _ensure_column(state,'mail_contact_extractions','direction TEXT'); _ensure_column(state,'mail_contact_extractions','sender_owned INTEGER NOT NULL DEFAULT 0')
     mail=sqlite3.connect(f'file:{mail_db}?mode=ro',uri=True); mail.row_factory=sqlite3.Row
     sec=sqlite3.connect(f'file:{security_db}?mode=ro',uri=True); sec.row_factory=sqlite3.Row
-    rows=mail.execute("SELECT message_id,sender,subject,body_text,occurred_at FROM correspondence WHERE direction='inbound' AND source_authoritative=1 AND source_scope IN ('local_native','production_native') ORDER BY julianday(occurred_at) DESC,message_id DESC LIMIT ?",(limit,)).fetchall()
+    domains=managed_mail_domains(); rows=mail.execute("SELECT message_id,sender,subject,body_text,occurred_at,direction FROM correspondence WHERE direction='inbound' AND source_authoritative=1 AND source_scope IN ('local_native','production_native') ORDER BY julianday(occurred_at) DESC,message_id DESC LIMIT ?",(limit,)).fetchall()
     for r in rows:
         key=sha(r['message_id']); decision=sec.execute('SELECT state,override FROM decisions WHERE message_hash=?',(key,)).fetchone()
         if not decision or decision['state']!='released': continue
@@ -232,7 +246,7 @@ def run(mail_db=MAIL_DB,security_db=SECURITY_DB,draft_db=DRAFT_DB,state_db=STATE
                 text_path=str(target); state_name='text_extracted'
             state.execute('''INSERT INTO mail_attachment_intelligence(attachment_sha256,message_id,filename,mime_type,text_path,extracted_chars,state,analyzed_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(attachment_sha256) DO UPDATE SET message_id=excluded.message_id,filename=excluded.filename,mime_type=excluded.mime_type,text_path=excluded.text_path,extracted_chars=excluded.extracted_chars,state=excluded.state,analyzed_at=excluded.analyzed_at''',(a['sha256'],r['message_id'],a['filename'],a['type'],text_path,len(text),state_name,now))
         candidates=extract_candidates(r['sender'],r['body_text'] or '',atts)
-        cur=state.execute('''INSERT INTO mail_contact_extractions(fingerprint,message_id,message_sha256,occurred_at,sender,subject,security_state,reviewed,extracted_at,attachment_count,candidate_count) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',(fingerprint,r['message_id'],key,r['occurred_at'],safe_excerpt(r['sender'],320),safe_excerpt(r['subject'],500),decision['state'],int(reviewed),now,len(atts),len(candidates)))
+        cur=state.execute('''INSERT INTO mail_contact_extractions(fingerprint,message_id,message_sha256,occurred_at,sender,subject,direction,sender_owned,security_state,reviewed,extracted_at,attachment_count,candidate_count) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',(fingerprint,r['message_id'],key,r['occurred_at'],safe_excerpt(r['sender'],320),safe_excerpt(r['subject'],500),r['direction'],int(sender_is_owned(r['sender'],domains)),decision['state'],int(reviewed),now,len(atts),len(candidates)))
         eid=cur.lastrowid
         for c in candidates:
             cf=sha('|'.join([fingerprint,c['type'],c['value'],c['source_reference'],c.get('attachment_sha256') or '']))

@@ -66,6 +66,28 @@ class MaintenanceBotTests(unittest.TestCase):
             self.assertEqual(dst.execute("SELECT status FROM candidate_changes WHERE fingerprint='cc'").fetchone()[0], 'superseded')
             src.close(); dst.close()
 
+    def test_owned_sender_cannot_anchor_quoted_body_contact_fact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA + '''
+                INSERT INTO contact_entities VALUES(58,'organization','WW.CX','WW.CX','active','document_sourced',NULL);
+                INSERT INTO contact_points VALUES(58,'email','blank@ww.cx','blank@ww.cx',NULL,'active',NULL);
+                INSERT INTO contact_assertions VALUES(58,58,58,'document_sourced');
+            ''')
+            dst = open_state(Path(directory) / 'state.sqlite')
+            dst.execute("INSERT INTO mail_contact_extractions(id,fingerprint,message_id,message_sha256,occurred_at,sender,subject,direction,sender_owned,security_state,reviewed,extracted_at,attachment_count,candidate_count) VALUES(1,'f','<m>','h','2026-10-07','blank@ww.cx','Re: external','inbound',1,'released',0,'2026-10-07',0,1)")
+            dst.execute("INSERT INTO mail_contact_candidates(id,fingerprint,extraction_id,candidate_type,normalized_value,display_value,confidence,source_kind,source_reference,context,status,created_at) VALUES(10,'c',1,'phone','+201091339884','+20 109 1339884','medium','message_body','body','quoted external signature','queued_review','now')")
+            stats = process_mail_contact_candidates(src, dst)
+            dst.commit()
+            row = dst.execute("SELECT matched_entity_id,status FROM mail_contact_candidates WHERE id=10").fetchone()
+            self.assertIsNone(row['matched_entity_id'])
+            self.assertEqual(row['status'], 'queued_review')
+            change = dst.execute("SELECT action_level,entity_id FROM candidate_changes WHERE target_table='mail_contact_candidates' AND target_field='candidate_review' AND status='pending'").fetchone()
+            self.assertEqual(change['action_level'], 'REVIEW_REQUIRED')
+            self.assertIsNone(change['entity_id'])
+            src.close(); dst.close()
+
     def test_strong_shared_contact_point_is_not_treated_as_conflict(self):
         with tempfile.TemporaryDirectory() as directory:
             src = sqlite3.connect(':memory:')

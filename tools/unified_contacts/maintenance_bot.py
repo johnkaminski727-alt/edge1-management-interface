@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_remediation_run ON remediation_actions(run_id, ac
 CREATE TABLE IF NOT EXISTS mail_contact_extractions(
  id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
  message_id TEXT NOT NULL, message_sha256 TEXT NOT NULL, occurred_at TEXT,
- sender TEXT, subject TEXT, security_state TEXT NOT NULL, reviewed INTEGER NOT NULL DEFAULT 0,
+ sender TEXT, subject TEXT, direction TEXT, sender_owned INTEGER NOT NULL DEFAULT 0, security_state TEXT NOT NULL, reviewed INTEGER NOT NULL DEFAULT 0,
  extracted_at TEXT NOT NULL, attachment_count INTEGER NOT NULL DEFAULT 0,
  candidate_count INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'staged'
 );
@@ -135,6 +135,8 @@ def open_state(path):
     connection.executescript(SCHEMA)
     _ensure_column(connection, 'maintenance_runs', 'source_sha256_after TEXT')
     _ensure_column(connection, 'maintenance_findings', "action_level TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED'")
+    _ensure_column(connection, 'mail_contact_extractions', 'direction TEXT')
+    _ensure_column(connection, 'mail_contact_extractions', 'sender_owned INTEGER NOT NULL DEFAULT 0')
     return connection
 
 
@@ -762,12 +764,13 @@ def process_mail_contact_candidates(src, dst):
         ctype, value = group['candidate_type'], group['normalized_value']
         stats['observations_seen'] += int(group['evidence_count'])
         occurrences = dst.execute("""
-            SELECT c.id,c.extraction_id,c.source_kind,c.source_reference,c.attachment_sha256,e.message_id,e.sender
+            SELECT c.id,c.extraction_id,c.source_kind,c.source_reference,c.attachment_sha256,e.message_id,e.sender,e.direction,e.sender_owned
             FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id
             WHERE c.status IN ('pending','queued_review') AND c.candidate_type=? AND c.normalized_value=? ORDER BY c.id
         """, (ctype, value)).fetchall()
         anchor_entities=set()
         for item in occurrences:
+            if bool(item['sender_owned']): continue
             match=re.search(r'([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})', item['sender'] or '', re.I)
             if not match: continue
             owners=src.execute("""
