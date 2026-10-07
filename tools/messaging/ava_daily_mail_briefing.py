@@ -70,7 +70,7 @@ def build(day,repo_root:Path):
             try: attachment_rows=[dict(r) for r in c.execute("SELECT attachment_sha256,message_id,filename,mime_type,text_path,extracted_chars,state,analyzed_at FROM mail_attachment_intelligence WHERE message_id IN (SELECT message_id FROM mail_contact_extractions WHERE julianday(occurred_at)>=julianday(?) AND julianday(occurred_at)<julianday(?)) ORDER BY filename",(start,end))]
             except sqlite3.Error: attachment_rows=[]
             try:
-                for status,n in c.execute("SELECT status,count(*) FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id WHERE julianday(e.occurred_at)>=julianday(?) AND julianday(e.occurred_at)<julianday(?) GROUP BY status",(start,end)): contact_counts[status]=n
+                for status,n in c.execute("SELECT c.status,count(*) FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id WHERE julianday(e.occurred_at)>=julianday(?) AND julianday(e.occurred_at)<julianday(?) GROUP BY status",(start,end)): contact_counts[status]=n
             except sqlite3.Error: pass
     lines=[f'# Ava Daily Operations & Email Briefing — {day.isoformat()}','',f'Generated from completed `{day.isoformat()}` records in America/Regina.','', '## Executive summary','']
     counts=activity.get('counts',{}) if isinstance(activity,dict) else {}
