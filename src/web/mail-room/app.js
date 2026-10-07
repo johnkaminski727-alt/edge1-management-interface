@@ -146,7 +146,7 @@
   }
   function renderReviewQueues(report){
     const target=$("review-queues"),q=report.backlog||{},counts=q.classification_counts||{};
-    target.replaceChildren(element("strong","Outside the inbox"),element("p","Intake totals across all domains. Shortcuts clear your search filters.","small"));
+    target.replaceChildren(element("strong","Review queues"));target.title="These messages are outside the inbox. Shortcuts clear your search filters.";
     const bar=element("div","","review-shortcuts");
     for(const [folder,label,count] of [["quarantine","Quarantine",counts.quarantine||0],["junk","Junk",counts.junk||0],["pending","Pending checks",q.pending_or_unchecked||0]]){
       const b=element("button",label+" ("+count+")");b.type="button";b.onclick=safely(()=>reviewFolder(folder));bar.append(b);
@@ -156,7 +156,7 @@
       if(!canLeave())return;showReader(true);$("editor").hidden=true;
       $("reading").replaceChildren(element("h2","Import holds · "+held),element("p","These archived messages have not entered the Mail Room message list. They are separate from security quarantine and cannot be released with the quarantine button."),element("p","An administrator must inspect the import failure, correct the import metadata or parser, then retry ingestion. Imported mail must still pass security checks before entering the inbox."),element("p","Original messages remain preserved. AVA cannot read them here.","small"));
     };bar.append(b);target.append(bar);
-    target.append(element("p","Counts checked "+new Date(report.generated_at).toLocaleString()+(Date.now()-Date.parse(report.generated_at)>15*60000?" · Report is stale":""),"small"));
+    const updated=element("span","Updated "+new Date(report.generated_at).toLocaleTimeString()+(Date.now()-Date.parse(report.generated_at)>15*60000?" · Stale":""),"queue-updated small");updated.title="Counts checked "+new Date(report.generated_at).toLocaleString();target.append(updated);
   }
   async function refreshReviewQueues(){
     try{renderReviewQueues(await request("readiness"));}

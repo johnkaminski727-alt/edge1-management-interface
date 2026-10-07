@@ -128,3 +128,15 @@ footer{font-size:12px;color:var(--muted);padding:10px 0}
 .review-shortcuts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .review-shortcuts button{padding:6px 9px;font-size:.82rem}
 .folder-context strong{font-size:1rem}.folder-context p,.review-queues p{margin:6px 0}
+
+/* Keep review shortcuts above the two panes, leaving the list its full height. */
+.review-queues{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;padding:8px 12px;margin:0 0 10px;border:1px solid var(--line);border-radius:9px;flex:none}
+.review-queues>strong{font-size:12px;white-space:nowrap}
+.review-shortcuts{margin:0;gap:6px;flex:1}
+.review-shortcuts button{font-size:12px;padding:5px 8px}
+.queue-updated{margin:0;font-size:11px;white-space:nowrap}
+.folder-context{padding:8px 12px;flex:none}
+.folder-context strong{font-size:13px}
+.folder-context p{font-size:11px;line-height:1.35;margin:3px 0 0}
+@media(min-width:901px){main{height:100dvh;display:flex;flex-direction:column}.workspace{flex:1;height:auto;min-height:300px}main>header,main>footer,#feedback{flex:none}}
+@media(max-width:900px){.queue-updated{display:none}.review-queues{gap:6px}.review-shortcuts{flex-basis:100%}}
