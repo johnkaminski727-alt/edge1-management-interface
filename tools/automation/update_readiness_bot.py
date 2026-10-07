@@ -25,6 +25,31 @@ def apt_upgrades(text=None):
         rows.append({'package':package,'suite':suite,'new_version':new_version,'old_version':old_version,'arch':arch,'security':'security' in suite.lower(),'kernel':package.startswith(('linux-image','linux-headers','linux-libc'))})
     return rows
 
+def simulation_plan(text=None):
+    if text is None:
+        result=run('apt-get','-s','full-upgrade')
+        text=result.stdout
+        exit_status=result.returncode
+    else:
+        exit_status=0
+    installs=[]; removals=[]
+    for line in text.splitlines():
+        line=line.strip()
+        if line.startswith('Inst '):
+            parts=line.split()
+            if len(parts)>=2: installs.append(parts[1])
+        elif line.startswith('Remv '):
+            parts=line.split()
+            if len(parts)>=2: removals.append(parts[1])
+    summary_match=re.search(r'(\d+) upgraded, (\d+) newly installed, (\d+) to remove and (\d+) not upgraded',text)
+    counts={'upgraded':None,'newly_installed':None,'removed':None,'not_upgraded':None}
+    if summary_match:
+        values=[int(x) for x in summary_match.groups()]
+        counts=dict(zip(counts,values))
+    return {'simulation':'apt-get -s full-upgrade','exit_status':exit_status,'success':exit_status==0,
+            'counts':counts,'install_or_upgrade_packages':installs[:250],'removal_packages':removals[:100],
+            'removals_planned':bool(removals),'package_install_authorized':False,'mutation_performed':False}
+
 def failed_units(text=None):
     if text is None: text=run('systemctl','--failed','--no-legend','--no-pager').stdout
     names=[]
@@ -60,15 +85,19 @@ def evaluate(upgrades,failures,reboot_required=False,reboot_packages=(),running_
     state='attention' if any(x['severity']=='high' for x in findings) else 'warning' if any(x['severity']=='medium' for x in findings) else 'healthy'
     return {'contract':'wwcx.update-readiness.v1','generated_at':now.isoformat(),'state':state,'summary':{'pending_updates':len(upgrades),'security_updates':len(security),'kernel_updates':len(kernel),'persistent_failed_units':len(persistent),'transient_failed_units':len(transient),'reboot_required':bool(reboot_required),'apt_metadata_age_hours':None if cache_age_hours is None else round(cache_age_hours,2),'findings':len(findings),'high':sum(x['severity']=='high' for x in findings),'medium':sum(x['severity']=='medium' for x in findings)},'updates':upgrades[:200],'persistent_failed_units':persistent[:100],'transient_failed_units':transient[:100],'running_kernel':running_kernel,'reboot_packages':list(reboot_packages)[:100],'findings':findings,'package_install_authorized':False,'package_mutation_performed':False,'reboot_authorized':False,'reboot_performed':False}
 def build():
-    upgrades=apt_upgrades(); failures=failed_units(); reboot_required=REBOOT.exists(); reboot_packages=[]
+    upgrades=apt_upgrades(); failures=failed_units(); plan=simulation_plan(); reboot_required=REBOOT.exists(); reboot_packages=[]
     if REBOOT_PKGS.is_file():
         try: reboot_packages=[x.strip() for x in REBOOT_PKGS.read_text().splitlines() if x.strip()]
         except OSError: pass
     kernel=run('uname','-r').stdout.strip()
-    return evaluate(upgrades,failures,reboot_required,reboot_packages,kernel,apt_cache_age())
+    data=evaluate(upgrades,failures,reboot_required,reboot_packages,kernel,apt_cache_age())
+    data['contract']='wwcx.update-readiness.v2'; data['simulation_plan']=plan
+    return data
 def markdown(d):
     s=d['summary']; lines=['# Edge1 Update & Maintenance Readiness','',f"Generated: {d['generated_at']}",f"State: **{d['state']}**",f"Pending packages: **{s['pending_updates']}** · security: **{s['security_updates']}** · kernel-related: **{s['kernel_updates']}**",f"Persistent failed units: **{s['persistent_failed_units']}** · transient failed units: **{s['transient_failed_units']}** · reboot required: **{s['reboot_required']}**",f"Running kernel: `{d['running_kernel']}`",'', '## Findings','']
     lines += [f"- **{x['severity']} · {x['kind']}** — {x['detail']} — `{x['action_level']}`" for x in d['findings']] or ['- None.']
+    plan=d.get('simulation_plan') or {}; counts=plan.get('counts') or {}
+    lines += ['','## Simulated transaction','',f"- Simulation: `{plan.get('simulation','unavailable')}`",f"- Success: **{plan.get('success')}**",f"- Upgraded: **{counts.get('upgraded')}** · newly installed: **{counts.get('newly_installed')}** · removals: **{counts.get('removed')}** · held back: **{counts.get('not_upgraded')}**",f"- Package removals planned: **{plan.get('removals_planned',False)}**"]
     if d['updates']:
         lines += ['','## Pending updates',''] + [f"- `{x['package']}` {x['old_version']} → {x['new_version']} ({x['suite']})" for x in d['updates'][:60]]
     lines += ['','This bot is stage-only. It does not refresh repositories, install packages, restart services, or reboot Edge1.']; return '\n'.join(lines)+'\n'
