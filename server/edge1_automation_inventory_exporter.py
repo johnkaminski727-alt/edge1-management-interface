@@ -10,6 +10,64 @@ from pathlib import Path
 OUTPUT=Path('/var/www/edge1-status/automation-center/inventory.json')
 CUSTOM_PREFIXES=('edge1-','wwcx-','bigbird-','ava-')
 CONTINUOUS_TOKENS=('worker','collector','poller','monitor','watch','gateway','relay','broker','sync','reconcile','maintenance','exporter','scanner','sensor')
+
+STATUS_ALIASES={
+ 'edge1-accounting-intake.service':'accounting-intake',
+ 'edge1-action-lifecycle.service':'action-lifecycle',
+ 'edge1-api-surface-health.service':'api-surface-health',
+ 'edge1-automation-watchdog.service':'automation-watchdog',
+ 'edge1-ava-quality-control.service':'ava-quality',
+ 'edge1-backup-verification.service':'backup-verification',
+ 'edge1-catalog-consistency.service':'catalog-consistency',
+ 'edge1-certificate-expiry.service':'certificate-expiry',
+ 'edge1-credential-lifecycle.service':'credential-lifecycle',
+ 'edge1-document-filing.service':'document-filing',
+ 'edge1-drift-monitor.service':'drift-monitor',
+ 'edge1-evidence-integrity.service':'evidence-integrity',
+ 'edge1-git-hygiene.service':'git-hygiene',
+ 'edge1-knowledge-consolidation.service':'knowledge-consolidation',
+ 'edge1-mail-domain-health.service':'mail-domain-health',
+ 'edge1-mail-learning.service':'mail-learning',
+ 'edge1-outstanding-actions.service':'outstanding-actions',
+ 'edge1-seo-audit.service':'seo-audit',
+ 'edge1-service-self-heal.service':'service-self-heal',
+ 'edge1-storage-health.service':'storage-health',
+ 'edge1-website-health.service':'website-health',
+ 'edge1-weekly-executive-briefing.service':'executive-briefing',
+}
+SAFE_STATUS_KEYS=('state','generated_at','generated_at_utc','checked_at')
+SAFE_SUMMARY_KEYS={
+ 'total','high','medium','low','findings','issues','attention_count','review_items','active','new',
+ 'resolved_this_run','resolved_last_7d','reopened','listeners','added','removed','unattributed',
+ 'live_products','fallback_active','fallback_inactive','pages_checked','sites','custom_timers',
+ 'stale_or_missing_snapshots','documents','filed','unfiled','healthy','warning','attention',
+}
+
+def _safe_scalar(value):
+    if value is None or isinstance(value,(bool,int,float)): return value
+    if isinstance(value,str): return value[:160]
+    return None
+
+def status_projection(service):
+    slug=STATUS_ALIASES.get(service or '')
+    if not slug: return None
+    path=Path('/var/www/edge1-status')/slug/'status.json'
+    if not path.is_file(): return {'slug':slug,'available':False,'status_url':f'/edge1-ops/status/{slug}/status.json'}
+    try: data=json.loads(path.read_text())
+    except (OSError,json.JSONDecodeError): return {'slug':slug,'available':False,'status_url':f'/edge1-ops/status/{slug}/status.json'}
+    out={'slug':slug,'available':True,'status_url':f'/edge1-ops/status/{slug}/status.json'}
+    for key in SAFE_STATUS_KEYS:
+        if key in data:
+            value=_safe_scalar(data.get(key))
+            if value is not None: out[key]=value
+    summary=data.get('summary') if isinstance(data.get('summary'),dict) else {}
+    safe={}
+    for key,value in summary.items():
+        if key in SAFE_SUMMARY_KEYS:
+            scalar=_safe_scalar(value)
+            if scalar is not None: safe[key]=scalar
+    if safe: out['summary']=safe
+    return out
 READ_ONLY_TOKENS=('export','status','observation','telemetry','search','readiness','summary','report','inventory','health','history','timeline','trends','correlation','briefing')
 AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archive','stager','index')
 READ_ONLY_ALLOW={
@@ -89,6 +147,7 @@ def timer_inventory():
           'last_result':sp.get('Result') or None,'exit_status':sp.get('ExecMainStatus') or None,
           'action_level':classify(service or unit,sp.get('Description') or p.get('Description','')),
           'custom':unit.startswith(CUSTOM_PREFIXES),
+          'bot_status':status_projection(service),
         })
     timers.sort(key=lambda x:(not x['custom'],x['timer']))
     return timers
