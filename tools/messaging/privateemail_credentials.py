@@ -21,11 +21,11 @@ def main():
     if ROOT.is_symlink():
         raise SystemExit("Unsafe credential directory.")
     ROOT.chmod(0o700)
-    print("PrivateEmail migration credentials. Password entry is hidden.")
+    print("PrivateEmail migration credentials. Enter mailbox APP passwords; entry is hidden.")
     print("Press Enter to skip an account. Originals will remain at PrivateEmail.")
     verified = []
     for account in ACCOUNTS:
-        secret = getpass.getpass(account + " mailbox password: ")
+        secret = getpass.getpass(account + " app password: ")
         if not secret:
             print(account + ": skipped")
             continue
