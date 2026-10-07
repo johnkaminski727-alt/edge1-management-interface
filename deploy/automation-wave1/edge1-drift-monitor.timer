@@ -1,0 +1,9 @@
+[Unit]
+Description=Check Edge1 system and Git drift every ten minutes
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+Persistent=true
+Unit=edge1-drift-monitor.service
+[Install]
+WantedBy=timers.target

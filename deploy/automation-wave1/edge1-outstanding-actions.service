@@ -1,0 +1,14 @@
+[Unit]
+Description=Edge1 Outstanding Actions aggregator for Ava
+After=local-fs.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/outstanding_actions_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/www/edge1-status/outstanding-actions /var/lib/bigbird-ai-library

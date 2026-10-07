@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Edge1 Outstanding Actions every five minutes
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=edge1-outstanding-actions.service
+[Install]
+WantedBy=timers.target

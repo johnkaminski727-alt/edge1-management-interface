@@ -1,0 +1,15 @@
+[Unit]
+Description=Disposable weekly Mail Room restore rehearsal
+After=wwcx-mail-room.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/messaging/mail_room_recovery_rehearsal.py
+ExecStartPost=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/backup_verification_bot.py
+UMask=0077
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/wwcx-email-recovery /var/lib/wwcx-mail-room-reports /var/www/edge1-status/backup-verification /var/lib/bigbird-ai-library

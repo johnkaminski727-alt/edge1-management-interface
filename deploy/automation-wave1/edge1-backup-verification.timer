@@ -1,0 +1,9 @@
+[Unit]
+Description=Verify Edge1 backup and restore posture daily
+[Timer]
+OnCalendar=*-*-* 04:20:00 America/Regina
+RandomizedDelaySec=20m
+Persistent=true
+Unit=edge1-backup-verification.service
+[Install]
+WantedBy=timers.target

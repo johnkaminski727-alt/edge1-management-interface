@@ -1,0 +1,9 @@
+[Unit]
+Description=Rehearse Mail Room restore weekly in disposable storage
+[Timer]
+OnCalendar=Sun *-*-* 04:40:00 America/Regina
+RandomizedDelaySec=30m
+Persistent=true
+Unit=edge1-mail-restore-rehearsal.service
+[Install]
+WantedBy=timers.target

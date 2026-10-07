@@ -1,0 +1,14 @@
+[Unit]
+Description=Verify Edge1 backup evidence and critical database integrity
+After=local-fs.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/backup_verification_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/backup-verification /var/lib/bigbird-ai-library
