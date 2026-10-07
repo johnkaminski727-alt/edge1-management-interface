@@ -11,3 +11,9 @@ Validation: 49 tests passed in isolated groups, JavaScript syntax passed, unsign
 The send-route test module installs global import mocks; run it separately from the feature tests. Security-update warnings remain visible until their underlying update health is verified. Server acceptance alone does not establish inbox placement or per-domain SPF/DKIM/DMARC results.
 
 Preservation: /var/backups/mail-room-git-sync-20261007T080929Z; runtime rollback: /root/mail-room-send-update-20261007T081156Z; website rollback: /var/backups/mail-room-web-20261007T081219Z. Original uncommitted work is also retained in the named Git stash.
+
+## Operational commissioning acceptance
+
+At 08:20 UTC the configured catch-all policy was completed for all five domains. Runtime previews verified both original-recipient reply identities and the per-domain contact default; john@ww.cx remains the private identity. Twenty public MX/SPF/DMARC/DKIM presence checks passed. Update health reported no warnings. The Health interface now uses the commissioned and sending_enabled values supplied by the readiness report.
+
+The isolated mail-data restore rehearsal passed: three SQLite databases, 107 file hashes including 68 archive files, and a Redis snapshot containing 63 keys. This establishes the documented mail data/configuration rehearsal scope only; it does not establish a full-server rebuild or an external DNS rollback. External DNS rollback rehearsal remains explicitly unverified. Twelve catch-all, feature, and local-route regression tests passed. No external messages were sent during this acceptance.

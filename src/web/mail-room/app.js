@@ -145,9 +145,9 @@
         $("reading").append(element("h2","Recovery rehearsal"),element("p",report.recovery.state==="passed"?"Passed "+new Date(report.recovery.completed_at).toLocaleString()+" · SQLite, archive/config hashes and isolated spam-learning store verified. Production was not restored.":"Not yet rehearsed."));
         $("reading").append(element("h2","Access and retention"));for(const [name,value] of Object.entries(report.access_policy))$("reading").append(element("p",name.replaceAll("_"," ")+": "+value,"small"));
       };
-      for(const d of report.domains){const b=element("button",d.domain+" · Not commissioned","message");b.onclick=()=>{
+      for(const d of report.domains){const b=element("button",d.domain+(d.commissioned?" · Live on Edge1":" · Commissioning pending"),"message");b.onclick=()=>{
         if(!canLeave())return;clearTimeout(autosave);$("editor").hidden=true;dirty=false;
-        $("reading").replaceChildren(element("h2","Domain readiness · "+d.domain),element("p",d.registered_senders+" registered sender identities · Sending disabled"));
+        $("reading").replaceChildren(element("h2","Domain readiness · "+d.domain),element("p",d.registered_senders+" registered sender identities · "+(d.sending_enabled?"Sending enabled":"Sending disabled")));
         if(d.dns_baseline?.captured_at)$("reading").append(element("p","DNS baseline captured "+new Date(d.dns_baseline.captured_at).toLocaleString()+" · Observed MX answers: "+d.dns_baseline.mx_answer_count+" · External authoritative verification remains pending.","small"));
         for(const [name,state] of Object.entries(d.checks))$("reading").append(element("p",name.replaceAll("_"," ")+": "+state.replaceAll("_"," "),state==="verified"?"small":"notice"));
         $("reading").append(element("p","Commissioning evidence must include external DNS checks and real delivery tests. Existing records or local tests alone do not prove migration readiness."));
