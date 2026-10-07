@@ -5,8 +5,45 @@ DEST=/var/www/edge1-status
 [ "$(id -u)" -eq 0 ] || { echo 'root required' >&2; exit 1; }
 for f in server/edge1_automation_inventory_exporter.py server/edge1_api_directory_exporter.py src/web/automation-center/index.html src/web/automation-center/app.js src/web/automation-center/styles.css src/web/api-directory/index.html src/web/api-directory/app.js src/web/api-directory/styles.css; do test -s "$ROOT/$f" || { echo "missing $f" >&2; exit 1; }; done
 systemd-analyze verify "$ROOT/deploy/automation-api-center/edge1-automation-inventory.service" "$ROOT/deploy/automation-api-center/edge1-automation-inventory.timer" "$ROOT/deploy/automation-api-center/edge1-api-directory.service" "$ROOT/deploy/automation-api-center/edge1-api-directory.timer"
-# Use the standard rollback-backed UI publisher so these pages participate in normal interface recovery.
-"$ROOT/deploy/operations-center/publish.sh" --apply
+# Publish only this feature. The full Operations Center publisher may contain unrelated live drift.
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+BACKUP="/var/backups/edge1-automation-api-center-$STAMP"
+mkdir -p "$BACKUP/previous"
+chmod 0700 "$BACKUP"
+: >"$BACKUP/manifest"
+for page in automation-center api-directory; do
+  for file in index.html app.js styles.css; do
+    relative="$page/$file"
+    target="$DEST/$relative"
+    if test -f "$target"; then
+      mkdir -p "$BACKUP/previous/$page"
+      cp -a "$target" "$BACKUP/previous/$relative"
+      printf 'present|%s\n' "$relative" >>"$BACKUP/manifest"
+    else
+      printf 'absent|%s\n' "$relative" >>"$BACKUP/manifest"
+    fi
+    install -d -m 0755 "$(dirname "$target")"
+    install -m 0644 "$ROOT/src/web/$relative" "$target"
+  done
+done
+cat >"$BACKUP/rollback.sh" <<'ROLLBACK'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+DEST=/var/www/edge1-status
+while IFS='|' read -r state relative; do
+  target="$DEST/$relative"
+  if [ "$state" = present ]; then
+    install -d -m 0755 "$(dirname "$target")"
+    install -m 0644 "$HERE/previous/$relative" "$target"
+  else
+    rm -f "$target"
+  fi
+done <"$HERE/manifest"
+echo "Automation/API UI restored from $HERE"
+ROLLBACK
+chmod 0700 "$BACKUP/rollback.sh"
+echo "UI rollback: $BACKUP/rollback.sh"
 for unit in edge1-automation-inventory.service edge1-automation-inventory.timer edge1-api-directory.service edge1-api-directory.timer; do install -m 0644 "$ROOT/deploy/automation-api-center/$unit" "/etc/systemd/system/$unit"; done
 systemctl daemon-reload
 systemctl enable --now edge1-automation-inventory.timer edge1-api-directory.timer
