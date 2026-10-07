@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from tools.unified_contacts.identity_gate import match_entity
+
 
 ENTITY_TYPES = {"person", "organization"}
 
@@ -358,6 +360,12 @@ class UnifiedContactsCrud:
             VERIFICATION_STATUSES,
         )
         notes = optional_text("notes", notes)
+        duplicate_check = match_entity(self.db, entity_type, canonical_name)
+        if duplicate_check['status'] != 'new':
+            raise ContactsConflict(
+                'duplicate-prevention gate blocked entity creation: '
+                + repr(duplicate_check)
+            )
         now = utc_now()
 
         cur = self.db.execute(
@@ -415,6 +423,17 @@ class UnifiedContactsCrud:
             VERIFICATION_STATUSES,
         )
         notes = optional_text("notes", notes)
+        duplicate_check = match_entity(
+            self.db,
+            self._entity(entity_id)['entity_type'],
+            canonical_name,
+            exclude_entity_id=entity_id,
+        )
+        if duplicate_check['status'] != 'new':
+            raise ContactsConflict(
+                'duplicate-prevention gate blocked entity rename/update: '
+                + repr(duplicate_check)
+            )
 
         self.db.execute(
             """

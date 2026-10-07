@@ -12,6 +12,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.unified_contacts.schema_contacts_expansion import apply_schema
 from tools.unified_contacts.schema_connections import migrate as migrate_connections, harden as harden_connections
+from tools.unified_contacts.identity_gate import require_safe_entity_resolution
 
 
 def sha256(path: Path):
@@ -34,12 +35,12 @@ def provenance(db, source):
     return cur.lastrowid,True
 
 
-def entity(db, typ, name, verification='document_sourced'):
-    rows=db.execute("SELECT id,entity_type FROM contact_entities WHERE lower(canonical_name)=lower(?) ORDER BY id",(name,)).fetchall()
-    if len(rows)>1: raise RuntimeError(f'ambiguous entity {name}')
-    if rows:
-        if rows[0][1]!=typ: raise RuntimeError(f'entity type conflict {name}')
-        return rows[0][0],False
+def entity(db, typ, name, verification='document_sourced', source_record_id=None):
+    entity_id, should_create, match = require_safe_entity_resolution(
+        db, typ, name, source_record_id=source_record_id
+    )
+    if not should_create:
+        return entity_id,False
     cur=db.execute("INSERT INTO contact_entities(entity_type,canonical_name,display_name,verification_status) VALUES(?,?,?,?)",
                    (typ,name,name,verification))
     return cur.lastrowid,True
@@ -101,7 +102,7 @@ def import_snapshot(db,payload):
            'assertions_created':0,'evidence_created':0,'attestations_created':0,'relationships_created':0}
     by_name={}
     for row in payload['contacts']:
-        eid,created=entity(db,row['entity_type'],row['name'],row.get('verification','document_sourced'))
+        eid,created=entity(db,row['entity_type'],row['name'],row.get('verification','document_sourced'), source_record_id=row.get('key'))
         by_name[row['name']]=eid
         stats['entities_created' if created else 'entities_existing']+=1
     # ensure referenced parents exist without duplicating existing canonical names

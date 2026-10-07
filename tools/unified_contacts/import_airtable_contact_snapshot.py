@@ -17,6 +17,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.unified_contacts.schema_contacts_expansion import apply_schema
 from tools.unified_contacts.schema_connections import migrate as migrate_connections, harden as harden_connections
+from tools.unified_contacts.identity_gate import require_safe_entity_resolution
 
 
 def now():
@@ -50,15 +51,12 @@ def one_or_create_provenance(db, source):
     return cur.lastrowid, True
 
 
-def entity(db, entity_type, name):
-    rows = db.execute('''SELECT id,entity_type FROM contact_entities
-        WHERE lower(canonical_name)=lower(?) ORDER BY id''', (name,)).fetchall()
-    if len(rows) > 1:
-        raise RuntimeError(f'ambiguous canonical entity: {name}')
-    if rows:
-        if rows[0][1] != entity_type:
-            raise RuntimeError(f'entity type conflict: {name}')
-        return rows[0][0], False
+def entity(db, entity_type, name, source_record_id=None):
+    entity_id, should_create, match = require_safe_entity_resolution(
+        db, entity_type, name, source_record_id=source_record_id
+    )
+    if not should_create:
+        return entity_id, False
     cur = db.execute('''INSERT INTO contact_entities(
         entity_type,canonical_name,display_name,verification_status,lifecycle_status)
         VALUES(?,?,?,'document_sourced','active')''', (entity_type,name,name))
@@ -122,7 +120,7 @@ def import_snapshot(db, payload):
              'attestations_created':0,'do_not_contact':0,'historical':0}
     for row in payload['people']:
         path = f"airtable:{row['source_id']}"
-        person_id, created = entity(db,'person',row['name'])
+        person_id, created = entity(db,'person',row['name'], source_record_id=row.get('source_id'))
         stats['people_created' if created else 'people_existing'] += 1
         org_id, created_org = entity(db,'organization',row['organization'])
         stats['organizations_created' if created_org else 'organizations_existing'] += 1
