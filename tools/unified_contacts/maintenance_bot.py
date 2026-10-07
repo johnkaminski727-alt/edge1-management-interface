@@ -745,7 +745,40 @@ def build_relationship_suggestions(src, dst):
     return {'relationship_suggestions':refreshed}
 
 
+def reconcile_mail_candidate_anchors(src, dst):
+    corrected=0; cleared=0; reassigned=0
+    groups=dst.execute("SELECT c.candidate_type,c.normalized_value FROM mail_contact_candidates c WHERE c.matched_contact_point_id IS NULL AND c.matched_entity_id IS NOT NULL GROUP BY c.candidate_type,c.normalized_value").fetchall()
+    for group in groups:
+        occurrences=dst.execute("SELECT c.id,e.sender,e.sender_owned FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id WHERE c.candidate_type=? AND c.normalized_value=? AND c.matched_contact_point_id IS NULL",(group['candidate_type'],group['normalized_value'])).fetchall()
+        anchors=set()
+        for item in occurrences:
+            if bool(item['sender_owned']):
+                continue
+            match=re.search(r'([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})',item['sender'] or '',re.I)
+            if not match:
+                continue
+            owners=src.execute("SELECT DISTINCT ca.entity_id FROM contact_points cp JOIN contact_assertions ca ON ca.contact_point_id=cp.id WHERE cp.lifecycle_status='active' AND cp.point_type='email' AND lower(cp.normalized_value)=lower(?)",(match.group(1).lower(),)).fetchall()
+            if len(owners)==1:
+                anchors.add(int(owners[0][0]))
+        desired=next(iter(anchors)) if len(anchors)==1 else None
+        ids=[int(x['id']) for x in occurrences]
+        if not ids:
+            continue
+        placeholders=','.join('?' for _ in ids)
+        before=dst.execute(f"SELECT COUNT(*) FROM mail_contact_candidates WHERE id IN ({placeholders}) AND COALESCE(matched_entity_id,-1) != COALESCE(?,-1)",(*ids,desired)).fetchone()[0]
+        if not before:
+            continue
+        dst.execute(f"UPDATE mail_contact_candidates SET matched_entity_id=? WHERE id IN ({placeholders}) AND matched_contact_point_id IS NULL",(desired,*ids))
+        corrected+=int(before)
+        if desired is None:
+            cleared+=int(before)
+        else:
+            reassigned+=int(before)
+    return {'corrected':corrected,'cleared':cleared,'reassigned':reassigned}
+
+
 def process_mail_contact_candidates(src, dst):
+    anchor_reconciliation = reconcile_mail_candidate_anchors(src,dst)
     suppressed = suppress_low_value_mail_candidates(dst)
     discoveries = build_contact_discoveries(dst)
     relationships = build_relationship_suggestions(src, dst)
@@ -758,7 +791,7 @@ def process_mail_contact_candidates(src, dst):
         GROUP BY c.candidate_type,c.normalized_value
         ORDER BY representative_id LIMIT 5000
     """).fetchall()
-    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, **suppressed, **discoveries, **relationships}
+    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, 'anchor_reconciliation': anchor_reconciliation, **suppressed, **discoveries, **relationships}
     point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
     for group in groups:
         ctype, value = group['candidate_type'], group['normalized_value']

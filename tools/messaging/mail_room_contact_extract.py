@@ -68,6 +68,20 @@ def managed_mail_domains(path=IDENTITY_REGISTRY):
 def sender_is_owned(sender, domains):
     address=parseaddr(str(sender or ''))[1].strip().casefold()
     return bool('@' in address and address.rsplit('@',1)[1] in domains)
+
+def backfill_extraction_metadata(state, mail, domains):
+    updated=0
+    rows=state.execute('SELECT id,message_id,sender,direction,sender_owned FROM mail_contact_extractions').fetchall()
+    for row in rows:
+        source=mail.execute("SELECT direction,sender FROM correspondence WHERE message_id=? AND source_authoritative=1 AND source_scope IN ('local_native','production_native') ORDER BY rowid DESC LIMIT 1",(row['message_id'],)).fetchone()
+        if source is None:
+            continue
+        direction=str(source['direction'] or '') or None
+        owned=int(sender_is_owned(source['sender'] or row['sender'],domains))
+        if row['direction']!=direction or int(row['sender_owned'] or 0)!=owned:
+            state.execute('UPDATE mail_contact_extractions SET direction=?,sender_owned=? WHERE id=?',(direction,owned,row['id']))
+            updated+=1
+    return updated
 def sha(s): return hashlib.sha256(s.encode()).hexdigest()
 def norm_phone(v):
     v=v.strip(); digits=re.sub(r'\D','',v)
@@ -228,7 +242,7 @@ def run(mail_db=MAIL_DB,security_db=SECURITY_DB,draft_db=DRAFT_DB,state_db=STATE
     state=sqlite3.connect(state_db); state.row_factory=sqlite3.Row; state.execute('PRAGMA foreign_keys=ON'); state.executescript(SCHEMA); _ensure_column(state,'mail_contact_extractions','direction TEXT'); _ensure_column(state,'mail_contact_extractions','sender_owned INTEGER NOT NULL DEFAULT 0')
     mail=sqlite3.connect(f'file:{mail_db}?mode=ro',uri=True); mail.row_factory=sqlite3.Row
     sec=sqlite3.connect(f'file:{security_db}?mode=ro',uri=True); sec.row_factory=sqlite3.Row
-    domains=managed_mail_domains(); rows=mail.execute("SELECT message_id,sender,subject,body_text,occurred_at,direction FROM correspondence WHERE direction='inbound' AND source_authoritative=1 AND source_scope IN ('local_native','production_native') ORDER BY julianday(occurred_at) DESC,message_id DESC LIMIT ?",(limit,)).fetchall()
+    domains=managed_mail_domains(); backfilled=backfill_extraction_metadata(state,mail,domains); rows=mail.execute("SELECT message_id,sender,subject,body_text,occurred_at,direction FROM correspondence WHERE direction='inbound' AND source_authoritative=1 AND source_scope IN ('local_native','production_native') ORDER BY julianday(occurred_at) DESC,message_id DESC LIMIT ?",(limit,)).fetchall()
     for r in rows:
         key=sha(r['message_id']); decision=sec.execute('SELECT state,override FROM decisions WHERE message_hash=?',(key,)).fetchone()
         if not decision or decision['state']!='released': continue
@@ -254,7 +268,7 @@ def run(mail_db=MAIL_DB,security_db=SECURITY_DB,draft_db=DRAFT_DB,state_db=STATE
         processed+=1; staged+=len(candidates)
     state.commit(); mail.close();sec.close();state.close()
     os.chown(state_db, __import__('pwd').getpwnam('wwadmin').pw_uid, __import__('grp').getgrnam('wwadmin').gr_gid); os.chmod(state_db,0o660)
-    return {'messages_processed':processed,'candidates_staged':staged,'attachments_analyzed':attachments_seen,'candidate_only':True,'production_contacts_mutated':False}
+    return {'messages_processed':processed,'candidates_staged':staged,'attachments_analyzed':attachments_seen,'extractions_backfilled':backfilled,'candidate_only':True,'production_contacts_mutated':False}
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--json',action='store_true');ap.add_argument('--limit',type=int,default=5000);a=ap.parse_args();result=run(limit=max(1,min(a.limit,5000)));print(json.dumps(result,sort_keys=True) if a.json else result)
