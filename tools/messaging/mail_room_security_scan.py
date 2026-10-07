@@ -23,7 +23,7 @@ from difflib import SequenceMatcher
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT))
-from server.mail_room_security import SecurityStore, classify, rspamd_scan, message_hash
+from server.mail_room_security import archive_message_id, SecurityStore, classify, rspamd_scan, message_hash
 from tools.messaging.mail_room_attachment_scan import scan_bytes, scanner_ready
 
 BLOCKED_EXTENSIONS={'.exe','.com','.scr','.bat','.cmd','.ps1','.vbs','.js','.jse','.wsf','.msi','.hta','.lnk','.iso','.img','.docm','.xlsm','.pptm','.xlam','.xll'}
@@ -69,7 +69,8 @@ def inspect(raw, transport=None, domain='', policy_config=None, scan=scan_bytes,
         if len(sender)==1:
             name,address=sender[0]; from_domain=address.rsplit('@',1)[-1].lower()
             name=unicodedata.normalize('NFKC',name).casefold().strip()
-            impersonation=name in protected and from_domain not in managed
+            authenticated_external=(address.lower() in {a.lower() for a in (policy_config or {}).get('authenticated_external_identities',[])} and decision['authentication'].get('dkim')=='pass' and decision['authentication'].get('dmarc')=='pass')
+            impersonation=name in protected and from_domain not in managed and not authenticated_external
             lookalike=from_domain not in managed and any(SequenceMatcher(None,from_domain,d).ratio()>=0.9 for d in managed)
             if impersonation or lookalike:
                 decision['reasons'].append('protected_display_name_impersonation' if impersonation else 'lookalike_managed_domain')
@@ -94,6 +95,7 @@ def process(root, security, drafts, policy_config=None):
         try:
             if metadata.is_symlink() or metadata.stat().st_size>65536: continue
             item=json.loads(metadata.read_text()); raw_path=metadata.parent/'message.eml'
+            if item.get('normalization',{}).get('duplicate_of'): continue
             if raw_path.is_symlink() or not raw_path.is_file(): continue
             with security.connect() as db:
                 old=db.execute('SELECT checked,state FROM decisions WHERE message_hash=?',(item.get('normalization',{}).get('message_id_sha256'),)).fetchone()
@@ -104,7 +106,7 @@ def process(root, security, drafts, policy_config=None):
             else: raw=raw_path.read_bytes(); invalid=False
             digest=hashlib.sha256(raw).hexdigest(); invalid |= digest!=item.get('rfc822_sha256')
             message=BytesParser(policy=policy.default).parsebytes(raw,headersonly=True)
-            mid=str(message.get('Message-ID','')).strip()
+            mid=archive_message_id(raw,item)
             key=message_hash(mid)
             if key!=item.get('normalization',{}).get('message_id_sha256'): continue
             if invalid:
@@ -112,7 +114,9 @@ def process(root, security, drafts, policy_config=None):
             else:
                 decision,attachments,indicators=inspect(raw,item.get('transport'),item.get('domain',''),policy_config)
                 allowed=(policy_config or {}).get('allowed_recipients',[])
-                if allowed and item.get('envelope_recipient','').lower() not in {a.lower() for a in allowed} and decision['state']=='released':
+                recipient=item.get('envelope_recipient','').lower()
+                catch_all=recipient.rsplit('@',1)[-1] in (policy_config or {}).get('catch_all_domains',[])
+                if allowed and not catch_all and recipient not in {a.lower() for a in allowed} and decision['state']=='released':
                     decision['state']='quarantine';decision['reasons'].append('unregistered_catch_all_recipient_review')
             security.write(mid,digest,decision,indicators)
             with sqlite3.connect(drafts,timeout=15) as db:
@@ -155,6 +159,7 @@ def main():
     config['domains']={**config.get('domains',{}),**security.settings()['domains']}
     identities=json.loads(Path('/etc/wwcx/outbound-mail/identities.json').read_text())
     config['allowed_recipients']=list(identities['sender_selection']['recipient_to_sender']) + [v['address'] for v in identities['sender_profiles'].values()]
+    config['catch_all_domains']=list(identities.get('catch_all_domains',{}))
     result=process(a.archive_root,security,a.drafts,config)
     result['learned']=learn(a.archive_root,security,os.environ.get('WWCX_RSPAMD_CONTROLLER_PASSWORD',''))
     print(json.dumps(result))

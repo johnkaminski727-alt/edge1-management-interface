@@ -196,7 +196,19 @@ def classify(result, attachment_states, *, transport=None, domain='', policy=Non
     return {'state':state,'score':result['score'],'reasons':reasons or ['checks_passed'], 'symbols':sorted(symbols)[:128], 'authentication':auth,'scan_complete':not incomplete,'hard_block':blocked,'downloads_enabled':False}
 
 
-def stage_provider(raw, recipient, message_id):
+def archive_message_id(raw, item):
+    from email import policy
+    from email.parser import BytesParser
+    original=str(BytesParser(policy=policy.default).parsebytes(raw,headersonly=True).get('Message-ID','')).strip()
+    projected=item.get('normalization',{}).get('indexed_message_id')
+    if projected is None:return original
+    expected='<privateemail-'+hashlib.sha256(raw).hexdigest()+'@archive.ww.cx>'
+    if item.get('source')!='namecheap-private-email-imap' or projected!=expected:
+        raise ValueError('Invalid archival message identity')
+    return projected
+
+
+def stage_provider(raw, recipient, message_id, provider_source="namecheap-private-email-imap"):
     """Archive imported originals for the identical inspection/review pipeline."""
     from datetime import datetime, timezone
     root=Path('/var/lib/wwcx-mail-gateway/inbound')
@@ -206,7 +218,14 @@ def stage_provider(raw, recipient, message_id):
     directory=root/domain/('imap-'+digest[:24])
     directory.mkdir(mode=0o700,parents=True,exist_ok=True)
     if directory.is_symlink(): raise ValueError('Unsafe provider archive')
-    for filename,content in [('message.eml',raw),('metadata.json',(json.dumps({'contract':'wwcx.provider-mail-security-archive.v1','domain':domain,'envelope_recipient':recipient,'archived_at':datetime.now(timezone.utc).isoformat(),'rfc822_sha256':digest,'normalization':{'message_id_sha256':message_hash(message_id)},'source':'namecheap-private-email-imap'})+'\n').encode())]:
+    from email import policy
+    from email.parser import BytesParser
+    original=str(BytesParser(policy=policy.default).parsebytes(raw,headersonly=True).get('Message-ID','')).strip()
+    normalization={'message_id_sha256':message_hash(message_id)}
+    if original!=message_id:
+        if provider_source!='namecheap-private-email-imap' or message_id!='<privateemail-'+digest+'@archive.ww.cx>':raise ValueError('Invalid archival message identity')
+        normalization['indexed_message_id']=message_id
+    for filename,content in [('message.eml',raw),('metadata.json',(json.dumps({'contract':'wwcx.provider-mail-security-archive.v1','domain':domain,'envelope_recipient':recipient,'archived_at':datetime.now(timezone.utc).isoformat(),'rfc822_sha256':digest,'normalization':normalization,'source':provider_source})+'\n').encode())]:
         target=directory/filename
         if target.is_symlink(): raise ValueError('Unsafe provider archive file')
         if target.exists(): continue

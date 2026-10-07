@@ -18,6 +18,9 @@ import pathlib
 import re
 import sys
 import tempfile
+import sqlite3
+from email import policy
+from email.parser import BytesParser
 from datetime import datetime, timezone
 from typing import Any
 
@@ -30,6 +33,7 @@ from mail_edge1_gateway_source import (  # noqa: E402
     Edge1MailGatewaySourceError,
     normalize_edge1_rfc822,
     open_edge1_store,
+    _envelope_recipient,
 )
 
 DEFAULT_CONFIG = ROOT / "config" / "messaging" / "edge1-mail-gateway-v1.json"
@@ -45,6 +49,48 @@ DOMAIN_RE = re.compile(r"^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$")
 class ArchiveError(RuntimeError):
     pass
 
+
+
+def _delivery_content_hash(raw):
+    message=BytesParser(policy=policy.default).parsebytes(raw)
+    # Recipient and transit evidence vary between physical deliveries. Everything
+    # else, including all MIME bytes, signatures and attachment content, must match.
+    for header in ('Received','X-Original-To','Delivered-To','Return-Path','Authentication-Results'):
+        del message[header]
+    return hashlib.sha256(message.as_bytes()).hexdigest()
+
+
+def merge_matching_delivery(raw, archive_root, store_path, recipient):
+    message=BytesParser(policy=policy.default).parsebytes(raw,headersonly=True)
+    recipient=_envelope_recipient(message,recipient)
+    mid=str(message.get('Message-ID','')).strip()
+    key=hashlib.sha256(mid.encode()).hexdigest()
+    store=open_edge1_store(store_path)
+    try:
+        record=store.read_message(mid)
+    except Exception:
+        return None, None
+    if record.get('provenance',{}).get('source')!='edge1-mail-gateway-smtp' or record.get('direction')!='inbound':
+        return None, None
+    expected=_delivery_content_hash(raw)
+    for meta in archive_root.glob('*/*/metadata.json'):
+        item=json.loads(meta.read_text());normal=item.get('normalization',{})
+        if normal.get('status')!='ingested' or normal.get('duplicate_of') or normal.get('message_id_sha256')!=key:
+            continue
+        original=(meta.parent/'message.eml').read_bytes()
+        if hashlib.sha256(original).hexdigest()!=item.get('rfc822_sha256') or _delivery_content_hash(original)!=expected:
+            continue
+        with sqlite3.connect(store_path,timeout=15) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute('SELECT recipients_json FROM correspondence WHERE message_id=? AND source=? AND direction=?',(mid,'edge1-mail-gateway-smtp','inbound')).fetchone()
+            if not row:return None,None
+            recipients=json.loads(row[0])
+            if recipient not in recipients:
+                if len(recipients)>=100:raise ValueError('recipient limit exceeded')
+                recipients.append(recipient)
+                db.execute('UPDATE correspondence SET recipients_json=? WHERE message_id=?',(json.dumps(recipients),mid))
+        return store.read_message(mid),str(meta.parent.relative_to(archive_root))
+    return None,None
 
 def _load_config(path: pathlib.Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -298,12 +344,15 @@ def archive_and_normalize(
     # processing after that boundary and must not turn supported raw mail into a
     # Postfix delivery failure.
     try:
-        record = normalize_edge1_rfc822(
-            raw,
-            open_edge1_store(store_path),
-            envelope_recipient=canonical_recipient,
-            queue_id=canonical_queue,
-        )
+        record,duplicate_of=merge_matching_delivery(raw, archive_root, store_path, canonical_recipient)
+        if record is None:
+            record = normalize_edge1_rfc822(
+                raw,
+                open_edge1_store(store_path),
+                envelope_recipient=canonical_recipient,
+                queue_id=canonical_queue,
+                received_at=metadata['archived_at'],
+            )
         metadata["normalization"] = {
             "status": "ingested",
             "message_id_sha256": hashlib.sha256(
@@ -313,6 +362,12 @@ def archive_and_normalize(
                 str(record["thread_id"]).encode("utf-8")
             ).hexdigest(),
         }
+        if duplicate_of:
+            metadata['normalization']['duplicate_of']=duplicate_of
+        parsed=BytesParser(policy=policy.default).parsebytes(raw,headersonly=True)
+        from mail_edge1_gateway_source import _date
+        try:_date(parsed)
+        except Edge1MailGatewaySourceError:metadata['normalization']['date_source']='local_archive_receipt' 
     except (Edge1MailGatewaySourceError, OSError, ValueError) as exc:
         metadata["normalization"] = {
             "status": "held",

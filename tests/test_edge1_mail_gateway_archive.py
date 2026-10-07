@@ -71,6 +71,7 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as temporary:
         root = pathlib.Path(temporary)
+        archive.DEFAULT_CANARY = root / 'missing-canary.json'
         archive_root = root / "gateway" / "inbound"
         store = root / "mail-room" / "correspondence.sqlite3"
 
@@ -137,8 +138,7 @@ def main() -> int:
         assert second["archive_directory"] != first["archive_directory"]
         assert second["normalization_status"] == "ingested"
 
-        # HTML-only mail is still durably archived. Strict Mail Room parsing may
-        # hold it for later processing, but the transport result remains archived.
+        # HTML-only mail is archived unchanged and projected as inert plain text.
         html_recipient = "webform@spiritcreekgardens.com"
         html_raw = raw_message(
             html_recipient,
@@ -154,11 +154,11 @@ def main() -> int:
             store_path=store,
         )
         assert held["status"] == "archived"
-        assert held["normalization_status"] == "held"
+        assert held["normalization_status"] == "ingested"
         held_dir = pathlib.Path(held["archive_directory"])
         assert (held_dir / "message.eml").read_bytes() == html_raw
         held_metadata = json.loads((held_dir / "metadata.json").read_text(encoding="utf-8"))
-        assert held_metadata["normalization"]["status"] == "held"
+        assert held_metadata["normalization"]["status"] == "ingested"
 
         # The legacy v1 contract still rejects WW.CX when no approved canary overlay exists.
         original_canary = archive.DEFAULT_CANARY
@@ -213,7 +213,7 @@ def main() -> int:
     print("Raw RFC822 is durable before normalization")
     print("Per-domain and per-recipient queue directories remain separate")
     print("Exact Postfix retries are archive-idempotent")
-    print("HTML-only mail is held after archive instead of rejected by delivery")
+    print("HTML-only mail is projected as plain text after unchanged raw archival")
     print("ww.cx remains outside legacy intake unless the exact canary overlay is approved")
     return 0
 

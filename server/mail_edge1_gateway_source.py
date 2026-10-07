@@ -10,7 +10,9 @@ recipient authority; visible To/Cc headers never override it.
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 import re
+from html.parser import HTMLParser
 from email import policy
 from email.message import Message
 from email.parser import BytesParser
@@ -101,6 +103,18 @@ def _message_ids(value: str | None, label: str) -> list[str]:
     return [_canonical_message_id(item, label) for item in tokens]
 
 
+class _PlainHTML(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True);self.text=[];self.hidden=0
+    def handle_starttag(self,tag,attrs):
+        if tag in {'script','style','head'}:self.hidden+=1
+        if tag in {'p','br','div','li','tr'} and not self.hidden:self.text.append('\n')
+    def handle_endtag(self,tag):
+        if tag in {'script','style','head'} and self.hidden:self.hidden-=1
+    def handle_data(self,data):
+        if not self.hidden:self.text.append(data)
+
+
 def _plain_text(message: Message) -> str:
     chunks: list[str] = []
     if message.is_multipart():
@@ -126,8 +140,14 @@ def _plain_text(message: Message) -> str:
             ) from exc
         if isinstance(content, str):
             chunks.append(content)
-    else:
-        raise Edge1MailGatewaySourceError("gateway intake requires a text/plain body")
+    if not chunks:
+        parser=_PlainHTML()
+        for part in message.walk():
+            if part.get_content_type()=='text/html' and part.get_content_disposition()!='attachment':
+                parser.feed(part.get_content());parser.text.append('\n')
+        if not parser.text:
+            raise Edge1MailGatewaySourceError("gateway intake requires a readable text body")
+        chunks=[''.join(parser.text)]
 
     body = "\n".join(chunks)
     if "\x00" in body or len(body) > MAX_BODY_CHARS:
@@ -208,6 +228,7 @@ def normalize_edge1_rfc822(
     *,
     envelope_recipient: str,
     queue_id: str | None = None,
+    received_at: str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(raw, bytes) or not raw or len(raw) > MAX_RFC822_BYTES:
         raise Edge1MailGatewaySourceError("RFC822 message size is invalid")
@@ -239,6 +260,14 @@ def normalize_edge1_rfc822(
     if len(subject) > 998 or "\x00" in subject:
         raise Edge1MailGatewaySourceError("Subject exceeds safe persistence bounds")
 
+    try:
+        occurred_at=_date(message)
+    except Edge1MailGatewaySourceError:
+        if received_at is None:raise
+        received=datetime.fromisoformat(received_at.replace('Z','+00:00'))
+        if received.tzinfo is None:raise Edge1MailGatewaySourceError('Trusted receipt timestamp requires a timezone')
+        occurred_at=received.isoformat(timespec='seconds')
+
     payload = {
         "message_id": message_id,
         "provider_message_id": _queue_id(queue_id),
@@ -251,7 +280,7 @@ def normalize_edge1_rfc822(
         "body_text": _plain_text(message),
         "in_reply_to": in_reply_to,
         "references": references,
-        "occurred_at": _date(message),
+        "occurred_at": occurred_at,
     }
     try:
         return store.ingest(payload)
