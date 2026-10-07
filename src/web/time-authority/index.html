@@ -11,8 +11,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WW.CX Time Authority</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css">
+  <link rel="stylesheet" href="/edge1-ops/status/operator-shell/theme.css">
 </head>
-<body>
+<body data-edge1-module="time-authority">
+  <div id="wwcx-operator-shell"></div>
   <a class="skip-link" href="#latest-measurements">Skip to measurements</a>
   <main class="app-shell">
     <header class="topbar">
@@ -73,5 +76,6 @@
     </section>
   </main>
   <script src="./app.js"></script>
+  <script src="/edge1-ops/status/operator-shell/shell.js" defer data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="time-authority"></script>
 </body>
 </html>
