@@ -30,7 +30,7 @@ header .notice{flex:1;margin:0;padding:7px 12px;font-size:13px;min-width:0}
 .workspace{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:14px;height:calc(100vh - 128px);min-height:480px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;min-width:0;min-height:0}
 .list-pane{display:flex;flex-direction:column;overflow:hidden}
-nav{display:flex;gap:4px;padding:10px 10px 0;overflow-x:auto;flex:none;scrollbar-width:thin}
+nav{display:flex;flex-wrap:wrap;gap:4px;padding:10px 10px 0;flex:none}
 nav button{padding:5px 10px;font-size:13px;white-space:nowrap;background:transparent;border-color:transparent}
 nav button.active{background:#24425a;border-color:var(--accent)}
 #search{padding:10px;border-bottom:1px solid var(--line);flex:none}
