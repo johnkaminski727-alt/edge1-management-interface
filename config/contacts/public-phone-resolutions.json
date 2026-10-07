@@ -243,6 +243,60 @@
           "evidence": "Public professional profile identifies Totally Wired Security Solutions in Edmonton."
         }
       ]
+    },
+    {
+      "normalized_number": "+13067860401",
+      "display_number": "306-786-0401",
+      "resolution": "new_organization",
+      "canonical_name": "Sunrise Public Health",
+      "confidence": "probable",
+      "rationale": "A public business directory identifies 306-786-0401 with Sunrise Public Health at 150 Independent St, Yorkton and links the service to Saskatchewan Health Authority. Exact first-party SHA confirmation of this number was not located, so this remains review-only.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://www.saskhealthauthority.ca",
+          "display_value": "saskhealthauthority.ca"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "150 Independent St, Yorkton, SK S3N 0S7, Canada",
+          "display_value": "150 Independent St, Yorkton, SK S3N 0S7, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "AllBiz - Sunrise Public Health",
+          "url": "https://www.allbiz.ca/sunrise-public-health_2X-306-786-0401",
+          "evidence": "Lists Sunrise Public Health at 150 Independent St, Yorkton with phone 306-786-0401 and Saskatchewan Health Authority website."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13065635601",
+      "display_number": "306-563-5601",
+      "resolution": "new_organization",
+      "canonical_name": "Canora Auto Electric Ltd.",
+      "confidence": "document_sourced",
+      "rationale": "The Town of Canora business directory and an independent powersports dealer directory identify 306-563-5601 as Canora Auto Electric Ltd. at 203 Railway Avenue East, Canora.",
+      "contact_points": [
+        {
+          "point_type": "postal_address",
+          "value": "203 Railway Avenue East, Canora, SK S0A 0L0, Canada",
+          "display_value": "203 Railway Avenue East, Canora, SK S0A 0L0, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "Town of Canora - Business Directory 2025",
+          "url": "https://canora.com/wp-content/uploads/2025/04/Business-Directory-2025-with-Data-Analysis.pdf-4.pdf",
+          "evidence": "Lists Canora Auto Electric, 203 Railway Avenue East, phone 306-563-5601."
+        },
+        {
+          "name": "Mountain Addiction - Dealers",
+          "url": "https://mountainaddiction.com/dealers/",
+          "evidence": "Dealer directory lists Canora Auto Electric, Canora SK, phone 306-563-5601."
+        }
+      ]
     }
   ]
 }
