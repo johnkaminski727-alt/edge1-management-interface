@@ -1,19 +1,52 @@
 {
-  "schema_version": 1,
-  "contract": "edge1.managed-dns-zones.v1",
-  "public_authoritative_provider": "Dyn Standard DNS",
-  "publication_method": "authenticated TSIG/API synchronization",
+  "schema_version": 2,
+  "contract": "edge1.managed-dns-zones.v2",
   "zones": [
     {
       "zone": "ww.cx",
+      "provider": "Dyn Standard DNS",
+      "management_path": "Edge1 validated source → Dyn authenticated publishing",
+      "mode": "edge1_canonical",
       "inventory_file": "/var/lib/edge1-authoritative-dns/ww.cx-inventory.json",
       "zone_file": "/var/lib/edge1-authoritative-dns/ww.cx.zone",
+      "authoritative_nameservers": ["ns1194.dns.dyn.com", "ns2150.dns.dyn.com", "ns3190.dns.dyn.com", "ns4142.dns.dyn.com"],
       "mx_cutover_authorized": false
     },
     {
       "zone": "spiritcreekgardens.com",
+      "provider": "Dyn Standard DNS",
+      "management_path": "Edge1 validated source → Dyn authenticated publishing",
+      "mode": "edge1_canonical",
       "inventory_file": "/var/lib/edge1-authoritative-dns/spiritcreekgardens.com-inventory.json",
       "zone_file": "/var/lib/edge1-authoritative-dns/spiritcreekgardens.com.zone",
+      "authoritative_nameservers": ["ns1194.dns.dyn.com", "ns2150.dns.dyn.com", "ns3190.dns.dyn.com", "ns4142.dns.dyn.com"],
+      "mx_cutover_authorized": false
+    },
+    {
+      "zone": "scgardens.ca",
+      "provider": "Namecheap Hosting DNS",
+      "management_path": "Business159 / cPanel DNS",
+      "mode": "business159_observed",
+      "authoritative_nameservers": ["dns1.namecheaphosting.com", "dns2.namecheaphosting.com"],
+      "expected_web_address": "162.0.217.177",
+      "mx_cutover_authorized": false
+    },
+    {
+      "zone": "creekco.ca",
+      "provider": "Namecheap Hosting DNS",
+      "management_path": "Business159 / cPanel DNS",
+      "mode": "business159_observed",
+      "authoritative_nameservers": ["dns1.namecheaphosting.com", "dns2.namecheaphosting.com"],
+      "expected_web_address": "162.0.217.177",
+      "mx_cutover_authorized": false
+    },
+    {
+      "zone": "omegafx.com",
+      "provider": "Namecheap Hosting DNS",
+      "management_path": "Business159 / cPanel DNS",
+      "mode": "business159_observed",
+      "authoritative_nameservers": ["dns1.namecheaphosting.com", "dns2.namecheaphosting.com"],
+      "expected_web_address": "162.0.217.177",
       "mx_cutover_authorized": false
     }
   ]
