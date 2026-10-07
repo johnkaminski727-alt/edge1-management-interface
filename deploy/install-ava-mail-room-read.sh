@@ -18,6 +18,14 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [ -f "$REPO/server/private_ai_browser_worker.py" ] || die "Ava worker source missing"
 [ -f "$REPO/server/ava_agent_controller.py" ] || die "Ava controller source missing"
 
+# The browser worker executes directly from the repository as bigbird-ai.
+# Normalize only these source-file modes so a restrictive checkout umask cannot
+# make a valid update unreadable to the service account.
+chmod 0644 \
+  "$REPO/server/private_ai_browser_worker.py" \
+  "$REPO/server/ava_agent_controller.py" \
+  "$REPO/server/mail_room_http.py"
+
 CURRENT=$(systemctl show "$MAIL_SERVICE" -p WorkingDirectory --value)
 [ -n "$CURRENT" ] && [ -d "$CURRENT" ] || die "current Mail Room release unavailable"
 [ -f "$CURRENT/server/mail_room_http.py" ] || die "current Mail Room release invalid"
