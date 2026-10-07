@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Publish a sanitized DNS/resolver/security management snapshot."""
 from __future__ import annotations
-import argparse,json
+import argparse,hashlib,json
 from pathlib import Path
 import yaml
 DEFAULT_ADGUARD=Path('/opt/AdGuardHome/AdGuardHome.yaml')
@@ -38,15 +38,18 @@ def build(adguard_path,identity_path,telemetry_path,crowdsec_path,local_path,aut
  policy=load_json(auth_policy); inventory=load_json(auth_inventory)
  inventory_complete=inventory.get('complete_zone_inventory') is True
  zone_present=auth_zone.is_file()
+ zone_hash=(hashlib.sha256(auth_zone.read_bytes()).hexdigest() if zone_present else None)
+ candidate_valid=bool(inventory_complete and zone_present and inventory.get('zone_file_sha256')==zone_hash and inventory.get('candidate_soa_serial'))
  activated=auth_activated.is_file()
  if activated: hp_state='activated'
- elif inventory_complete and zone_present: hp_state='candidate_ready'
+ elif candidate_valid: hp_state='candidate_ready'
  else: hp_state='staged_blocked'
  blockers=[]
  if not inventory_complete: blockers.append('complete_zone_inventory_missing')
  if not zone_present: blockers.append('candidate_zone_file_missing')
+ if inventory_complete and zone_present and not candidate_valid: blockers.append('candidate_validation_mismatch')
  if not activated: blockers.append('activation_marker_absent')
- return {'schema_version':1,'contract':'wwcx.dns-management.v1','resolver':{'adguard_active':bool((services.get('AdGuardHome') or {}).get('active')),'unbound_active':bool((services.get('unbound') or {}).get('active')),'listen_address':'10.77.0.1','upstream_role':'Unbound recursive resolver','dnssec_enabled':bool(dns.get('enable_dnssec')),'cache_size':dns.get('cache_size'),'private_ptr_upstream_configured':bool(dns.get('local_ptr_upstreams')),'filtering_enabled':bool(filtering.get('filtering_enabled')),'protection_enabled':bool(filtering.get('protection_enabled'))},'filters':filters,'rewrites':rewrites,'wireguard':{'split_dns_preserved':bool(identity.get('split_dns_preserved')),'exclusive_dns_target':'10.77.0.1','devices':rows,'all_observed_on_edge1_dns':bool(rows) and all(r['edge1_dns_observed'] for r in rows)},'private_dns':{'zone':local.get('zone','wg.internal.ww.cx.'),'record_count':local.get('record_count',0)},'security':{'crowdsec_active':bool((services.get('crowdsec') or {}).get('active')),'crowdsec_bouncer_active':bool((services.get('crowdsec-firewall-bouncer') or {}).get('active')),'spamhaus_policy_enabled_count':sum(1 for d in identity.get('devices') or [] if (d.get('security') or {}).get('spamhaus_enabled'))},'authoritative_dns':{'mode':'hidden-primary','state':hp_state,'publicly_exposed':False,'enabled':activated,'recursive_service_separate':bool(policy.get('recursive_service_separate',True)),'wireguard_split_dns_preserved':bool(policy.get('wireguard_split_dns_preserved',True)),'secondary_provider':policy.get('secondary_provider'),'secondary_transfer_addresses':policy.get('dyn_secondary_transfer_addresses') or [],'complete_zone_inventory':inventory_complete,'candidate_zone_present':zone_present,'record_count':inventory.get('record_count',0) if inventory_complete else 0,'activation_blockers':blockers,'public_delegation_change_authorized':bool(policy.get('public_delegation_change_authorized')),'mx_cutover_authorized':bool(policy.get('mx_cutover_authorized'))}}
+ return {'schema_version':1,'contract':'wwcx.dns-management.v1','resolver':{'adguard_active':bool((services.get('AdGuardHome') or {}).get('active')),'unbound_active':bool((services.get('unbound') or {}).get('active')),'listen_address':'10.77.0.1','upstream_role':'Unbound recursive resolver','dnssec_enabled':bool(dns.get('enable_dnssec')),'cache_size':dns.get('cache_size'),'private_ptr_upstream_configured':bool(dns.get('local_ptr_upstreams')),'filtering_enabled':bool(filtering.get('filtering_enabled')),'protection_enabled':bool(filtering.get('protection_enabled'))},'filters':filters,'rewrites':rewrites,'wireguard':{'split_dns_preserved':bool(identity.get('split_dns_preserved')),'exclusive_dns_target':'10.77.0.1','devices':rows,'all_observed_on_edge1_dns':bool(rows) and all(r['edge1_dns_observed'] for r in rows)},'private_dns':{'zone':local.get('zone','wg.internal.ww.cx.'),'record_count':local.get('record_count',0)},'security':{'crowdsec_active':bool((services.get('crowdsec') or {}).get('active')),'crowdsec_bouncer_active':bool((services.get('crowdsec-firewall-bouncer') or {}).get('active')),'spamhaus_policy_enabled_count':sum(1 for d in identity.get('devices') or [] if (d.get('security') or {}).get('spamhaus_enabled'))},'authoritative_dns':{'mode':'hidden-primary','state':hp_state,'publicly_exposed':False,'enabled':activated,'recursive_service_separate':bool(policy.get('recursive_service_separate',True)),'wireguard_split_dns_preserved':bool(policy.get('wireguard_split_dns_preserved',True)),'secondary_provider':policy.get('secondary_provider'),'secondary_transfer_addresses':policy.get('dyn_secondary_transfer_addresses') or [],'complete_zone_inventory':inventory_complete,'candidate_zone_present':zone_present,'candidate_validated':candidate_valid,'record_count':inventory.get('record_count',0) if inventory_complete else 0,'exported_soa_serial':inventory.get('exported_soa_serial'),'observed_public_soa_serial':inventory.get('observed_public_soa_serial'),'candidate_soa_serial':inventory.get('candidate_soa_serial'),'activation_blockers':blockers,'public_delegation_change_authorized':bool(policy.get('public_delegation_change_authorized')),'mx_cutover_authorized':bool(policy.get('mx_cutover_authorized'))}}
 def write_atomic(path,payload):
  path.parent.mkdir(parents=True,exist_ok=True); tmp=path.with_name('.'+path.name+'.tmp'); tmp.write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n'); tmp.replace(path)
 def main():

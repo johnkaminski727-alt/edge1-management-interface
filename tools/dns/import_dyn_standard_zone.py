@@ -54,9 +54,15 @@ def main() -> None:
     origin=[r for r in directives if r.upper().startswith('$ORIGIN')]
     if origin:
         parts=origin[-1].split()
-        if len(parts)<2 or parts[1].lower().rstrip('.')+'.' != ZONE:
-            fail(f'zone origin must be {ZONE}')
-    if not any(re.search(r'\bSOA\b', r, re.I) for r in data): fail('SOA record missing')
+        value=(parts[1].strip().lower() if len(parts)>=2 else '')
+        # Dyn Standard DNS exports commonly use "$ORIGIN ." with fully-qualified
+        # owner names. Accept either that canonical Dyn form or an explicit ww.cx.
+        if value not in ('.', ZONE):
+            fail(f'zone origin must be . or {ZONE}')
+    soa=[r for r in data if re.search(r'\bSOA\b', r, re.I)]
+    if not soa: fail('SOA record missing')
+    if not any(re.match(r'^ww\.cx\.?\s+', r, re.I) for r in soa):
+        fail('SOA owner must be ww.cx.')
     if not any(re.search(r'\bNS\b', r, re.I) for r in data): fail('NS record missing')
     if len(data) < 3: fail('export contains too few resource records to be accepted as complete')
     state=a.state_dir

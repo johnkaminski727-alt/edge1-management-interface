@@ -8,7 +8,8 @@ LISTEN_V6=${EDGE1_HIDDEN_PRIMARY_LISTEN_V6:-none}
 [ -n "$LISTEN_V4" ] || { echo "STOP: set EDGE1_HIDDEN_PRIMARY_LISTEN_V4 explicitly." >&2; exit 2; }
 python3 "$ROOT/tools/dns/validate_hidden_primary_candidate.py" --inventory "$STATE/ww.cx-inventory.json" --zone-file "$STATE/ww.cx.zone"
 case "$LISTEN_V4" in *[!0-9.]*|'') echo "STOP: invalid IPv4 listen address" >&2; exit 2;; esac
-case "$LISTEN_V6" in none) V6_RENDER='none;' ;; *) V6_RENDER="$LISTEN_V6;" ;; esac
+case "$LISTEN_V6" in none) V6_RENDER='::1;' ;; *) V6_RENDER="$LISTEN_V6; ::1;" ;; esac
+install -d -m 0750 "$STATE/cache"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 BACKUP="/var/backups/edge1-hidden-primary-$STAMP"
 install -d -m 0700 "$BACKUP"
