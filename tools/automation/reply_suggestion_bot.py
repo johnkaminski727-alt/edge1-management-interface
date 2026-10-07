@@ -20,6 +20,7 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT))
 from server.mail_room_ava import AvaMailAssistant
 from tools.automation.automation_common import utcnow, upsert_library_document
+from tools.automation.outstanding_actions_bot import mail_actions
 
 MAIL=Path('/var/lib/wwcx-mail-room/correspondence.sqlite3')
 SECURITY=Path('/var/lib/wwcx-mail-security/security.sqlite3')
@@ -44,6 +45,12 @@ def released_hashes() -> set[str]:
 
 def candidates(days=14, limit=40):
     if not MAIL.is_file(): return []
+    # Outstanding Actions is the canonical workflow decision for whether a message
+    # currently needs a human reply. This prevents the reply bot from inventing a
+    # second, looser triage policy for promotional or completed notices.
+    action_rows,_=mail_actions(limit=200)
+    eligible={row.get('evidence') for row in action_rows if row.get('reply_suggestion_eligible') is True and row.get('evidence')}
+    if not eligible: return []
     released=released_hashes(); cutoff=(datetime.now(timezone.utc)-timedelta(days=days)).isoformat()
     with sqlite3.connect(f'file:{MAIL}?mode=ro',uri=True) as db:
         db.row_factory=sqlite3.Row
@@ -59,6 +66,8 @@ def candidates(days=14, limit=40):
         if not inbound: continue
         latest=inbound[-1]; subject=(latest['subject'] or '').strip(); body=latest['body_text'] or ''; text=(subject+' '+body[:6000]).casefold()
         sender=(latest['sender'] or '').strip(); local=sender.rsplit('<',1)[-1].split('@',1)[0].casefold()
+        evidence='mail-room:message:'+digest(latest['message_id'])
+        if evidence not in eligible: continue
         if any(x in local for x in AUTOMATED_LOCALPARTS) or any(x in text for x in EXCLUDE): continue
         if not any(x in text for x in REPLY_WORDS): continue
         if outbound_latest > (latest['occurred_at'] or ''): continue
@@ -69,7 +78,7 @@ def candidates(days=14, limit=40):
             except Exception: recipients=[]
             safe_messages.append({'sender':m['sender'],'recipients':recipients,'subject':m['subject'],'body_text':(m['body_text'] or '')[:2500],'direction':m['direction']})
         content_sha=digest(json.dumps(safe_messages,sort_keys=True,ensure_ascii=False))
-        found.append({'message_id':latest['message_id'],'thread_id':thread_id,'evidence':'mail-room:message:'+digest(latest['message_id']),
+        found.append({'message_id':latest['message_id'],'thread_id':thread_id,'evidence':evidence,
                       'thread_evidence':'mail-room:thread:'+digest(thread_id),'subject':subject or '(no subject)','sender':sender,
                       'occurred_at':latest['occurred_at'],'content_sha':content_sha,'thread':{'messages':safe_messages}})
     found.sort(key=lambda x:x.get('occurred_at') or '',reverse=True)

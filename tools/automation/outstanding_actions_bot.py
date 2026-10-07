@@ -93,7 +93,7 @@ def mail_actions(limit=40):
             stable=hashlib.sha256((group_key[0]+'|'+group_key[1]).encode()).hexdigest()
             action_id='mail-group:'+stable
             extra={'evidence_count':1,'related_evidence':[evidence],'notice_family':group_key[1]}
-        action={'id':action_id,'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':evidence,'action_level':'REVIEW-REQUIRED',**extra}
+        action={'id':action_id,'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':evidence,'action_level':'REVIEW-REQUIRED','reply_suggestion_eligible':bool(needs_reply and not automated),**extra}
         actions.append(action)
         if automated and group_key: automated_groups[group_key]=action
         if len(actions)>=limit: break
