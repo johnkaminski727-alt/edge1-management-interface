@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, hashlib, json, sqlite3
+import argparse, hashlib, json, re, sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
@@ -16,6 +16,13 @@ def load(path):
     try:return json.loads(path.read_text())
     except Exception:return {}
 def midhash(v): return hashlib.sha256(v.encode()).hexdigest()
+def normalized_subject(value):
+    text=' '.join(str(value or '').strip().casefold().split())
+    while True:
+        newer=re.sub(r'^(?:re|fw|fwd):\s*','',text,count=1)
+        if newer==text: break
+        text=newer
+    return text.strip(' .!-_')
 def age_hours(value):
     try:return (datetime.now(timezone.utc)-datetime.fromisoformat(str(value).replace('Z','+00:00'))).total_seconds()/3600
     except Exception:return None
@@ -36,9 +43,10 @@ def mail_actions(limit=40):
     actions=[]
     reply_words=('please','could you','can you','let me know','reply','respond','confirm','question','?')
     action_words=('action required','payment declined','past due','pre-suspension','suspension','security alert','no longer recoverable','account locked','amount due','due date','e-bill is ready','request is ready')
-    exclude=('auth check','dkim','commissioning','test message','acceptance','pilot')
+    exclude=('auth check','outbound check','dkim','commissioning','test message','acceptance','pilot')
     promotional=('unsubscribe','last chance','% off','discount','special offer','launches in','privacy policy','terms of service','premium offer')
     automated_localparts=('noreply','no-reply','no_reply','notifications','notices','ebill','recommendations','payments-noreply')
+    seen_action_threads=set(); seen_automated_notices=set()
     for r in rows:
         if r['direction']!='inbound' or midhash(r['message_id']) not in released: continue
         subject=(r['subject'] or '').strip(); body=(r['body_text'] or '')[:4000]; text=(subject+' '+body).lower(); sender=(r['sender'] or '').lower(); local=sender.split('@',1)[0]
@@ -48,6 +56,13 @@ def mail_actions(limit=40):
         needs_reply=not automated and any(x in text for x in reply_words)
         if not (needs_action or needs_reply): continue
         if needs_reply and outbound_latest.get(r['thread_id'],'') > (r['occurred_at'] or ''): continue
+        thread_key=(r['thread_id'] or '').strip()
+        if thread_key and thread_key in seen_action_threads: continue
+        if automated:
+            notice_key=(sender,normalized_subject(subject))
+            if notice_key[1] and notice_key in seen_automated_notices: continue
+            if notice_key[1]: seen_automated_notices.add(notice_key)
+        if thread_key: seen_action_threads.add(thread_key)
         priority='high' if any(x in text for x in ('urgent','asap','deadline','past due','pre-suspension','suspension','payment declined','action required')) else 'medium'
         detail=(f"Reply likely needed to {r['sender']}" if needs_reply else f"Review/action likely needed from automated message by {r['sender']}")
         actions.append({'id':'mail:'+midhash(r['message_id']),'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':'mail-room:message:'+midhash(r['message_id']),'action_level':'REVIEW-REQUIRED'})
