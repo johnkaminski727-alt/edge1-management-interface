@@ -74,10 +74,16 @@ class PlainHTML(HTMLParser):
 
 def readable_bytes(raw):
     message = BytesParser(policy=policy.default).parsebytes(raw)
-    if message.get_content_type() != "text/html" or message.is_multipart():
+    parts = [part for part in message.walk() if not part.is_multipart() and part.get_content_disposition() != "attachment"]
+    if any(part.get_content_type() == "text/plain" for part in parts):
+        return raw, False
+    html = [part for part in parts if part.get_content_type() == "text/html"]
+    if not html:
         return raw, False
     parser = PlainHTML()
-    parser.feed(message.get_content())
+    for part in html:
+        parser.feed(part.get_content())
+        parser.text.append("\n")
     message.set_content("".join(parser.text))
     return message.as_bytes(), True
 
