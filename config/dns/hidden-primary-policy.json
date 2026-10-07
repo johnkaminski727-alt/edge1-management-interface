@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "contract": "wwcx.hidden-primary-policy.v1",
+  "zone": "ww.cx.",
+  "architecture": "edge1-hidden-primary-external-secondaries",
+  "recursive_service_separate": true,
+  "wireguard_split_dns_preserved": true,
+  "public_delegation_change_authorized": false,
+  "mx_cutover_authorized": false,
+  "activation_requires_complete_inventory": true,
+  "activation_requires_zone_validation": true,
+  "secondary_provider": "Dyn Managed DNS",
+  "dyn_secondary_transfer_addresses": [
+    "204.13.249.65",
+    "208.78.68.65",
+    "2600:2001:0:1::65",
+    "2600:2003:0:1::65"
+  ],
+  "allowed_transfer_transports": ["tcp/53", "udp/53"],
+  "normal_public_queries_allowed": false
+}

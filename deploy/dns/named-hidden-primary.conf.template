@@ -1,0 +1,27 @@
+// WW.CX hidden primary. Rendered by activate-hidden-primary-edge1.sh.
+acl dyn_secondary {
+    204.13.249.65;
+    208.78.68.65;
+    2600:2001:0:1::65;
+    2600:2003:0:1::65;
+};
+options {
+    directory "/var/cache/bind";
+    recursion no;
+    allow-recursion { none; };
+    allow-query-cache { none; };
+    allow-query { dyn_secondary; localhost; };
+    allow-transfer { dyn_secondary; };
+    listen-on port 53 { __LISTEN_V4__; 127.0.0.1; };
+    listen-on-v6 port 53 { __LISTEN_V6__; ::1; };
+    minimal-responses yes;
+    version none;
+};
+zone "ww.cx" IN {
+    type primary;
+    file "/var/lib/edge1-authoritative-dns/ww.cx.zone";
+    allow-query { dyn_secondary; localhost; };
+    allow-transfer { dyn_secondary; };
+    notify yes;
+    also-notify { 204.13.249.65; 208.78.68.65; 2600:2001:0:1::65; 2600:2003:0:1::65; };
+};

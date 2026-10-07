@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "contract": "wwcx.authoritative-zone-inventory.v1",
+  "zone": "ww.cx.",
+  "complete_zone_inventory": false,
+  "source": "Dyn Managed DNS export",
+  "exported_at_utc": null,
+  "record_count": 0,
+  "zone_file_sha256": null,
+  "notes": "Set complete_zone_inventory true only after the complete Dyn zone has been exported and reconciled."
+}

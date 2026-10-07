@@ -10,11 +10,15 @@ DEFAULT_TELEMETRY=Path('/var/www/edge1-status/wireguard-dns-security.json')
 DEFAULT_CROWDSEC=Path('/var/www/edge1-status/crowdsec-status.json')
 DEFAULT_LOCAL=Path('/var/www/edge1-status/wireguard-local-dns.json')
 DEFAULT_OUTPUT=Path('/var/www/edge1-status/dns-management.json')
+DEFAULT_AUTH_POLICY=Path('/opt/edge1-management-interface/config/dns/hidden-primary-policy.json')
+DEFAULT_AUTH_INVENTORY=Path('/var/lib/edge1-authoritative-dns/ww.cx-inventory.json')
+DEFAULT_AUTH_ZONE=Path('/var/lib/edge1-authoritative-dns/ww.cx.zone')
+DEFAULT_AUTH_ACTIVATED=Path('/var/lib/edge1-authoritative-dns/ACTIVATED')
 
 def load_json(path):
  try:return json.loads(path.read_text())
  except Exception:return {}
-def build(adguard_path,identity_path,telemetry_path,crowdsec_path,local_path):
+def build(adguard_path,identity_path,telemetry_path,crowdsec_path,local_path,auth_policy=DEFAULT_AUTH_POLICY,auth_inventory=DEFAULT_AUTH_INVENTORY,auth_zone=DEFAULT_AUTH_ZONE,auth_activated=DEFAULT_AUTH_ACTIVATED):
  a=yaml.safe_load(adguard_path.read_text()) or {}; dns=a.get('dns') or {}; filtering=a.get('filtering') or {}
  identity=load_json(identity_path); telem=load_json(telemetry_path); crowd=load_json(crowdsec_path); local=load_json(local_path)
  filters=[]
@@ -31,7 +35,18 @@ def build(adguard_path,identity_path,telemetry_path,crowdsec_path,local_path):
  for d in identity.get('devices') or []:
   address=((d.get('assigned_addresses') or [''])[0]).split('/')[0]; t=obs.get(address,{})
   rows.append({'name':d.get('name'),'address':address,'owner_display_name':d.get('owner_display_name'),'registration_status':d.get('registration_status'),'queries_24h':(t.get('dns') or {}).get('queries_24h',0),'blocked_24h':(t.get('dns') or {}).get('blocked_24h',0),'edge1_dns_observed':((t.get('dns') or {}).get('queries_24h',0)>0)})
- return {'schema_version':1,'contract':'wwcx.dns-management.v1','resolver':{'adguard_active':bool((services.get('AdGuardHome') or {}).get('active')),'unbound_active':bool((services.get('unbound') or {}).get('active')),'listen_address':'10.77.0.1','upstream_role':'Unbound recursive resolver','dnssec_enabled':bool(dns.get('enable_dnssec')),'cache_size':dns.get('cache_size'),'private_ptr_upstream_configured':bool(dns.get('local_ptr_upstreams')),'filtering_enabled':bool(filtering.get('filtering_enabled')),'protection_enabled':bool(filtering.get('protection_enabled'))},'filters':filters,'rewrites':rewrites,'wireguard':{'split_dns_preserved':bool(identity.get('split_dns_preserved')),'exclusive_dns_target':'10.77.0.1','devices':rows,'all_observed_on_edge1_dns':bool(rows) and all(r['edge1_dns_observed'] for r in rows)},'private_dns':{'zone':local.get('zone','wg.internal.ww.cx.'),'record_count':local.get('record_count',0)},'security':{'crowdsec_active':bool((services.get('crowdsec') or {}).get('active')),'crowdsec_bouncer_active':bool((services.get('crowdsec-firewall-bouncer') or {}).get('active')),'spamhaus_policy_enabled_count':sum(1 for d in identity.get('devices') or [] if (d.get('security') or {}).get('spamhaus_enabled'))},'authoritative_dns':{'mode':'hidden-primary-planned','publicly_exposed':False,'enabled':False}}
+ policy=load_json(auth_policy); inventory=load_json(auth_inventory)
+ inventory_complete=inventory.get('complete_zone_inventory') is True
+ zone_present=auth_zone.is_file()
+ activated=auth_activated.is_file()
+ if activated: hp_state='activated'
+ elif inventory_complete and zone_present: hp_state='candidate_ready'
+ else: hp_state='staged_blocked'
+ blockers=[]
+ if not inventory_complete: blockers.append('complete_zone_inventory_missing')
+ if not zone_present: blockers.append('candidate_zone_file_missing')
+ if not activated: blockers.append('activation_marker_absent')
+ return {'schema_version':1,'contract':'wwcx.dns-management.v1','resolver':{'adguard_active':bool((services.get('AdGuardHome') or {}).get('active')),'unbound_active':bool((services.get('unbound') or {}).get('active')),'listen_address':'10.77.0.1','upstream_role':'Unbound recursive resolver','dnssec_enabled':bool(dns.get('enable_dnssec')),'cache_size':dns.get('cache_size'),'private_ptr_upstream_configured':bool(dns.get('local_ptr_upstreams')),'filtering_enabled':bool(filtering.get('filtering_enabled')),'protection_enabled':bool(filtering.get('protection_enabled'))},'filters':filters,'rewrites':rewrites,'wireguard':{'split_dns_preserved':bool(identity.get('split_dns_preserved')),'exclusive_dns_target':'10.77.0.1','devices':rows,'all_observed_on_edge1_dns':bool(rows) and all(r['edge1_dns_observed'] for r in rows)},'private_dns':{'zone':local.get('zone','wg.internal.ww.cx.'),'record_count':local.get('record_count',0)},'security':{'crowdsec_active':bool((services.get('crowdsec') or {}).get('active')),'crowdsec_bouncer_active':bool((services.get('crowdsec-firewall-bouncer') or {}).get('active')),'spamhaus_policy_enabled_count':sum(1 for d in identity.get('devices') or [] if (d.get('security') or {}).get('spamhaus_enabled'))},'authoritative_dns':{'mode':'hidden-primary','state':hp_state,'publicly_exposed':False,'enabled':activated,'recursive_service_separate':bool(policy.get('recursive_service_separate',True)),'wireguard_split_dns_preserved':bool(policy.get('wireguard_split_dns_preserved',True)),'secondary_provider':policy.get('secondary_provider'),'secondary_transfer_addresses':policy.get('dyn_secondary_transfer_addresses') or [],'complete_zone_inventory':inventory_complete,'candidate_zone_present':zone_present,'record_count':inventory.get('record_count',0) if inventory_complete else 0,'activation_blockers':blockers,'public_delegation_change_authorized':bool(policy.get('public_delegation_change_authorized')),'mx_cutover_authorized':bool(policy.get('mx_cutover_authorized'))}}
 def write_atomic(path,payload):
  path.parent.mkdir(parents=True,exist_ok=True); tmp=path.with_name('.'+path.name+'.tmp'); tmp.write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n'); tmp.replace(path)
 def main():
