@@ -1,0 +1,13 @@
+[Unit]
+Description=Restrict WW.CX hidden-primary DNS ingress to Dyn secondaries
+After=ufw.service
+Before=named.service
+
+[Service]
+Type=oneshot
+Environment=EDGE1_HIDDEN_PRIMARY_LISTEN_V4=89.126.248.191
+ExecStart=/usr/local/sbin/edge1-hidden-primary-firewall
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

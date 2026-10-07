@@ -6,8 +6,9 @@ acl dyn_secondary {
     2600:2003:0:1::65;
 };
 options {
-    directory "/var/lib/edge1-authoritative-dns/cache";
+    directory "/var/lib/bind/wwcx-hidden-primary";
     recursion no;
+    dnssec-validation no;
     allow-recursion { none; };
     allow-query-cache { none; };
     allow-query { dyn_secondary; localhost; };
@@ -19,9 +20,9 @@ options {
 };
 zone "ww.cx" IN {
     type primary;
-    file "/var/lib/edge1-authoritative-dns/ww.cx.zone";
+    file "/var/lib/bind/wwcx-hidden-primary/ww.cx.zone";
     allow-query { dyn_secondary; localhost; };
     allow-transfer { dyn_secondary; };
-    notify yes;
-    also-notify { 204.13.249.65; 208.78.68.65; 2600:2001:0:1::65; 2600:2003:0:1::65; };
+    notify explicit;
+    also-notify { 204.13.249.65; 208.78.68.65; };
 };
