@@ -20,6 +20,11 @@ class Wave5Tests(unittest.TestCase):
         src=(ROOT/'tools/automation/mail_learning_intelligence_bot.py').read_text()
         self.assertIn("'quarantine_release_authorized':False",src)
         self.assertIn("'thresholds_changed':False",src)
+    def test_ava_quality_preserves_recent_and_historical_windows(self):
+        src=(ROOT/'tools/automation/ava_quality_control_bot.py').read_text()
+        self.assertIn("'recent_hours'",src)
+        self.assertIn("'recent_metrics'",src)
+        self.assertIn("'historical_recommendations'",src)
     def test_ava_quality_is_metadata_only(self):
         src=(ROOT/'tools/automation/ava_quality_control_bot.py').read_text()
         for token in ("'content_included':False","'user_identifiers_included':False","'request_identifiers_included':False","'mutation_performed':False"):

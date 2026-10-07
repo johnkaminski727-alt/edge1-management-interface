@@ -8,6 +8,7 @@ User=root
 WorkingDirectory=/opt/edge1-management-interface
 EnvironmentFile=/etc/wwcx/private-ai-browser-worker.env
 Environment=AVA_QUALITY_WINDOW_DAYS=7
+Environment=AVA_QUALITY_RECENT_HOURS=6
 ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/ava_quality_control_bot.py
 UMask=0022
 NoNewPrivileges=true
