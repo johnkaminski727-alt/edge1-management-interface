@@ -4,6 +4,8 @@
 #   sudo deploy/email/mail-room-send/install.sh --apply              Phase 1a: signed send route, Send button.
 #                                                                   Identities stay disabled; nothing can send.
 #   sudo deploy/email/mail-room-send/install.sh --enable-identities  Phase 1b: authorize every sender identity.
+#   sudo deploy/email/mail-room-send/install.sh --update             Roll later overlay changes onto copies of
+#                                                                   the running releases (auto-restores on failure).
 #   sudo deploy/email/mail-room-send/install.sh --rollback <stamp>   Undo a Phase 1a install (and 1b if done).
 #
 # New release folders are copies of the running ones; nothing existing is edited in place.
@@ -19,6 +21,8 @@ IDS=/etc/wwcx/outbound-mail/identities.json
 WWW=/var/www/mail-room
 GW_SHA=2da37675e3fbb7f2bf3ea7d30c4b72f6d41acd3c087762e540c58f376dc867c1  # running suppressed server this patch is based on
 MR_SHA=58d2e92aa79e9315f51fd7b24a8074052a3675b4144d29ddf2ee5f5398c8889d  # running mail_room_http.py
+IA_SHA=cf67e9a36d2c50e29696b38eb83b9ffb385aa180ea0032376af42aafd1549f4e  # running identity_aware_outbound_gateway.py (for --update)
+OG_SHA=f1e24d0312e585cb57c5832c24a6298f616980085edb3dd5327ef3238850dadc  # running outbound_mail_gateway.py (for --update)
 SRC=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$SRC/../../.." && pwd)
 
@@ -149,6 +153,52 @@ PY
   echo "creekco.ca and omegafx.com still cannot send until Phase 2 adds them to allowed_from_domains."
   ;;
 
+--update)
+  # Roll this branch's overlay onto copies of the currently running 95- releases.
+  for d in "$GW_D" "$MR_D"; do [ -f "$d/95-mail-room-send.conf" ] || die "Phase 1a is not installed"; done
+  GW_CUR=$(sed -n 's/^WorkingDirectory=//p' "$GW_D/95-mail-room-send.conf")
+  MR_CUR=$(sed -n 's/^WorkingDirectory=//p' "$MR_D/95-mail-room-send.conf")
+  echo "$IA_SHA  $GW_CUR/server/identity_aware_outbound_gateway.py" | sha256sum -c --quiet || die "running identity_aware_outbound_gateway.py changed since this patch was written"
+  echo "$OG_SHA  $GW_CUR/server/outbound_mail_gateway.py" | sha256sum -c --quiet || die "running outbound_mail_gateway.py changed since this patch was written"
+  STAMP=$(date -u +%Y%m%dT%H%M%SZ); BK=/root/mail-room-send-update-$STAMP; POLICY=/etc/wwcx/outbound-mail/policy.json
+  GW_NEW=$REL/mail-room-send-gateway-$STAMP; MR_NEW=$REL/mail-room-send-mailroom-$STAMP
+  mkdir -p "$BK"; cp -a "$GW_D/95-mail-room-send.conf" "$BK/gateway-95.conf"; cp -a "$MR_D/95-mail-room-send.conf" "$BK/mailroom-95.conf"
+  cp -a "$POLICY" "$BK/policy.json"; cp -a "$WWW" "$BK/www-mail-room"
+  cp -a "$GW_CUR" "$GW_NEW"; cp -a "$MR_CUR" "$MR_NEW"
+  install -m 0644 "$SRC"/gateway/server/*.py "$GW_NEW/server/"
+  install -m 0644 "$SRC"/mailroom/server/*.py "$MR_NEW/server/"
+  for f in index.html app.js styles.css; do
+    install -m 0644 "$REPO/src/web/mail-room/$f" "$MR_NEW/src/web/mail-room/$f"; install -m 0644 "$REPO/src/web/mail-room/$f" "$WWW/$f"
+  done
+  for f in "$SRC"/gateway/server/*.py; do python3 -m py_compile "$GW_NEW/server/$(basename "$f")"; done
+  for f in "$SRC"/mailroom/server/*.py; do python3 -m py_compile "$MR_NEW/server/$(basename "$f")"; done
+  # The policy keeps its own sender-domain list; align it with the commissioned local-MTA domains.
+  python3 - "$POLICY" /etc/wwcx/outbound-mail/gateway.json <<'PY'
+import json, sys
+policy_path, gateway_path = sys.argv[1:]
+policy = json.load(open(policy_path))
+wanted = json.load(open(gateway_path))["provider"]["profiles"]["edge1_local_mta"]["allowed_from_domains"]
+allowed = policy["delivery"]["allowed_from_domains"]
+added = [d for d in wanted if d not in allowed]
+allowed.extend(added)
+with open(policy_path, "w") as handle:
+    handle.write(json.dumps(policy, indent=2) + "\n")
+print("policy allowed_from_domains:", allowed, "(added: " + (", ".join(added) or "none") + ")")
+PY
+  sed -i "s#$GW_CUR#$GW_NEW#g" "$GW_D/95-mail-room-send.conf"; sed -i "s#$MR_CUR#$MR_NEW#g" "$MR_D/95-mail-room-send.conf"
+  failed=0
+  restart || failed=1
+  [ $failed = 0 ] && { probe "unsigned send is rejected" authentication_failed none || failed=1; }
+  [ $failed = 0 ] && { probe "signed send passes auth and stops at validation (nothing sent)" invalid_request send || failed=1; }
+  if [ $failed = 1 ]; then
+    echo "Update failed; restoring the previous releases." >&2
+    cp -a "$BK/gateway-95.conf" "$GW_D/95-mail-room-send.conf"; cp -a "$BK/mailroom-95.conf" "$MR_D/95-mail-room-send.conf"
+    cp -a "$BK/policy.json" "$POLICY"; cp -a "$BK/www-mail-room/." "$WWW/"
+    restart || true; exit 1
+  fi
+  echo "Updated ($STAMP): gateway $GW_NEW, Mail Room $MR_NEW. Backups in $BK."
+  ;;
+
 --rollback)
   STAMP=${2:?usage: $0 --rollback <stamp>}; BK=/root/mail-room-send-$STAMP
   [ -d "$BK" ] || die "no backup at $BK"
@@ -159,5 +209,5 @@ PY
   echo "Rolled back to the pre-$STAMP state. New release folders are left in $REL for inspection."
   ;;
 
-*) sed -n '2,9p' "$0"; exit 2 ;;
+*) sed -n '2,11p' "$0"; exit 2 ;;
 esac

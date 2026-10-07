@@ -466,7 +466,12 @@ def compose_preview(
 def build_email_message(preview: dict[str, Any]) -> EmailMessage:
     request = preview["request"]
     message = EmailMessage(policy=email.policy.SMTP)
-    message["From"] = request["from_address"]
+    display_name = request.get("from_display_name")
+    message["From"] = (
+        email.utils.formataddr((display_name, request["from_address"]))
+        if display_name
+        else request["from_address"]
+    )
     message["To"] = ", ".join(request["to"])
     if request["cc"]:
         message["Cc"] = ", ".join(request["cc"])
