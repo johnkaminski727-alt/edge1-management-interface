@@ -256,7 +256,7 @@
       "runtime_route": "/edge1-ops/status/dns/",
       "availability": "accepted_live",
       "authorization": "authenticated_admin",
-      "description": "AdGuard/Unbound filtering plus authenticated WW.CX Dyn authoritative DNS publishing and verification.",
+      "description": "Private DNS filtering, public DNS status, managed domains, safe publishing controls, and automatic drift checks.",
       "palette": true,
       "toolbox": true,
       "evidence_status": "live_resolver_and_authoritative_dns",
