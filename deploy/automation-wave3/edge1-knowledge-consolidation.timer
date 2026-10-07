@@ -1,0 +1,9 @@
+[Unit]
+Description=Review Private Library consolidation daily
+[Timer]
+OnCalendar=*-*-* 01:15:00 America/Regina
+RandomizedDelaySec=20m
+Persistent=true
+Unit=edge1-knowledge-consolidation.service
+[Install]
+WantedBy=timers.target

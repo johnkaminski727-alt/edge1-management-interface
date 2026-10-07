@@ -1,0 +1,14 @@
+[Unit]
+Description=Read-only Private Library duplicate and consolidation review
+After=edge1-private-library-search.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/knowledge_consolidation_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/knowledge-consolidation /var/lib/bigbird-ai-library

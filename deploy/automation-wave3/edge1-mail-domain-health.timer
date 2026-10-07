@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Mail Room and domain health every five minutes
+[Timer]
+OnBootSec=4min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=edge1-mail-domain-health.service
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Check allowlisted services for bounded self-healing every five minutes
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=edge1-service-self-heal.service
+[Install]
+WantedBy=timers.target
