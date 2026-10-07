@@ -56,6 +56,27 @@ class Wave1Tests(unittest.TestCase):
         old=(actions.datetime.now(actions.timezone.utc)-actions.timedelta(days=8)).isoformat()
         self.assertFalse(actions.keep_active_mail_action('medium',old))
         self.assertTrue(actions.keep_active_mail_action('high',old))
+    def test_contacts_enrichment_cooldown_is_not_actionable(self):
+        with tempfile.TemporaryDirectory() as d:
+            dbp=Path(d)/'maintenance.sqlite'
+            db=sqlite3.connect(dbp)
+            db.executescript('''
+                create table candidate_changes(status text, action_level text);
+                create table maintenance_findings(status text, severity text);
+                create table enrichment_queue(status text, research_checked_at text);
+            ''')
+            recent=actions.datetime.now(actions.timezone.utc).isoformat(timespec='seconds')
+            db.execute("insert into enrichment_queue values ('pending',?)",(recent,))
+            db.commit(); db.close()
+            original=actions.MAINT
+            try:
+                actions.MAINT=dbp
+                rows,state=actions.contacts_actions()
+            finally:
+                actions.MAINT=original
+            self.assertEqual(state,'available')
+            self.assertFalse(any(x['id']=='contacts:enrichment' for x in rows))
+
     def test_action_markdown_declares_advisory_boundary(self):
         data={'generated_at':'x','summary':{'total':0,'high':0,'medium':0,'low':0},'actions':[]}
         text=actions.markdown(data)
