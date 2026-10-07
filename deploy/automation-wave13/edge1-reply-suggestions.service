@@ -1,0 +1,18 @@
+[Unit]
+Description=Stage review-only Ava reply suggestions for unresolved released mail
+After=wwcx-mail-room.service bigbird-ai-gateway.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+EnvironmentFile=/etc/wwcx/mail-room-ava.env
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/reply_suggestion_bot.py --max-new 3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge1-reply-suggestions /var/www/edge1-status/reply-suggestions /var/lib/bigbird-ai-library
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
