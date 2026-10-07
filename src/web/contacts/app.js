@@ -2760,8 +2760,28 @@ function pointActionHtml(row) {
     return "";
   }
 
+  const mailAddress = String(
+    row.normalized_value || row.display_value || ""
+  ).trim();
+
+  const mailAction =
+    row.point_type === "email" && mailAddress.includes("@")
+      ? `
+        <a
+          class="contact-icon-action"
+          href="/edge1-ops/mail-room/?compose=1&to=${encodeURIComponent(mailAddress)}"
+          title="Compose email in Mail Room"
+          aria-label="Compose email to ${escapeHtml(mailAddress)} in Mail Room"
+        >
+          ✉
+        </a>
+      `
+      : "";
+
   return `
     <div class="contact-point-actions contextual-actions">
+
+      ${mailAction}
 
       <button
         type="button"

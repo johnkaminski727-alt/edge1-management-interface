@@ -1155,36 +1155,52 @@ class UnifiedContacts:
             openpgp_policies = []
             if point_ids:
                 placeholders = ",".join("?" for _ in point_ids)
-                openpgp_rows = [
-                    dict(row)
+                openpgp_tables = {
+                    row[0]
                     for row in con.execute(
-                        f"""
-                        SELECT k.id AS openpgp_key_id,k.contact_point_id,
-                               k.fingerprint,k.verification_status,k.source,
-                               k.expires_at,k.revoked_at,k.created_at,k.updated_at,
-                               cp.normalized_value AS email_address
-                        FROM contact_openpgp_keys k
-                        JOIN contact_points cp ON cp.id=k.contact_point_id
-                        WHERE k.contact_point_id IN ({placeholders})
-                        ORDER BY k.contact_point_id,k.created_at DESC,k.id DESC
-                        """,
-                        point_ids,
+                        """
+                        SELECT name
+                        FROM sqlite_master
+                        WHERE type='table'
+                          AND name IN (
+                            'contact_openpgp_keys',
+                            'contact_openpgp_policy'
+                          )
+                        """
                     )
-                ]
-                openpgp_policies = [
-                    dict(row)
-                    for row in con.execute(
-                        f"""
-                        SELECT p.contact_point_id,p.mode,p.updated_at,
-                               cp.normalized_value AS email_address
-                        FROM contact_openpgp_policy p
-                        JOIN contact_points cp ON cp.id=p.contact_point_id
-                        WHERE p.contact_point_id IN ({placeholders})
-                        ORDER BY p.contact_point_id
-                        """,
-                        point_ids,
-                    )
-                ]
+                }
+                if "contact_openpgp_keys" in openpgp_tables:
+                    openpgp_rows = [
+                        dict(row)
+                        for row in con.execute(
+                            f"""
+                            SELECT k.id AS openpgp_key_id,k.contact_point_id,
+                                   k.fingerprint,k.verification_status,k.source,
+                                   k.expires_at,k.revoked_at,k.created_at,k.updated_at,
+                                   cp.normalized_value AS email_address
+                            FROM contact_openpgp_keys k
+                            JOIN contact_points cp ON cp.id=k.contact_point_id
+                            WHERE k.contact_point_id IN ({placeholders})
+                            ORDER BY k.contact_point_id,k.created_at DESC,k.id DESC
+                            """,
+                            point_ids,
+                        )
+                    ]
+                if "contact_openpgp_policy" in openpgp_tables:
+                    openpgp_policies = [
+                        dict(row)
+                        for row in con.execute(
+                            f"""
+                            SELECT p.contact_point_id,p.mode,p.updated_at,
+                                   cp.normalized_value AS email_address
+                            FROM contact_openpgp_policy p
+                            JOIN contact_points cp ON cp.id=p.contact_point_id
+                            WHERE p.contact_point_id IN ({placeholders})
+                            ORDER BY p.contact_point_id
+                            """,
+                            point_ids,
+                        )
+                    ]
 
             return {
                 "assertions": assertions,
