@@ -768,6 +768,7 @@ function contactPointRowHtml(row, selectedPointId = null) {
   return `
     <div
       class="contact-info-row${selected ? " selected" : ""}"
+      data-point-type="${escapeHtml(type)}"
     >
       <div class="contact-info-icon" aria-hidden="true">
         ${escapeHtml(contactPointIcon(type))}
@@ -796,9 +797,7 @@ function contactPointRowHtml(row, selectedPointId = null) {
 
 function contactRecordTechnicalDetails(row) {
   return `
-    <details class="contact-technical-details">
-      <summary>Record details</summary>
-
+    <div class="contact-technical-details">
       <dl>
         <div>
           <dt>Entity ID</dt>
@@ -825,7 +824,7 @@ function contactRecordTechnicalDetails(row) {
             : ""
         }
       </dl>
-    </details>
+    </div>
   `;
 }
 
@@ -838,6 +837,8 @@ function entityEvidenceHtml(
   const aliases = detail.aliases || [];
   const attestations = detail.attestations || [];
   const observations = detail.observations || [];
+  const openpgpKeys = detail.openpgp_keys || [];
+  const openpgpPolicies = detail.openpgp_policies || [];
 
   const contactInfo = assertions.length
     ? assertions.map((item) => {
@@ -935,45 +936,9 @@ function entityEvidenceHtml(
         </div>
       `;
 
-  return `
-    <section class="contact-record-section">
-      <div class="contact-section-heading">
-        <h3>Contact information</h3>
-
-        ${
-          entityRow && entityRow.entity_id
-            ? `
-              <button
-                type="button"
-                class="contact-add-action"
-                data-contact-action="add-point"
-              >
-                + Add
-              </button>
-            `
-            : ""
-        }
-      </div>
-
-      <div class="contact-info-list">
-        ${contactInfo}
-      </div>
-    </section>
-
-    ${
-      aliases.length
-        ? `
-          <section class="contact-record-section">
-            <h3>Alternate names</h3>
-            ${aliasHtml}
-          </section>
-        `
-        : ""
-    }
-
-    ${openpgpKeys.length || openpgpPolicies.length ? `
-      <section class="contact-record-section contact-security-section">
-        <h3>Email security</h3>
+  const securityHtml =
+    openpgpKeys.length || openpgpPolicies.length
+      ? `
         ${openpgpPolicies.map((item) => `
           <div class="contact-secondary-row">
             <strong>${escapeHtml(item.email_address || "Email")}</strong>
@@ -987,52 +952,249 @@ function entityEvidenceHtml(
             <span>${escapeHtml(item.expires_at ? `expires ${item.expires_at}` : "no recorded expiry")}</span>
           </div>
         `).join("")}
+      `
+      : "";
+
+  const tabs = [
+    ["overview", "Overview", ""],
+    ["evidence", "Evidence", evidenceCount || ""],
+    ...(securityHtml ? [["security", "Security", ""]] : []),
+    ...(entityRow ? [["record", "Record", ""]] : []),
+  ];
+
+  return `
+    <nav class="contact-tabs" role="tablist" aria-label="Contact record sections">
+      ${tabs.map(([key, label, count], index) => `
+        <button
+          type="button"
+          role="tab"
+          class="contact-tab"
+          data-contact-tab="${key}"
+          aria-selected="${index === 0}"
+        >
+          ${escapeHtml(label)}
+          ${count ? `<span class="contact-tab-count">${escapeHtml(count)}</span>` : ""}
+        </button>
+      `).join("")}
+    </nav>
+
+    <div class="contact-tab-panel" data-contact-panel="overview">
+      <section class="contact-record-section">
+        <div class="contact-section-heading">
+          <h3>Contact information</h3>
+
+          ${
+            entityRow && entityRow.entity_id
+              ? `
+                <button
+                  type="button"
+                  class="contact-add-action"
+                  data-contact-action="add-point"
+                >
+                  + Add
+                </button>
+              `
+              : ""
+          }
+        </div>
+
+        <div class="contact-info-list">
+          ${contactInfo}
+        </div>
       </section>
+
+      ${
+        aliases.length
+          ? `
+            <section class="contact-record-section">
+              <h3>Alternate names</h3>
+              ${aliasHtml}
+            </section>
+          `
+          : ""
+      }
+    </div>
+
+    <div class="contact-tab-panel" data-contact-panel="evidence" hidden>
+      <section class="contact-record-section">
+        <h3>Evidence &amp; provenance</h3>
+        ${evidenceHtml}
+      </section>
+    </div>
+
+    ${securityHtml ? `
+      <div class="contact-tab-panel" data-contact-panel="security" hidden>
+        <section class="contact-record-section contact-security-section">
+          <h3>Email security</h3>
+          ${securityHtml}
+        </section>
+      </div>
     ` : ""}
 
-    <section class="contact-record-section">
-      <h3>Evidence &amp; provenance</h3>
-      ${evidenceHtml}
-    </section>
+    ${entityRow ? `
+      <div class="contact-tab-panel" data-contact-panel="record" hidden>
+        <section class="contact-record-section">
+          <h3>Record details</h3>
+          ${contactRecordTechnicalDetails(entityRow)}
+        </section>
+      </div>
+    ` : ""}
   `;
 }
 
-async function renderEntityDetail(row) {
+function contactInitials(name) {
+  const words = String(name || "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) {
+    return "?";
+  }
+
+  // Prefer words that start with a letter: "23andMe Customer Care" -> "CC".
+  const lettered = words.filter((word) => /^\p{L}/u.test(word));
+
+  if (lettered.length) {
+    words.splice(0, words.length, ...lettered);
+  }
+
+  const letters = words.length === 1
+    ? words[0].slice(0, 2)
+    : words[0][0] + words[words.length - 1][0];
+
+  return letters.toUpperCase();
+}
+
+function contactAvatarHue(name) {
+  let hash = 0;
+
+  for (const char of String(name || "")) {
+    hash = (hash * 31 + char.codePointAt(0)) % 360;
+  }
+
+  return hash;
+}
+
+function contactSkeletonHtml() {
+  const tile = `
+    <div class="contact-skeleton-tile">
+      <span class="contact-skeleton contact-skeleton-icon"></span>
+      <span class="contact-skeleton-lines">
+        <span class="contact-skeleton" style="width: 70%"></span>
+        <span class="contact-skeleton" style="width: 90%"></span>
+      </span>
+    </div>
+  `;
+
+  return `
+    <div class="loading contact-skeleton-body" aria-busy="true">
+      <span class="sr-only">Loading contact information…</span>
+      <div class="contact-skeleton-tabs">
+        <span class="contact-skeleton" style="width: 72px"></span>
+        <span class="contact-skeleton" style="width: 64px"></span>
+        <span class="contact-skeleton" style="width: 56px"></span>
+      </div>
+      <span class="contact-skeleton contact-skeleton-heading"></span>
+      <div class="contact-skeleton-grid">
+        ${tile.repeat(4)}
+      </div>
+    </div>
+  `;
+}
+
+// Profile-card header: avatar, name, kind/verification, quick actions.
+// Quick actions are filled once the record's contact points have loaded.
+function contactHeroHtml(row, name) {
+  const isPerson = row.entity_type === "person";
+
+  return `
+    <div class="contact-hero">
+      <div
+        class="contact-avatar ${isPerson ? "person" : "organization"}"
+        style="--avatar-hue: ${contactAvatarHue(name)}"
+        aria-hidden="true"
+      >
+        ${escapeHtml(contactInitials(name))}
+      </div>
+
+      <div class="contact-hero-main">
+        <h2 class="contact-hero-name">${escapeHtml(name)}</h2>
+
+        <div class="contact-identity-copy">
+          <span class="contact-entity-kind">
+            ${isPerson ? "Person" : "Organization"}
+          </span>
+          ${contactVerificationHtml(row.verification_status)}
+        </div>
+
+        <div class="contact-hero-actions">
+          <div class="contact-quick-actions" data-contact-quick></div>
+          ${entityActionHtml(row)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function contactQuickActionsHtml(assertions) {
+  const first = (type) =>
+    assertions.find((item) => item.point_type === type);
+
+  const value = (item) =>
+    item.normalized_value || item.display_value || "";
+
+  const email = first("email");
+  const phone = first("phone");
+  const website = first("website") || first("domain");
+
+  const actions = [];
+
+  if (email) {
+    actions.push(`
+      <a class="contact-quick primary" href="/edge1-ops/mail-room/?${escapeHtml(new URLSearchParams({ compose: "1", to: value(email) }))}" target="_blank" rel="noopener" title="Compose in Mail Room to ${escapeHtml(value(email))}">
+        <span aria-hidden="true">✉</span> Email
+      </a>
+    `);
+  }
+
+  if (phone) {
+    actions.push(`
+      <a class="contact-quick" href="tel:${escapeHtml(value(phone).replace(/[^\d+]/g, ""))}" title="Call ${escapeHtml(phone.display_value || value(phone))}">
+        <span aria-hidden="true">☎</span> Call
+      </a>
+    `);
+  }
+
+  if (website) {
+    const host = value(website).replace(/^https?:\/\//i, "");
+    actions.push(`
+      <a class="contact-quick" href="https://${escapeHtml(host)}" target="_blank" rel="noopener noreferrer" title="Open ${escapeHtml(host)}">
+        <span aria-hidden="true">↗</span> Website
+      </a>
+    `);
+  }
+
+  return actions.join("");
+}
+
+// Renders a canonical person/organization record; selectedPointId highlights
+// the contact point the user clicked in an endpoint-oriented view.
+async function renderEntityRecord(row, selectedPointId) {
   const name =
     row.display_name ||
     row.canonical_name ||
     `Entity ${row.entity_id}`;
 
   $("#detail-title").textContent = name;
+  $(".contact-workspace").classList.add("has-contact-hero");
   $("#detail-content").className =
     "contact-record-body";
 
   $("#detail-content").innerHTML = `
-    <div class="contact-identity-summary">
-
-      <div class="contact-identity-copy">
-        ${contactVerificationHtml(
-          row.verification_status
-        )}
-
-        <div class="contact-entity-kind">
-          ${escapeHtml(
-            row.entity_type === "person"
-              ? "Person"
-              : "Organization"
-          )}
-        </div>
-      </div>
-
-      ${entityActionHtml(row)}
-
-    </div>
-
-    <div class="loading">
-      Loading contact information…
-    </div>
-
-    ${contactRecordTechnicalDetails(row)}
+    ${contactHeroHtml(row, name)}
+    ${contactSkeletonHtml()}
   `;
 
   try {
@@ -1044,6 +1206,11 @@ async function renderEntityDetail(row) {
       })
     );
 
+    // A newer selection replaced this record while it loaded.
+    if (state.selected !== row) {
+      return;
+    }
+
     const loading =
       $("#detail-content .loading");
 
@@ -1052,8 +1219,15 @@ async function renderEntityDetail(row) {
         entityEvidenceHtml(
           detail,
           row,
-          null
+          selectedPointId
         );
+    }
+
+    const quick = $("#detail-content [data-contact-quick]");
+
+    if (quick) {
+      quick.innerHTML =
+        contactQuickActionsHtml(detail.assertions || []);
     }
   } catch (error) {
     const loading =
@@ -1068,6 +1242,31 @@ async function renderEntityDetail(row) {
       `;
     }
   }
+}
+
+function selectContactTab(button) {
+  const key = button.dataset.contactTab;
+  const body = button.closest("#detail-content");
+
+  body.querySelectorAll("[data-contact-tab]").forEach((tab) => {
+    tab.setAttribute("aria-selected", String(tab === button));
+  });
+
+  body.querySelectorAll("[data-contact-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.contactPanel !== key;
+  });
+}
+
+$("#detail-content").addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-contact-tab]");
+
+  if (tab) {
+    selectContactTab(tab);
+  }
+});
+
+async function renderEntityDetail(row) {
+  await renderEntityRecord(row, null);
 }
 
 async function renderContactDetail(row) {
@@ -1147,76 +1346,7 @@ async function renderContactDetail(row) {
     return;
   }
 
-  const name =
-    row.display_name ||
-    row.canonical_name ||
-    `Entity ${row.entity_id}`;
-
-  $("#detail-title").textContent = name;
-  $("#detail-content").className =
-    "contact-record-body";
-
-  $("#detail-content").innerHTML = `
-    <div class="contact-identity-summary">
-
-      <div class="contact-identity-copy">
-        ${contactVerificationHtml(
-          row.verification_status
-        )}
-
-        <div class="contact-entity-kind">
-          ${escapeHtml(
-            row.entity_type === "person"
-              ? "Person"
-              : "Organization"
-          )}
-        </div>
-      </div>
-
-      ${entityActionHtml(row)}
-
-    </div>
-
-    <div class="loading">
-      Loading contact information…
-    </div>
-
-    ${contactRecordTechnicalDetails(row)}
-  `;
-
-  try {
-    const detail = await api(
-      "/api/contacts/evidence?" +
-      new URLSearchParams({
-        entity_id: String(row.entity_id),
-        limit: "250",
-      })
-    );
-
-    const loading =
-      $("#detail-content .loading");
-
-    if (loading) {
-      loading.outerHTML =
-        entityEvidenceHtml(
-          detail,
-          row,
-          row.contact_point_id
-        );
-    }
-  } catch (error) {
-    const loading =
-      $("#detail-content .loading");
-
-    if (loading) {
-      loading.outerHTML = `
-        <div class="contact-section-empty">
-          Unable to load contact information:
-          ${escapeHtml(error.message)}
-        </div>
-      `;
-    }
-  }
+  await renderEntityRecord(row, row.contact_point_id);
 }
 
 async function renderRelationshipDetail(row) {
@@ -1437,6 +1567,7 @@ function renderObservationDetail(row) {
 
 async function renderDetail(row) {
   state.selected = row;
+  $(".contact-workspace").classList.remove("has-contact-hero");
 
   document
     .querySelectorAll(".result")

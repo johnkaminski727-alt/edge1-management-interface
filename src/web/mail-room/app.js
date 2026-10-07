@@ -251,4 +251,7 @@
     target.append(element("p","Warnings after 3 hours without a definition check or 36 hours without package maintenance. New mail is held if definitions have not been verified for 24 hours. Custom domain policy stays versioned; Spam/Not spam corrections are learned during the minute-by-minute scan job.","small"));
   }
   request("status").then(s=>{sendEnabled=s.send_enabled===true;$("connection").textContent="Mail Room ready · Security gate active · "+(sendEnabled?"Sending enabled for authorized senders":"Sending disabled");if(s.updates?.warnings?.length)$("connection").textContent+=" · Security updates need attention";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
+  // Deep link from Contacts: ?compose=1&to=address opens a new draft addressed to that contact.
+  const linked=new URLSearchParams(location.search);
+  if(linked.get("compose")==="1"){const to=(linked.get("to")||"").trim();history.replaceState(null,"",location.pathname);if(!to||(to.length<=320&&/^[^\s@,<>]+@[^\s@,<>]+$/.test(to))){showReader(true);showEditor(to?{to}:{});}}
 })();
