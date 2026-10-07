@@ -24,6 +24,11 @@ class Wave1Tests(unittest.TestCase):
             p=Path(d)/'x.sqlite'; db=sqlite3.connect(p); db.execute('create table t(x)'); db.execute('insert into t values (1)'); db.commit(); db.close()
             self.assertEqual(backup.dbcheck(p)['state'],'ok')
             self.assertEqual(sqlite3.connect(p).execute('select count(*) from t').fetchone()[0],1)
+    def test_subject_normalization_collapses_reply_prefixes(self):
+        self.assertEqual(actions.normalized_subject(' Re: FWD: Your library request is ready! '),'your library request is ready')
+    def test_outbound_check_is_commissioning_language(self):
+        source=(ROOT/'tools/automation/outstanding_actions_bot.py').read_text()
+        self.assertIn("'outbound check'",source)
     def test_action_markdown_declares_advisory_boundary(self):
         data={'generated_at':'x','summary':{'total':0,'high':0,'medium':0,'low':0},'actions':[]}
         text=actions.markdown(data)
