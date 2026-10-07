@@ -1,0 +1,18 @@
+[Unit]
+Description=WW.CX Time Authority Business159 HTTPS Observer Import
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/tools/time_authority/import_business159_public_status.py
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge1-time-authority
+RestrictAddressFamilies=AF_INET AF_INET6

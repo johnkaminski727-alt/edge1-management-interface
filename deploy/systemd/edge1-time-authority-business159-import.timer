@@ -1,0 +1,11 @@
+[Unit]
+Description=Import Business159 Time Authority observation every five minutes
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+RandomizedDelaySec=20
+Unit=edge1-time-authority-business159-import.service
+
+[Install]
+WantedBy=timers.target
