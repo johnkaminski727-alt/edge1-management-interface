@@ -125,6 +125,9 @@ def build():
     seo=load(Path('/var/www/edge1-status/seo-audit/status.json')); sources['seo_audit']='available' if seo else 'unavailable'
     if seo.get('state') in {'attention','warning'}:
         summary=seo.get('summary') or {}; actions.append({'id':'websites:seo','source':'seo','priority':'high' if summary.get('high') else 'medium','title':'SEO/crawl audit needs attention','detail':f"{summary.get('issues',0)} crawl/metadata issues detected across {summary.get('pages_checked',0)} pages.",'action_level':'AUTO-STAGE'})
+    catalog=load(Path('/var/www/edge1-status/catalog-consistency/status.json')); sources['catalog_consistency']='available' if catalog else 'unavailable'
+    if catalog.get('state') in {'attention','warning'}:
+        summary=catalog.get('summary') or {}; actions.append({'id':'store:catalog-consistency','source':'catalog','priority':'high' if catalog.get('state')=='attention' else 'medium','title':'Store catalog consistency needs attention','detail':f"{summary.get('findings',0)} live-vs-fallback catalog differences detected.",'action_level':'AUTO-STAGE'})
     order={'high':0,'medium':1,'low':2}; actions.sort(key=lambda x:(order.get(x['priority'],9),x['source'],x['title']))
     counts={p:sum(a['priority']==p for a in actions) for p in ('high','medium','low')}
     return {'contract':'wwcx.outstanding-actions.v1','generated_at':utcnow(),'summary':{'total':len(actions),**counts},'sources':sources,'actions':actions[:200],'mutation_performed':False}

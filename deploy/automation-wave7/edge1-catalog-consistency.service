@@ -1,0 +1,15 @@
+[Unit]
+Description=Compare live WW.CX store catalog with its fallback active projection
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/catalog_consistency_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/catalog-consistency /var/lib/bigbird-ai-library

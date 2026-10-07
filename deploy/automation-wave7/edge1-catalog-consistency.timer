@@ -1,0 +1,9 @@
+[Unit]
+Description=Audit WW.CX catalog consistency hourly
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+Persistent=true
+Unit=edge1-catalog-consistency.service
+[Install]
+WantedBy=timers.target
