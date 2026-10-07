@@ -202,6 +202,27 @@ def collect_safe_fixes(src):
             'target_id': row['id'], 'target_field': 'display_value', 'before': row['display_value'],
             'after': row['normalized_value'], 'rationale': 'Display value was empty; the existing normalized contact value is safe to use as a display fallback.'
         })
+    for row in src.execute('''
+        SELECT DISTINCT cp.id,cp.lifecycle_status
+        FROM contact_points cp
+        JOIN contact_assertions ca ON ca.contact_point_id=cp.id
+        JOIN contact_entities e ON e.id=ca.entity_id
+        WHERE cp.lifecycle_status='unknown'
+          AND e.lifecycle_status='active'
+          AND ca.confidence IN ('confirmed','verified','document_sourced')
+          AND NOT EXISTS(
+              SELECT 1 FROM contact_assertions ca2
+              JOIN contact_entities e2 ON e2.id=ca2.entity_id
+              WHERE ca2.contact_point_id=cp.id
+                AND e2.lifecycle_status='active'
+                AND ca2.confidence NOT IN ('confirmed','verified','document_sourced')
+          )
+    '''):
+        fixes.append({
+            'action_type': 'activate_strongly_asserted_contact_point', 'target_table': 'contact_points',
+            'target_id': row['id'], 'target_field': 'lifecycle_status', 'before': row['lifecycle_status'],
+            'after': 'active', 'rationale': 'The contact point was lifecycle=unknown but every active-entity assertion is independently confirmed or document-sourced.'
+        })
     return fixes
 
 
@@ -222,6 +243,7 @@ def apply_safe_fixes(src, source_path, dst, run_id, backup_dir):
     allowed = {
         ('contact_entities', 'display_name'),
         ('contact_points', 'display_value'),
+        ('contact_points', 'lifecycle_status'),
     }
     applied = []
     try:
@@ -229,8 +251,8 @@ def apply_safe_fixes(src, source_path, dst, run_id, backup_dir):
         for fix in fixes:
             if (fix['target_table'], fix['target_field']) not in allowed:
                 raise RuntimeError('AUTO-FIX attempted outside field allowlist')
-            query = f"UPDATE {fix['target_table']} SET {fix['target_field']}=? WHERE id=? AND ({fix['target_field']} IS NULL OR TRIM({fix['target_field']})='')"
-            cursor = src.execute(query, (fix['after'], fix['target_id']))
+            query = f"UPDATE {fix['target_table']} SET {fix['target_field']}=? WHERE id=? AND {fix['target_field']} IS ?"
+            cursor = src.execute(query, (fix['after'], fix['target_id'], fix['before']))
             if cursor.rowcount != 1:
                 raise RuntimeError(f"AUTO-FIX concurrency check failed for {fix['target_table']} id={fix['target_id']}")
             verify = src.execute(f"SELECT {fix['target_field']} FROM {fix['target_table']} WHERE id=?", (fix['target_id'],)).fetchone()
@@ -262,54 +284,106 @@ def plausible_mail_phone_candidate(raw, context=''):
     raw=str(raw or '').strip(); context=str(context or '')
     digits=re.sub(r'\D','',raw); low=context.casefold()
     pos=context.find(raw)
-    before=(context[max(0,pos-50):pos] if pos >= 0 else context[:50]).casefold()
-    phone_words=('phone','telephone','tel:','mobile','cell','fax','call','contact details','contact number')
-    obvious_noise=('ip address','confirmation number','confirmation:','pin code','tracking_pixel','token=','key=','alert/nt/','order number','invoice number')
+    before=(context[max(0,pos-60):pos] if pos >= 0 else context[:60]).casefold()
+    phone_words=('phone','telephone','tel:','tel ','mobile','cell','fax','call','contact details','contact number')
+    obvious_noise=('ip address','confirmation number','confirmation:','pin code','tracking_pixel','invoice number','security code','verification code','order number','reference number')
     if any(x in low for x in obvious_noise) and not any(x in before for x in phone_words):
         return False
     if re.fullmatch(r'\d{1,3}(?:\.\d{1,3}){3}', raw):
         return False
+    if re.fullmatch(r'20\d{2}[-/.]\d{1,2}[-/.]\d{1,2}.*', raw):
+        return False
     if raw.startswith('+'):
         return 8 <= len(digits) <= 15
-    if len(digits)==10:
-        return digits[0] in '23456789' and digits[3] in '23456789'
-    if len(digits)==11 and digits.startswith('1'):
-        return digits[1] in '23456789' and digits[4] in '23456789'
-    if any(x in before for x in phone_words):
+    labelled=any(x in before for x in phone_words)
+    formatted=bool(re.search(r'[()\-\s]', raw))
+    if len(digits)==10 and digits[0] in '23456789' and digits[3] in '23456789':
+        return labelled or formatted
+    if len(digits)==11 and digits.startswith('1') and digits[1] in '23456789' and digits[4] in '23456789':
+        return labelled or formatted
+    if labelled:
         return 7 <= len(digits) <= 15 and len(set(digits)) > 2
     return False
 
 
-def suppress_noisy_mail_phone_candidates(dst):
-    rejected=[]
+def mail_candidate_disposition(row):
+    ctype=str(row['candidate_type'] or '')
+    value=str(row['normalized_value'] or '').strip()
+    display=str(row['display_value'] or value).strip()
+    context=str(row['context'] or '')
+    source_kind=str(row['source_kind'] or '')
+    low=value.casefold()
+    if ctype=='phone':
+        return None if plausible_mail_phone_candidate(display,context) else 'rejected_noise'
+    if ctype=='email':
+        if '@' not in value:
+            return 'rejected_noise'
+        local,domain=low.rsplit('@',1)
+        if len(local)<=1 and '*' in context:
+            return 'rejected_noise'
+        if '%' in local or domain=='gtempaccount.com':
+            return 'informational_only'
+        if domain=='property.booking.com' and re.match(r'^\d',local):
+            return 'informational_only'
+        system_locals=('noreply','no-reply','do-not-reply','donotreply','account-security-noreply','appleid')
+        if source_kind=='message_header' and any(local==x or local.startswith(x+'+') for x in system_locals):
+            return 'informational_only'
+        return None
+    if ctype=='job_title':
+        if 'http://' in low or 'https://' in low or '@' in value:
+            return 'rejected_noise'
+        if len(value)>80 or len(value.split())>10:
+            return 'rejected_noise'
+        generic={'apple support','support team','customer support','technical support','help desk'}
+        if low in generic or low.startswith(('learn more','if you need','support:','contact support')):
+            return 'informational_only'
+        return None
+    if ctype=='postal_address':
+        compact=' '.join(value.split())
+        if re.fullmatch(r'[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ][ -]?\d[ABCEGHJ-NPRSTVWXYZ]\d',compact,re.I):
+            return 'informational_only'
+        return None
+    return None
+
+
+def suppress_low_value_mail_candidates(dst):
+    disposition_by_id={}
     rows=dst.execute("""
-        SELECT id,display_value,normalized_value,context
+        SELECT id,candidate_type,display_value,normalized_value,context,source_kind
         FROM mail_contact_candidates
-        WHERE candidate_type='phone' AND status IN ('pending','queued_review')
+        WHERE status IN ('pending','queued_review')
     """).fetchall()
     for row in rows:
-        if not plausible_mail_phone_candidate(row['display_value'] or row['normalized_value'], row['context'] or ''):
-            rejected.append(int(row['id']))
-    if not rejected:
-        return 0
-    placeholders=','.join('?' for _ in rejected)
-    dst.execute(f"UPDATE mail_contact_candidates SET status='rejected_noise' WHERE id IN ({placeholders})", rejected)
-    rejected_set=set(rejected)
-    for row in dst.execute("SELECT id,proposed_value FROM candidate_changes WHERE target_table='mail_contact_candidates' AND status='pending'").fetchall():
+        disposition=mail_candidate_disposition(row)
+        if disposition:
+            disposition_by_id[int(row['id'])]=disposition
+    if not disposition_by_id:
+        return {'rejected_noise':0,'informational_only':0}
+    for disposition in ('rejected_noise','informational_only'):
+        ids=[candidate_id for candidate_id,status in disposition_by_id.items() if status==disposition]
+        if not ids:
+            continue
+        placeholders=','.join('?' for _ in ids)
+        dst.execute(f"UPDATE mail_contact_candidates SET status=? WHERE id IN ({placeholders})",(disposition,*ids))
+    affected=set(disposition_by_id)
+    for row in dst.execute("SELECT id,proposed_value FROM candidate_changes WHERE target_table='mail_contact_candidates' AND status IN ('pending','checking')").fetchall():
         try: detail=json.loads(row['proposed_value'] or '{}')
         except (TypeError,json.JSONDecodeError): continue
-        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in rejected_set:
+        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in affected:
             dst.execute("UPDATE candidate_changes SET status='superseded',updated_at=? WHERE id=?",(utcnow(),row['id']))
-    for row in dst.execute("SELECT id,detail FROM maintenance_findings WHERE finding_type='mail_contact_candidate' AND status='open'").fetchall():
+    for row in dst.execute("SELECT id,detail FROM maintenance_findings WHERE finding_type='mail_contact_candidate' AND status IN ('open','checking')").fetchall():
         try: detail=json.loads(row['detail'] or '{}')
         except (TypeError,json.JSONDecodeError): continue
-        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in rejected_set:
+        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in affected:
             dst.execute("UPDATE maintenance_findings SET status='resolved',last_seen_at=? WHERE id=?",(utcnow(),row['id']))
-    return len(rejected)
+    return {
+        'rejected_noise':sum(1 for status in disposition_by_id.values() if status=='rejected_noise'),
+        'informational_only':sum(1 for status in disposition_by_id.values() if status=='informational_only'),
+    }
 
 
 def process_mail_contact_candidates(src, dst):
-    rejected_noise = suppress_noisy_mail_phone_candidates(dst)
+    suppressed = suppress_low_value_mail_candidates(dst)
     groups = dst.execute("""
         SELECT MIN(c.id) AS representative_id,c.candidate_type,c.normalized_value,
                COUNT(*) AS evidence_count,MIN(e.message_id) AS example_message_id
@@ -319,7 +393,7 @@ def process_mail_contact_candidates(src, dst):
         GROUP BY c.candidate_type,c.normalized_value
         ORDER BY representative_id LIMIT 5000
     """).fetchall()
-    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, 'rejected_noise': rejected_noise}
+    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, **suppressed}
     point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
     for group in groups:
         ctype, value = group['candidate_type'], group['normalized_value']
@@ -396,17 +470,21 @@ def run(src, dst):
                       'Potential identity merge requires human approval because it may be destructive.')
 
     for row in src.execute('''
-        SELECT cp.id,cp.point_type,cp.normalized_value,COUNT(DISTINCT ca.entity_id) n,GROUP_CONCAT(DISTINCT ca.entity_id) ids
+        SELECT cp.id,cp.point_type,cp.normalized_value,COUNT(DISTINCT ca.entity_id) n,
+               GROUP_CONCAT(DISTINCT ca.entity_id) ids,
+               SUM(CASE WHEN ca.confidence IN ('confirmed','verified','document_sourced') THEN 0 ELSE 1 END) weak
         FROM contact_points cp JOIN contact_assertions ca ON ca.contact_point_id=cp.id
         JOIN contact_entities e ON e.id=ca.entity_id
         WHERE cp.lifecycle_status='active' AND e.lifecycle_status='active'
         GROUP BY cp.id HAVING COUNT(DISTINCT ca.entity_id)>1
     '''):
+        if int(row['weak'] or 0) == 0:
+            continue
         detail = f"{row['point_type']} {row['normalized_value']} is asserted for entity_ids={row['ids']}"
-        finding(dst, 'shared_contact_point', 'medium', 'Contact point belongs to multiple contacts', detail,
+        finding(dst, 'shared_contact_point', 'medium', 'Contact point has ambiguous shared ownership', detail,
                 point=row['id'], action_level='REVIEW_REQUIRED')
         candidate(dst, 'REVIEW_REQUIRED', 'contact_assertions', row['id'], 'ownership', row['ids'], None,
-                  'Shared contact point ownership is ambiguous and cannot be changed automatically.', point=row['id'])
+                  'At least one shared ownership assertion is not strongly verified and requires review.', point=row['id'])
 
     for row in src.execute('''
         SELECT cp.id,cp.point_type,cp.normalized_value FROM contact_points cp

@@ -107,6 +107,23 @@ async function loadSummary() {
     Number(
       maintenance.pending_identity_resolution ?? 0
     ).toLocaleString();
+
+  $("#metric-duplicate-risks").textContent =
+    Number(maintenance.duplicate_risks ?? 0).toLocaleString();
+
+  $("#metric-missing-sources").textContent =
+    Number(maintenance.missing_sources ?? 0).toLocaleString();
+
+  $("#metric-validation-issues").textContent =
+    Number(maintenance.validation_issues ?? 0).toLocaleString();
+
+  $("#metric-enrichment-backlog").textContent =
+    Number(maintenance.pending_enrichment ?? 0).toLocaleString();
+
+  const lastRun = maintenance.latest_run?.finished_at || maintenance.latest_run?.started_at;
+  $("#metric-last-maintenance").textContent = lastRun
+    ? new Date(lastRun).toLocaleString()
+    : "Never";
 }
 
 function rowKey(row) {

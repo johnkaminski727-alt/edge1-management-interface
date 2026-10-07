@@ -55,6 +55,11 @@ class UnifiedContactsMaintenance:
                 "pending_enrichment": scalar("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'"),
                 "pending_identity_resolution": scalar("SELECT COUNT(*) FROM identity_resolution_queue WHERE status='pending'"),
                 "review_required_findings": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND action_level='REVIEW_REQUIRED'"),
+                "duplicate_risks": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='duplicate_entity'"),
+                "shared_contact_risks": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='shared_contact_point'"),
+                "missing_sources": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='source_missing'"),
+                "validation_issues": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='validation_issue'"),
+                "mail_review_candidates": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='mail_contact_candidate'"),
                 "latest_run": dict(latest) if latest else None,
             }
         finally:
@@ -134,6 +139,20 @@ class UnifiedContactsMaintenance:
                             if detail.get("evidence_count"):
                                 bits.append(f"{detail['evidence_count']} evidence occurrence(s)")
                             item["review_summary"] = " · ".join(bit for bit in bits if bit)
+                            evidence_count = int(detail.get("evidence_count") or 0)
+                            type_weight = {
+                                "phone": 30,
+                                "email": 28,
+                                "postal_address": 20,
+                                "job_title": 10,
+                            }.get(str(detail.get("type") or ""), 5)
+                            source_weight = {
+                                "attachment": 20,
+                                "message_header": 15,
+                                "message_body": 5,
+                            }.get(str(detail.get("source_kind") or ""), 0)
+                            repeat_weight = min(evidence_count, 10) * 4
+                            item["review_priority"] = type_weight + source_weight + repeat_weight
                     rows.append(item)
 
             if kind in {"all", "enrichment"}:
@@ -155,6 +174,12 @@ class UnifiedContactsMaintenance:
                 ).fetchall():
                     item = dict(r)
                     item.update({"maintenance_kind": "enrichment", "maintenance_item_id": r["id"], "action_level": "AUTO_STAGE"})
+                    item["review_priority"] = {
+                        "find_phone": 35,
+                        "find_email": 32,
+                        "find_address": 24,
+                        "find_web_presence": 16,
+                    }.get(str(r["task_type"] or ""), 10)
                     rows.append(item)
 
             if kind in {"all", "candidates"}:
@@ -191,7 +216,13 @@ class UnifiedContactsMaintenance:
                 if item.get("matched_entity_id") is not None:
                     item["matched_entity_name"] = names.get(int(item["matched_entity_id"]))
 
-            rows.sort(key=lambda item: item.get("updated_at") or item.get("last_seen_at") or item.get("created_at") or "", reverse=True)
+            rows.sort(
+                key=lambda item: (
+                    int(item.get("review_priority") or 0),
+                    item.get("updated_at") or item.get("last_seen_at") or item.get("created_at") or "",
+                ),
+                reverse=True,
+            )
             return rows[offset:offset + limit]
         finally:
             con.close()

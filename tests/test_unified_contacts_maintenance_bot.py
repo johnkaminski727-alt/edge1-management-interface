@@ -15,7 +15,7 @@ CREATE TABLE contact_points(
  id INTEGER PRIMARY KEY, point_type TEXT, normalized_value TEXT, display_value TEXT,
  classification TEXT, lifecycle_status TEXT, updated_at TEXT
 );
-CREATE TABLE contact_assertions(id INTEGER PRIMARY KEY, entity_id INTEGER, contact_point_id INTEGER);
+CREATE TABLE contact_assertions(id INTEGER PRIMARY KEY, entity_id INTEGER, contact_point_id INTEGER, confidence TEXT DEFAULT 'unverified');
 '''
 
 
@@ -28,7 +28,7 @@ class MaintenanceBotTests(unittest.TestCase):
                 INSERT INTO contact_entities VALUES(1,'person','Jane Smith','Jane Smith','active','unverified',NULL);
                 INSERT INTO contact_entities VALUES(2,'person','Jane  Smith','Jane Smith','active','unverified',NULL);
                 INSERT INTO contact_points VALUES(1,'email','bad-email','bad-email',NULL,'active',NULL);
-                INSERT INTO contact_assertions VALUES(1,1,1);
+                INSERT INTO contact_assertions(id,entity_id,contact_point_id) VALUES(1,1,1);
             ''')
             dst = open_state(Path(directory) / 'state.sqlite')
             first = run(src, dst)
@@ -65,6 +65,50 @@ class MaintenanceBotTests(unittest.TestCase):
             self.assertEqual(dst.execute("SELECT status FROM candidate_changes WHERE fingerprint='cc'").fetchone()[0], 'superseded')
             src.close(); dst.close()
 
+    def test_strong_shared_contact_point_is_not_treated_as_conflict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA + '''
+                INSERT INTO contact_entities VALUES(1,'person','Jane Example','Jane Example','active','verified',NULL);
+                INSERT INTO contact_entities VALUES(2,'organization','Example Co','Example Co','active','verified',NULL);
+                INSERT INTO contact_points VALUES(1,'email','jane@example.com','jane@example.com',NULL,'active',NULL);
+                INSERT INTO contact_assertions VALUES(1,1,1,'confirmed');
+                INSERT INTO contact_assertions VALUES(2,2,1,'document_sourced');
+            ''')
+            dst = open_state(Path(directory) / 'state.sqlite')
+            run(src, dst); dst.commit()
+            self.assertEqual(dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE finding_type='shared_contact_point' AND status='open'").fetchone()[0], 0)
+            src.close(); dst.close()
+
+    def test_low_value_mail_candidates_leave_active_review_without_losing_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA)
+            dst = open_state(Path(directory) / 'state.sqlite')
+            dst.execute("INSERT INTO mail_contact_extractions(fingerprint,message_id,message_sha256,occurred_at,sender,subject,security_state,reviewed,extracted_at,attachment_count,candidate_count) VALUES('f2','<m2>','h2','2026-10-07','noreply@google.com','Security','released',0,'2026-10-07',0,5)")
+            eid = dst.execute('SELECT id FROM mail_contact_extractions').fetchone()[0]
+            rows = [
+                (20,'e1','email','noreply@google.com','noreply@google.com','high','message_header','sender','noreply@google.com'),
+                (21,'e2','email','y@ww.cx','y@ww.cx','medium','message_body','body','account da**y@ww.cx'),
+                (22,'j1','job_title','apple support','Apple Support','low','message_body','body','Apple Support'),
+                (23,'a1','postal_address','L5N 0B9','L5N 0B9','low','message_body','body','L5N 0B9'),
+                (24,'p1','phone','+13065551212','+1 (306) 555-1212','medium','message_body','body','Phone +1 (306) 555-1212'),
+            ]
+            for row in rows:
+                dst.execute("INSERT INTO mail_contact_candidates(id,fingerprint,extraction_id,candidate_type,normalized_value,display_value,confidence,source_kind,source_reference,context,status,created_at) VALUES(?,?,?, ?,?,?,?,?,?,?, 'queued_review','now')", (row[0],row[1],eid,*row[2:]))
+            stats = process_mail_contact_candidates(src, dst)
+            dst.commit()
+            self.assertEqual(stats['informational_only'], 3)
+            self.assertEqual(stats['rejected_noise'], 1)
+            self.assertEqual(dst.execute("SELECT status FROM mail_contact_candidates WHERE id=20").fetchone()[0], 'informational_only')
+            self.assertEqual(dst.execute("SELECT status FROM mail_contact_candidates WHERE id=21").fetchone()[0], 'rejected_noise')
+            self.assertEqual(dst.execute("SELECT status FROM mail_contact_candidates WHERE id=22").fetchone()[0], 'informational_only')
+            self.assertEqual(dst.execute("SELECT status FROM mail_contact_candidates WHERE id=23").fetchone()[0], 'informational_only')
+            self.assertEqual(dst.execute("SELECT status FROM mail_contact_candidates WHERE id=24").fetchone()[0], 'queued_review')
+            src.close(); dst.close()
+
     def test_safe_autofix_only_fills_missing_display_fields_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:
             source_path = Path(directory) / 'contacts.sqlite'
@@ -76,6 +120,8 @@ class MaintenanceBotTests(unittest.TestCase):
                 INSERT INTO contact_entities VALUES(2,'person','Keep Name','Custom Display','active','verified',NULL);
                 INSERT INTO contact_points VALUES(1,'email','jane@example.com',NULL,NULL,'active',NULL);
                 INSERT INTO contact_points VALUES(2,'phone','+13065550100','(306) 555-0100',NULL,'active',NULL);
+                INSERT INTO contact_points VALUES(3,'phone','+13065550101','(306) 555-0101',NULL,'unknown',NULL);
+                INSERT INTO contact_assertions VALUES(3,1,3,'document_sourced');
             ''')
             con.commit()
             con.close()
@@ -84,8 +130,8 @@ class MaintenanceBotTests(unittest.TestCase):
             src = open_source(source_path, writable=True)
             first = apply_safe_fixes(src, source_path, dst, 1, backup_dir)
             dst.commit()
-            self.assertEqual(first['planned'], 2)
-            self.assertEqual(first['applied'], 2)
+            self.assertEqual(first['planned'], 3)
+            self.assertEqual(first['applied'], 3)
             self.assertTrue(Path(first['backup']).is_file())
             self.assertEqual(src.execute('SELECT display_name FROM contact_entities WHERE id=1').fetchone()[0], 'Jane Smith')
             self.assertEqual(src.execute('SELECT display_name FROM contact_entities WHERE id=2').fetchone()[0], 'Custom Display')
@@ -94,7 +140,8 @@ class MaintenanceBotTests(unittest.TestCase):
             second = apply_safe_fixes(src, source_path, dst, 2, backup_dir)
             self.assertEqual(second['planned'], 0)
             self.assertEqual(second['applied'], 0)
-            self.assertEqual(dst.execute("SELECT COUNT(*) FROM remediation_actions WHERE action_level='AUTO_FIX'").fetchone()[0], 2)
+            self.assertEqual(src.execute("SELECT lifecycle_status FROM contact_points WHERE id=3").fetchone()[0], 'active')
+            self.assertEqual(dst.execute("SELECT COUNT(*) FROM remediation_actions WHERE action_level='AUTO_FIX'").fetchone()[0], 3)
             src.close()
             dst.close()
 
