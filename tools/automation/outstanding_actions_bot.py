@@ -85,6 +85,21 @@ def build():
     else:
         dr=load(Path('/var/www/edge1-status/disaster-recovery/status.json')); dh=age_hours(dr.get('checked_utc')); sources['disaster_recovery']='stale' if dh is None or dh>36 else 'available'
         if not dr.get('remote_present') or not dr.get('remote_checksum_verified') or sources['disaster_recovery']=='stale': actions.append({'id':'backup:posture','source':'backup','priority':'high','title':'Backup posture needs attention','detail':'Off-site backup evidence is missing, stale, or checksum verification is not current.','action_level':'REVIEW-REQUIRED'})
+    drift=load(Path('/var/www/edge1-status/drift-monitor/status.json')); sources['drift']='available' if drift else 'unavailable'
+    for x in drift.get('findings',[])[:30]:
+        actions.append({'id':'drift:'+str(x.get('kind')),'source':'drift','priority':'high' if x.get('severity') in ('critical','high') else 'medium','title':'Drift: '+str(x.get('kind','finding')).replace('_',' '),'detail':x.get('detail') or 'Review detected drift.','action_level':x.get('action_level','REVIEW-REQUIRED')})
+    cert=load(Path('/var/www/edge1-status/certificate-expiry/status.json')); sources['certificates']='available' if cert else 'unavailable'
+    if cert.get('state')=='attention': actions.append({'id':'certificates:expiry','source':'certificates','priority':'high','title':'Certificate or key expiry needs attention','detail':f"{cert.get('attention_count',0)} certificate/key items are inside the warning window.",'action_level':'REVIEW-REQUIRED'})
+    storage=load(Path('/var/www/edge1-status/storage-health/status.json')); sources['storage']='available' if storage else 'unavailable'
+    if storage.get('state')=='attention': actions.append({'id':'storage:health','source':'storage','priority':'high','title':'Storage or database health needs attention','detail':'Storage/database health monitor reported an attention state.','action_level':'REVIEW-REQUIRED'})
+    mailhealth=load(Path('/var/www/edge1-status/mail-domain-health/status.json')); sources['mail_domain_health']='available' if mailhealth else 'unavailable'
+    if mailhealth.get('state')=='attention': actions.append({'id':'mail-domain:health','source':'mail-domain','priority':'high','title':'Mail or domain health needs attention','detail':'; '.join(mailhealth.get('warnings') or ['Mail/domain health reported attention.']),'action_level':'REVIEW-REQUIRED'})
+    for item in mailhealth.get('followups',[])[:10]: actions.append({'id':'mail-domain:followup:'+str(item),'source':'mail-domain','priority':'low','title':'Mail/DNS follow-up: '+str(item).replace('_',' '),'detail':'Tracked follow-up from Mail & Domain Health; service is not currently degraded.','action_level':'AUTO-STAGE'})
+    knowledge=load(Path('/var/www/edge1-status/knowledge-consolidation/status.json')); sources['knowledge']='available' if knowledge else 'unavailable'
+    if int(knowledge.get('review_items') or 0)>0: actions.append({'id':'knowledge:consolidation','source':'knowledge','priority':'low','title':f"{knowledge.get('review_items')} Private Library consolidation groups need review",'detail':'Knowledge Consolidation found duplicate/title groups; no documents were changed.','action_level':'REVIEW-REQUIRED'})
+    heal=load(Path('/var/www/edge1-status/service-self-heal/status.json')); sources['self_heal']='available' if heal else 'unavailable'
+    for row in heal.get('services',[]):
+        if row.get('action')=='restart_failed' or row.get('after')=='failed': actions.append({'id':'self-heal:'+str(row.get('unit')),'source':'self-heal','priority':'high','title':'Service self-heal failed: '+str(row.get('unit')),'detail':'Bounded restart did not restore this allowlisted service.','action_level':'REVIEW-REQUIRED'})
     order={'high':0,'medium':1,'low':2}; actions.sort(key=lambda x:(order.get(x['priority'],9),x['source'],x['title']))
     counts={p:sum(a['priority']==p for a in actions) for p in ('high','medium','low')}
     return {'contract':'wwcx.outstanding-actions.v1','generated_at':utcnow(),'summary':{'total':len(actions),**counts},'sources':sources,'actions':actions[:200],'mutation_performed':False}
