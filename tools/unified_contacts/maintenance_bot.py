@@ -139,7 +139,7 @@ def finding(dst, kind, severity, title, detail, entity=None, point=None, action_
             last_seen_at=excluded.last_seen_at,
             occurrences=maintenance_findings.occurrences+1,
             action_level=excluded.action_level,
-            status=CASE WHEN maintenance_findings.status='resolved' THEN 'open' ELSE maintenance_findings.status END
+            status=CASE WHEN maintenance_findings.status IN ('resolved','checking') THEN 'open' ELSE maintenance_findings.status END
     ''', (key, kind, severity, action_level, entity, point, title, detail, now, now))
 
 
@@ -149,7 +149,8 @@ def enrich(dst, entity, task, rationale):
     dst.execute('''
         INSERT INTO enrichment_queue(fingerprint,entity_id,task_type,rationale,created_at,updated_at)
         VALUES(?,?,?,?,?,?)
-        ON CONFLICT(fingerprint) DO UPDATE SET rationale=excluded.rationale,updated_at=excluded.updated_at
+        ON CONFLICT(fingerprint) DO UPDATE SET rationale=excluded.rationale,updated_at=excluded.updated_at,
+            status=CASE WHEN enrichment_queue.status IN ('resolved','checking') THEN 'pending' ELSE enrichment_queue.status END
     ''', (key, entity, task, rationale, now, now))
 
 
@@ -162,7 +163,7 @@ def candidate(dst, action_level, target_table, target_id, target_field, current,
             current_value,proposed_value,rationale,created_at,updated_at
         ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(fingerprint) DO UPDATE SET updated_at=excluded.updated_at,
-            status=CASE WHEN candidate_changes.status='superseded' THEN 'pending' ELSE candidate_changes.status END
+            status=CASE WHEN candidate_changes.status IN ('superseded','checking') THEN 'pending' ELSE candidate_changes.status END
     ''', (key, action_level, entity, point, target_table, target_field, current, proposed, rationale, now, now))
 
 
@@ -175,7 +176,7 @@ def identity_resolution(dst, point_id, resolution_kind, normalized_value, ration
         ) VALUES(?,?,?,?, 'pending', ?, ?, ?)
         ON CONFLICT(fingerprint) DO UPDATE SET
             rationale=excluded.rationale,updated_at=excluded.updated_at,
-            status=CASE WHEN identity_resolution_queue.status IN ('resolved','superseded') THEN 'pending' ELSE identity_resolution_queue.status END
+            status=CASE WHEN identity_resolution_queue.status IN ('resolved','superseded','checking') THEN 'pending' ELSE identity_resolution_queue.status END
     ''', (key, point_id, resolution_kind, normalized_value, rationale, now, now))
 
 
@@ -314,7 +315,7 @@ def process_mail_contact_candidates(src, dst):
                COUNT(*) AS evidence_count,MIN(e.message_id) AS example_message_id
         FROM mail_contact_candidates c
         JOIN mail_contact_extractions e ON e.id=c.extraction_id
-        WHERE c.status='pending'
+        WHERE c.status IN ('pending','queued_review')
         GROUP BY c.candidate_type,c.normalized_value
         ORDER BY representative_id LIMIT 5000
     """).fetchall()
@@ -326,7 +327,7 @@ def process_mail_contact_candidates(src, dst):
         occurrences = dst.execute("""
             SELECT c.id,c.extraction_id,c.source_kind,c.source_reference,c.attachment_sha256,e.message_id,e.sender
             FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id
-            WHERE c.status='pending' AND c.candidate_type=? AND c.normalized_value=? ORDER BY c.id
+            WHERE c.status IN ('pending','queued_review') AND c.candidate_type=? AND c.normalized_value=? ORDER BY c.id
         """, (ctype, value)).fetchall()
         anchor_entities=set()
         for item in occurrences:
@@ -365,6 +366,20 @@ def process_mail_contact_candidates(src, dst):
         dst.execute(f"UPDATE mail_contact_candidates SET status='queued_review',matched_entity_id=? WHERE id IN ({placeholders})",(entity,*ids))
         stats['queued_review']+=1
     return stats
+
+
+def begin_reconciliation_cycle(dst):
+    dst.execute("UPDATE maintenance_findings SET status='checking' WHERE status='open'")
+    dst.execute("UPDATE enrichment_queue SET status='checking' WHERE status='pending'")
+    dst.execute("UPDATE candidate_changes SET status='checking' WHERE status='pending'")
+    dst.execute("UPDATE identity_resolution_queue SET status='checking' WHERE status='pending'")
+
+
+def finish_reconciliation_cycle(dst):
+    dst.execute("UPDATE maintenance_findings SET status='resolved' WHERE status='checking'")
+    dst.execute("UPDATE enrichment_queue SET status='resolved' WHERE status='checking'")
+    dst.execute("UPDATE candidate_changes SET status='superseded' WHERE status='checking'")
+    dst.execute("UPDATE identity_resolution_queue SET status='superseded' WHERE status='checking'")
 
 
 def run(src, dst):
@@ -538,8 +553,15 @@ def main():
                         str(source_reconciliation_backup), source_reconciliation_before_sha,
                         source_reconciliation_after_sha, item['status'], utcnow()
                     ))
+            begin_reconciliation_cycle(dst)
             process_source_reconciliation(dst, source_reconciliation)
             summary = run(src, dst)
+            finish_reconciliation_cycle(dst)
+            summary.update({
+                'open_findings': dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'").fetchone()[0],
+                'pending_enrichment': dst.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'").fetchone()[0],
+                'pending_candidates': dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'").fetchone()[0],
+            })
             summary.update({
                 'source_locations_verified': source_reconciliation['verified'],
                 'source_urls_declared': source_reconciliation['declared'],

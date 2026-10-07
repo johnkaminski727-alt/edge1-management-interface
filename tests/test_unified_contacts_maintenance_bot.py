@@ -99,5 +99,23 @@ class MaintenanceBotTests(unittest.TestCase):
             dst.close()
 
 
+    def test_reconciliation_cycle_closes_conditions_that_disappear(self):
+        from tools.unified_contacts.maintenance_bot import begin_reconciliation_cycle, finish_reconciliation_cycle
+        with tempfile.TemporaryDirectory() as directory:
+            dst = open_state(Path(directory) / 'state.sqlite')
+            now = '2026-10-07T00:00:00+00:00'
+            dst.execute("INSERT INTO maintenance_findings(fingerprint,finding_type,severity,action_level,title,detail,status,first_seen_at,last_seen_at) VALUES('f','duplicate_entity','high','REVIEW_REQUIRED','Duplicate','old','open',?,?)", (now, now))
+            dst.execute("INSERT INTO enrichment_queue(fingerprint,entity_id,task_type,rationale,status,created_at,updated_at) VALUES('e',1,'find_email','old','pending',?,?)", (now, now))
+            dst.execute("INSERT INTO candidate_changes(fingerprint,action_level,target_table,target_field,rationale,status,created_at,updated_at) VALUES('c','REVIEW_REQUIRED','contact_entities','identity_merge','old','pending',?,?)", (now, now))
+            dst.execute("INSERT INTO identity_resolution_queue(fingerprint,contact_point_id,resolution_kind,normalized_value,status,rationale,created_at,updated_at) VALUES('i',10,'reverse_phone','+13065550100','pending','old',?,?)", (now, now))
+            begin_reconciliation_cycle(dst)
+            finish_reconciliation_cycle(dst)
+            self.assertEqual(dst.execute("SELECT status FROM maintenance_findings WHERE fingerprint='f'").fetchone()[0], 'resolved')
+            self.assertEqual(dst.execute("SELECT status FROM enrichment_queue WHERE fingerprint='e'").fetchone()[0], 'resolved')
+            self.assertEqual(dst.execute("SELECT status FROM candidate_changes WHERE fingerprint='c'").fetchone()[0], 'superseded')
+            self.assertEqual(dst.execute("SELECT status FROM identity_resolution_queue WHERE fingerprint='i'").fetchone()[0], 'superseded')
+            dst.close()
+
+
 if __name__ == '__main__':
     unittest.main()
