@@ -60,7 +60,10 @@ def canary_status():
     ptr=dig('191.248.126.89.in-addr.arpa','PTR')
     gates['mail_a_published']='89.126.248.191' in a
     gates['dkim_published']=bool(dkim)
-    gates['spf_overlap_published']=any('89.126.248.191' in x and 'spf.privateemail.com' in x for x in spf)
+    production_mx = any(x.strip() == '10 mail.ww.cx.' for x in mx)
+    final_spf = any('v=spf1' in x and 'ip4:89.126.248.191' in x and 'spf.privateemail.com' not in x for x in spf)
+    overlap_spf = any('89.126.248.191' in x and 'spf.privateemail.com' in x for x in spf)
+    gates['spf_overlap_published'] = final_spf if production_mx else overlap_spf
     gates['dmarc_monitoring_published']=any('v=DMARC1' in x and 'p=none' in x for x in dmarc)
     gates['ptr_forward_confirmed']=any(x.rstrip('.')=='mail.ww.cx' for x in ptr)
     gates['tls_certificate_ready']=pathlib.Path('/etc/letsencrypt/live/mail.ww.cx/fullchain.pem').is_file()
@@ -70,14 +73,36 @@ def canary_status():
     gates['inbound_security_acceptance']=security.get('result')=='pass'
     foundational=('mail_a_published','tls_certificate_ready','dkim_published','spf_overlap_published','dmarc_monitoring_published','inbound_loopback_acceptance','external_smtp_reachable','inbound_security_acceptance')
     state='pre_cutover_staging'
+    pilot_ok = False
+    pilot_root = pathlib.Path('/var/lib/wwcx-mail-gateway')
+    for item in sorted(pilot_root.glob('outbound-pilot-*/execution.json'), reverse=True):
+        try:
+            data = json.loads(item.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        submission = data.get('submission') or {}
+        if data.get('contract') == 'wwcx.direct-mta-one-message-pilot.v1' and submission.get('accepted') is True and submission.get('smtp_code') == 250 and data.get('rollback_succeeded') is True:
+            pilot_ok = True
+            break
+    gates['outbound_one_message_pilot'] = pilot_ok
+    rollback_file = pathlib.Path('/var/lib/wwcx-mail-gateway/wwcx-external-dns-rollback-rehearsal.json')
+    try:
+        rollback = json.loads(rollback_file.read_text()) if rollback_file.is_file() else {}
+    except (OSError, json.JSONDecodeError):
+        rollback = {}
+    gates['rollback_rehearsal'] = rollback.get('result') == 'pass' and rollback.get('rollback_restored_baseline') is True and rollback.get('cleanup_absent_on_all_authoritative_nameservers') is True and rollback.get('production_records_touched') is False
+    activation = dict(cfg.get('activation') or {})
+    activation['production_mx_changed'] = production_mx
+    activation['outbound_delivery_enabled'] = bool(gates['outbound_one_message_pilot'])
     if all(gates.get(k) is True for k in foundational):
         state='waiting_ptr_and_final_gates'
     if all(gates.get(k) is True for k in (*foundational,'ptr_forward_confirmed','outbound_one_message_pilot','rollback_rehearsal')):
         state='pre_cutover_ready'
-    if (cfg.get('activation') or {}).get('production_mx_changed'): state='smoke_test_live'
+    if production_mx:
+        state='smoke_test_live'
     return {
       'contract':'wwcx.mail-canary-status.v1','updated_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),
-      'domain':'ww.cx','state':state,'smoke_test_hours':'24-48','activation':cfg.get('activation',{}),
+      'domain':'ww.cx','state':state,'smoke_test_hours':'24-48','activation':activation,
       'cutover_gates':gates,'public_observed':{'mail_a':a,'mx':mx,'ptr':ptr},
       'remaining_blockers':[k for k,v in gates.items() if v is not True],
       'other_domains_untouched':True,'acceptance_evidence':{'external_smtp':external,'inbound_security':security},
