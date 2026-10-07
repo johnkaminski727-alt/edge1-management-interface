@@ -1,6 +1,7 @@
 [Unit]
 Description=Publish Ava weekly executive operations briefing
-After=edge1-outstanding-actions.service edge1-backup-verification.service
+Wants=edge1-outstanding-actions.service edge1-backup-verification.service edge1-drift-monitor.service edge1-document-filing.service edge1-certificate-expiry.service edge1-storage-health.service
+After=edge1-outstanding-actions.service edge1-backup-verification.service edge1-drift-monitor.service edge1-document-filing.service edge1-certificate-expiry.service edge1-storage-health.service
 [Service]
 Type=oneshot
 User=root
