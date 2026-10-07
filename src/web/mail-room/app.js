@@ -1,6 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering","readiness"];
+  const DEFAULT_MAILING_ADDRESS="PO Box 333\nInvermay, Saskatchewan S0A 1M0"; // shared by every sending organization
   let sendEnabled=false,prepared=null,selectedKey="",current_actions=null,listItems=[],mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
@@ -41,7 +42,7 @@
     if(mapped&&!policy)$("from").value=mapped;
     const effective=selected()||item;
     $("sender-note").textContent=original ? "Reply sender selected below. Sending is disabled." : effective.organization+" · "+(effective.live_enabled?"Outbound identity enabled; sending is currently disabled":"Available for drafting; outbound commissioning pending");
-    for(const name of ["signer_name","signer_title","mailing_address"]){const f=$("editor").elements[name];if(overwrite||!f.value)f.value=effective.signature[name]||"";}
+    for(const name of ["signer_name","signer_title","mailing_address"]){const f=$("editor").elements[name];if(overwrite||!f.value)f.value=effective.signature[name]||(name==="mailing_address"?DEFAULT_MAILING_ADDRESS:"");}
   }
   function showEditor(data={},id=null){
     if(!canLeave())return;clearTimeout(autosave);editorSession++;$("editor").reset();draftId=id;metadata={};
@@ -49,6 +50,7 @@
     for(const field of $("editor").elements)if(field.name)field.value=Array.isArray(data[field.name])?data[field.name].join(", "):data[field.name]||(field.name==="message_class"?"business_correspondence":"");
     if(senders){senderChoices(data.original_recipient||"",data.identity_hint||"");signature();}
     $("editor-title").textContent=id?"Saved draft":data.in_reply_to?"Reply":"New message";
+    if(!data.in_reply_to){$("reading").replaceChildren();current_actions=null;} // replies keep the thread above the form
     $("editor").hidden=false;$("prepared").hidden=true;$("send").hidden=true;prepared=null;$("saved").textContent=id?"Saved draft opened.":"New draft — not saved yet.";$("autosave-state").textContent="Drafts autosave on Edge1 after a short pause.";dirty=false;
     $("editor").scrollIntoView({behavior:"smooth",block:"start"});
   }
@@ -217,6 +219,27 @@
     finally{$("send").disabled=false;}
   });
   window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
+  // Contact suggestions for To/CC/BCC: searches the last comma-separated entry against Contacts (email points only).
+  function contactSuggest(field){
+    const box=element("div","","suggest");box.hidden=true;box.setAttribute("role","listbox");field.parentNode.append(box);field.setAttribute("autocomplete","off");
+    let timer=null,seq=0,active=-1;
+    const token=()=>field.value.split(",").pop().trim();
+    const close=()=>{box.hidden=true;box.replaceChildren();active=-1;};
+    const pick=email=>{const parts=field.value.split(",");parts[parts.length-1]=" "+email;field.value=parts.join(",").replace(/^\s+/,"")+", ";close();field.focus();field.dispatchEvent(new Event("input",{bubbles:true}));};
+    const highlight=i=>{const items=[...box.children];active=Math.max(0,Math.min(items.length-1,i));items.forEach((b,n)=>b.classList.toggle("active",n===active));};
+    field.addEventListener("input",()=>{clearTimeout(timer);const q=token();if(q.length<2||q.includes("@")&&/\.\w{2,}$/.test(q)){close();return;}
+      timer=setTimeout(async()=>{const mine=++seq;try{
+        const r=await fetch("/edge1-ops/contacts/api/contacts/search?"+new URLSearchParams({q,kind:"emails",limit:"8"}),{credentials:"same-origin",headers:{Accept:"application/json"}});
+        if(!r.ok||mine!==seq)return;const body=await r.json();const rows=Array.isArray(body)?body:body.rows||body.results||body.items||[];
+        const seen=new Set(),items=[];for(const row of rows){const email=String(row.display_value||row.normalized_value||"").trim().toLowerCase();if(!email.includes("@")||seen.has(email))continue;seen.add(email);items.push({email,name:row.display_name||row.canonical_name||""});}
+        box.replaceChildren();for(const it of items){const b=element("button","","");b.type="button";b.setAttribute("role","option");b.append(element("strong",it.name||it.email),element("span",it.name?it.email:""));b.onmousedown=e=>{e.preventDefault();pick(it.email);};box.append(b);}
+        box.hidden=!items.length;active=-1;}catch(_){close();}},200);});
+    field.addEventListener("keydown",e=>{if(box.hidden)return;
+      if(e.key==="ArrowDown"){e.preventDefault();highlight(active+1);}else if(e.key==="ArrowUp"){e.preventDefault();highlight(active-1);}
+      else if(e.key==="Enter"&&active>=0){e.preventDefault();box.children[active].dispatchEvent(new MouseEvent("mousedown"));}else if(e.key==="Escape"){e.stopPropagation();close();}});
+    field.addEventListener("blur",()=>setTimeout(close,150));
+  }
+  for(const name of ["to","cc","bcc"])contactSuggest($("editor").elements[name]);
   request("senders").then(d=>{senders=d;$("from").replaceChildren();for(const s of d.senders){const o=element("option",s.address+" — "+s.organization+(s.live_enabled?"":" · draft only"));o.value=s.address;$("from").append(o);}$("from").value=d.default_sender;for(const domain of d.domains){const o=element("option",domain);o.value=domain;$("domain").append(o);}if(!$("editor").hidden)signature();}).catch(e=>say(e.message));
   function showUpdates(updates, target){
     if(!updates)return;
