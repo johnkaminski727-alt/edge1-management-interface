@@ -107,6 +107,9 @@ class UiTests(unittest.TestCase):
         self.assertIn("Fengus worker", text)
         self.assertIn("data-review-record", text)
         self.assertIn("authenticated-operator", text)
+        self.assertIn("../operator-shell/shell.js", text)
+        self.assertIn('data-module="cookie-monster"', text)
+        self.assertIn("minimized by default", text)
         self.assertNotIn("fetch('/approve'", text)
 
 
