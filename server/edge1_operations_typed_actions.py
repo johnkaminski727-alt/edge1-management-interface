@@ -1233,6 +1233,178 @@ def _validate_contacts_entity_merge(parameters):
     }
 
 
+
+def _validate_contacts_maintenance_relationship(parameters: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(parameters, dict):
+        raise TypedActionValidationError("typed action parameters must be an object")
+    allowed={"maintenance_item_id","idempotency_key"}
+    if set(parameters)-allowed:
+        raise TypedActionValidationError("unsupported maintenance relationship parameter")
+    if "maintenance_item_id" not in parameters or "idempotency_key" not in parameters:
+        raise TypedActionValidationError("missing maintenance relationship parameter")
+    item_id=_positive_integer("maintenance_item_id",parameters["maintenance_item_id"])
+    key=parameters["idempotency_key"]
+    if not isinstance(key,str) or not IDEMPOTENCY.fullmatch(key):
+        raise TypedActionValidationError("idempotency_key format is invalid")
+    return {"maintenance_item_id":item_id,"idempotency_key":key}
+
+
+def _maintenance_relationship_row(item_id: int):
+    db=sqlite3.connect(f"file:{CONTACTS_MAINTENANCE_DB}?mode=ro",uri=True)
+    db.row_factory=sqlite3.Row
+    try:
+        row=db.execute("""SELECT id,discovery_id,proposed_person_name,sender_email,
+            organization_entity_id,relationship_type,confidence,rationale,evidence_json,status
+            FROM relationship_suggestion_queue WHERE id=?""",(item_id,)).fetchone()
+        if row is None:
+            raise TypedActionValidationError("maintenance relationship suggestion not found")
+        return dict(row)
+    finally:
+        db.close()
+
+
+def _resolve_person_for_relationship(db: sqlite3.Connection, row: dict[str, Any]) -> tuple[int,bool,bool]:
+    email=str(row["sender_email"] or "").strip().casefold()
+    name=str(row["proposed_person_name"] or "").strip()
+    if not email or "@" not in email or not name:
+        raise TypedActionValidationError("maintenance relationship identity is incomplete")
+    owners=db.execute("""SELECT DISTINCT e.id,e.canonical_name
+        FROM contact_points cp
+        JOIN contact_assertions ca ON ca.contact_point_id=cp.id
+        JOIN contact_entities e ON e.id=ca.entity_id
+        WHERE cp.point_type='email' AND lower(cp.normalized_value)=lower(?)
+          AND cp.lifecycle_status='active' AND e.lifecycle_status='active'
+          AND e.entity_type='person'""",(email,)).fetchall()
+    if len(owners)>1:
+        raise TypedActionValidationError("email is attached to multiple active people; resolve identity first")
+    created=False; point_added=False
+    if len(owners)==1:
+        person_id=int(owners[0]["id"])
+    else:
+        matches=db.execute("""SELECT id FROM contact_entities
+            WHERE entity_type='person' AND lifecycle_status='active'
+              AND lower(canonical_name)=lower(?) ORDER BY id""",(name,)).fetchall()
+        if len(matches)>1:
+            raise TypedActionValidationError("multiple active people have this exact name; resolve identity first")
+        if len(matches)==1:
+            person_id=int(matches[0]["id"])
+        else:
+            cur=db.execute("""INSERT INTO contact_entities(
+                entity_type,canonical_name,display_name,lifecycle_status,verification_status,notes)
+                VALUES('person',?,?,'active','unverified',?)""",
+                (name,name,"Created from explicitly approved Contacts Maintenance relationship suggestion."))
+            person_id=int(cur.lastrowid); created=True
+
+        point=db.execute("SELECT id FROM contact_points WHERE point_type='email' AND lower(normalized_value)=lower(?)",(email,)).fetchone()
+        if point is not None:
+            point_id=int(point["id"])
+            other=db.execute("""SELECT DISTINCT entity_id FROM contact_assertions
+                WHERE contact_point_id=? AND entity_id<>?""",(point_id,person_id)).fetchall()
+            if other:
+                raise TypedActionValidationError("email already belongs to another contact; resolve identity first")
+        else:
+            cur=db.execute("""INSERT INTO contact_points(
+                point_type,normalized_value,display_value,lifecycle_status)
+                VALUES('email',?,?,'active')""",(email,email))
+            point_id=int(cur.lastrowid)
+        before=db.total_changes
+        db.execute("""INSERT OR IGNORE INTO contact_assertions(
+            entity_id,contact_point_id,assertion_type,confidence,notes)
+            VALUES(?,?,'business','probable',?)""",
+            (person_id,point_id,"Approved maintenance evidence: person-like mailbox at matched organization domain."))
+        point_added=db.total_changes>before
+    return person_id,created,point_added
+
+
+def contacts_maintenance_relationship_approve(parameters: dict[str, Any], *, actor=None, **kwargs) -> dict[str, Any]:
+    validated=_validate_contacts_maintenance_relationship(parameters)
+    item_id=validated["maintenance_item_id"]
+    row=_maintenance_relationship_row(item_id)
+    if row["status"]=="resolved":
+        return {"operation":"maintenance.relationship.approve","maintenance_item_id":item_id,"status":"resolved","idempotent":True}
+    if row["status"]=="dismissed":
+        raise TypedActionValidationError("dismissed maintenance suggestion cannot be approved")
+    if row["status"]!="pending":
+        raise TypedActionValidationError("only pending maintenance relationship suggestions can be approved")
+    db=sqlite3.connect(str(CONTACTS_DB),timeout=10); db.row_factory=sqlite3.Row; db.execute("PRAGMA foreign_keys=ON")
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        org=db.execute("""SELECT id FROM contact_entities WHERE id=? AND entity_type='organization' AND lifecycle_status='active'""",(row["organization_entity_id"],)).fetchone()
+        if org is None:
+            raise TypedActionValidationError("suggested organization is not an active canonical organization")
+        person_id,person_created,email_attached=_resolve_person_for_relationship(db,row)
+        if person_id==int(row["organization_entity_id"]):
+            raise TypedActionValidationError("relationship self-edge is not permitted")
+        existing=db.execute("""SELECT id FROM contact_relationships WHERE left_entity_id=? AND right_entity_id=?
+            AND left_contact_point_id IS NULL AND right_contact_point_id IS NULL
+            AND relationship_type=? AND lifecycle_status='active' ORDER BY id LIMIT 1""",
+            (person_id,int(row["organization_entity_id"]),row["relationship_type"])).fetchone()
+        relationship_created=False
+        if existing is None:
+            cur=db.execute("""INSERT INTO contact_relationships(
+                left_entity_id,right_entity_id,relationship_type,confidence,lifecycle_status,directionality,notes)
+                VALUES(?,?,?,?,'active','directed',?)""",
+                (person_id,int(row["organization_entity_id"]),row["relationship_type"],row["confidence"] or 'probable',
+                 f"Explicitly approved Contacts Maintenance suggestion {item_id}."))
+            relationship_id=int(cur.lastrowid); relationship_created=True
+        else:
+            relationship_id=int(existing["id"])
+        source_ref=f"maintenance:relationship_suggestion:{item_id}"
+        prov=db.execute("SELECT id FROM provenance_records WHERE source_kind='system' AND source_reference=? ORDER BY id LIMIT 1",(source_ref,)).fetchone()
+        if prov is None:
+            cur=db.execute("""INSERT INTO provenance_records(
+                source_kind,source_name,source_reference,extraction_method,verification_status,notes)
+                VALUES('system','Contacts Maintenance Review',?,'operator_approval','unverified',?)""",
+                (source_ref,row["rationale"]))
+            provenance_id=int(cur.lastrowid)
+        else:
+            provenance_id=int(prov["id"])
+        before=db.total_changes
+        db.execute("""INSERT OR IGNORE INTO relationship_evidence(
+            relationship_id,provenance_id,evidence_role,evidence_summary)
+            VALUES(?,?,'supporting',?)""",(relationship_id,provenance_id,row["rationale"]))
+        evidence_created=db.total_changes>before
+        db.commit()
+    except Exception:
+        if db.in_transaction: db.rollback()
+        raise
+    finally:
+        db.close()
+    m=sqlite3.connect(str(CONTACTS_MAINTENANCE_DB),timeout=10)
+    try:
+        m.execute("BEGIN IMMEDIATE")
+        m.execute("UPDATE relationship_suggestion_queue SET status='resolved',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'",(item_id,))
+        m.execute("UPDATE contact_discovery_queue SET matched_entity_id=COALESCE(matched_entity_id,?),status=CASE WHEN status='pending' THEN 'matched_existing' ELSE status END,updated_at=CURRENT_TIMESTAMP WHERE id=?",(person_id,row["discovery_id"]))
+        m.commit()
+    except Exception:
+        if m.in_transaction: m.rollback()
+        raise
+    finally:
+        m.close()
+    return {"operation":"maintenance.relationship.approve","maintenance_item_id":item_id,"status":"resolved","person_entity_id":person_id,"organization_entity_id":int(row["organization_entity_id"]),"relationship_id":relationship_id,"person_created":person_created,"email_attached":email_attached,"relationship_created":relationship_created,"evidence_created":evidence_created,"idempotent":not(person_created or email_attached or relationship_created or evidence_created)}
+
+
+def contacts_maintenance_relationship_reject(parameters: dict[str, Any], *, actor=None, **kwargs) -> dict[str, Any]:
+    validated=_validate_contacts_maintenance_relationship(parameters)
+    item_id=validated["maintenance_item_id"]
+    m=sqlite3.connect(str(CONTACTS_MAINTENANCE_DB),timeout=10); m.row_factory=sqlite3.Row
+    try:
+        m.execute("BEGIN IMMEDIATE")
+        row=m.execute("SELECT status FROM relationship_suggestion_queue WHERE id=?",(item_id,)).fetchone()
+        if row is None: raise TypedActionValidationError("maintenance relationship suggestion not found")
+        if row["status"]=="dismissed":
+            m.rollback(); return {"operation":"maintenance.relationship.reject","maintenance_item_id":item_id,"status":"dismissed","idempotent":True}
+        if row["status"]=="resolved": raise TypedActionValidationError("approved maintenance suggestion cannot be rejected")
+        if row["status"]!="pending": raise TypedActionValidationError("only pending maintenance relationship suggestions can be rejected")
+        m.execute("UPDATE relationship_suggestion_queue SET status='dismissed',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'",(item_id,))
+        m.commit()
+    except Exception:
+        if m.in_transaction: m.rollback()
+        raise
+    finally:
+        m.close()
+    return {"operation":"maintenance.relationship.reject","maintenance_item_id":item_id,"status":"dismissed","idempotent":False}
+
 TYPED_ACTION_VALIDATORS = {
     "contacts_entity_merge": _validate_contacts_entity_merge,
     "contacts_candidate_accept": _validate_contacts_candidate_accept,
@@ -1244,6 +1416,8 @@ TYPED_ACTION_VALIDATORS = {
     "contacts_point_update": _validate_contacts_point_update,
     "contacts_point_detach": _validate_contacts_point_detach,
     "contacts_discovery_promote": _validate_contacts_discovery_promote,
+    "contacts_maintenance_relationship_approve": _validate_contacts_maintenance_relationship,
+    "contacts_maintenance_relationship_reject": _validate_contacts_maintenance_relationship,
     "contacts_candidate_promote": _validate_contacts_candidate_promote,
     "contacts_candidate_reject": _validate_contacts_candidate_reject,
     "telephony_console_reload": _validate_reload,
@@ -1321,6 +1495,8 @@ TYPED_ACTION_HANDLERS = {
     "contacts_point_update": contacts_point_update,
     "contacts_point_detach": contacts_point_detach,
     "contacts_discovery_promote": contacts_discovery_promote,
+    "contacts_maintenance_relationship_approve": contacts_maintenance_relationship_approve,
+    "contacts_maintenance_relationship_reject": contacts_maintenance_relationship_reject,
     "contacts_candidate_promote": contacts_candidate_promote,
     "contacts_candidate_reject": contacts_candidate_reject,
     "telephony_console_reload": telephony_console_reload,
@@ -1347,7 +1523,7 @@ def run_typed_handler(
             "unknown typed action handler"
         )
 
-    if name == "contacts_entity_merge":
+    if name in {"contacts_entity_merge", "contacts_maintenance_relationship_approve", "contacts_maintenance_relationship_reject"}:
         return handler(
             parameters,
             actor=actor,

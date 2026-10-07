@@ -33,6 +33,8 @@ ACTION_MAP = {
     "entity.restore": "contacts.entity.restore",
     "entity.merge": "contacts.entity.merge",
     "discovery.promote": "contacts.discovery.promote",
+    "maintenance.relationship.approve": "contacts.maintenance.relationship.approve",
+    "maintenance.relationship.reject": "contacts.maintenance.relationship.reject",
     "point.add": "contacts.point.add",
     "point.update": "contacts.point.update",
     "point.detach": "contacts.point.detach",

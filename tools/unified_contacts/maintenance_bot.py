@@ -743,7 +743,7 @@ def build_relationship_suggestions(src, dst):
             ) VALUES(?,?,?,?,?,'works_for','probable',?,?, 'pending',?,?)
             ON CONFLICT(fingerprint) DO UPDATE SET
                 rationale=excluded.rationale,evidence_json=excluded.evidence_json,updated_at=excluded.updated_at,
-                status=CASE WHEN relationship_suggestion_queue.status IN ('resolved','superseded','checking') THEN 'pending' ELSE relationship_suggestion_queue.status END
+                status=CASE WHEN relationship_suggestion_queue.status IN ('superseded','checking') THEN 'pending' ELSE relationship_suggestion_queue.status END
         """,(key,row['id'],person_name,email,org['id'],rationale,evidence,now,now))
         refreshed+=1
     return {'relationship_suggestions':refreshed}

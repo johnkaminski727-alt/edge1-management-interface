@@ -1583,6 +1583,17 @@ function renderObservationDetail(row) {
 function maintenanceActionButtons(row) {
   const buttons = [];
 
+  if (row.maintenance_kind === "relationship_suggestion" && (row.status || "pending") === "pending") {
+    buttons.push(`
+      <button type="button" class="primary" data-maintenance-action="approve-relationship" data-maintenance-id="${Number(row.maintenance_item_id)}">
+        Approve relationship
+      </button>
+      <button type="button" class="secondary" data-maintenance-action="reject-relationship" data-maintenance-id="${Number(row.maintenance_item_id)}">
+        Reject
+      </button>
+    `);
+  }
+
   const searchValue =
     row.matched_entity_name ||
     row.suggested_entity_name ||
@@ -1642,6 +1653,24 @@ function maintenancePublicSourceLinks(row) {
     });
   if (!links.length) return "";
   return `<div class="detail-block"><div class="detail-label">Public evidence</div><div class="detail-value">${links.join("<br>")}</div></div>`;
+}
+
+async function submitMaintenanceRelationshipDecision(itemId, decision) {
+  const csrf = edge1Cookie("__Secure-wwcx_edge1_ops_csrf");
+  if (!csrf) throw new Error("Authenticated Edge1 review session is required.");
+  const key = `maintenance-rel-${decision}-${itemId}-${Date.now()}`;
+  const response = await fetch(
+    `/edge1-ops/api/v1/contacts/crud/maintenance.relationship.${decision}`,
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Content-Type": "application/json", "X-WWCX-CSRF": csrf},
+      body: JSON.stringify({maintenance_item_id: itemId, idempotency_key: key}),
+    }
+  );
+  let body={}; try { body=await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error(body.error || body.message || `Review request failed (HTTP ${response.status})`);
+  return body;
 }
 
 function renderMaintenanceDetail(row) {
@@ -4342,3 +4371,22 @@ document.addEventListener(
     }
   }
 );
+
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-maintenance-action]");
+  if (!button) return;
+  const action = button.dataset.maintenanceAction;
+  if (!["approve-relationship","reject-relationship"].includes(action)) return;
+  const itemId=Number(button.dataset.maintenanceId);
+  if (!Number.isInteger(itemId) || itemId < 1) return;
+  const decision=action === "approve-relationship" ? "approve" : "reject";
+  button.disabled=true;
+  try {
+    await submitMaintenanceRelationshipDecision(itemId,decision);
+    state.selected=null;
+    await Promise.all([loadSummary(),loadDirectory()]);
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : "Maintenance review failed.");
+  } finally { button.disabled=false; }
+});

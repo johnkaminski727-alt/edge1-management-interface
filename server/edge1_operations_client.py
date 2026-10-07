@@ -26,6 +26,8 @@ ACTION_PATHS = {
     "contacts.entity.restore": "/v1/actions/contacts.entity.restore/run",
     "contacts.entity.merge": "/v1/actions/contacts.entity.merge/run",
     "contacts.discovery.promote": "/v1/actions/contacts.discovery.promote/run",
+    "contacts.maintenance.relationship.approve": "/v1/actions/contacts.maintenance.relationship.approve/run",
+    "contacts.maintenance.relationship.reject": "/v1/actions/contacts.maintenance.relationship.reject/run",
     "contacts.point.add": "/v1/actions/contacts.point.add/run",
     "contacts.point.update": "/v1/actions/contacts.point.update/run",
     "contacts.point.detach": "/v1/actions/contacts.point.detach/run",

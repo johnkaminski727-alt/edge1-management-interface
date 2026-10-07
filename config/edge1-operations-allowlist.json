@@ -416,6 +416,18 @@
       ],
       "mutating": false,
       "timeout_seconds": 300
+    },
+    "contacts.maintenance.relationship.approve": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_maintenance_relationship_approve"
+    },
+    "contacts.maintenance.relationship.reject": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 30,
+      "typed_handler": "contacts_maintenance_relationship_reject"
     }
   },
   "version": 7
