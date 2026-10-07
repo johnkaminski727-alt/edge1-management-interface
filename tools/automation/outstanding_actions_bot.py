@@ -34,15 +34,23 @@ def mail_actions(limit=40):
     for r in rows:
         if r['direction']=='outbound': outbound_latest[r['thread_id']]=max(outbound_latest.get(r['thread_id'],'') or '',r['occurred_at'] or '')
     actions=[]
-    reply_words=('please','could you','can you','let me know','reply','respond','confirm','need','required','question','?')
+    reply_words=('please','could you','can you','let me know','reply','respond','confirm','question','?')
+    action_words=('action required','payment declined','past due','pre-suspension','suspension','security alert','no longer recoverable','account locked','amount due','due date','e-bill is ready','request is ready')
     exclude=('auth check','dkim','commissioning','test message','acceptance','pilot')
+    promotional=('unsubscribe','last chance','% off','discount','special offer','launches in','privacy policy','terms of service','premium offer')
+    automated_localparts=('noreply','no-reply','no_reply','notifications','notices','ebill','recommendations','payments-noreply')
     for r in rows:
         if r['direction']!='inbound' or midhash(r['message_id']) not in released: continue
-        subject=(r['subject'] or '').strip(); body=(r['body_text'] or '')[:4000]; text=(subject+' '+body).lower()
-        if any(x in text for x in exclude): continue
-        if not any(x in text for x in reply_words): continue
-        if outbound_latest.get(r['thread_id'],'') > (r['occurred_at'] or ''): continue
-        actions.append({'id':'mail:'+midhash(r['message_id']),'source':'mail','priority':'high' if any(x in text for x in ('urgent','asap','deadline','due ')) else 'medium','title':subject or '(no subject)','detail':f"Reply likely needed to {r['sender']}",'occurred_at':r['occurred_at'],'evidence':'mail-room:message:'+midhash(r['message_id']),'action_level':'REVIEW-REQUIRED'})
+        subject=(r['subject'] or '').strip(); body=(r['body_text'] or '')[:4000]; text=(subject+' '+body).lower(); sender=(r['sender'] or '').lower(); local=sender.split('@',1)[0]
+        if any(x in text for x in exclude) or any(x in text for x in promotional): continue
+        automated=any(x in local for x in automated_localparts)
+        needs_action=any(x in text for x in action_words)
+        needs_reply=not automated and any(x in text for x in reply_words)
+        if not (needs_action or needs_reply): continue
+        if needs_reply and outbound_latest.get(r['thread_id'],'') > (r['occurred_at'] or ''): continue
+        priority='high' if any(x in text for x in ('urgent','asap','deadline','past due','pre-suspension','suspension','payment declined','action required')) else 'medium'
+        detail=(f"Reply likely needed to {r['sender']}" if needs_reply else f"Review/action likely needed from automated message by {r['sender']}")
+        actions.append({'id':'mail:'+midhash(r['message_id']),'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':'mail-room:message:'+midhash(r['message_id']),'action_level':'REVIEW-REQUIRED'})
         if len(actions)>=limit: break
     return actions,'available'
 
@@ -70,8 +78,13 @@ def build():
     automation=load(Path('/var/www/edge1-status/automation-center/inventory.json')); sources['automation']='available' if automation else 'unavailable'
     for t in automation.get('timers',[]):
         if t.get('last_result') not in (None,'success') or t.get('state')=='failed': actions.append({'id':'automation:'+str(t.get('timer')),'source':'automation','priority':'high','title':f"Automation problem: {t.get('timer')}",'detail':f"state={t.get('state')} result={t.get('last_result')}",'action_level':'REVIEW-REQUIRED'})
-    dr=load(Path('/var/www/edge1-status/disaster-recovery/status.json')); dh=age_hours(dr.get('checked_utc')); sources['disaster_recovery']='stale' if dh is None or dh>36 else 'available'
-    if not dr.get('remote_present') or not dr.get('remote_checksum_verified') or sources['disaster_recovery']=='stale': actions.append({'id':'backup:posture','source':'backup','priority':'high','title':'Backup posture needs attention','detail':'Off-site backup evidence is missing, stale, or checksum verification is not current.','action_level':'REVIEW-REQUIRED'})
+    backup=load(Path('/var/www/edge1-status/backup-verification/status.json'))
+    if backup:
+        sources['disaster_recovery']='available'
+        if backup.get('state')!='healthy': actions.append({'id':'backup:posture','source':'backup','priority':'high','title':'Backup posture needs attention','detail':'Backup verification reports attention is required.','action_level':'REVIEW-REQUIRED'})
+    else:
+        dr=load(Path('/var/www/edge1-status/disaster-recovery/status.json')); dh=age_hours(dr.get('checked_utc')); sources['disaster_recovery']='stale' if dh is None or dh>36 else 'available'
+        if not dr.get('remote_present') or not dr.get('remote_checksum_verified') or sources['disaster_recovery']=='stale': actions.append({'id':'backup:posture','source':'backup','priority':'high','title':'Backup posture needs attention','detail':'Off-site backup evidence is missing, stale, or checksum verification is not current.','action_level':'REVIEW-REQUIRED'})
     order={'high':0,'medium':1,'low':2}; actions.sort(key=lambda x:(order.get(x['priority'],9),x['source'],x['title']))
     counts={p:sum(a['priority']==p for a in actions) for p in ('high','medium','low')}
     return {'contract':'wwcx.outstanding-actions.v1','generated_at':utcnow(),'summary':{'total':len(actions),**counts},'sources':sources,'actions':actions[:200],'mutation_performed':False}
