@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering","readiness"];
-  let selectedKey="",current_actions=null,listItems=[],mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
+  let sendEnabled=false,prepared=null,selectedKey="",current_actions=null,listItems=[],mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
     const r=await fetch(api+path,{credentials:"same-origin",cache:"no-store",...(data===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-Mail-Room-Request":"1"},body:JSON.stringify(data)})});
@@ -48,7 +48,7 @@
     for(const key of ["thread_id","source_message_id","in_reply_to","references"])if(data[key])metadata[key]=data[key];
     for(const field of $("editor").elements)if(field.name)field.value=Array.isArray(data[field.name])?data[field.name].join(", "):data[field.name]||(field.name==="message_class"?"business_correspondence":"");
     if(senders){senderChoices(data.original_recipient||"",data.identity_hint||"");signature();}
-    $("editor").hidden=false;$("prepared").hidden=true;$("saved").textContent=id?"Saved draft opened.":"New draft — not saved yet.";$("autosave-state").textContent="Drafts autosave on Edge1 after a short pause.";dirty=false;
+    $("editor").hidden=false;$("prepared").hidden=true;$("send").hidden=true;prepared=null;$("saved").textContent=id?"Saved draft opened.":"New draft — not saved yet.";$("autosave-state").textContent="Drafts autosave on Edge1 after a short pause.";dirty=false;
     $("editor").scrollIntoView({behavior:"smooth",block:"start"});
   }
   function payload(){const d={...metadata};for(const f of $("editor").elements)if(f.name&&f.value.trim())d[f.name]=["to","cc","bcc"].includes(f.name)?f.value.split(",").map(s=>s.trim()).filter(Boolean):f.value;return d;}
@@ -57,7 +57,7 @@
     saving=true;const session=editorSession,snapshot=payload();
     try{const d=await request("drafts",{id:draftId,payload:snapshot});if(session===editorSession){draftId=d.id;dirty=JSON.stringify(payload())!==JSON.stringify(snapshot);$("saved").textContent=dirty?"Saved earlier version · New changes not saved":"Saved on Edge1 · "+new Date(d.updated).toLocaleString();}if(!quiet)say("Draft saved. Nothing sent.");return d;}finally{saving=false;}
   }
-  function changed(){dirty=true;$("prepared").hidden=true;$("saved").textContent="Unsaved changes · Autosave pending";clearTimeout(autosave);autosave=setTimeout(()=>save(true).catch(e=>{say(e.message);$("saved").textContent="Autosave failed · Unsaved text is still here";}),1500);}
+  function changed(){dirty=true;$("prepared").hidden=true;$("send").hidden=true;prepared=null;$("saved").textContent="Unsaved changes · Autosave pending";clearTimeout(autosave);autosave=setTimeout(()=>save(true).catch(e=>{say(e.message);$("saved").textContent="Autosave failed · Unsaved text is still here";}),1500);}
   function renderMail(m,container,open=true){
     const a=element("details","","thread-message");a.open=open;const head=element("summary","");head.append(element("strong",senderName(m.sender)),element("span",new Date(m.occurred_at).toLocaleString()));a.append(head);
     const meta=element("div","","mail-meta");meta.append(element("p","From: "+m.sender),element("p","To: "+(m.recipients||[]).join(", ")));
@@ -179,7 +179,7 @@
       if(!reports.dates.length)$("list").append(element("p","First report is being generated."));$("previous").disabled=$("next").disabled=true;$("page").textContent="Saskatchewan time";return;
     }
     const result=await request(mode==="inbox"?"messages?"+filters:mode==="drafts"?"drafts":"activity");if(current!==generation)return;const items=mode==="inbox"?result.messages:mode==="drafts"?result.drafts:result.events;more=!!result.has_more;$("list").replaceChildren();
-    listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":"Prepared · not sent","who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
+    listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":({sent:"Sent",sending:"Sending…",send_outcome_unknown:"Send outcome unknown — check before retrying"}[m.state]||"Prepared · not sent"),"who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
     const keep=listItems.find(b=>b.dataset.key&&b.dataset.key===selectedKey);if(keep)keep.classList.add("selected");
     if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages. Provider intake is pending.":mode==="drafts"?"No saved drafts yet.":"No prepared messages yet. Sending and provider delivery receipts remain unavailable."));
     $("previous").disabled=offset===0||mode!=="inbox";$("next").disabled=!more||mode!=="inbox";$("page").textContent=mode==="inbox"?"Page "+(offset/25+1):"Latest 100";
@@ -205,7 +205,16 @@
   $("from").onchange=()=>{signature(true);changed();};$("editor").elements.original_recipient.onchange=()=>{senderChoices($("editor").elements.original_recipient.value);signature();changed();};
   $("save").onclick=safely(()=>{clearTimeout(autosave);return save();});
   $("remember-signature").onclick=safely(async()=>{const item=selected();if(!item)throw new Error("Select a sender first.");const signature={};for(const k of ["signer_name","signer_title","mailing_address"])signature[k]=$("editor").elements[k].value.trim();await request("signature",{address:item.address,signature});item.signature=signature;say("Signature remembered for "+item.address);});
-  $("editor").onsubmit=safely(async()=>{clearTimeout(autosave);const d=await save();const result=await request("prepare",{id:d.id});if(draftId!==d.id||JSON.stringify(payload())!==JSON.stringify(d.payload)){say("Earlier version prepared. Prepare your new changes for an updated preview.");return;}$("prepared").textContent="Prepared for review — not sent\n\nFrom: "+result.request.from_address+"\nTo: "+result.request.recipients.join(", ")+"\nSubject: "+result.request.subject+"\n\n"+result.body;$("prepared").hidden=false;say("Prepared with organization signature and footer. Nothing sent.");});
+  $("editor").onsubmit=safely(async()=>{clearTimeout(autosave);const d=await save();const result=await request("prepare",{id:d.id});if(draftId!==d.id||JSON.stringify(payload())!==JSON.stringify(d.payload)){say("Earlier version prepared. Prepare your new changes for an updated preview.");return;}$("prepared").textContent="Prepared for review — not sent\n\nFrom: "+result.request.from_address+"\nTo: "+result.request.recipients.join(", ")+"\nSubject: "+result.request.subject+"\n\n"+result.body;$("prepared").hidden=false;prepared={id:d.id,request:result.request};const live=result.sender_selection?.live_enabled===true;$("send").hidden=!(sendEnabled&&live);say("Prepared with organization signature and footer. Nothing sent."+(sendEnabled&&!live?" This sender is not enabled for sending.":""));});
+  $("send").onclick=safely(async()=>{
+    const p=prepared;if(!p||p.id!==draftId||dirty)throw new Error("Prepare the current version before sending.");
+    const r=p.request,list=k=>(r[k]||[]).join(", ")||"—";
+    if(!window.confirm("Send this message now?\n\nFrom: "+r.from_address+"\nTo: "+list("recipients")+"\nCC: "+list("cc")+"\nBCC: "+list("bcc")+"\nSubject: "+r.subject+"\n\nThis cannot be undone."))return;
+    $("send").disabled=true;
+    try{const result=await request("send",{id:p.id,confirm:true});prepared=null;$("send").hidden=true;$("editor").hidden=true;dirty=false;editorSession++;
+      say("Sent from "+result.from_address+" to "+result.delivery.recipient_count+" recipient(s) at "+new Date(result.delivery.submitted_at).toLocaleTimeString()+".");await load();}
+    finally{$("send").disabled=false;}
+  });
   window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
   request("senders").then(d=>{senders=d;$("from").replaceChildren();for(const s of d.senders){const o=element("option",s.address+" — "+s.organization+(s.live_enabled?"":" · draft only"));o.value=s.address;$("from").append(o);}$("from").value=d.default_sender;for(const domain of d.domains){const o=element("option",domain);o.value=domain;$("domain").append(o);}if(!$("editor").hidden)signature();}).catch(e=>say(e.message));
   function showUpdates(updates, target){
@@ -217,5 +226,5 @@
     }
     target.append(element("p","Warnings after 3 hours without a definition check or 36 hours without package maintenance. New mail is held if definitions have not been verified for 24 hours. Custom domain policy stays versioned; Spam/Not spam corrections are learned during the minute-by-minute scan job.","small"));
   }
-  request("status").then(s=>{$("connection").textContent=s.provider_connected?"Provider connected · Sending disabled":"Local Mail Room ready · Security gate active · Provider credentials pending · Sending disabled";if(s.updates?.warnings?.length)$("connection").textContent+=" · Security updates need attention";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
+  request("status").then(s=>{sendEnabled=s.send_enabled===true;$("connection").textContent="Mail Room ready · Security gate active · "+(sendEnabled?"Sending enabled for authorized senders":"Sending disabled");if(s.updates?.warnings?.length)$("connection").textContent+=" · Security updates need attention";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
 })();

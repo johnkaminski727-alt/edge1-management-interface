@@ -22,6 +22,7 @@ from server.mail_security_updates import update_health
 from server.mail_room_access import admin_session, ACCESS_POLICY
 from server.mail_room_ava import AvaMailAssistant
 from server.mail_room_security import SecurityStore, required as security_required
+from server.mail_room_send import MailRoomSendClient, MailSendError
 import hashlib
 import time
 
@@ -73,9 +74,52 @@ class DraftStore:
         return self.get(key)
 
 
-def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None, session_check=None):
+def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None, session_check=None, sender=None):
     if len(proxy_key) < 32:
         raise ValueError("Mail Room proxy key is required")
+
+    def send_enabled():
+        if not sender:
+            return False
+        try:
+            if features and not any(s.get("live_enabled") for s in features.options().get("senders", [])):
+                return False  # gateway may be enabled while no identity is authorized
+            return mail.status().get("external_delivery_enabled") is True
+        except Exception:
+            return False
+
+    def preparation(draft_id):
+        with store.connect() as db:
+            row = db.execute("SELECT payload FROM preparations WHERE draft_id=?", (draft_id,)).fetchone()
+        return (row[0], json.loads(row[0])) if row else (None, None)
+
+    def set_preparation(draft_id, expected_raw, record):
+        # Compare-and-swap so two concurrent clicks cannot both send.
+        with store.connect() as db:
+            return db.execute("UPDATE preparations SET payload=? WHERE draft_id=? AND payload=?", (json.dumps(record), draft_id, expected_raw)).rowcount == 1
+
+    def send_draft(data):
+        if not isinstance(data, dict) or set(data) != {"id", "confirm"} or data["confirm"] is not True:
+            raise ValueError("Explicit confirmation required")
+        draft = store.get(data["id"])
+        raw, prepared = preparation(draft["id"])
+        # DraftStore.save deletes the preparation on every edit, so this is the reviewed version.
+        if not prepared or prepared.get("state") != "prepared_not_sent":
+            raise ValueError("Prepare the current version before sending")
+        sending = {**prepared, "state": "sending"}
+        if not set_preparation(draft["id"], raw, sending):
+            raise ValueError("Draft is already being sent")
+        try:
+            outcome = sender.send(draft["payload"])
+        except MailSendError as exc:
+            # An unknown outcome stays blocked so a retry cannot duplicate the message.
+            state = "send_outcome_unknown" if exc.code == "outcome_unknown" else "prepared_not_sent"
+            set_preparation(draft["id"], json.dumps(sending), {**prepared, "state": state, "last_error": exc.code})
+            raise
+        delivery = outcome.get("delivery") or {}
+        record = {**prepared, "state": "sent", "sent_at": datetime.now(timezone.utc).isoformat(), "message_id": delivery.get("message_id"), "recipient_count": delivery.get("recipient_count")}
+        set_preparation(draft["id"], json.dumps(sending), record)
+        return {"sent": True, "from_address": prepared.get("from_address"), "subject": prepared.get("subject"), "delivery": {k: delivery.get(k) for k in ("message_id", "recipient_count", "submitted_at", "provider")}}
 
     def review_record(message_id):
         if not security or not features or not features.source_path:
@@ -138,7 +182,7 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                     if date.fromisoformat(requested).isoformat() != requested: raise ValueError("Invalid report date")
                     data = json.loads((Path("/var/lib/wwcx-mail-room-reports") / (requested + ".json")).read_text())
                 elif route == "status":
-                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": False, "security_gate_enabled":security_required(), "updates":update_health()}
+                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": send_enabled(), "security_gate_enabled":security_required(), "updates":update_health()}
                 elif route.startswith('security/') and security:
                     message_id=unquote(route[9:]); review_record(message_id)
                     data=security.get(message_id)
@@ -214,6 +258,8 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                     result = mail.prepare_draft(draft["payload"])
                     if features:
                         features.record_preparation(draft["id"], result, datetime.now(timezone.utc).isoformat())
+                elif self.path == PREFIX + "send" and sender:
+                    result = send_draft(data)
                 elif self.path == PREFIX + "flags" and features:
                     if not isinstance(data, dict): raise ValueError("Invalid flags")
                     mail.correspondence_message(message_id=data.get("message_id", ""))
@@ -227,7 +273,11 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                 else:
                     self.reply(404, {"error": "Not found"}); return
                 self.reply(200, result)
-            except (ValueError, TypeError, KeyError):
+            except MailSendError as exc:
+                self.reply(409 if exc.code == "outcome_unknown" else 422, {"error": "Not sent: " + str(exc), "code": exc.code})
+            except (ValueError, TypeError, KeyError) as exc:
+                if self.path == PREFIX + "send":
+                    self.reply(400, {"error": str(exc) if isinstance(exc, ValueError) else "Draft not found"}); return
                 self.reply(400, {"error": "Security action unavailable or release blocked. Complete checks and no hard security finding are required." if self.path in {PREFIX+'security-action',PREFIX+'review'} else "Invalid draft request"})
             except Exception:
                 self.reply(503 if self.path == PREFIX + "assist" else 422, {"error": "AVA is unavailable; no draft was changed." if self.path == PREFIX + "assist" else "Preparation could not complete. Check required signature, sender and recipient fields. Draft remains saved; nothing sent."})
@@ -245,7 +295,7 @@ def main():
     store = DraftStore(args.database)
     identities = json.loads(Path("/etc/wwcx/outbound-mail/identities.json").read_text())
     features = MailRoomFeatures(store, "/var/lib/wwcx-mail-room/correspondence.sqlite3", identities)
-    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(), SecurityStore() if security_required() else None, session_check=admin_session)
+    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(), SecurityStore() if security_required() else None, session_check=admin_session, sender=MailRoomSendClient.from_environment())
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     server.timeout = 10
     server.serve_forever()
