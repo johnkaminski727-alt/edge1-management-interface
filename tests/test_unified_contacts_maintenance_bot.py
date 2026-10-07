@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.unified_contacts.maintenance_bot import apply_safe_fixes, open_source, open_state, run, process_mail_contact_candidates
+from tools.unified_contacts.maintenance_bot import apply_safe_fixes, open_source, open_state, run, process_mail_contact_candidates, build_relationship_suggestions
 
 
 SCHEMA = '''

@@ -1586,6 +1586,7 @@ function maintenanceActionButtons(row) {
   const searchValue =
     row.matched_entity_name ||
     row.suggested_entity_name ||
+    row.organization_name ||
     row.entity_name ||
     row.proposed_entity_name ||
     row.normalized_value ||
@@ -1600,8 +1601,8 @@ function maintenanceActionButtons(row) {
     `);
   }
 
-  if (row.entity_name || row.matched_entity_name || row.suggested_entity_name) {
-    const openName = row.matched_entity_name || row.entity_name || row.suggested_entity_name;
+  if (row.entity_name || row.matched_entity_name || row.suggested_entity_name || row.organization_name) {
+    const openName = row.matched_entity_name || row.entity_name || row.suggested_entity_name || row.organization_name;
     const openLabel = row.suggested_entity_name && !row.matched_entity_name && !row.entity_name
       ? "Review suggested contact"
       : "Open existing contact";
@@ -1655,6 +1656,9 @@ function renderMaintenanceDetail(row) {
   if (row.matched_entity_name) blocks.push(detailBlock("Matched contact", row.matched_entity_name));
   if (row.suggested_entity_name) blocks.push(detailBlock("Suggested existing organization", row.suggested_entity_name));
   if (row.suggestion_reason) blocks.push(detailBlock("Suggestion basis", row.suggestion_reason));
+  if (row.organization_name) blocks.push(detailBlock("Suggested organization", row.organization_name));
+  if (row.relationship_type) blocks.push(detailBlock("Suggested relationship", row.relationship_type));
+  if (row.proposed_person_name) blocks.push(detailBlock("Proposed person", row.proposed_person_name));
   if (row.normalized_value) blocks.push(detailBlock("Normalized value", row.normalized_value));
   if (row.proposed_entity_name) blocks.push(detailBlock("Proposed identity", row.proposed_entity_name));
   if (row.task_type) blocks.push(detailBlock("Enrichment task", row.task_type));

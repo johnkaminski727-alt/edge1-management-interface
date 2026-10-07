@@ -86,6 +86,16 @@ CREATE TABLE IF NOT EXISTS contact_discovery_queue(
 );
 CREATE INDEX IF NOT EXISTS idx_contact_discovery_status
 ON contact_discovery_queue(status,message_count);
+CREATE TABLE IF NOT EXISTS relationship_suggestion_queue(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
+ discovery_id INTEGER NOT NULL, proposed_person_name TEXT NOT NULL,
+ sender_email TEXT NOT NULL, organization_entity_id INTEGER NOT NULL,
+ relationship_type TEXT NOT NULL DEFAULT 'works_for', confidence TEXT NOT NULL,
+ rationale TEXT NOT NULL, evidence_json TEXT,
+ status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_relationship_suggestion_status
+ON relationship_suggestion_queue(status,relationship_type);
 '''
 
 
@@ -571,9 +581,57 @@ def build_contact_discoveries(dst):
     return {'discoveries':created_or_refreshed,'bundled_candidates':len(set(bundled_ids))}
 
 
+def build_relationship_suggestions(src, dst):
+    now=utcnow(); refreshed=0
+    generic_locals={'info','support','service','news','hello','team','billing','renewals','renewal','reminder','ebill','catch','newsletter','surveys','confirmation','notices','careerservices'}
+    rows=dst.execute("""
+        SELECT id,sender_email,sender_domain,proposed_entity_name,message_count,evidence_json
+        FROM contact_discovery_queue WHERE status='pending'
+    """).fetchall()
+    for row in rows:
+        email=str(row['sender_email'] or '').strip().casefold()
+        if '@' not in email:
+            continue
+        local,domain=email.rsplit('@',1)
+        local_root=re.split(r'[+]',local,maxsplit=1)[0]
+        if local_root in generic_locals or local_root.startswith(('no_reply','noreply','do_not_reply','sc-noreply')):
+            continue
+        tokens=[token for token in re.split(r'[._-]+',local_root) if token and token.isalpha()]
+        if len(tokens) < 2:
+            continue
+        person_name=' '.join(token.capitalize() for token in tokens[:5])
+        stem=domain.split('.')[-2] if domain.count('.') >= 1 else domain
+        stem_norm=norm_name(stem)
+        if len(stem_norm) < 4:
+            continue
+        matches=[]
+        for org in src.execute("SELECT id,canonical_name FROM contact_entities WHERE lifecycle_status='active' AND entity_type='organization'"):
+            org_norm=norm_name(org['canonical_name'])
+            if stem_norm and (stem_norm in org_norm or org_norm in stem_norm):
+                matches.append(org)
+        if len(matches) != 1:
+            continue
+        org=matches[0]
+        key=fp('relationship_suggestion',row['id'],person_name,org['id'],'works_for')
+        rationale=f"Sender domain {domain} uniquely aligns with existing organization {org['canonical_name']}; person-like mailbox {email} suggests a possible works_for relationship. Review identity before promotion."
+        evidence=json.dumps({'discovery_id':row['id'],'sender_email':email,'sender_domain':domain,'message_count':row['message_count']},sort_keys=True)
+        dst.execute("""
+            INSERT INTO relationship_suggestion_queue(
+                fingerprint,discovery_id,proposed_person_name,sender_email,organization_entity_id,
+                relationship_type,confidence,rationale,evidence_json,status,created_at,updated_at
+            ) VALUES(?,?,?,?,?,'works_for','probable',?,?, 'pending',?,?)
+            ON CONFLICT(fingerprint) DO UPDATE SET
+                rationale=excluded.rationale,evidence_json=excluded.evidence_json,updated_at=excluded.updated_at,
+                status=CASE WHEN relationship_suggestion_queue.status IN ('resolved','superseded','checking') THEN 'pending' ELSE relationship_suggestion_queue.status END
+        """,(key,row['id'],person_name,email,org['id'],rationale,evidence,now,now))
+        refreshed+=1
+    return {'relationship_suggestions':refreshed}
+
+
 def process_mail_contact_candidates(src, dst):
     suppressed = suppress_low_value_mail_candidates(dst)
     discoveries = build_contact_discoveries(dst)
+    relationships = build_relationship_suggestions(src, dst)
     groups = dst.execute("""
         SELECT MIN(c.id) AS representative_id,c.candidate_type,c.normalized_value,
                COUNT(*) AS evidence_count,MIN(e.message_id) AS example_message_id
@@ -583,7 +641,7 @@ def process_mail_contact_candidates(src, dst):
         GROUP BY c.candidate_type,c.normalized_value
         ORDER BY representative_id LIMIT 5000
     """).fetchall()
-    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, **suppressed, **discoveries}
+    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, **suppressed, **discoveries, **relationships}
     point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
     for group in groups:
         ctype, value = group['candidate_type'], group['normalized_value']
@@ -665,6 +723,7 @@ def begin_reconciliation_cycle(dst):
     dst.execute("UPDATE candidate_changes SET status='checking' WHERE status='pending'")
     dst.execute("UPDATE identity_resolution_queue SET status='checking' WHERE status='pending'")
     dst.execute("UPDATE contact_discovery_queue SET status='checking' WHERE status='pending'")
+    dst.execute("UPDATE relationship_suggestion_queue SET status='checking' WHERE status='pending'")
 
 
 def finish_reconciliation_cycle(dst):
@@ -673,6 +732,7 @@ def finish_reconciliation_cycle(dst):
     dst.execute("UPDATE candidate_changes SET status='superseded' WHERE status='checking'")
     dst.execute("UPDATE identity_resolution_queue SET status='superseded' WHERE status='checking'")
     dst.execute("UPDATE contact_discovery_queue SET status='superseded' WHERE status='checking'")
+    dst.execute("UPDATE relationship_suggestion_queue SET status='superseded' WHERE status='checking'")
 
 
 def run(src, dst):

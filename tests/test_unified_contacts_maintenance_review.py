@@ -34,12 +34,14 @@ class UnifiedContactsMaintenanceReviewTests(unittest.TestCase):
             CREATE TABLE candidate_changes(id INTEGER PRIMARY KEY,action_level TEXT,entity_id INTEGER,contact_point_id INTEGER,target_table TEXT,target_field TEXT,current_value TEXT,proposed_value TEXT,rationale TEXT,status TEXT,created_at TEXT,updated_at TEXT);
             CREATE TABLE identity_resolution_queue(id INTEGER PRIMARY KEY,contact_point_id INTEGER,resolution_kind TEXT,normalized_value TEXT,status TEXT,rationale TEXT,matched_entity_id INTEGER,proposed_entity_name TEXT,confidence TEXT,evidence_json TEXT,created_at TEXT,updated_at TEXT);
             CREATE TABLE contact_discovery_queue(id INTEGER PRIMARY KEY,fingerprint TEXT,sender_email TEXT,sender_domain TEXT,proposed_entity_name TEXT,message_count INTEGER,evidence_json TEXT,status TEXT,matched_entity_id INTEGER,created_at TEXT,updated_at TEXT);
+            CREATE TABLE relationship_suggestion_queue(id INTEGER PRIMARY KEY,fingerprint TEXT,discovery_id INTEGER,proposed_person_name TEXT,sender_email TEXT,organization_entity_id INTEGER,relationship_type TEXT,confidence TEXT,rationale TEXT,evidence_json TEXT,status TEXT,created_at TEXT,updated_at TEXT);
             INSERT INTO maintenance_runs VALUES(1,'2026-10-07T10:00:00Z','2026-10-07T10:01:00Z','ok','{}');
             INSERT INTO maintenance_findings VALUES(1,'duplicate_entity','medium','REVIEW_REQUIRED',7,NULL,'Possible duplicate','Review identity','open','2026-10-07','2026-10-07',2);
             INSERT INTO enrichment_queue VALUES(1,7,'missing_address','Find an address','pending','2026-10-07','2026-10-07');
             INSERT INTO candidate_changes VALUES(1,'AUTO_STAGE',7,NULL,'contact_entities','display_name','Example Org','Example Organization','Strong source','pending','2026-10-07','2026-10-07');
             INSERT INTO identity_resolution_queue VALUES(1,99,'phone_identity','+13065550123','pending','Resolve naked phone',NULL,'Example New Contact','probable','{}','2026-10-07','2026-10-07');
             INSERT INTO contact_discovery_queue VALUES(1,'d','info@example.com','example.com','Example Clinic',4,'{"coordinates":[]}','pending',NULL,'2026-10-07','2026-10-07');
+            INSERT INTO relationship_suggestion_queue VALUES(1,'r',1,'Jane Example','jane.example@example.com',7,'works_for','probable','Unique organization/domain match','{}','pending','2026-10-07','2026-10-07');
         ''')
         con.commit(); con.close()
 
@@ -55,12 +57,13 @@ class UnifiedContactsMaintenanceReviewTests(unittest.TestCase):
         self.assertEqual(summary['pending_enrichment'], 1)
         self.assertEqual(summary['pending_identity_resolution'], 1)
         self.assertEqual(summary['pending_discoveries'], 1)
+        self.assertEqual(summary['pending_relationship_suggestions'], 1)
         self.assertEqual(summary['review_required_findings'], 1)
 
     def test_items_join_contact_names_and_identity_jobs(self):
         rows = self.model.items(kind='all', status='pending')
         kinds = {row['maintenance_kind'] for row in rows}
-        self.assertEqual(kinds, {'finding','enrichment','candidate','identity','discovery'})
+        self.assertEqual(kinds, {'finding','enrichment','candidate','identity','discovery','relationship_suggestion'})
         finding = next(row for row in rows if row['maintenance_kind'] == 'finding')
         self.assertEqual(finding['entity_name'], 'Example Org')
         identity = next(row for row in rows if row['maintenance_kind'] == 'identity')

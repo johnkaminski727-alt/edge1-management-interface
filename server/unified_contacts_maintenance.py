@@ -92,6 +92,7 @@ class UnifiedContactsMaintenance:
                 "pending_enrichment": scalar("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'"),
                 "pending_identity_resolution": scalar("SELECT COUNT(*) FROM identity_resolution_queue WHERE status='pending'"),
                 "pending_discoveries": scalar("SELECT COUNT(*) FROM contact_discovery_queue WHERE status='pending'"),
+                "pending_relationship_suggestions": scalar("SELECT COUNT(*) FROM relationship_suggestion_queue WHERE status='pending'"),
                 "review_required_findings": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND action_level='REVIEW_REQUIRED'"),
                 "duplicate_risks": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='duplicate_entity'"),
                 "shared_contact_risks": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='shared_contact_point'"),
@@ -104,7 +105,7 @@ class UnifiedContactsMaintenance:
             con.close()
 
     def items(self, *, kind: str = "all", status: str = "pending", query: str = "", limit: int = 250, offset: int = 0) -> list[dict]:
-        allowed_kinds = {"all", "identity", "discoveries", "findings", "enrichment", "candidates"}
+        allowed_kinds = {"all", "identity", "discoveries", "relationships", "findings", "enrichment", "candidates"}
         if kind not in allowed_kinds:
             raise ValueError("invalid maintenance kind")
         if status not in {"", "pending", "open", "resolved", "dismissed", "superseded", "matched_existing", "enriched", "distinct_identity", "review_required"}:
@@ -202,6 +203,36 @@ class UnifiedContactsMaintenance:
                         evidence = {}
                     if isinstance(evidence, dict):
                         item["discovery_evidence"] = evidence
+                    rows.append(item)
+
+            if kind in {"all", "relationships"}:
+                clauses = []
+                params = []
+                desired = "pending" if status in {"pending", "open"} else status
+                if desired:
+                    clauses.append("status=?")
+                    params.append(desired)
+                if query:
+                    clauses.append("(proposed_person_name LIKE ? OR sender_email LIKE ? OR rationale LIKE ?)")
+                    needle = f"%{query}%"
+                    params.extend([needle, needle, needle])
+                where = " WHERE " + " AND ".join(clauses) if clauses else ""
+                for r in con.execute(
+                    "SELECT id,discovery_id,proposed_person_name,sender_email,organization_entity_id,"
+                    "relationship_type,confidence,rationale,evidence_json,status,created_at,updated_at "
+                    "FROM relationship_suggestion_queue" + where + " ORDER BY updated_at DESC,id DESC",
+                    params,
+                ).fetchall():
+                    item = dict(r)
+                    item.update({
+                        "maintenance_kind": "relationship_suggestion",
+                        "maintenance_item_id": r["id"],
+                        "action_level": "REVIEW_REQUIRED",
+                        "title": f"{r['proposed_person_name']} → {r['relationship_type']}",
+                        "normalized_value": r["sender_email"],
+                        "review_summary": r["rationale"],
+                        "review_priority": 180,
+                    })
                     rows.append(item)
 
             if kind in {"all", "findings"}:
@@ -310,7 +341,7 @@ class UnifiedContactsMaintenance:
             entity_ids = {
                 int(value)
                 for item in rows
-                for value in (item.get("entity_id"), item.get("matched_entity_id"))
+                for value in (item.get("entity_id"), item.get("matched_entity_id"), item.get("organization_entity_id"))
                 if value is not None and str(value).isdigit()
             }
             names = self._entity_names(entity_ids)
@@ -320,6 +351,8 @@ class UnifiedContactsMaintenance:
                     item["entity_name"] = names.get(int(item["entity_id"]))
                 if item.get("matched_entity_id") is not None:
                     item["matched_entity_name"] = names.get(int(item["matched_entity_id"]))
+                if item.get("organization_entity_id") is not None:
+                    item["organization_name"] = names.get(int(item["organization_entity_id"]))
                 if (
                     item.get("maintenance_kind") == "discovery"
                     and not item.get("matched_entity_id")
