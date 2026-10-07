@@ -15,7 +15,7 @@ EXPECTED_CLIENT_VERSION='0.0.15+a390c168ff1b2d14e73a95991c186c6aba3ff5a0'
 EXPECTED_LAUNCHER_SHA=c0b7788bc40c3668b75b6f6410885bd9ce89a39e08c962b80a2e86f4497868f4
 EXPECTED_CONFIG_SHA=100ca14363a0595f4ba3a070c747ff6d05d398b5781126d3588caa1619214bbe
 EXPECTED_SERVICE_SHA=e8070f5acca3b747ec61a8a0a0c83982be8731262d88907c4b29bb280a58042d
-MCP_URL=http://127.0.0.1:8114/mcp
+MCP_URL=http://127.0.0.1:8115/mcp
 
 fail() {
     echo "EDGE1_TUNNEL_COMPAT_DOCTOR=FAIL"
@@ -98,7 +98,7 @@ def status(url, authorization=False):
     except urllib.error.URLError as exc:
         raise SystemExit(f"local MCP probe failed: {type(exc.reason).__name__}") from exc
 
-base = "http://127.0.0.1:8114"
+base = "http://127.0.0.1:8115"
 checks = {
     "unauthenticated_mcp": status(mcp_url, authorization=False),
     "authenticated_mcp": status(mcp_url, authorization=True),
@@ -130,7 +130,7 @@ echo "raw_doctor_rc=$DOCTOR_RC"
 [ "$DOCTOR_RC" -eq 0 ] || fail "raw doctor failed (rc=$DOCTOR_RC)"
 
 grep -Fq 'CHECK mcp_target' "$TMP" || fail "mcp_target result missing"
-grep -Fq 'PASS http://127.0.0.1:8114/mcp' "$TMP" || fail "doctor did not validate Agent Shell main target"
+grep -Fq 'PASS http://127.0.0.1:8115/mcp' "$TMP" || fail "doctor did not validate Agent Shell main target"
 grep -Fq 'CHECK oauth_metadata' "$TMP" || fail "oauth_metadata result missing"
 grep -Fq 'PASS OAuth metadata not advertised' "$TMP" || fail "optional OAuth metadata contract changed"
 grep -Fq 'RESULT ok' "$TMP" || fail "doctor did not report success"

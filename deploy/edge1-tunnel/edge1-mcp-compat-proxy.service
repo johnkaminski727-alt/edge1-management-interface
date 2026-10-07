@@ -1,0 +1,25 @@
+[Unit]
+Description=Edge1 MCP Agent/Operator Compatibility Proxy
+After=network.target edge1-agent-shell.service edge1-operator-mcp.service
+Requires=edge1-agent-shell.service edge1-operator-mcp.service
+
+[Service]
+Type=simple
+User=edge1-operator
+Group=edge1-operator
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/edge1_mcp_compat_proxy.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/edge1-management-interface
+RestrictAddressFamilies=AF_INET AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

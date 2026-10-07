@@ -35,7 +35,7 @@ from pathlib import Path
 p = Path(__import__('sys').argv[1])
 text = p.read_text(encoding='utf-8')
 required = (
-    'url: http://127.0.0.1:8114/mcp',
+    'url: http://127.0.0.1:8115/mcp',
     'Authorization: env:EDGE1_MCP_AUTHORIZATION',
     'api_key: file:/etc/edge1-tunnel/runtime-api-key',
     'listen_addr: 127.0.0.1:0',
