@@ -137,6 +137,10 @@ def open_state(path):
     _ensure_column(connection, 'maintenance_findings', "action_level TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED'")
     _ensure_column(connection, 'mail_contact_extractions', 'direction TEXT')
     _ensure_column(connection, 'mail_contact_extractions', 'sender_owned INTEGER NOT NULL DEFAULT 0')
+    _ensure_column(connection, 'enrichment_queue', 'proposed_value TEXT')
+    _ensure_column(connection, 'enrichment_queue', 'evidence_json TEXT')
+    _ensure_column(connection, 'enrichment_queue', 'research_confidence TEXT')
+    _ensure_column(connection, 'enrichment_queue', 'research_checked_at TEXT')
     return connection
 
 
@@ -235,7 +239,7 @@ def enrich(dst, entity, task, rationale):
         INSERT INTO enrichment_queue(fingerprint,entity_id,task_type,rationale,created_at,updated_at)
         VALUES(?,?,?,?,?,?)
         ON CONFLICT(fingerprint) DO UPDATE SET rationale=excluded.rationale,updated_at=excluded.updated_at,
-            status=CASE WHEN enrichment_queue.status IN ('resolved','checking') THEN 'pending' ELSE enrichment_queue.status END
+            status=CASE WHEN enrichment_queue.status='checking' AND enrichment_queue.research_confidence IS NOT NULL THEN 'review_required' WHEN enrichment_queue.status IN ('resolved','checking') THEN 'pending' ELSE enrichment_queue.status END
     ''', (key, entity, task, rationale, now, now))
 
 
@@ -870,7 +874,7 @@ def suggested_owner_for_unassigned_email(src, value):
 
 def begin_reconciliation_cycle(dst):
     dst.execute("UPDATE maintenance_findings SET status='checking' WHERE status='open'")
-    dst.execute("UPDATE enrichment_queue SET status='checking' WHERE status='pending'")
+    dst.execute("UPDATE enrichment_queue SET status='checking' WHERE status IN ('pending','review_required')")
     dst.execute("UPDATE candidate_changes SET status='checking' WHERE status='pending'")
     dst.execute("UPDATE identity_resolution_queue SET status='checking' WHERE status='pending'")
     dst.execute("UPDATE contact_discovery_queue SET status='checking' WHERE status='pending'")

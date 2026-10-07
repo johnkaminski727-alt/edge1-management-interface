@@ -110,9 +110,11 @@ def contacts_actions():
         review=db.execute("SELECT COUNT(*) FROM candidate_changes WHERE status='pending' AND action_level='REVIEW_REQUIRED'").fetchone()[0]
         high=db.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND severity='high'").fetchone()[0]
         enrich=db.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'").fetchone()[0]
+        enrich_review=db.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='review_required'").fetchone()[0]
     out=[]
     if review: out.append({'id':'contacts:review','source':'contacts','priority':'medium','title':f'{review} Contacts changes need review','detail':'Contacts Maintenance has evidence-backed changes awaiting review.','action_level':'REVIEW-REQUIRED'})
     if high: out.append({'id':'contacts:high-findings','source':'contacts','priority':'high','title':f'{high} high-severity Contacts findings','detail':'Review high-severity identity/evidence findings.','action_level':'REVIEW-REQUIRED'})
+    if enrich_review: out.append({'id':'contacts:enrichment-review','source':'contacts','priority':'medium','title':f'{enrich_review} Contacts enrichment research results need review','detail':'First-party public research produced evidence-backed candidates; no contact values were changed automatically.','action_level':'REVIEW-REQUIRED'})
     if enrich: out.append({'id':'contacts:enrichment','source':'contacts','priority':'low','title':f'{enrich} Contacts enrichment tasks pending','detail':'Background enrichment queue has pending work.','action_level':'AUTO-STAGE'})
     return out,'available'
 

@@ -1,0 +1,10 @@
+[Unit]
+Description=Research first-party Contacts enrichment daily
+[Timer]
+OnBootSec=45min
+OnUnitActiveSec=24h
+RandomizedDelaySec=45m
+Persistent=true
+Unit=edge1-contact-enrichment-research.service
+[Install]
+WantedBy=timers.target

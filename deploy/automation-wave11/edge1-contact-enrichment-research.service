@@ -1,0 +1,18 @@
+[Unit]
+Description=Research pending Contacts enrichment against known first-party websites
+After=network-online.target edge1-contacts-maintenance.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/contact_enrichment_research_bot.py --limit 25
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6
+ReadWritePaths=/var/lib/edge1-contacts-maintenance /var/www/edge1-status/contact-enrichment-research
+TimeoutStartSec=5min

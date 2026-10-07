@@ -110,6 +110,7 @@ class UnifiedContactsMaintenance:
                 "open_findings": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'"),
                 "pending_candidates": scalar("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'"),
                 "pending_enrichment": scalar("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'"),
+                "enrichment_review_required": scalar("SELECT COUNT(*) FROM enrichment_queue WHERE status='review_required'"),
                 "pending_identity_resolution": scalar("SELECT COUNT(*) FROM identity_resolution_queue WHERE status='pending'"),
                 "pending_discoveries": scalar("SELECT COUNT(*) FROM contact_discovery_queue WHERE status='pending'"),
                 "pending_relationship_suggestions": scalar("SELECT COUNT(*) FROM relationship_suggestion_queue WHERE status='pending'"),
@@ -339,6 +340,9 @@ class UnifiedContactsMaintenance:
                     rows.append(item)
 
             if kind in {"all", "enrichment"}:
+                enrichment_columns = {row[1] for row in con.execute("PRAGMA table_info(enrichment_queue)").fetchall()}
+                research_fields = ["proposed_value", "evidence_json", "research_confidence", "research_checked_at"]
+                research_select = ",".join(name if name in enrichment_columns else f"NULL AS {name}" for name in research_fields)
                 clauses = []
                 params = []
                 desired = "pending" if status in {"pending", "open"} else status
@@ -351,12 +355,12 @@ class UnifiedContactsMaintenance:
                     params.extend([needle, needle])
                 where = " WHERE " + " AND ".join(clauses) if clauses else ""
                 for r in con.execute(
-                    "SELECT id,entity_id,task_type,rationale,status,created_at,updated_at "
+                    "SELECT id,entity_id,task_type,rationale,status,created_at,updated_at," + research_select + " "
                     "FROM enrichment_queue" + where + " ORDER BY updated_at DESC,id DESC",
                     params,
                 ).fetchall():
                     item = dict(r)
-                    item.update({"maintenance_kind": "enrichment", "maintenance_item_id": r["id"], "action_level": "AUTO_STAGE"})
+                    item.update({"maintenance_kind": "enrichment", "maintenance_item_id": r["id"], "action_level": "REVIEW_REQUIRED" if r["status"]=="review_required" else "AUTO_STAGE"})
                     item["review_priority"] = {
                         "find_phone": 35,
                         "find_email": 32,
