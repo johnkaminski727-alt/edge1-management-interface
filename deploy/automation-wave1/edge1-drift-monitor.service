@@ -1,14 +1,14 @@
 [Unit]
-Description=Read-only Edge1 system and Git drift monitor
+Description=Edge1 drift monitor with safe UI baseline reconciliation
 After=local-fs.target
 [Service]
 Type=oneshot
 User=root
 WorkingDirectory=/opt/edge1-management-interface
-ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/drift_monitor_bot.py
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/drift_monitor_bot.py --apply-safe
 UMask=0022
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/var/www/edge1-status/drift-monitor /var/lib/bigbird-ai-library
+ReadWritePaths=/var/www/edge1-status/drift-monitor /var/lib/bigbird-ai-library /var/lib/edge1-ui-publication

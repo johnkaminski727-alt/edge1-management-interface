@@ -7,6 +7,8 @@ def load(name, rel):
 filing=load('document_filing_bot_test','tools/automation/document_filing_bot.py')
 backup=load('backup_verification_bot_test','tools/automation/backup_verification_bot.py')
 actions=load('outstanding_actions_bot_test','tools/automation/outstanding_actions_bot.py')
+pub=load('ui_publication_test','tools/edge1_operator/check_ui_publication.py')
+drift=load('drift_monitor_test','tools/automation/drift_monitor_bot.py')
 
 class Wave1Tests(unittest.TestCase):
     def test_document_classification_and_metadata(self):
@@ -29,6 +31,18 @@ class Wave1Tests(unittest.TestCase):
     def test_outbound_check_is_commissioning_language(self):
         source=(ROOT/'tools/automation/outstanding_actions_bot.py').read_text()
         self.assertIn("'outbound check'",source)
+    def test_publication_classification_is_fail_closed(self):
+        self.assertEqual(pub.classify_entry('a','a','a'),'in_sync')
+        self.assertEqual(pub.classify_entry('a','b','b'),'baseline_stale_safe')
+        self.assertEqual(pub.classify_entry('a','b','a'),'source_only')
+        self.assertEqual(pub.classify_entry('a','a','b'),'live_only_conflict')
+        self.assertEqual(pub.classify_entry('a','b','c'),'diverged_conflict')
+        self.assertEqual(pub.classify_entry('a',None,'a'),'unverifiable')
+    def test_drift_git_reads_do_not_refresh_index(self):
+        source=(ROOT/'tools/automation/drift_monitor_bot.py').read_text()
+        checker=(ROOT/'tools/edge1_operator/check_ui_publication.py').read_text()
+        self.assertIn("'--no-optional-locks'",source)
+        self.assertIn("'--no-optional-locks'",checker)
     def test_action_markdown_declares_advisory_boundary(self):
         data={'generated_at':'x','summary':{'total':0,'high':0,'medium':0,'low':0},'actions':[]}
         text=actions.markdown(data)
