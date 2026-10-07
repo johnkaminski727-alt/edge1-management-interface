@@ -1,0 +1,9 @@
+[Unit]
+Description=Audit API surface health every ten minutes
+[Timer]
+OnBootSec=11min
+OnUnitActiveSec=10min
+Persistent=true
+Unit=edge1-api-surface-health.service
+[Install]
+WantedBy=timers.target

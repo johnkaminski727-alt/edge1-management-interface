@@ -1,0 +1,9 @@
+[Unit]
+Description=Audit background automation every ten minutes
+[Timer]
+OnBootSec=9min
+OnUnitActiveSec=10min
+Persistent=true
+Unit=edge1-automation-watchdog.service
+[Install]
+WantedBy=timers.target

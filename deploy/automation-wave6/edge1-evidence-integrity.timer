@@ -1,0 +1,9 @@
+[Unit]
+Description=Audit evidence integrity every six hours
+[Timer]
+OnBootSec=14min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=edge1-evidence-integrity.service
+[Install]
+WantedBy=timers.target

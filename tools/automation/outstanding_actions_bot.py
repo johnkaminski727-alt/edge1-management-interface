@@ -109,6 +109,13 @@ def build():
     if avaq.get('state')=='attention':
         metrics=avaq.get('metrics') or {}
         actions.append({'id':'ava:quality','source':'ava-quality','priority':'medium','title':'Ava routing/evidence quality needs review','detail':f"{metrics.get('read_routed_zero_evidence',0)} read-routed completions had zero evidence; {metrics.get('failed',0)} failed requests in the QA window.",'action_level':'REVIEW-REQUIRED'})
+    watchdog=load(Path('/var/www/edge1-status/automation-watchdog/status.json')); sources['automation_watchdog']='available' if watchdog else 'unavailable'
+    if watchdog.get('state') in {'attention','warning'}: actions.append({'id':'automation:watchdog','source':'automation-watchdog','priority':'high' if watchdog.get('state')=='attention' else 'medium','title':'Background automation watchdog needs attention','detail':f"{(watchdog.get('summary') or {}).get('findings',0)} automation freshness/execution findings.",'action_level':'REVIEW-REQUIRED'})
+    evidence=load(Path('/var/www/edge1-status/evidence-integrity/status.json')); sources['evidence_integrity']='available' if evidence else 'unavailable'
+    if evidence.get('state') in {'attention','warning'}: actions.append({'id':'evidence:integrity','source':'evidence-integrity','priority':'high' if evidence.get('state')=='attention' else 'medium','title':'Evidence integrity needs review','detail':f"{(evidence.get('summary') or {}).get('findings',0)} evidence/provenance findings.",'action_level':'REVIEW-REQUIRED'})
+    apihealth=load(Path('/var/www/edge1-status/api-surface-health/status.json')); sources['api_surface_health']='available' if apihealth else 'unavailable'
+    if apihealth.get('state') in {'attention','warning'}: actions.append({'id':'api:surface-health','source':'api-surface-health','priority':'high' if apihealth.get('state')=='attention' else 'medium','title':'API surface health needs review','detail':f"{(apihealth.get('summary') or {}).get('findings',0)} listener/service/access-boundary findings.",'action_level':'REVIEW-REQUIRED'})
+    lifecycle=load(Path('/var/www/edge1-status/action-lifecycle/status.json')); sources['action_lifecycle']='available' if lifecycle else 'unavailable'
     heal=load(Path('/var/www/edge1-status/service-self-heal/status.json')); sources['self_heal']='available' if heal else 'unavailable'
     for row in heal.get('services',[]):
         if row.get('action')=='restart_failed' or row.get('after')=='failed': actions.append({'id':'self-heal:'+str(row.get('unit')),'source':'self-heal','priority':'high','title':'Service self-heal failed: '+str(row.get('unit')),'detail':'Bounded restart did not restore this allowlisted service.','action_level':'REVIEW-REQUIRED'})

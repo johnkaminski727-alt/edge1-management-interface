@@ -1,0 +1,9 @@
+[Unit]
+Description=Track Outstanding Action lifecycle every five minutes
+[Timer]
+OnBootSec=8min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=edge1-action-lifecycle.service
+[Install]
+WantedBy=timers.target
