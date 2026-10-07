@@ -62,7 +62,18 @@ def main():
             verified.append(account)
             print(account + ": verified; " + str(len(folders or [])) + " folders; credential stored root-only")
         except Exception as exc:
-            print(account + ": failed at " + stage + " (" + type(exc).__name__ + "). Password was not saved.", flush=True)
+            category = type(exc).__name__
+            if isinstance(exc, imaplib.IMAP4.error):
+                response = str(exc).casefold()
+                if any(word in response for word in ("authenticationfailed", "authentication failed", "invalid credentials", "login failed", "authentication failure")):
+                    category = "server rejected authentication"
+                elif any(word in response for word in ("rate", "too many", "blocked", "temporarily", "unavailable")):
+                    category = "server restriction or temporary failure"
+                elif any(word in response for word in ("unsupported", "bad", "syntax", "invalid command")):
+                    category = "server rejected authentication command"
+                else:
+                    category = "unclassified IMAP rejection"
+            print(account + ": failed at " + stage + " (" + category + "). Password was not saved.", flush=True)
         finally:
             secret = ""
             if client:
