@@ -84,6 +84,7 @@ def readable_bytes(raw):
     for part in html:
         parser.feed(part.get_content())
         parser.text.append("\n")
+    message.clear_content()
     message.set_content("".join(parser.text))
     return message.as_bytes(), True
 
