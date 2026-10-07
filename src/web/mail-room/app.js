@@ -48,6 +48,7 @@
     for(const key of ["thread_id","source_message_id","in_reply_to","references"])if(data[key])metadata[key]=data[key];
     for(const field of $("editor").elements)if(field.name)field.value=Array.isArray(data[field.name])?data[field.name].join(", "):data[field.name]||(field.name==="message_class"?"business_correspondence":"");
     if(senders){senderChoices(data.original_recipient||"",data.identity_hint||"");signature();}
+    $("editor-title").textContent=id?"Saved draft":data.in_reply_to?"Reply":"New message";
     $("editor").hidden=false;$("prepared").hidden=true;$("send").hidden=true;prepared=null;$("saved").textContent=id?"Saved draft opened.":"New draft — not saved yet.";$("autosave-state").textContent="Drafts autosave on Edge1 after a short pause.";dirty=false;
     $("editor").scrollIntoView({behavior:"smooth",block:"start"});
   }
