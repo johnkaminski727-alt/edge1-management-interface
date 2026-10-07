@@ -10,6 +10,7 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
+from tools.unified_contacts.source_reconciler import reconcile as reconcile_sources
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS maintenance_runs(
@@ -291,11 +292,45 @@ def run(src, dst):
     }
 
 
+def process_source_reconciliation(dst, result):
+    for item in result['results']:
+        pid = item['provenance_id']
+        status = item['status']
+        if status in ('verified', 'declared'):
+            continue
+        if status == 'candidate':
+            finding(dst, 'source_relocation_candidate', 'medium', 'Evidence source may have moved',
+                    f"provenance_id={pid}; candidate_location={item['location']}", action_level='AUTO_STAGE')
+            candidate(dst, 'AUTO_STAGE', 'provenance_source_locations', pid, 'location', None, item['location'],
+                      'A unique filename match was found, but no strong hash evidence exists; verify before linking.')
+        elif status == 'ambiguous':
+            finding(dst, 'source_location_ambiguous', 'high', 'Evidence source location is ambiguous',
+                    f"provenance_id={pid}; matches={item['location']}", action_level='REVIEW_REQUIRED')
+            candidate(dst, 'REVIEW_REQUIRED', 'provenance_source_locations', pid, 'location', None, item['location'],
+                      'Multiple or conflicting source matches require review before changing evidence location.')
+        elif status == 'missing':
+            finding(dst, 'source_missing', 'low', 'Evidence source is not currently locatable',
+                    f"provenance_id={pid}; expected={item['location']}", action_level='AUTO_STAGE')
+
+
+def create_verified_backup(source_path, backup_dir, run_id, label):
+    before_sha = source_sha(source_path)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    backup_path = backup_dir / f'phone-intelligence-before-{label}-{stamp}-run{run_id}.sqlite'
+    shutil.copy2(source_path, backup_path)
+    if source_sha(backup_path) != before_sha:
+        backup_path.unlink(missing_ok=True)
+        raise RuntimeError(f'{label} backup hash verification failed')
+    return backup_path, before_sha
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', default='/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite')
     parser.add_argument('--state', default='/var/lib/edge1-contacts-maintenance/maintenance.sqlite')
     parser.add_argument('--backup-dir', default='/var/lib/edge1-contacts-maintenance/backups')
+    parser.add_argument('--source-root', action='append', dest='source_roots', help='approved root to search for moved evidence files')
     parser.add_argument('--apply-safe', action='store_true', help='apply allowlisted AUTO-FIX remediations')
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args()
@@ -317,7 +352,44 @@ def main():
             remediation = {'planned': len(collect_safe_fixes(src)), 'applied': 0, 'backup': None}
             if args.apply_safe:
                 remediation = apply_safe_fixes(src, source_path, dst, run_id, Path(args.backup_dir))
+            roots = args.source_roots or ['/home/wwadmin', '/var/lib', '/opt', '/srv']
+            root_paths = [Path(root) for root in roots]
+            source_reconciliation = reconcile_sources(src, root_paths, utcnow(), apply=False)
+            source_reconciliation_backup = None
+            if args.apply_safe and source_reconciliation['auto_updates']:
+                source_reconciliation_backup, source_reconciliation_before_sha = create_verified_backup(
+                    source_path, Path(args.backup_dir), run_id, 'source-reconciliation'
+                )
+                source_reconciliation = reconcile_sources(src, root_paths, utcnow(), apply=True)
+                src.commit()
+                source_reconciliation_after_sha = source_sha(source_path)
+                sql = ("INSERT INTO remediation_actions("
+                       "run_id,action_level,action_type,target_table,target_id,target_field,"
+                       "before_value,after_value,rationale,backup_path,source_sha256_before,"
+                       "source_sha256_after,verification_status,created_at) "
+                       "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                for item in source_reconciliation['results']:
+                    if not item.get('needs_update'):
+                        continue
+                    dst.execute(sql, (
+                        run_id, 'AUTO_FIX', 'reconcile_evidence_source_location',
+                        'provenance_source_locations', item['provenance_id'], 'location',
+                        None, item['location'],
+                        f"Evidence source location reconciled using {item['match_method']}.",
+                        str(source_reconciliation_backup), source_reconciliation_before_sha,
+                        source_reconciliation_after_sha, item['status'], utcnow()
+                    ))
+            process_source_reconciliation(dst, source_reconciliation)
             summary = run(src, dst)
+            summary.update({
+                'source_locations_verified': source_reconciliation['verified'],
+                'source_urls_declared': source_reconciliation['declared'],
+                'source_location_candidates': source_reconciliation['candidates'],
+                'source_location_ambiguous': source_reconciliation['ambiguous'],
+                'source_locations_missing': source_reconciliation['missing'],
+                'source_location_updates_applied': source_reconciliation.get('applied', 0),
+                'source_reconciliation_backup': str(source_reconciliation_backup) if source_reconciliation_backup else None,
+            })
             after_sha = source_sha(source_path)
             summary.update({
                 'run_id': run_id,

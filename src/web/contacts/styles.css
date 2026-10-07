@@ -2387,3 +2387,41 @@ body[data-edge1-module="contacts"] .directory-search-row select {
   overflow-wrap: anywhere;
   letter-spacing: .02em;
 }
+
+
+.evidence-actions {
+  margin-top: 8px;
+}
+
+.evidence-link {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.evidence-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.evidence-link.unavailable,
+.evidence-location.missing {
+  color: var(--muted);
+}
+
+.evidence-location {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

@@ -618,6 +618,42 @@ function detailBlock(label, value) {
   `;
 }
 
+function safeEvidenceUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch (_) {}
+  return "";
+}
+
+function evidenceSourceLink(row, label = "View source") {
+  const url = safeEvidenceUrl(row.source_url);
+  const provenanceId = Number(row.provenance_id || 0);
+  if (url) {
+    return `<a class="evidence-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)} ↗</a>`;
+  }
+  if (provenanceId > 0) {
+    return `<button type="button" class="evidence-link evidence-link-button" data-open-source="${provenanceId}">${escapeHtml(label)}</button>`;
+  }
+  return `<span class="evidence-link unavailable">Source unavailable</span>`;
+}
+
+function evidenceLocationLine(row) {
+  const bits = [];
+  if (row.source_reference) bits.push(row.source_reference);
+  if (row.source_page) bits.push(`page ${row.source_page}`);
+  if (!bits.length && row.verification_status === "missing_source") {
+    return `<span class="evidence-location missing">Source file is currently unavailable</span>`;
+  }
+  return bits.length
+    ? `<span class="evidence-location">${escapeHtml(bits.join(" · "))}</span>`
+    : "";
+}
+
 function evidenceHtml(detail) {
   const evidence = detail.assertion_evidence || [];
   const observations = detail.observations || [];
@@ -645,6 +681,8 @@ function evidenceHtml(detail) {
               "Evidence supports the canonical assertion."
             )}
           </p>
+          ${evidenceLocationLine(row)}
+          <div class="evidence-actions">${evidenceSourceLink(row)}</div>
         </div>
       `).join("")
     : `
@@ -673,6 +711,8 @@ function evidenceHtml(detail) {
             This observation does not establish ownership
             or identity.
           </p>
+          ${evidenceLocationLine(row)}
+          <div class="evidence-actions">${evidenceSourceLink(row)}</div>
         </div>
       `).join("")
     : `
@@ -907,6 +947,8 @@ function entityEvidenceHtml(
                 item.attested_value || ""
               )}
             </p>
+            ${evidenceLocationLine(item)}
+            <div class="evidence-actions">${evidenceSourceLink(item)}</div>
           </div>
         `).join("")}
 
@@ -926,6 +968,8 @@ function entityEvidenceHtml(
                 "unverified"
               )}
             </span>
+            ${evidenceLocationLine(item)}
+            <div class="evidence-actions">${evidenceSourceLink(item)}</div>
           </div>
         `).join("")}
       `
@@ -1289,6 +1333,8 @@ async function renderRelationshipDetail(row) {
                 "Evidence linked to this relationship."
               )}
             </p>
+            ${evidenceLocationLine(item)}
+            <div class="evidence-actions">${evidenceSourceLink(item)}</div>
           </div>
         `).join("")
       : `<div class="evidence-empty">
@@ -1370,6 +1416,23 @@ function renderSourceDetail(row) {
       row.source_page
     ) +
     detailBlock(
+      "Source URL",
+      row.source_url
+    ) +
+    detailBlock(
+      "Resolved location",
+      row.resolved_location
+    ) +
+    detailBlock(
+      "Location verification",
+      row.location_verification
+    ) +
+    detailBlock(
+      "Location match",
+      row.location_match_method
+    ) +
+    `<div class="detail-block"><div class="detail-label">Evidence link</div><div class="detail-value">${evidenceSourceLink(row, "Open source")}</div></div>` +
+    detailBlock(
       "Extraction method",
       row.extraction_method
     ) +
@@ -1423,6 +1486,7 @@ function renderObservationDetail(row) {
       "Source verification",
       row.provenance_verification
     ) +
+    `<div class="detail-block"><div class="detail-label">Evidence link</div><div class="detail-value">${evidenceSourceLink(row, "Open source")}</div></div>` +
     detailBlock(
       "Observed at",
       row.occurred_at
@@ -1788,6 +1852,32 @@ $("#results").addEventListener(
     }
   },
 );
+
+document.addEventListener("click", async (event) => {
+  const sourceButton = event.target.closest("[data-open-source]");
+  if (!sourceButton) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const provenanceId = Number(sourceButton.dataset.openSource || 0);
+  if (!provenanceId) return;
+
+  state.view = "sources";
+  state.query = "";
+  state.verification = "";
+  $("#search").value = "";
+  $("#verification").value = "";
+  document.querySelectorAll("#view-tabs button").forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === "sources");
+  });
+
+  try {
+    const rows = await api(`/api/contacts/sources?provenance_id=${encodeURIComponent(provenanceId)}&limit=1&offset=0`);
+    await loadDirectory();
+    if (rows && rows.length) renderDetail(rows[0]);
+  } catch (error) {
+    console.error("Unable to open evidence source", error);
+  }
+});
 
 Promise.all([
   loadSummary(),

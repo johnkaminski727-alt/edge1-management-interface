@@ -14,5 +14,5 @@ IOSchedulingPriority=6
 PrivateTmp=true
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=read-only
 ReadWritePaths=/var/lib/edge1-phone-intelligence /var/lib/edge1-contacts-maintenance

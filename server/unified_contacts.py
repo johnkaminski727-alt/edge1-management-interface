@@ -420,10 +420,30 @@ class UnifiedContacts:
         params.extend([limit, offset])
 
         with closing(self.connect()) as con:
-            return [
+            rows = [
                 dict(row)
                 for row in con.execute(sql, params)
             ]
+            has_locations = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='provenance_source_locations'"
+            ).fetchone() is not None
+            if has_locations and rows:
+                ids = [row["provenance_id"] for row in rows]
+                placeholders = ",".join("?" for _ in ids)
+                locations = {
+                    row["provenance_id"]: dict(row)
+                    for row in con.execute(
+                        f"""SELECT provenance_id,location_kind,location AS resolved_location,
+                                   source_sha256 AS resolved_sha256,match_method AS location_match_method,
+                                   verification_status AS location_verification,last_verified_at
+                            FROM provenance_source_locations
+                            WHERE provenance_id IN ({placeholders})""",
+                        ids,
+                    )
+                }
+                for row in rows:
+                    row.update(locations.get(row["provenance_id"], {}))
+            return rows
 
     def observations(
         self,
@@ -1026,6 +1046,8 @@ class UnifiedContacts:
                             pr.source_kind,
                             pr.source_name,
                             pr.source_reference,
+                            pr.source_page,
+                            pr.source_url,
                             pr.verification_status
                                 AS provenance_verification
                         FROM contact_entity_aliases a
