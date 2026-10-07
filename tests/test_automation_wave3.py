@@ -16,4 +16,6 @@ class Wave3Tests(unittest.TestCase):
   self.assertEqual(know.norm_title('Ava Daily — Briefing!'),'ava daily briefing')
  def test_mail_health_contract_shape(self):
   d=mail.build(); self.assertEqual(d['contract'],'wwcx.mail-domain-health.v1'); self.assertFalse(d['secrets_exposed']); self.assertFalse(d['mutation_performed'])
+ def test_managed_document_titles_do_not_create_false_conflicts(self):
+  self.assertEqual(know.norm_title('Calendar — invite.ics'),'calendar invite ics')
 if __name__=='__main__': unittest.main()

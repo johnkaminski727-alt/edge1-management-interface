@@ -17,6 +17,8 @@ class Wave1Tests(unittest.TestCase):
         self.assertEqual(meta['amount'],'1,234.50')
     def test_general_document_stays_general(self):
         self.assertEqual(filing.classify('notes.txt','ordinary notes without business markers'),'general')
+    def test_calendar_attachment_precedes_invoice_keywords(self):
+        self.assertEqual(filing.classify('invite.ics','BEGIN:VCALENDAR\nInvoice Number: INV-1'),'calendar')
     def test_database_integrity_check_is_read_only(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'x.sqlite'; db=sqlite3.connect(p); db.execute('create table t(x)'); db.execute('insert into t values (1)'); db.commit(); db.close()

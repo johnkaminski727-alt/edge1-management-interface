@@ -18,7 +18,14 @@ def build():
     byhash={}; bytitle={}
     for d in docs:byhash.setdefault(d['text_sha256'],[]).append(d);bytitle.setdefault(norm_title(d['title']),[]).append(d)
     exact=[[{'title':x['title'],'source_path':x['source_path']} for x in g] for g in byhash.values() if len(g)>1 and g[0]['chars']>0]
-    titles=[[{'title':x['title'],'source_path':x['source_path'],'sha256':x['text_sha256']} for x in g] for k,g in bytitle.items() if k and len(g)>1 and len({x['text_sha256'] for x in g})>1]
+    titles=[]
+    for k,g in bytitle.items():
+        if not k or len(g)<=1 or len({x['text_sha256'] for x in g})<=1:
+            continue
+        # Managed attachment projections are keyed by attachment SHA, so repeated filenames are expected.
+        if all(str(x['source_path']).startswith('operations/documents/') for x in g):
+            continue
+        titles.append([{'title':x['title'],'source_path':x['source_path'],'sha256':x['text_sha256']} for x in g])
     return {'contract':'wwcx.knowledge-consolidation.v1','generated_at':utcnow(),'documents':len(docs),'exact_duplicate_groups':exact,'same_title_different_content_groups':titles,'review_items':len(exact)+len(titles),'mutation_performed':False,'merge_authorized':False}
 def md(d):
     lines=['# Private Library Consolidation Review','',f"Generated: {d['generated_at']}",f"Documents: **{d['documents']}**",f"Review groups: **{d['review_items']}**",'', '## Exact duplicates','']
