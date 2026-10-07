@@ -66,7 +66,7 @@
     const right = 80;
     const height = 45 + records.length * rowHeight;
     const maximum = Math.max(...records.map((item) => Number(item.rtt_ms)), 1);
-    const palette = { edge1: "#1f5f99", "shared-host": "#a05a20" };
+    const palette = { edge1: "#1f5f99", business159: "#a05a20", "shared-host": "#a05a20" };
     const bars = records.map((item, index) => {
       const y = 28 + index * rowHeight;
       const barWidth = (Number(item.rtt_ms) / maximum) * (width - left - right);

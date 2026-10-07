@@ -27,6 +27,7 @@ declare -a FILES=(
   "src/web/time-authority/index.html|time-authority/index.html"
   "src/web/time-authority/app.js|time-authority/app.js"
   "src/web/time-authority/styles.css|time-authority/styles.css"
+  "src/web/time-authority/fixtures/baseline-summary.json|time-authority/fixtures/baseline-summary.json"
 )
 
 NAV_DB=/var/lib/edge1-navigation/navigation.sqlite3
