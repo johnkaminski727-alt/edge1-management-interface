@@ -1680,6 +1680,7 @@ function renderMaintenanceDetail(row) {
   if (row.source_document_count) blocks.push(detailBlock("Source documents", row.source_document_count));
   if (row.recovered_source_document_count) blocks.push(detailBlock("Recovered source documents", row.recovered_source_document_count));
   if (row.source_families) blocks.push(detailBlock("Source families", row.source_families));
+  if (row.routing_class) blocks.push(detailBlock("Number routing", [row.routing_class, row.routing_carrier, row.routing_exchange_area].filter(Boolean).join(" · ")));
   if (row.public_resolution) blocks.push(detailBlock("Public resolution", row.public_resolution));
   if (Array.isArray(row.proposed_contact_points) && row.proposed_contact_points.length) {
     blocks.push(detailBlock("Proposed contact information", row.proposed_contact_points.map((item) => `${item.point_type || "contact"}: ${item.display_value || item.value || ""}`).join("\n")));

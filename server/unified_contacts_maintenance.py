@@ -18,14 +18,34 @@ class UnifiedContactsMaintenance:
         self,
         maintenance_database: str | Path = "/var/lib/edge1-contacts-maintenance/maintenance.sqlite",
         contacts_database: str | Path = "/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite",
+        phone_prefix_triage: str | Path = "/opt/edge1-management-interface/config/contacts/phone-prefix-triage.json",
     ) -> None:
         self.maintenance_database = Path(maintenance_database)
         self.contacts_database = Path(contacts_database)
+        self.phone_prefix_triage = Path(phone_prefix_triage)
 
     def _open(self, path: Path) -> sqlite3.Connection:
         con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         con.row_factory = sqlite3.Row
         return con
+
+    def _phone_prefix_metadata(self, number: str) -> dict:
+        try:
+            payload = json.loads(self.phone_prefix_triage.read_text())
+        except (OSError, json.JSONDecodeError):
+            return {}
+        prefixes = payload.get("prefixes") if isinstance(payload, dict) else None
+        if not isinstance(prefixes, dict):
+            return {}
+        matches = [
+            (prefix, meta)
+            for prefix, meta in prefixes.items()
+            if str(number or "").startswith(str(prefix)) and isinstance(meta, dict)
+        ]
+        if not matches:
+            return {}
+        _, meta = max(matches, key=lambda item: len(item[0]))
+        return dict(meta)
 
     def _entity_names(self, ids: set[int]) -> dict[int, str]:
         if not ids:
@@ -167,6 +187,14 @@ class UnifiedContactsMaintenance:
                             + min(recovered_source_document_count, 10) * 2
                             + min(source_family_count, 3) * 10
                         )
+                    prefix_meta = self._phone_prefix_metadata(r["normalized_value"])
+                    if prefix_meta:
+                        item["routing_class"] = prefix_meta.get("routing_class")
+                        item["routing_carrier"] = prefix_meta.get("carrier")
+                        item["routing_exchange_area"] = prefix_meta.get("exchange_area")
+                        item["routing_source"] = prefix_meta.get("source")
+                        if r["status"] == "pending" and prefix_meta.get("routing_class") == "wireless":
+                            item["review_priority"] = max(0, int(item.get("review_priority") or 0) - 45)
                     rows.append(item)
 
             if kind in {"all", "discoveries"}:

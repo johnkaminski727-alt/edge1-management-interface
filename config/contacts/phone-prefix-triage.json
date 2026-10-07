@@ -1,0 +1,30 @@
+{
+  "contract": "edge1.contacts-phone-prefix-triage.v1",
+  "updated_at": "2026-10-07",
+  "prefixes": {
+    "+1306620": {
+      "routing_class": "wireless",
+      "exchange_area": "Yorkton, SK",
+      "carrier": "SaskTel Mobility",
+      "source": "Canadian Numbering Administrator — CO Code Status for NPA 306"
+    },
+    "+1306621": {
+      "routing_class": "wireless",
+      "exchange_area": "Yorkton, SK",
+      "carrier": "SaskTel Mobility",
+      "source": "Canadian Numbering Administrator — CO Code Status for NPA 306"
+    },
+    "+1780934": {
+      "routing_class": "wireless",
+      "exchange_area": "Edmonton, AB",
+      "carrier": "Rogers Communications Canada Inc. (Wireless)",
+      "source": "Canadian Numbering Administrator — CO Code Status for NPA 780"
+    },
+    "+1780937": {
+      "routing_class": "wireless",
+      "exchange_area": "Edmonton, AB",
+      "carrier": "Rogers Communications Canada Inc. (Wireless)",
+      "source": "Canadian Numbering Administrator — CO Code Status for NPA 780"
+    }
+  }
+}

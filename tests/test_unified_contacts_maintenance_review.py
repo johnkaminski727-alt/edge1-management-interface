@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -74,6 +75,28 @@ class UnifiedContactsMaintenanceReviewTests(unittest.TestCase):
         rows = self.model.items(kind='identity', status='pending', query='5550123')
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['maintenance_kind'], 'identity')
+
+    def test_wireless_prefix_metadata_lowers_pending_identity_priority(self):
+        triage = Path(self.tmp.name) / "phone-prefix-triage.json"
+        triage.write_text(json.dumps({
+            "prefixes": {
+                "+1306621": {
+                    "routing_class": "wireless",
+                    "exchange_area": "Yorkton, SK",
+                    "carrier": "SaskTel Mobility",
+                    "source": "CNAC test fixture"
+                }
+            }
+        }))
+        con = sqlite3.connect(self.maintenance)
+        con.execute("UPDATE identity_resolution_queue SET normalized_value='+13066211234', evidence_json='{\"occurrence_count\":50,\"source_document_count\":10,\"recovered_source_document_count\":2,\"source_family_count\":1}' WHERE id=1")
+        con.commit(); con.close()
+        model = UnifiedContactsMaintenance(self.maintenance, self.contacts, triage)
+        row = model.items(kind='identity', status='pending')[0]
+        self.assertEqual(row['routing_class'], 'wireless')
+        self.assertEqual(row['routing_carrier'], 'SaskTel Mobility')
+        self.assertEqual(row['routing_exchange_area'], 'Yorkton, SK')
+        self.assertLess(row['review_priority'], 100)
 
     def test_discovery_suggests_unique_existing_organization_from_domain(self):
         con = sqlite3.connect(self.contacts)
