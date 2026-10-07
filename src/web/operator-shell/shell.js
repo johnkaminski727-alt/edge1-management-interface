@@ -100,7 +100,7 @@
     brandCopy.append(make("strong", "", "WW.CX"), make("small", "", "Edge1 Control Center"));
     brand.append(brandMark, brandCopy);
     const brandWrap = make("div", "wwcx-shell-brand-wrap");
-    brandWrap.append(brand, collapse);
+    brandWrap.append(brand);
 
     const activeModule = (modules.find((item) => item.id === activeId) || {});
     // Theme belongs to the navigation/module registry, not to a page-specific rail.
@@ -136,6 +136,7 @@
     };
     applyCollapsed(collapsed);
     collapse.addEventListener("click", () => applyCollapsed(!collapsed));
+    brandWrap.append(collapse);
 
     const nav = make("nav", "wwcx-shell-nav");
     nav.setAttribute("aria-label", "Edge1 modules");
