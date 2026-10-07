@@ -1,0 +1,134 @@
+{
+  "contract": "edge1.contacts-source-registry.v1",
+  "updated_at": "2026-10-07",
+  "sources": [
+    {
+      "id": "airtable-operations-people",
+      "name": "Airtable Operations Registry — People & Contacts",
+      "kind": "airtable",
+      "runtime_access": "connector_required",
+      "locator": "airtable:appWawSpmzIKFCo05/tblZCCrdVHXfynqNL",
+      "authority": "relationship_metadata",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "preserve_status",
+        "preserve_do_not_contact",
+        "preserve_historical",
+        "retain_source_record_id"
+      ]
+    },
+    {
+      "id": "airtable-operations-organizations",
+      "name": "Airtable Operations Registry — Organizations",
+      "kind": "airtable",
+      "locator": "airtable:appWawSpmzIKFCo05/tbliJXx44snu4Rljr",
+      "authority": "organization_metadata",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "exact_name_match_before_create",
+        "retain_authoritative_location",
+        "no_destructive_merge"
+      ],
+      "runtime_access": "connector_required"
+    },
+    {
+      "id": "library-consolidated-contacts-v2",
+      "name": "Consolidated Master Records Register v2.0 — Contacts",
+      "kind": "chatgpt_library_register",
+      "locator": "library:file_000000002e8c71f4a1dc666c515d49ca#Contacts",
+      "authority": "contact_coordinates_and_evidence",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "document_sourced_coordinates_may_promote",
+        "email_derived_requires_validation",
+        "retain_contact_id",
+        "retain_source_reference",
+        "questionable_values_review_required"
+      ],
+      "runtime_access": "connector_required"
+    },
+    {
+      "id": "library-contact-update-20260706",
+      "name": "Contact Update 2026-07-06",
+      "kind": "chatgpt_library_register",
+      "locator": "library:file_00000000e85c722fa272fec6a38cedf9#Contact_Update_20260706",
+      "authority": "operational_contact_coordinates",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "respect_contact_restrictions",
+        "retain_matter_context",
+        "newer_evidence_can_supersede_stale_coordinate"
+      ],
+      "runtime_access": "connector_required"
+    },
+    {
+      "id": "edge1-private-library",
+      "name": "Edge1 Private Library",
+      "kind": "private_library",
+      "locator": "/var/lib/bigbird-ai-library/library.sqlite3",
+      "authority": "locator_and_supporting_evidence",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "not_identity_authority_alone",
+        "exact_document_identity_preferred"
+      ],
+      "runtime_access": "local"
+    },
+    {
+      "id": "airtable-private-people-family",
+      "name": "Airtable Private Records Registry — People & Family",
+      "kind": "airtable",
+      "locator": "airtable:appfsiDhbxoylUd6f/tbl7nwkRkKlsapmBV",
+      "authority": "restricted_personal_metadata",
+      "ingestion": "review_only",
+      "default_action": "REVIEW_REQUIRED",
+      "rules": [
+        "restricted_handling",
+        "never_use_for_ordinary_outreach",
+        "do_not_copy_protected_identifiers",
+        "retain_sensitivity"
+      ],
+      "runtime_access": "connector_required"
+    },
+    {
+      "id": "messaging-identity-registry",
+      "name": "Edge1 Messaging Identity Registry",
+      "kind": "edge1_register",
+      "locator": "config/messaging/mail-identities.json",
+      "authority": "messaging_identity",
+      "ingestion": "enabled_existing_adapter",
+      "default_action": "AUTO_STAGE",
+      "runtime_access": "local"
+    },
+    {
+      "id": "mail-provider-inventory",
+      "name": "Edge1 Mail Provider Inventory",
+      "kind": "edge1_register",
+      "locator": "config/messaging/mail-provider-inventory.json",
+      "authority": "messaging_observation",
+      "ingestion": "enabled_existing_adapter",
+      "default_action": "AUTO_STAGE",
+      "runtime_access": "local"
+    },
+    {
+      "id": "mail-correspondence",
+      "name": "Mail Room / Outlook / Gmail correspondence",
+      "kind": "message_source",
+      "locator": "connected-mail-and-edge1-mail-room",
+      "authority": "contact_observation_and_signature_evidence",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "extract_signature_coordinates",
+        "preserve_message_provenance",
+        "never_promote_weak_sender_inference_without_evidence"
+      ],
+      "runtime_access": "connector_required"
+    }
+  ]
+}

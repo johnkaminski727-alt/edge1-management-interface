@@ -1,0 +1,354 @@
+{
+  "source": {
+    "source_kind": "register",
+    "source_name": "Consolidated Master Records Register v2.0 — Contacts",
+    "source_reference": "library:file_000000002e8c71f4a1dc666c515d49ca#Contacts",
+    "verification_status": "document_sourced",
+    "extraction_method": "library_contact_register_snapshot_v1"
+  },
+  "contacts": [
+    {
+      "key": "CONTACT-CIBC-CLIENT-CARE",
+      "entity_type": "organization",
+      "name": "CIBC Client Care Centre",
+      "role": "Complaint/dispute escalation",
+      "source_reference": "turn27file1 page 4",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18004652255",
+          "display": "1-800-465-2255"
+        },
+        {
+          "type": "website",
+          "value": "https://cibc.com/escalate",
+          "display": "cibc.com/escalate"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-CIBC-APPEALS",
+      "entity_type": "organization",
+      "name": "CIBC Client Complaint Appeals Office",
+      "role": "Complaint appeal",
+      "source_reference": "turn27file1 page 4",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18889475207",
+          "display": "1-888-947-5207"
+        },
+        {
+          "type": "email",
+          "value": "cibcclientcomplaintappeals@cibc.com",
+          "display": "CIBCClientComplaintAppeals@cibc.com"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-OBSI",
+      "entity_type": "organization",
+      "name": "Ombudsman for Banking Services and Investments",
+      "role": "External complaint escalation",
+      "source_reference": "turn27file1 page 4",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18884514519",
+          "display": "1-888-451-4519"
+        },
+        {
+          "type": "email",
+          "value": "ombudsman@obsi.ca",
+          "display": "ombudsman@obsi.ca"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-FCAC",
+      "entity_type": "organization",
+      "name": "Financial Consumer Agency of Canada",
+      "role": "Regulatory complaint route",
+      "source_reference": "turn27file1 page 4",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18664613222",
+          "display": "1-866-461-3222"
+        },
+        {
+          "type": "website",
+          "value": "https://fcac.gc.ca",
+          "display": "fcac.gc.ca"
+        },
+        {
+          "type": "postal_address",
+          "value": "427 Laurier Avenue West, 6th Floor, Ottawa, ON K1R 1B9",
+          "display": "427 Laurier Avenue West, 6th Floor, Ottawa, ON K1R 1B9"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-SECURIAN-CAA-SERVICE",
+      "entity_type": "organization",
+      "name": "Securian Canada / CAA H&D service",
+      "role": "Policy assistance / policy changes",
+      "source_reference": "turn30file1; turn30file0",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18667149007",
+          "display": "1-866-714-9007"
+        },
+        {
+          "type": "email",
+          "value": "service@caa.securiancanada.ca",
+          "display": "service@caa.securiancanada.ca"
+        },
+        {
+          "type": "postal_address",
+          "value": "1400 - 25 Sheppard Ave. West, Toronto, ON M2N 6S6",
+          "display": "1400 - 25 Sheppard Ave. West, Toronto, ON M2N 6S6"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-SECURIAN-CLAIMS",
+      "entity_type": "organization",
+      "name": "Securian health and dental claims",
+      "role": "Claims and benefits inquiries",
+      "source_reference": "turn30file0",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18667149007",
+          "display": "1-866-714-9007"
+        },
+        {
+          "type": "email",
+          "value": "healthanddentalclaims@groupinsurance.securiancanada.ca",
+          "display": "healthanddentalclaims@groupinsurance.securiancanada.ca"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-SECURIAN-MED-AUTH",
+      "entity_type": "organization",
+      "name": "Securian medical authorization",
+      "role": "Medical equipment / home support / selected benefit pre-authorization",
+      "source_reference": "turn30file4; turn31file1",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "email",
+          "value": "medical.authorization@groupinsurance.securiancanada.ca",
+          "display": "medical.authorization@groupinsurance.securiancanada.ca"
+        }
+      ]
+    },
+    {
+      "key": "CONTACT-GRENSHIELD-DRUG-AUTH",
+      "entity_type": "organization",
+      "name": "GreenShield drug authorization",
+      "role": "Drug pre-authorization",
+      "source_reference": "turn30file4; turn31file1",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "email",
+          "value": "drugspecial.autho@greenshield.ca",
+          "display": "drugspecial.autho@greenshield.ca"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0001",
+      "entity_type": "organization",
+      "name": "Canada Post Solutions for Small Business",
+      "role": "Customer service",
+      "source_reference": "0293 p1",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18772625762",
+          "display": "1-877-262-5762"
+        },
+        {
+          "type": "fax",
+          "value": "+18664431252",
+          "display": "1-866-443-1252"
+        },
+        {
+          "type": "email",
+          "value": "solutionsforsmb@canadapost.ca",
+          "display": "solutionsforsmb@canadapost.ca"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0003",
+      "entity_type": "organization",
+      "name": "Canada Post Invermay PO",
+      "role": "Postal box renewal office",
+      "source_reference": "0295 p1",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+13065932182",
+          "display": "306-593-2182"
+        },
+        {
+          "type": "website",
+          "value": "https://canadapost.ca/postalboxes",
+          "display": "canadapost.ca/postalboxes"
+        },
+        {
+          "type": "postal_address",
+          "value": "201 Main St, Invermay SK S0A 1M0",
+          "display": "201 Main St, Invermay SK S0A 1M0"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0004",
+      "entity_type": "organization",
+      "name": "FedEx",
+      "role": "Customer service / payment",
+      "source_reference": "0295 p3/p7",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+18004633339",
+          "display": "1-800-463-3339"
+        },
+        {
+          "type": "email",
+          "value": "abuse@fedex.com",
+          "display": "abuse@fedex.com"
+        },
+        {
+          "type": "postal_address",
+          "value": "Federal Express Canada Corporation, PO Box 4626 Toronto Stn A, Toronto ON M5W 5B4",
+          "display": "Federal Express Canada Corporation, PO Box 4626 Toronto Stn A, Toronto ON M5W 5B4"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0007",
+      "entity_type": "organization",
+      "name": "Gateway Co-operative Ltd.",
+      "role": "Administration",
+      "source_reference": "0292 p5/p10",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+13065635637",
+          "display": "306-563-5637"
+        },
+        {
+          "type": "fax",
+          "value": "+13065635335",
+          "display": "306-563-5335"
+        },
+        {
+          "type": "email",
+          "value": "gateway.coop@sasktel.net",
+          "display": "gateway.coop@sasktel.net"
+        },
+        {
+          "type": "postal_address",
+          "value": "707 Norway Road, Box 959, Canora SK S0A 0L0",
+          "display": "707 Norway Road, Box 959, Canora SK S0A 0L0"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0008",
+      "entity_type": "person",
+      "name": "Brad Chambers",
+      "role": "General Manager",
+      "parent": "Gateway Co-operative Ltd.",
+      "source_reference": "0292 p8",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+13065637462",
+          "display": "306-563-7462"
+        },
+        {
+          "type": "email",
+          "value": "gateway.gm@sasktel.net",
+          "display": "gateway.gm@sasktel.net"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0009",
+      "entity_type": "person",
+      "name": "Therese Cook",
+      "role": "HR Advisor",
+      "parent": "Gateway Co-operative Ltd.",
+      "source_reference": "0292 p8",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+13065627462",
+          "display": "306-562-7462"
+        },
+        {
+          "type": "email",
+          "value": "gateway.hr@sasktel.net",
+          "display": "gateway.hr@sasktel.net"
+        }
+      ]
+    },
+    {
+      "key": "SHIP-0010",
+      "entity_type": "organization",
+      "name": "Preeceville Home Centre / C-Store",
+      "role": "Branch contacts",
+      "parent": "Gateway Co-operative Ltd.",
+      "source_reference": "0292 p8",
+      "verification": "document_sourced",
+      "points": [
+        {
+          "type": "phone",
+          "value": "+13065472812",
+          "display": "306-547-2812"
+        },
+        {
+          "type": "phone",
+          "value": "+13065472001",
+          "display": "306-547-2001"
+        },
+        {
+          "type": "email",
+          "value": "gateway.preeceville@sasktel.net",
+          "display": "gateway.preeceville@sasktel.net"
+        },
+        {
+          "type": "email",
+          "value": "gateway.petro@sasktel.net",
+          "display": "gateway.petro@sasktel.net"
+        },
+        {
+          "type": "postal_address",
+          "value": "853 Highway Ave E, Preeceville SK S0A 3B0",
+          "display": "853 Highway Ave E, Preeceville SK S0A 3B0"
+        }
+      ]
+    }
+  ]
+}
