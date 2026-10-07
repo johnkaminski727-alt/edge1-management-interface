@@ -120,7 +120,14 @@ def contacts_actions():
 
 def build():
     actions=[]; sources={}
-    ma,ms=mail_actions(); actions+=ma; sources['mail']=ms
+    ma,ms=mail_actions(); sources['mail']=ms
+    reply_status=load(Path('/var/www/edge1-status/reply-suggestions/status.json')); sources['reply_suggestions']='available' if reply_status else 'unavailable'
+    suggested={x.get('evidence') for x in (reply_status.get('items') or []) if x.get('evidence')}
+    for item in ma:
+        if item.get('evidence') in suggested:
+            item['detail']=(item.get('detail') or 'Reply likely needed') + '; Ava reply suggestion is staged for review.'
+            item['reply_suggestion_available']=True
+    actions+=ma
     ca,cs=contacts_actions(); actions+=ca; sources['contacts']=cs
     incidents=load(Path('/var/www/edge1-status/operations-incidents.json')); ih=age_hours(incidents.get('generated_at'))
     sources['incidents']='stale' if ih is None or ih>1 else 'available'
