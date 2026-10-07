@@ -140,14 +140,13 @@ def prepare_payload(
     return prepared, selection
 
 
-# Website and privacy links per sending domain. creekco.ca shares Spirit Creek Gardens Inc.'s
-# privacy page; omegafx.com has none yet, so it keeps the base policy link until one exists.
+# Website and privacy links per sending domain (each site hosts its own privacy notice).
 DOMAIN_LINKS = {
     "ww.cx": ("https://ww.cx", "https://ww.cx/privacy"),
     "spiritcreekgardens.com": ("https://spiritcreekgardens.com", "https://spiritcreekgardens.com/privacy"),
     "scgardens.ca": ("https://scgardens.ca", "https://scgardens.ca/privacy"),
-    "creekco.ca": ("https://creekco.ca", "https://spiritcreekgardens.com/privacy"),
-    "omegafx.com": ("https://omegafx.com", None),
+    "creekco.ca": ("https://creekco.ca", "https://creekco.ca/privacy.html"),
+    "omegafx.com": ("https://omegafx.com", "https://omegafx.com/privacy/"),
 }
 
 

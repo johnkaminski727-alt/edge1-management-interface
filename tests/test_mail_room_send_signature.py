@@ -34,10 +34,11 @@ class SignatureTests(unittest.TestCase):
         gateway.organization_for_sender(POLICY, IDENTITIES, "john@ww.cx")
         self.assertEqual(POLICY["organization"]["operating_name"], "Spirit Creek Gardens")
 
-    def test_domain_without_privacy_page_keeps_base_privacy_link(self):
+    def test_each_domain_links_its_own_privacy_page(self):
         org = gateway.organization_for_sender(POLICY, IDENTITIES, "contact@omegafx.com")["organization"]
-        self.assertEqual(org["website"], "https://omegafx.com")
-        self.assertEqual(org["privacy_url"], "https://spiritcreekgardens.com/privacy")
+        self.assertEqual((org["website"], org["privacy_url"]), ("https://omegafx.com", "https://omegafx.com/privacy/"))
+        org = gateway.organization_for_sender(POLICY, IDENTITIES, "noc@creekco.ca")["organization"]
+        self.assertEqual(org["privacy_url"], "https://creekco.ca/privacy.html")
 
     def test_unknown_domain_leaves_policy_unchanged(self):
         self.assertIs(gateway.organization_for_sender(POLICY, IDENTITIES, "x@example.com"), POLICY)
