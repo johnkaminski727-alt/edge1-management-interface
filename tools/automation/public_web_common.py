@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import html.parser, io, json, urllib.error, urllib.parse, urllib.request, xml.etree.ElementTree as ET
+import html.parser, io, json, time, urllib.error, urllib.parse, urllib.request, xml.etree.ElementTree as ET
 from pathlib import Path
 UA='WWCX-Edge1-Website-Monitor/1.0 (+https://ww.cx/)'
 MAX_BYTES=2*1024*1024
 
-def fetch(url, *, max_bytes=MAX_BYTES, timeout=12):
-    req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'text/html,application/xml,text/xml,text/plain,*/*;q=0.1'})
-    try:
-        with urllib.request.urlopen(req,timeout=timeout) as r:
-            raw=r.read(max_bytes+1); truncated=len(raw)>max_bytes; raw=raw[:max_bytes]
-            return {'ok':200<=r.status<400,'status':r.status,'url':r.geturl(),'content_type':r.headers.get_content_type(),'bytes':len(raw),'truncated':truncated,'body':raw}
-    except urllib.error.HTTPError as e:
-        return {'ok':False,'status':e.code,'url':e.geturl(),'content_type':e.headers.get_content_type() if e.headers else None,'bytes':0,'truncated':False,'body':b'','error':'HTTPError'}
-    except Exception as e:
-        return {'ok':False,'status':None,'url':url,'content_type':None,'bytes':0,'truncated':False,'body':b'','error':type(e).__name__}
+def fetch(url, *, max_bytes=MAX_BYTES, timeout=12, retries=1):
+    last=None
+    for attempt in range(max(0,retries)+1):
+        req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'text/html,application/xml,text/xml,text/plain,*/*;q=0.1'})
+        try:
+            with urllib.request.urlopen(req,timeout=timeout) as r:
+                raw=r.read(max_bytes+1); truncated=len(raw)>max_bytes; raw=raw[:max_bytes]
+                return {'ok':200<=r.status<400,'status':r.status,'url':r.geturl(),'content_type':r.headers.get_content_type(),'bytes':len(raw),'truncated':truncated,'body':raw}
+        except urllib.error.HTTPError as e:
+            last={'ok':False,'status':e.code,'url':e.geturl(),'content_type':e.headers.get_content_type() if e.headers else None,'bytes':0,'truncated':False,'body':b'','error':'HTTPError'}
+            if e.code not in {429,500,502,503,504} or attempt>=retries:return last
+        except Exception as e:
+            last={'ok':False,'status':None,'url':url,'content_type':None,'bytes':0,'truncated':False,'body':b'','error':type(e).__name__}
+            if attempt>=retries:return last
+        time.sleep(0.25*(attempt+1))
+    return last
 
 def public(result): return {k:v for k,v in result.items() if k!='body'}
 

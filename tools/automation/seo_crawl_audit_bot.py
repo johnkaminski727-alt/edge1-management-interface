@@ -28,7 +28,7 @@ def build(max_per_site=100):
     for site in load_sites(CFG):
         domain=site['domain'];base=site['base_url'];rob=fetch(base.rstrip('/')+'/robots.txt',max_bytes=512*1024);robots_text=decode(rob) if rob['ok'] else '';urls,maps=sitemap_urls(base.rstrip('/')+'/sitemap.xml',domain,max_urls=max_per_site)
         if not urls:urls=[base]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex: pages=list(ex.map(lambda u:inspect(u,robots_text),urls))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex: pages=list(ex.map(lambda u:inspect(u,robots_text),urls))
         for page in pages:
             for issue in page.get('issues',[]):all_issues.append({'domain':domain,'url':page['url'],**issue})
         site_rows.append({'domain':domain,'sitemap_urls_discovered':len(urls),'sitemaps_checked':maps,'pages_checked':len(pages),'pages':pages})

@@ -100,6 +100,12 @@ def build():
     heal=load(Path('/var/www/edge1-status/service-self-heal/status.json')); sources['self_heal']='available' if heal else 'unavailable'
     for row in heal.get('services',[]):
         if row.get('action')=='restart_failed' or row.get('after')=='failed': actions.append({'id':'self-heal:'+str(row.get('unit')),'source':'self-heal','priority':'high','title':'Service self-heal failed: '+str(row.get('unit')),'detail':'Bounded restart did not restore this allowlisted service.','action_level':'REVIEW-REQUIRED'})
+    websites=load(Path('/var/www/edge1-status/website-health/status.json')); sources['website_health']='available' if websites else 'unavailable'
+    if websites.get('state') in {'attention','warning'}:
+        actions.append({'id':'websites:health','source':'websites','priority':'high' if websites.get('state')=='attention' else 'medium','title':'Public website health needs attention','detail':f"{len(websites.get('issues') or [])} website health issues detected.",'action_level':'REVIEW-REQUIRED'})
+    seo=load(Path('/var/www/edge1-status/seo-audit/status.json')); sources['seo_audit']='available' if seo else 'unavailable'
+    if seo.get('state') in {'attention','warning'}:
+        summary=seo.get('summary') or {}; actions.append({'id':'websites:seo','source':'seo','priority':'high' if summary.get('high') else 'medium','title':'SEO/crawl audit needs attention','detail':f"{summary.get('issues',0)} crawl/metadata issues detected across {summary.get('pages_checked',0)} pages.",'action_level':'AUTO-STAGE'})
     order={'high':0,'medium':1,'low':2}; actions.sort(key=lambda x:(order.get(x['priority'],9),x['source'],x['title']))
     counts={p:sum(a['priority']==p for a in actions) for p in ('high','medium','low')}
     return {'contract':'wwcx.outstanding-actions.v1','generated_at':utcnow(),'summary':{'total':len(actions),**counts},'sources':sources,'actions':actions[:200],'mutation_performed':False}
