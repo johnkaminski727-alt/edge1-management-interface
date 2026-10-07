@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, hashlib, json, re, sqlite3
+
+import argparse
+import hashlib
+import json
+import re
+import shutil
+import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA='''
+SCHEMA = '''
 CREATE TABLE IF NOT EXISTS maintenance_runs(
  id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT NOT NULL, finished_at TEXT,
- source_sha256 TEXT, status TEXT NOT NULL, summary_json TEXT
+ source_sha256 TEXT, source_sha256_after TEXT, status TEXT NOT NULL, summary_json TEXT
 );
 CREATE TABLE IF NOT EXISTS maintenance_findings(
  id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
- finding_type TEXT NOT NULL, severity TEXT NOT NULL, entity_id INTEGER,
- contact_point_id INTEGER, title TEXT NOT NULL, detail TEXT NOT NULL,
+ finding_type TEXT NOT NULL, severity TEXT NOT NULL, action_level TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED',
+ entity_id INTEGER, contact_point_id INTEGER, title TEXT NOT NULL, detail TEXT NOT NULL,
  status TEXT NOT NULL DEFAULT 'open', first_seen_at TEXT NOT NULL,
  last_seen_at TEXT NOT NULL, occurrences INTEGER NOT NULL DEFAULT 1
 );
@@ -22,82 +28,320 @@ CREATE TABLE IF NOT EXISTS enrichment_queue(
  entity_id INTEGER NOT NULL, task_type TEXT NOT NULL, rationale TEXT NOT NULL,
  status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS candidate_changes(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
+ action_level TEXT NOT NULL, entity_id INTEGER, contact_point_id INTEGER,
+ target_table TEXT NOT NULL, target_field TEXT NOT NULL,
+ current_value TEXT, proposed_value TEXT, rationale TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS remediation_actions(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER,
+ action_level TEXT NOT NULL, action_type TEXT NOT NULL,
+ target_table TEXT NOT NULL, target_id INTEGER NOT NULL, target_field TEXT NOT NULL,
+ before_value TEXT, after_value TEXT, rationale TEXT NOT NULL,
+ backup_path TEXT, source_sha256_before TEXT, source_sha256_after TEXT,
+ verification_status TEXT NOT NULL, created_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_findings_status ON maintenance_findings(status, finding_type);
 CREATE INDEX IF NOT EXISTS idx_enrichment_status ON enrichment_queue(status, task_type);
+CREATE INDEX IF NOT EXISTS idx_candidate_status ON candidate_changes(status, action_level);
+CREATE INDEX IF NOT EXISTS idx_remediation_run ON remediation_actions(run_id, action_level);
 '''
 
-def utcnow(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
-def norm_name(s): return re.sub(r'[^a-z0-9]+','', (s or '').casefold())
-def fp(*parts): return hashlib.sha256('|'.join('' if p is None else str(p) for p in parts).encode()).hexdigest()
 
-def open_source(path):
- c=sqlite3.connect(f'file:{path}?mode=ro', uri=True); c.row_factory=sqlite3.Row; c.execute('PRAGMA foreign_keys=ON'); return c
+def utcnow():
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
+
+
+def norm_name(value):
+    return re.sub(r'[^a-z0-9]+', '', (value or '').casefold())
+
+
+def fp(*parts):
+    return hashlib.sha256('|'.join('' if p is None else str(p) for p in parts).encode()).hexdigest()
+
+
+def _ensure_column(connection, table, definition):
+    name = definition.split()[0]
+    columns = {r[1] for r in connection.execute(f'PRAGMA table_info({table})')}
+    if name not in columns:
+        connection.execute(f'ALTER TABLE {table} ADD COLUMN {definition}')
+
+
+def open_source(path, writable=False):
+    if writable:
+        connection = sqlite3.connect(path)
+    else:
+        connection = sqlite3.connect(f'file:{path}?mode=ro', uri=True)
+    connection.row_factory = sqlite3.Row
+    connection.execute('PRAGMA foreign_keys=ON')
+    return connection
+
 
 def open_state(path):
- path.parent.mkdir(parents=True, exist_ok=True); c=sqlite3.connect(path); c.row_factory=sqlite3.Row; c.executescript(SCHEMA); return c
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path)
+    connection.row_factory = sqlite3.Row
+    connection.executescript(SCHEMA)
+    _ensure_column(connection, 'maintenance_runs', 'source_sha256_after TEXT')
+    _ensure_column(connection, 'maintenance_findings', "action_level TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED'")
+    return connection
+
 
 def source_sha(path):
- h=hashlib.sha256();
- with open(path,'rb') as f:
-  for b in iter(lambda:f.read(1024*1024), b''): h.update(b)
- return h.hexdigest()
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
 
-def finding(dst, kind, sev, title, detail, entity=None, point=None):
- now=utcnow(); key=fp(kind, entity, point, title, detail)
- dst.execute('''INSERT INTO maintenance_findings(fingerprint,finding_type,severity,entity_id,contact_point_id,title,detail,first_seen_at,last_seen_at)
- VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(fingerprint) DO UPDATE SET last_seen_at=excluded.last_seen_at, occurrences=maintenance_findings.occurrences+1, status=CASE WHEN maintenance_findings.status='resolved' THEN 'open' ELSE maintenance_findings.status END''',
- (key,kind,sev,entity,point,title,detail,now,now))
+
+def finding(dst, kind, severity, title, detail, entity=None, point=None, action_level='REVIEW_REQUIRED'):
+    now = utcnow()
+    key = fp(kind, entity, point, title, detail)
+    dst.execute('''
+        INSERT INTO maintenance_findings(
+            fingerprint,finding_type,severity,action_level,entity_id,contact_point_id,
+            title,detail,first_seen_at,last_seen_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(fingerprint) DO UPDATE SET
+            last_seen_at=excluded.last_seen_at,
+            occurrences=maintenance_findings.occurrences+1,
+            action_level=excluded.action_level,
+            status=CASE WHEN maintenance_findings.status='resolved' THEN 'open' ELSE maintenance_findings.status END
+    ''', (key, kind, severity, action_level, entity, point, title, detail, now, now))
+
 
 def enrich(dst, entity, task, rationale):
- now=utcnow(); key=fp(entity,task)
- dst.execute('''INSERT INTO enrichment_queue(fingerprint,entity_id,task_type,rationale,created_at,updated_at)
- VALUES(?,?,?,?,?,?) ON CONFLICT(fingerprint) DO UPDATE SET rationale=excluded.rationale, updated_at=excluded.updated_at''',(key,entity,task,rationale,now,now))
+    now = utcnow()
+    key = fp(entity, task)
+    dst.execute('''
+        INSERT INTO enrichment_queue(fingerprint,entity_id,task_type,rationale,created_at,updated_at)
+        VALUES(?,?,?,?,?,?)
+        ON CONFLICT(fingerprint) DO UPDATE SET rationale=excluded.rationale,updated_at=excluded.updated_at
+    ''', (key, entity, task, rationale, now, now))
+
+
+def candidate(dst, action_level, target_table, target_id, target_field, current, proposed, rationale, entity=None, point=None):
+    now = utcnow()
+    key = fp(action_level, target_table, target_id, target_field, current, proposed, rationale)
+    dst.execute('''
+        INSERT INTO candidate_changes(
+            fingerprint,action_level,entity_id,contact_point_id,target_table,target_field,
+            current_value,proposed_value,rationale,created_at,updated_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(fingerprint) DO UPDATE SET updated_at=excluded.updated_at,
+            status=CASE WHEN candidate_changes.status='superseded' THEN 'pending' ELSE candidate_changes.status END
+    ''', (key, action_level, entity, point, target_table, target_field, current, proposed, rationale, now, now))
+
+
+def collect_safe_fixes(src):
+    fixes = []
+    for row in src.execute('''
+        SELECT id, canonical_name, display_name FROM contact_entities
+        WHERE lifecycle_status='active' AND canonical_name IS NOT NULL AND TRIM(canonical_name)<>''
+          AND (display_name IS NULL OR TRIM(display_name)='')
+    '''):
+        fixes.append({
+            'action_type': 'fill_missing_display_name', 'target_table': 'contact_entities',
+            'target_id': row['id'], 'target_field': 'display_name', 'before': row['display_name'],
+            'after': row['canonical_name'], 'rationale': 'Display name was empty; canonical name is the existing authoritative identity label.'
+        })
+    for row in src.execute('''
+        SELECT id, normalized_value, display_value FROM contact_points
+        WHERE lifecycle_status='active' AND normalized_value IS NOT NULL AND TRIM(normalized_value)<>''
+          AND (display_value IS NULL OR TRIM(display_value)='')
+    '''):
+        fixes.append({
+            'action_type': 'fill_missing_display_value', 'target_table': 'contact_points',
+            'target_id': row['id'], 'target_field': 'display_value', 'before': row['display_value'],
+            'after': row['normalized_value'], 'rationale': 'Display value was empty; the existing normalized contact value is safe to use as a display fallback.'
+        })
+    return fixes
+
+
+def apply_safe_fixes(src, source_path, dst, run_id, backup_dir):
+    fixes = collect_safe_fixes(src)
+    if not fixes:
+        return {'planned': 0, 'applied': 0, 'backup': None}
+
+    before_sha = source_sha(source_path)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    backup_path = backup_dir / f'phone-intelligence-before-autofix-{stamp}-run{run_id}.sqlite'
+    shutil.copy2(source_path, backup_path)
+    if source_sha(backup_path) != before_sha:
+        backup_path.unlink(missing_ok=True)
+        raise RuntimeError('pre-remediation backup hash verification failed')
+
+    allowed = {
+        ('contact_entities', 'display_name'),
+        ('contact_points', 'display_value'),
+    }
+    applied = []
+    try:
+        src.execute('BEGIN IMMEDIATE')
+        for fix in fixes:
+            if (fix['target_table'], fix['target_field']) not in allowed:
+                raise RuntimeError('AUTO-FIX attempted outside field allowlist')
+            query = f"UPDATE {fix['target_table']} SET {fix['target_field']}=? WHERE id=? AND ({fix['target_field']} IS NULL OR TRIM({fix['target_field']})='')"
+            cursor = src.execute(query, (fix['after'], fix['target_id']))
+            if cursor.rowcount != 1:
+                raise RuntimeError(f"AUTO-FIX concurrency check failed for {fix['target_table']} id={fix['target_id']}")
+            verify = src.execute(f"SELECT {fix['target_field']} FROM {fix['target_table']} WHERE id=?", (fix['target_id'],)).fetchone()
+            if verify is None or verify[0] != fix['after']:
+                raise RuntimeError('AUTO-FIX verification failed before commit')
+            applied.append(fix)
+        src.commit()
+    except Exception:
+        src.rollback()
+        raise
+
+    after_sha = source_sha(source_path)
+    for fix in applied:
+        verify = src.execute(f"SELECT {fix['target_field']} FROM {fix['target_table']} WHERE id=?", (fix['target_id'],)).fetchone()
+        status = 'verified' if verify is not None and verify[0] == fix['after'] else 'verification_failed'
+        dst.execute('''
+            INSERT INTO remediation_actions(
+                run_id,action_level,action_type,target_table,target_id,target_field,before_value,after_value,
+                rationale,backup_path,source_sha256_before,source_sha256_after,verification_status,created_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ''', (run_id, 'AUTO_FIX', fix['action_type'], fix['target_table'], fix['target_id'], fix['target_field'],
+              fix['before'], fix['after'], fix['rationale'], str(backup_path), before_sha, after_sha, status, utcnow()))
+        if status != 'verified':
+            raise RuntimeError('AUTO-FIX post-commit verification failed; backup retained for rollback')
+    return {'planned': len(fixes), 'applied': len(applied), 'backup': str(backup_path), 'source_sha256_after': after_sha}
+
 
 def run(src, dst):
- # duplicates by canonical normalized name
- rows=src.execute("SELECT id,entity_type,canonical_name FROM contact_entities WHERE lifecycle_status='active'").fetchall(); groups={}
- for r in rows: groups.setdefault((r['entity_type'],norm_name(r['canonical_name'])),[]).append(r)
- for (typ,key), rs in groups.items():
-  if key and len(rs)>1:
-   ids=[r['id'] for r in rs]; finding(dst,'duplicate_entity','high','Possible duplicate contacts',f"{typ} records share normalized name {rs[0]['canonical_name']!r}; entity_ids={ids}")
- # contact point shared across multiple active entities
- for r in src.execute('''SELECT cp.id,cp.point_type,cp.normalized_value,COUNT(DISTINCT ca.entity_id) n,GROUP_CONCAT(DISTINCT ca.entity_id) ids
- FROM contact_points cp JOIN contact_assertions ca ON ca.contact_point_id=cp.id JOIN contact_entities e ON e.id=ca.entity_id
- WHERE cp.lifecycle_status='active' AND e.lifecycle_status='active' GROUP BY cp.id HAVING COUNT(DISTINCT ca.entity_id)>1'''):
-  finding(dst,'shared_contact_point','medium','Contact point belongs to multiple contacts',f"{r['point_type']} {r['normalized_value']} is asserted for entity_ids={r['ids']}",point=r['id'])
- # unassigned points
- for r in src.execute('''SELECT cp.id,cp.point_type,cp.normalized_value FROM contact_points cp WHERE cp.lifecycle_status='active' AND NOT EXISTS(SELECT 1 FROM contact_assertions ca WHERE ca.contact_point_id=cp.id)'''):
-  finding(dst,'unassigned_contact_point','low','Unassigned contact point',f"{r['point_type']} {r['normalized_value']} has no canonical entity",point=r['id'])
- # incomplete entities -> enrichment queue
- for e in rows:
-  types={x[0] for x in src.execute('''SELECT DISTINCT cp.point_type FROM contact_assertions ca JOIN contact_points cp ON cp.id=ca.contact_point_id WHERE ca.entity_id=? AND cp.lifecycle_status='active' ''',(e['id'],))}
-  if 'phone' not in types: enrich(dst,e['id'],'find_phone','No active phone is recorded.')
-  if 'email' not in types: enrich(dst,e['id'],'find_email','No active email is recorded.')
-  if e['entity_type']=='organization' and not ({'domain','website'} & types): enrich(dst,e['id'],'find_web_presence','No domain or website is recorded.')
-  if 'postal_address' not in types: enrich(dst,e['id'],'find_address','No postal address is recorded.')
- # lightweight syntax validation
- for r in src.execute("SELECT id,point_type,normalized_value FROM contact_points WHERE lifecycle_status='active'"):
-  v=(r['normalized_value'] or '').strip(); bad=False
-  if r['point_type']=='email': bad=not bool(re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+',v))
-  elif r['point_type']=='domain': bad=not bool(re.fullmatch(r'(?=.{1,253}$)([A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}',v))
-  elif r['point_type'] in ('phone','fax'): bad=len(re.sub(r'\D','',v))<7
-  if bad: finding(dst,'validation_issue','medium','Contact point needs validation',f"{r['point_type']} value {v!r} failed basic syntax validation",point=r['id'])
- return {
-  'entities':len(rows),
-  'open_findings':dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'").fetchone()[0],
-  'pending_enrichment':dst.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'").fetchone()[0],
- }
+    rows = src.execute("SELECT id,entity_type,canonical_name FROM contact_entities WHERE lifecycle_status='active'").fetchall()
+    groups = {}
+    for row in rows:
+        groups.setdefault((row['entity_type'], norm_name(row['canonical_name'])), []).append(row)
+    for (kind, key), records in groups.items():
+        if key and len(records) > 1:
+            ids = [r['id'] for r in records]
+            detail = f"{kind} records share normalized name {records[0]['canonical_name']!r}; entity_ids={ids}"
+            finding(dst, 'duplicate_entity', 'high', 'Possible duplicate contacts', detail, action_level='REVIEW_REQUIRED')
+            candidate(dst, 'REVIEW_REQUIRED', 'contact_entities', ids[0], 'identity_merge', str(ids), None,
+                      'Potential identity merge requires human approval because it may be destructive.')
+
+    for row in src.execute('''
+        SELECT cp.id,cp.point_type,cp.normalized_value,COUNT(DISTINCT ca.entity_id) n,GROUP_CONCAT(DISTINCT ca.entity_id) ids
+        FROM contact_points cp JOIN contact_assertions ca ON ca.contact_point_id=cp.id
+        JOIN contact_entities e ON e.id=ca.entity_id
+        WHERE cp.lifecycle_status='active' AND e.lifecycle_status='active'
+        GROUP BY cp.id HAVING COUNT(DISTINCT ca.entity_id)>1
+    '''):
+        detail = f"{row['point_type']} {row['normalized_value']} is asserted for entity_ids={row['ids']}"
+        finding(dst, 'shared_contact_point', 'medium', 'Contact point belongs to multiple contacts', detail,
+                point=row['id'], action_level='REVIEW_REQUIRED')
+        candidate(dst, 'REVIEW_REQUIRED', 'contact_assertions', row['id'], 'ownership', row['ids'], None,
+                  'Shared contact point ownership is ambiguous and cannot be changed automatically.', point=row['id'])
+
+    for row in src.execute('''
+        SELECT cp.id,cp.point_type,cp.normalized_value FROM contact_points cp
+        WHERE cp.lifecycle_status='active' AND NOT EXISTS(
+            SELECT 1 FROM contact_assertions ca WHERE ca.contact_point_id=cp.id
+        )
+    '''):
+        finding(dst, 'unassigned_contact_point', 'low', 'Unassigned contact point',
+                f"{row['point_type']} {row['normalized_value']} has no canonical entity",
+                point=row['id'], action_level='AUTO_STAGE')
+        candidate(dst, 'AUTO_STAGE', 'contact_assertions', row['id'], 'entity_id', None, None,
+                  'Unassigned contact point needs evidence-based identity resolution before attachment.', point=row['id'])
+
+    for entity in rows:
+        types = {x[0] for x in src.execute('''
+            SELECT DISTINCT cp.point_type FROM contact_assertions ca
+            JOIN contact_points cp ON cp.id=ca.contact_point_id
+            WHERE ca.entity_id=? AND cp.lifecycle_status='active'
+        ''', (entity['id'],))}
+        if 'phone' not in types:
+            enrich(dst, entity['id'], 'find_phone', 'No active phone is recorded.')
+        if 'email' not in types:
+            enrich(dst, entity['id'], 'find_email', 'No active email is recorded.')
+        if entity['entity_type'] == 'organization' and not ({'domain', 'website'} & types):
+            enrich(dst, entity['id'], 'find_web_presence', 'No domain or website is recorded.')
+        if 'postal_address' not in types:
+            enrich(dst, entity['id'], 'find_address', 'No postal address is recorded.')
+
+    for row in src.execute("SELECT id,point_type,normalized_value FROM contact_points WHERE lifecycle_status='active'"):
+        value = (row['normalized_value'] or '').strip()
+        bad = False
+        if row['point_type'] == 'email':
+            bad = not bool(re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', value))
+        elif row['point_type'] == 'domain':
+            bad = not bool(re.fullmatch(r'(?=.{1,253}$)([A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}', value))
+        elif row['point_type'] in ('phone', 'fax'):
+            bad = len(re.sub(r'\D', '', value)) < 7
+        if bad:
+            finding(dst, 'validation_issue', 'medium', 'Contact point needs validation',
+                    f"{row['point_type']} value {value!r} failed basic syntax validation",
+                    point=row['id'], action_level='AUTO_STAGE')
+            candidate(dst, 'AUTO_STAGE', 'contact_points', row['id'], 'normalized_value', value, None,
+                      'Invalid syntax requires evidence-backed correction; never guess a replacement.', point=row['id'])
+
+    return {
+        'entities': len(rows),
+        'open_findings': dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'").fetchone()[0],
+        'pending_enrichment': dst.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'").fetchone()[0],
+        'pending_candidates': dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'").fetchone()[0],
+    }
+
 
 def main():
- ap=argparse.ArgumentParser(); ap.add_argument('--source',default='/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite'); ap.add_argument('--state',default='/var/lib/edge1-contacts-maintenance/maintenance.sqlite'); ap.add_argument('--json',action='store_true'); a=ap.parse_args()
- sp=Path(a.source); dp=Path(a.state)
- if not sp.is_file(): raise SystemExit('source database missing')
- with closing(open_source(sp)) as src, closing(open_state(dp)) as dst:
-  started=utcnow(); sha=source_sha(sp); cur=dst.execute("INSERT INTO maintenance_runs(started_at,source_sha256,status) VALUES(?,?,?)",(started,sha,'running')); rid=cur.lastrowid
-  try:
-   summary=run(src,dst); summary['run_id']=rid; summary['source_sha256']=sha
-   dst.execute("UPDATE maintenance_runs SET finished_at=?,status='ok',summary_json=? WHERE id=?",(utcnow(),json.dumps(summary,sort_keys=True),rid)); dst.commit()
-  except Exception as exc:
-   dst.execute("UPDATE maintenance_runs SET finished_at=?,status='failed',summary_json=? WHERE id=?",(utcnow(),json.dumps({'error':str(exc)}),rid)); dst.commit(); raise
- print(json.dumps(summary,sort_keys=True) if a.json else summary)
-if __name__=='__main__': main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source', default='/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite')
+    parser.add_argument('--state', default='/var/lib/edge1-contacts-maintenance/maintenance.sqlite')
+    parser.add_argument('--backup-dir', default='/var/lib/edge1-contacts-maintenance/backups')
+    parser.add_argument('--apply-safe', action='store_true', help='apply allowlisted AUTO-FIX remediations')
+    parser.add_argument('--json', action='store_true')
+    args = parser.parse_args()
+
+    source_path = Path(args.source)
+    state_path = Path(args.state)
+    if not source_path.is_file():
+        raise SystemExit('source database missing')
+
+    before_sha = source_sha(source_path)
+    with closing(open_source(source_path, writable=args.apply_safe)) as src, closing(open_state(state_path)) as dst:
+        started = utcnow()
+        cursor = dst.execute(
+            "INSERT INTO maintenance_runs(started_at,source_sha256,status) VALUES(?,?,?)",
+            (started, before_sha, 'running')
+        )
+        run_id = cursor.lastrowid
+        try:
+            remediation = {'planned': len(collect_safe_fixes(src)), 'applied': 0, 'backup': None}
+            if args.apply_safe:
+                remediation = apply_safe_fixes(src, source_path, dst, run_id, Path(args.backup_dir))
+            summary = run(src, dst)
+            after_sha = source_sha(source_path)
+            summary.update({
+                'run_id': run_id,
+                'source_sha256': before_sha,
+                'source_sha256_after': after_sha,
+                'autofix_planned': remediation['planned'],
+                'autofix_applied': remediation['applied'],
+                'autofix_backup': remediation['backup'],
+            })
+            dst.execute(
+                "UPDATE maintenance_runs SET finished_at=?,source_sha256_after=?,status='ok',summary_json=? WHERE id=?",
+                (utcnow(), after_sha, json.dumps(summary, sort_keys=True), run_id)
+            )
+            dst.commit()
+        except Exception as exc:
+            dst.execute(
+                "UPDATE maintenance_runs SET finished_at=?,source_sha256_after=?,status='failed',summary_json=? WHERE id=?",
+                (utcnow(), source_sha(source_path), json.dumps({'error': str(exc)}), run_id)
+            )
+            dst.commit()
+            raise
+
+    print(json.dumps(summary, sort_keys=True) if args.json else summary)
+
+
+if __name__ == '__main__':
+    main()

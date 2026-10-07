@@ -1,5 +1,5 @@
 [Unit]
-Description=Edge1 Unified Contacts daily maintenance
+Description=Edge1 Unified Contacts daily maintenance and safe remediation
 After=local-fs.target
 
 [Service]
@@ -7,7 +7,7 @@ Type=oneshot
 User=wwadmin
 Group=wwadmin
 WorkingDirectory=/opt/edge1-management-interface
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/tools/unified_contacts/maintenance_bot.py --json
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/tools/unified_contacts/maintenance_bot.py --apply-safe --json
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
@@ -15,5 +15,4 @@ PrivateTmp=true
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadOnlyPaths=/var/lib/edge1-phone-intelligence
-ReadWritePaths=/var/lib/edge1-contacts-maintenance
+ReadWritePaths=/var/lib/edge1-phone-intelligence /var/lib/edge1-contacts-maintenance
