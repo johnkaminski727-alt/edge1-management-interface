@@ -5,6 +5,14 @@ class Wave7Tests(unittest.TestCase):
         fallback={'currency':'CAD','store_mode':'live','version':'1','products':[{'id':'a','active':True,'name':'A','price':1},{'id':'b','active':False,'name':'B','price':2}]}
         live={'currency':'CAD','store_mode':'live','version':'1','products':[{'id':'a','name':'A','price':1}]}
         d=compare(live,fallback); self.assertEqual(d['state'],'healthy'); self.assertFalse(d['catalog_mutation_performed'])
+    def test_runtime_injected_stripe_url_is_not_fallback_drift(self):
+        fallback={'products':[{'id':'a','active':True,'name':'A','price':1,'stripe_url':None}]}
+        live={'products':[{'id':'a','name':'A','price':1,'stripe_url':'https://buy.stripe.com/example'}]}
+        d=compare(live,fallback); self.assertEqual(d['state'],'healthy'); self.assertFalse(d['findings'])
+    def test_explicit_fallback_stripe_url_still_must_match(self):
+        fallback={'products':[{'id':'a','active':True,'name':'A','price':1,'stripe_url':'https://buy.stripe.com/expected'}]}
+        live={'products':[{'id':'a','name':'A','price':1,'stripe_url':'https://buy.stripe.com/other'}]}
+        d=compare(live,fallback); self.assertTrue(any(x.get('field')=='stripe_url' for x in d['findings']))
     def test_inactive_product_leak_is_attention(self):
         fallback={'products':[{'id':'b','active':False}]}; live={'products':[{'id':'b'}]}
         d=compare(live,fallback); self.assertEqual(d['state'],'attention'); self.assertTrue(any(x['kind'] in {'inactive_product_leaked_live','unexpected_live_product'} for x in d['findings']))

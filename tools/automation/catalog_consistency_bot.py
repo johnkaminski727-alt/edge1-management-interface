@@ -34,6 +34,11 @@ def compare(live_data,fallback_data):
     for ident in sorted(set(li)&set(active)):
         a,b=li[ident],active[ident]
         for field in FIELDS:
+            # Stripe checkout URLs may be injected by the live catalog projection while
+            # the fallback intentionally leaves them unset. An absent fallback value is
+            # therefore not drift; an explicitly declared fallback URL must still match.
+            if field == 'stripe_url' and b.get(field) in (None, ''):
+                continue
             if a.get(field)!=b.get(field): findings.append({'kind':'field_mismatch','severity':'medium','product_id':ident,'field':field,'live':a.get(field),'fallback':b.get(field)})
         image=str(a.get('image') or '')
         if image and not (image.startswith('/assets/') or image.startswith('https://')): findings.append({'kind':'unexpected_image_reference','severity':'medium','product_id':ident,'field':'image','live':image,'fallback':b.get('image')})
