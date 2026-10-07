@@ -14,13 +14,14 @@ READ_ONLY_TOKENS=('export','status','observation','telemetry','search','readines
 AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archive','stager','index')
 READ_ONLY_ALLOW={
  'edge1-outstanding-actions.service','edge1-drift-monitor.service','edge1-backup-verification.service',
- 'edge1-mail-restore-rehearsal.service'
+ 'edge1-mail-restore-rehearsal.service','edge1-certificate-expiry.service','edge1-storage-health.service',
+ 'edge1-weekly-executive-briefing.service'
 }
 AUTO_STAGE_ALLOW={'edge1-document-filing.service'}
 AUTO_FIX_ALLOW={
  'edge1-contacts-maintenance.service','edge1-egress-reconcile.service','edge1-spamhaus-refresh.service',
  'edge1-navigation-export.service','wwcx-vpn-registration-sync.service','wwcx-mail-security-scan.service',
- 'wwcx-suricata-update.service','edge1-dropbox-backup.service'
+ 'wwcx-suricata-update.service','edge1-dropbox-backup.service','edge1-git-hygiene.service'
 }
 
 def run(*args):
