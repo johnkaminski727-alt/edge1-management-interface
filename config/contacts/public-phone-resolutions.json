@@ -159,6 +159,90 @@
           "evidence": "Official dealership page lists 81 Dracup Avenue, Yorkton SK S3N 3P9 and general phone 306-782-2261."
         }
       ]
+    },
+    {
+      "normalized_number": "+13067838511",
+      "display_number": "306-783-8511",
+      "resolution": "new_organization",
+      "canonical_name": "Mazergroup Yorkton",
+      "confidence": "document_sourced",
+      "rationale": "New Holland dealer and Yorkton business-directory sources identify 306-783-8511 as Mazergroup Yorkton.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://www.mazergroup.ca",
+          "display_value": "mazergroup.ca"
+        },
+        {
+          "point_type": "email",
+          "value": "parts.yorkton@mazergroup.ca",
+          "display_value": "parts.yorkton@mazergroup.ca"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "789 Broadway St E, Yorkton, SK S3N 2X3, Canada",
+          "display_value": "789 Broadway St E, Yorkton, SK S3N 2X3, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "New Holland dealer locator - Mazergroup Yorkton",
+          "url": "https://www.mycnhstore.com/ca/en/newhollandce/dealerlocator/dealerdetail/mazergroup-yorkton/yorkton-sk/912-0N3228A",
+          "evidence": "Mazergroup Yorkton, Hwy #10 East / Yorkton SK, phone 306-783-8511 and parts.yorkton@mazergroup.ca."
+        },
+        {
+          "name": "Yorkton Chamber of Commerce - Mazergroup",
+          "url": "https://yorktonchamber.com/members/mazergroup/",
+          "evidence": "Mazergroup, 789 Broadway Street East, Yorkton, main phone 306-783-8511."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13065631233",
+      "display_number": "306-563-1233",
+      "resolution": "new_organization",
+      "canonical_name": "Trifon's Pizza",
+      "confidence": "document_sourced",
+      "rationale": "Trifon's Pizza's own Canora location page identifies 306-563-1233 as the restaurant number at 932 Norway Road.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://trifons.com/locations/canora-sk",
+          "display_value": "trifons.com/locations/canora-sk"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "932 Norway Road, Canora, SK S0A 0L0, Canada",
+          "display_value": "932 Norway Road, Canora, SK S0A 0L0, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "Trifon's Pizza - Canora location",
+          "url": "https://trifons.com/locations/canora-sk",
+          "evidence": "Official location page lists Canora Mall, 932 Norway Road, Canora SK and phone 306-563-1233."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+17802033069",
+      "display_number": "780-203-3069",
+      "resolution": "new_organization",
+      "canonical_name": "Totally Wired Security Solutions",
+      "confidence": "probable",
+      "rationale": "BBB consistently lists 780-203-3069 for Totally Wired Security Solutions in Edmonton; professional public profiles independently associate the business with Edmonton. First-party website confirmation was not located, so this remains review-only.",
+      "sources": [
+        {
+          "name": "BBB - Totally Wired Security Solutions",
+          "url": "https://www.bbb.org/ca/ab/edmonton/profile/security/totally-wired-security-solutions-0017-106559",
+          "evidence": "BBB business profile lists Totally Wired Security Solutions, Edmonton AB, phone 780-203-3069."
+        },
+        {
+          "name": "LinkedIn - Totally Wired Security Solutions",
+          "url": "https://ca.linkedin.com/in/totallywiredsec",
+          "evidence": "Public professional profile identifies Totally Wired Security Solutions in Edmonton."
+        }
+      ]
     }
   ]
 }
