@@ -838,17 +838,39 @@ def run(src, dst):
             if row['normalized_value'] in known_services:
                 known_service_numbers_seen += 1
                 continue
+            if all(_table_exists(src, table) for table in ('contact_observations','provenance_records','source_documents')):
+                source_stats = src.execute('''
+                    SELECT COUNT(DISTINCT pr.source_document_id) source_document_count,
+                           COUNT(DISTINCT CASE WHEN sd.verification_status='recovered' THEN pr.source_document_id END) recovered_source_document_count,
+                           COUNT(DISTINCT COALESCE(sd.document_type,pr.source_kind)) source_family_count,
+                           GROUP_CONCAT(DISTINCT COALESCE(sd.document_type,pr.source_kind)) source_families
+                    FROM contact_observations o
+                    LEFT JOIN provenance_records pr ON pr.id=o.provenance_id
+                    LEFT JOIN source_documents sd ON sd.id=pr.source_document_id
+                    WHERE o.contact_point_id=?
+                ''', (row['id'],)).fetchone()
+            else:
+                source_stats = {
+                    'source_document_count': 0,
+                    'recovered_source_document_count': 0,
+                    'source_family_count': 0,
+                    'source_families': None,
+                }
             identity_resolution(
                 dst,
                 row['id'],
                 'reverse_phone',
                 row['normalized_value'],
-                'Legacy unresolved phone observed repeatedly; correlate against canonical contacts, messages, documents, registers, and approved public/business lookup sources before any activation or assignment.',
+                'Legacy unresolved phone observed repeatedly; activity frequency is not identity confidence. Correlate against canonical contacts, messages, documents, registers, and approved public/business lookup sources before any activation or assignment.',
                 confidence='observed',
                 evidence={
                     'occurrence_count': int(row['occurrence_count'] or 0),
                     'legacy_status': row['legacy_status'] or 'unresolved',
                     'display_value': row['display_value'],
+                    'source_document_count': int(source_stats['source_document_count'] or 0),
+                    'recovered_source_document_count': int(source_stats['recovered_source_document_count'] or 0),
+                    'source_family_count': int(source_stats['source_family_count'] or 0),
+                    'source_families': source_stats['source_families'],
                 },
             )
 

@@ -143,10 +143,22 @@ class UnifiedContactsMaintenance:
                         evidence = {}
                     if isinstance(evidence, dict):
                         occurrence_count = int(evidence.get("occurrence_count") or 0)
+                        source_document_count = int(evidence.get("source_document_count") or 0)
+                        recovered_source_document_count = int(evidence.get("recovered_source_document_count") or 0)
+                        source_family_count = int(evidence.get("source_family_count") or 0)
                         item["occurrence_count"] = occurrence_count
                         item["legacy_status"] = evidence.get("legacy_status")
                         item["display_value"] = evidence.get("display_value") or r["normalized_value"]
-                        item["review_priority"] = 50 + min(occurrence_count, 500)
+                        item["source_document_count"] = source_document_count
+                        item["recovered_source_document_count"] = recovered_source_document_count
+                        item["source_family_count"] = source_family_count
+                        item["source_families"] = evidence.get("source_families")
+                        item["review_priority"] = (
+                            50
+                            + min(occurrence_count, 50)
+                            + min(recovered_source_document_count, 10) * 2
+                            + min(source_family_count, 3) * 10
+                        )
                     rows.append(item)
 
             if kind in {"all", "discoveries"}:

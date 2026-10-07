@@ -1664,6 +1664,10 @@ function renderMaintenanceDetail(row) {
   if (row.task_type) blocks.push(detailBlock("Enrichment task", row.task_type));
   if (row.candidate_type) blocks.push(detailBlock("Candidate type", row.candidate_type));
   if (row.evidence_count) blocks.push(detailBlock("Evidence occurrences", row.evidence_count));
+  if (row.occurrence_count) blocks.push(detailBlock("Legacy activity count", row.occurrence_count));
+  if (row.source_document_count) blocks.push(detailBlock("Source documents", row.source_document_count));
+  if (row.recovered_source_document_count) blocks.push(detailBlock("Recovered source documents", row.recovered_source_document_count));
+  if (row.source_families) blocks.push(detailBlock("Source families", row.source_families));
   if (row.source_kind || row.source_reference) blocks.push(detailBlock("Source context", [row.source_kind, row.source_reference].filter(Boolean).join(" · ")));
   if (row.example_message_id) blocks.push(detailBlock("Example message", row.example_message_id));
   if (row.target_table || row.target_field) {
