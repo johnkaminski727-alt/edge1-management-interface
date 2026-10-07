@@ -38,6 +38,10 @@ class Wave1Tests(unittest.TestCase):
         self.assertEqual(pub.classify_entry('a','a','b'),'live_only_conflict')
         self.assertEqual(pub.classify_entry('a','b','c'),'diverged_conflict')
         self.assertEqual(pub.classify_entry('a',None,'a'),'unverifiable')
+    def test_shared_git_access_helper_exists(self):
+        source=(ROOT/'tools/automation/drift_monitor_bot.py').read_text()
+        self.assertIn('git_metadata_access_issues',source)
+        self.assertNotIn("kind':'git_metadata_ownership'",source)
     def test_drift_git_reads_do_not_refresh_index(self):
         source=(ROOT/'tools/automation/drift_monitor_bot.py').read_text()
         checker=(ROOT/'tools/edge1_operator/check_ui_publication.py').read_text()

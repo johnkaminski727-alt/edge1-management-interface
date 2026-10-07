@@ -18,6 +18,22 @@ class Wave2Tests(unittest.TestCase):
   self.assertTrue(git_hygiene.eligible_source('tools/automation/example.py'))
   self.assertTrue(git_hygiene.eligible_source('config/automation/public-websites.json'))
   self.assertFalse(git_hygiene.eligible_source('config/contacts/private.json'))
+ def test_shared_git_object_group_read_is_not_repaired(self):
+  class S:
+   st_uid=0; st_gid=123; st_mode=0o100440
+  old_repo=git_hygiene.REPO
+  try:
+   git_hygiene.REPO=Path('/tmp/repo')
+   self.assertFalse(git_hygiene.git_metadata_needs_repair(Path('/tmp/repo/.git/objects/aa/bb'),S(),1000,123,True))
+  finally: git_hygiene.REPO=old_repo
+ def test_shared_git_ref_requires_group_write(self):
+  class S:
+   st_uid=0; st_gid=123; st_mode=0o100440
+  old_repo=git_hygiene.REPO
+  try:
+   git_hygiene.REPO=Path('/tmp/repo')
+   self.assertTrue(git_hygiene.git_metadata_needs_repair(Path('/tmp/repo/.git/refs/heads/main'),S(),1000,123,True))
+  finally: git_hygiene.REPO=old_repo
  def test_git_hygiene_uses_no_optional_locks(self):
   source=(ROOT/'tools/automation/git_hygiene_bot.py').read_text()
   self.assertIn("'--no-optional-locks'",source)

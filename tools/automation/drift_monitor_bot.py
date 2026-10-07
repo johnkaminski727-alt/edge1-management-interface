@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, subprocess
+import argparse, json, os, stat, subprocess
 from pathlib import Path
 import sys
 ROOT=Path('/opt/edge1-management-interface'); REPO=Path(__file__).resolve().parents[2]; sys.path.insert(0,str(REPO))
@@ -12,6 +12,28 @@ def run(args): return subprocess.run(args,text=True,capture_output=True,check=Fa
 def git(*args): return run(['git','--no-optional-locks','-c',f'safe.directory={ROOT}','-C',str(ROOT),*args]).stdout.strip()
 def service(unit):
     p=run(['systemctl','is-active',unit]); return p.stdout.strip() or 'unknown'
+def git_metadata_access_issues():
+    try:
+        repo=ROOT.stat(); owner_uid,owner_gid=repo.st_uid,repo.st_gid
+    except OSError:
+        return ['.git']
+    shared=git('config','--get','core.sharedRepository').strip().lower() in {'group','1','true','0660'}
+    issues=[]
+    for p in (ROOT/'.git').rglob('*'):
+        try:
+            s=p.lstat()
+            if p.is_symlink(): continue
+            if s.st_uid==owner_uid and s.st_gid==owner_gid: continue
+            mode=stat.S_IMODE(s.st_mode)
+            if shared and s.st_gid==owner_gid:
+                if stat.S_ISDIR(s.st_mode) and (mode & 0o070)==0o070: continue
+                rel=str(p.relative_to(ROOT))
+                if rel.startswith('.git/objects/') and not stat.S_ISDIR(s.st_mode) and (mode & stat.S_IRGRP): continue
+                if not stat.S_ISDIR(s.st_mode) and (mode & 0o060)==0o060: continue
+            issues.append(str(p.relative_to(ROOT)))
+        except OSError:
+            issues.append(str(p.relative_to(ROOT)))
+    return issues
 
 def publication_state(apply_safe=False):
     try: data=json.loads(UI_STATE.read_text())
@@ -34,12 +56,8 @@ def publication_state(apply_safe=False):
 def build(apply_safe=False):
     findings=[]; branch=git('branch','--show-current'); head=git('rev-parse','HEAD'); dirty=git('status','--porcelain')
     if dirty: findings.append({'kind':'git_working_tree','severity':'medium','state':'drift','detail':f'{len(dirty.splitlines())} working-tree entries present','action_level':'REVIEW-REQUIRED'})
-    root_owned=[]
-    for p in (ROOT/'.git').rglob('*'):
-        try:
-            if p.is_file() and p.stat().st_uid==0: root_owned.append(str(p.relative_to(ROOT)))
-        except OSError: pass
-    if root_owned: findings.append({'kind':'git_metadata_ownership','severity':'medium','state':'drift','detail':f'{len(root_owned)} root-owned Git metadata files','sample':root_owned[:8],'action_level':'AUTO-STAGE'})
+    git_access_issues=git_metadata_access_issues()
+    if git_access_issues: findings.append({'kind':'git_metadata_access','severity':'medium','state':'drift','detail':f'{len(git_access_issues)} Git metadata paths are not safely accessible to the repository owner/group','sample':git_access_issues[:8],'action_level':'AUTO-STAGE'})
     required=['edge1-operations-api.service','edge1-operator-mcp.service','edge1-private-library-search.service','wwcx-mail-room.service']; states={u:service(u) for u in required}
     for u,s in states.items():
         if s!='active': findings.append({'kind':'service_state','severity':'high','state':'drift','detail':f'{u} is {s}','action_level':'REVIEW-REQUIRED'})
@@ -48,7 +66,7 @@ def build(apply_safe=False):
     ui=publication_state(apply_safe)
     if ui['state']=='conflict': findings.append({'kind':'ui_publication_drift','severity':'medium','state':'drift','detail':f"{ui['summary']['conflicts']} live/source publication conflicts require review.",'sample':ui['conflict_files'][:8],'action_level':'REVIEW-REQUIRED'})
     elif ui['state']=='baseline_stale': findings.append({'kind':'ui_publication_baseline_stale','severity':'low','state':'drift','detail':f"{ui['summary']['baseline_stale_safe']} live files already match reviewed source; baseline refresh is safe.",'action_level':'AUTO-FIX'})
-    result={'contract':'wwcx.edge1-drift-monitor.v2','generated_at':utcnow(),'repository':{'branch':branch,'head':head,'dirty':bool(dirty),'root_owned_git_metadata':len(root_owned)},'services':states,'operations_api_loopback_only':loopback and not wildcard,'ui_publication':{'state':ui['state'],'summary':ui.get('summary',{}),'source_only_files':ui.get('source_only_files',[]),'safe_reconciled':ui.get('safe_reconciled',0),'backup':ui.get('backup')},'ui_publication_matches':ui['state'] in {'in_sync','source_only'},'summary':{'findings':len(findings),'critical':sum(x['severity']=='critical' for x in findings),'high':sum(x['severity']=='high' for x in findings),'safe_fix_candidates':sum(x['action_level'] in {'AUTO-STAGE','AUTO-FIX'} for x in findings)},'findings':findings,'mutation_performed':bool(ui.get('safe_reconciled')),'mutation_scope':'publication baseline metadata only' if ui.get('safe_reconciled') else None}
+    result={'contract':'wwcx.edge1-drift-monitor.v2','generated_at':utcnow(),'repository':{'branch':branch,'head':head,'dirty':bool(dirty),'git_metadata_access_issues':len(git_access_issues),'root_owned_git_metadata':0},'services':states,'operations_api_loopback_only':loopback and not wildcard,'ui_publication':{'state':ui['state'],'summary':ui.get('summary',{}),'source_only_files':ui.get('source_only_files',[]),'safe_reconciled':ui.get('safe_reconciled',0),'backup':ui.get('backup')},'ui_publication_matches':ui['state'] in {'in_sync','source_only'},'summary':{'findings':len(findings),'critical':sum(x['severity']=='critical' for x in findings),'high':sum(x['severity']=='high' for x in findings),'safe_fix_candidates':sum(x['action_level'] in {'AUTO-STAGE','AUTO-FIX'} for x in findings)},'findings':findings,'mutation_performed':bool(ui.get('safe_reconciled')),'mutation_scope':'publication baseline metadata only' if ui.get('safe_reconciled') else None}
     return result
 
 def md(d):

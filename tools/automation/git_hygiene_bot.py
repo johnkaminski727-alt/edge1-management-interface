@@ -37,15 +37,31 @@ def _metadata_row(path:Path):
     s=path.lstat()
     return {'path':str(path.relative_to(REPO)),'uid':s.st_uid,'gid':s.st_gid,'mode':stat.S_IMODE(s.st_mode)}
 
+def shared_group_enabled()->bool:
+    return git('config','--get','core.sharedRepository').strip().lower() in {'group','1','true','0660'}
+
+def git_metadata_needs_repair(path:Path, s, owner_uid:int, owner_gid:int, shared_group:bool)->bool:
+    if s.st_uid==owner_uid and s.st_gid==owner_gid:
+        return False
+    if shared_group and s.st_gid==owner_gid:
+        mode=stat.S_IMODE(s.st_mode)
+        if stat.S_ISDIR(s.st_mode):
+            return (mode & 0o070) != 0o070
+        rel=str(path.relative_to(REPO))
+        if rel.startswith('.git/objects/'):
+            return not bool(mode & stat.S_IRGRP)
+        return (mode & 0o060) != 0o060
+    return True
+
 def snapshot():
     st=REPO.stat(); owner=pwd.getpwuid(st.st_uid).pw_name; group=grp.getgrgid(st.st_gid).gr_name
     head=git('rev-parse','HEAD'); status=git('status','--porcelain=v1'); dirty=dirty_tracked()
-    git_rows=[]
+    git_rows=[]; shared_group=shared_group_enabled()
     for p in (REPO/'.git').rglob('*'):
         try:
             s=p.lstat()
             if p.is_symlink(): continue
-            if s.st_uid==0 or s.st_gid==0: git_rows.append(_metadata_row(p))
+            if git_metadata_needs_repair(p,s,st.st_uid,st.st_gid,shared_group): git_rows.append(_metadata_row(p))
         except OSError: pass
     source=[]; deferred_dirty=[]; deferred_sensitive=[]; eligible_dirs={}
     for rel,index_mode in tracked_entries():
@@ -75,7 +91,7 @@ def snapshot():
         if p.is_symlink():continue
         if s.st_uid!=st.st_uid or s.st_gid!=st.st_gid:
             dirs.append({**_metadata_row(p),'desired_uid':st.st_uid,'desired_gid':st.st_gid})
-    return {'repo_owner':owner,'repo_group':group,'owner_uid':st.st_uid,'owner_gid':st.st_gid,'head':head,'status':status,'dirty':bool(status),'git_root_owned':git_rows,'tracked_source_mismatches':source,'tracked_dir_mismatches':dirs,'deferred_dirty':deferred_dirty,'deferred_sensitive':deferred_sensitive}
+    return {'repo_owner':owner,'repo_group':group,'owner_uid':st.st_uid,'owner_gid':st.st_gid,'head':head,'status':status,'dirty':bool(status),'git_root_owned':git_rows,'shared_repository_group':shared_group,'tracked_source_mismatches':source,'tracked_dir_mismatches':dirs,'deferred_dirty':deferred_dirty,'deferred_sensitive':deferred_sensitive}
 
 def _record_before(path:Path):
     s=path.lstat(); return (path,s.st_uid,s.st_gid,stat.S_IMODE(s.st_mode))
@@ -115,7 +131,7 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--apply-safe',action='store_true'); a=ap.parse_args(); before=snapshot(); result=apply_safe(before) if a.apply_safe else {'applied':0,'reason':'dry_run'}
     remaining=int(result.get('remaining_git_root_owned',len(before['git_root_owned'])))+int(result.get('remaining_auto_repairable',len(before['tracked_source_mismatches'])+len(before['tracked_dir_mismatches'])))
     state='healthy' if remaining==0 else 'warning'
-    summary={'git_metadata_root_owned_before':len(before['git_root_owned']),'tracked_source_mismatches_before':len(before['tracked_source_mismatches'])+len(before['tracked_dir_mismatches']),'repairs_applied':result.get('applied',0),'deferred_dirty':result.get('deferred_dirty',len(before['deferred_dirty'])),'deferred_sensitive':result.get('deferred_sensitive',len(before['deferred_sensitive'])),'remaining_auto_repairable':remaining}
+    summary={'git_metadata_root_owned_before':len(before['git_root_owned']),'git_metadata_inaccessible_before':len(before['git_root_owned']),'tracked_source_mismatches_before':len(before['tracked_source_mismatches'])+len(before['tracked_dir_mismatches']),'repairs_applied':result.get('applied',0),'deferred_dirty':result.get('deferred_dirty',len(before['deferred_dirty'])),'deferred_sensitive':result.get('deferred_sensitive',len(before['deferred_sensitive'])),'remaining_auto_repairable':remaining}
     out={'contract':'wwcx.git-hygiene.v2','generated_at':datetime.now(timezone.utc).isoformat(),'state':state,'summary':summary,'before':{'head':before['head'],'dirty':before['dirty'],'repo_owner':before['repo_owner']},'result':result,'safe_scope':'ownership under .git plus clean tracked source ownership/mode in allowlisted source trees; dirty and sensitive config are deferred; content is unchanged'}
     STATUS.parent.mkdir(parents=True,exist_ok=True); STATUS.write_text(json.dumps(out,indent=2)+'\n'); STATUS.chmod(0o644); print(json.dumps({'state':state,**summary},sort_keys=True))
 if __name__=='__main__': main()
