@@ -30,15 +30,20 @@ def main():
             print(account + ": skipped")
             continue
         client = None
+        stage = "TLS connection"
+        print(account + ": connecting and verifying…", flush=True)
         try:
             client = imaplib.IMAP4_SSL("mail.privateemail.com", 993,
                 ssl_context=ssl.create_default_context(), timeout=25)
+            stage = "mailbox login"
             status, _ = client.login(account, secret)
             if status != "OK":
                 raise ValueError("login failed")
+            stage = "folder listing"
             status, folders = client.list()
             if status != "OK":
                 raise ValueError("folder inventory failed")
+            stage = "secure credential storage"
             fd, temporary = tempfile.mkstemp(dir=ROOT, prefix=".credential-")
             try:
                 os.fchmod(fd, 0o600)
@@ -52,8 +57,8 @@ def main():
                     os.unlink(temporary)
             verified.append(account)
             print(account + ": verified; " + str(len(folders or [])) + " folders; credential stored root-only")
-        except Exception:
-            print(account + ": verification failed; password was not saved. Check mailbox address/password and network access.")
+        except Exception as exc:
+            print(account + ": failed at " + stage + " (" + type(exc).__name__ + "). Password was not saved.", flush=True)
         finally:
             secret = ""
             if client:
