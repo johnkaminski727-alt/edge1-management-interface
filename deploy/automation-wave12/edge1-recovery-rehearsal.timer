@@ -1,0 +1,11 @@
+[Unit]
+Description=Rehearse representative Edge1 database restores weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 05:30:00 America/Regina
+RandomizedDelaySec=30m
+Persistent=true
+Unit=edge1-recovery-rehearsal.service
+
+[Install]
+WantedBy=timers.target

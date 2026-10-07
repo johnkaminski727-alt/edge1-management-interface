@@ -1,0 +1,16 @@
+[Unit]
+Description=Disposable general Edge1 database recovery rehearsal
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/recovery_rehearsal_bot.py
+ExecStartPost=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/backup_verification_bot.py
+UMask=0077
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edge1-recovery-rehearsal /var/www/edge1-status/recovery-rehearsal /var/www/edge1-status/backup-verification /var/lib/bigbird-ai-library
