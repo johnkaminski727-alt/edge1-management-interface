@@ -10,7 +10,10 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
-from tools.unified_contacts.source_reconciler import reconcile as reconcile_sources
+if __package__:
+    from tools.unified_contacts.source_reconciler import reconcile as reconcile_sources
+else:
+    from source_reconciler import reconcile as reconcile_sources
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS maintenance_runs(
