@@ -46,6 +46,7 @@ SAFE_SUMMARY_KEYS={
  'stale_or_missing_snapshots','documents','filed','unfiled','healthy','warning','attention',
  'domains','expiring_180d','expiring_60d','expiring_30d','lookup_failures','nearest_expiry_days',
  'pending_updates','security_updates','kernel_updates','persistent_failed_units','transient_failed_units','reboot_required','apt_metadata_age_hours',
+ 'repaired_verified','transient_failures_cleared','failed_now',
 }
 
 def _safe_scalar(value):
