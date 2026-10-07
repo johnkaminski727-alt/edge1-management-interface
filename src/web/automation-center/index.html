@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WW.CX Automation Center</title>
+<link rel="icon" href="/edge1-ops/status/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css"><link rel="stylesheet" href="/edge1-ops/status/operator-shell/theme.css">
+</head><body data-edge1-module="automation-center"><div id="wwcx-operator-shell"></div>
+<main class="app-shell"><header class="topbar"><div><p class="eyebrow">Big Bird Network Management</p><h1>Automation Center</h1><p class="subtitle">Background bots, scheduled jobs, continuous workers and their latest execution state.</p></div><div id="freshness" class="status-pill">Loading</div></header>
+<section class="notice"><strong>Visibility only.</strong> This page does not grant execution or mutation authority. Action levels are conservative classifications of what a job is allowed or expected to do.</section>
+<section id="summary" class="summary-grid"></section>
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">Scheduled automation</p><h2>Timers and jobs</h2></div><div class="filters"><input id="search" type="search" placeholder="Search jobs"><select id="scope"><option value="custom">WW.CX / Edge1</option><option value="all">All system timers</option></select><select id="level"><option value="all">All action levels</option><option>READ-ONLY</option><option>AUTO-STAGE</option><option>AUTO-FIX</option><option>REVIEW-REQUIRED</option></select></div></div><div class="table-wrap"><table><thead><tr><th>Job</th><th>Action</th><th>Timer</th><th>Service</th><th>Last run</th><th>Next run</th><th>Result</th></tr></thead><tbody id="timerRows"></tbody></table></div></section>
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">Continuous automation</p><h2>Workers and long-running bots</h2></div></div><div class="table-wrap"><table><thead><tr><th>Service</th><th>Purpose</th><th>Action</th><th>State</th><th>Started</th><th>Restart policy</th></tr></thead><tbody id="serviceRows"></tbody></table></div></section>
+</main><script src="./app.js"></script><script src="/edge1-ops/status/operator-shell/shell.js" defer data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="automation-center"></script></body></html>

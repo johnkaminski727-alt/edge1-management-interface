@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""Export a sanitized inventory of Edge1 background automation."""
+from __future__ import annotations
+import datetime as dt
+import json
+import re
+import subprocess
+from pathlib import Path
+
+OUTPUT=Path('/var/www/edge1-status/automation-center/inventory.json')
+CUSTOM_PREFIXES=('edge1-','wwcx-','bigbird-','ava-')
+CONTINUOUS_TOKENS=('worker','collector','poller','monitor','watch','gateway','relay','broker','sync','reconcile','maintenance','exporter','scanner','sensor')
+READ_ONLY_TOKENS=('export','status','observation','telemetry','search','readiness','summary','report','inventory','health','history','timeline','trends','correlation','briefing')
+AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archive','stager','index')
+AUTO_FIX_ALLOW={
+ 'edge1-contacts-maintenance.service','edge1-egress-reconcile.service','edge1-spamhaus-refresh.service',
+ 'edge1-navigation-export.service','wwcx-vpn-registration-sync.service','wwcx-mail-security-scan.service',
+ 'wwcx-suricata-update.service','edge1-dropbox-backup.service'
+}
+
+def run(*args):
+    return subprocess.run(args,text=True,capture_output=True,check=False).stdout.strip()
+
+def props(unit,*names):
+    out=run('systemctl','show',unit,*sum((['-p',n] for n in names),[]))
+    result={}
+    for line in out.splitlines():
+        if '=' in line:
+            k,v=line.split('=',1); result[k]=v
+    return result
+
+def clean_description(value):
+    value=' '.join((value or '').split())
+    return value[:240]
+
+def classify(unit,description):
+    text=(unit+' '+description).lower()
+    if unit in AUTO_FIX_ALLOW: return 'AUTO-FIX'
+    if any(x in text for x in READ_ONLY_TOKENS): return 'READ-ONLY'
+    if any(x in text for x in AUTO_STAGE_TOKENS): return 'AUTO-STAGE'
+    return 'REVIEW-REQUIRED'
+
+def _stamp(usec):
+    try:
+        value=int(usec or 0)
+    except (TypeError,ValueError):
+        return None
+    if value <= 0: return None
+    return dt.datetime.fromtimestamp(value/1_000_000,dt.timezone.utc).isoformat()
+
+def _schedule(unit):
+    text=run('systemctl','cat',unit)
+    allowed=('OnCalendar=','OnUnitActiveSec=','OnUnitInactiveSec=','OnBootSec=','OnStartupSec=','RandomizedDelaySec=')
+    values=[]
+    for line in text.splitlines():
+        line=line.strip()
+        if line.startswith(allowed) and line not in values: values.append(line)
+    return '; '.join(values)[:500] or None
+
+def timer_inventory():
+    names=run('systemctl','list-unit-files','--type=timer','--no-legend','--no-pager').splitlines()
+    try:
+        runtime=json.loads(run('systemctl','list-timers','--all','--no-pager','--output=json') or '[]')
+    except json.JSONDecodeError:
+        runtime=[]
+    timing={x.get('unit'):x for x in runtime if isinstance(x,dict) and x.get('unit')}
+    timers=[]
+    for row in names:
+        if not row.strip(): continue
+        fields=row.split(); unit=fields[0]; unit_file_state=fields[1] if len(fields)>1 else 'unknown'
+        p=props(unit,'Id','Description','ActiveState','UnitFileState','Unit')
+        rt=timing.get(unit,{})
+        service=p.get('Unit') or rt.get('activates') or (unit[:-6]+'.service' if unit.endswith('.timer') else '')
+        sp=props(service,'Description','ActiveState','SubState','Result','ExecMainStatus') if service else {}
+        timers.append({
+          'timer':unit,'description':clean_description(p.get('Description')),'state':p.get('ActiveState','unknown'),
+          'enabled':p.get('UnitFileState') or unit_file_state,'next_run':_stamp(rt.get('next')),
+          'last_run':_stamp(rt.get('last')),'schedule':_schedule(unit),
+          'service':service or None,'service_description':clean_description(sp.get('Description')),
+          'service_state':sp.get('ActiveState','unknown'),'service_substate':sp.get('SubState','unknown'),
+          'last_result':sp.get('Result') or None,'exit_status':sp.get('ExecMainStatus') or None,
+          'action_level':classify(service or unit,sp.get('Description') or p.get('Description','')),
+          'custom':unit.startswith(CUSTOM_PREFIXES),
+        })
+    timers.sort(key=lambda x:(not x['custom'],x['timer']))
+    return timers
+
+def continuous_inventory(timer_services):
+    rows=run('systemctl','list-units','--type=service','--state=running','--no-legend','--no-pager').splitlines()
+    result=[]
+    for row in rows:
+        if not row.strip(): continue
+        unit=row.split()[0]
+        if not unit.startswith(CUSTOM_PREFIXES) or unit in timer_services: continue
+        p=props(unit,'Description','ActiveState','SubState','MainPID','ExecMainStartTimestamp','Restart')
+        text=(unit+' '+p.get('Description','')).lower()
+        if not any(token in text for token in CONTINUOUS_TOKENS): continue
+        result.append({
+          'service':unit,'description':clean_description(p.get('Description')),'state':p.get('ActiveState','unknown'),
+          'substate':p.get('SubState','unknown'),'started_at':p.get('ExecMainStartTimestamp') or None,
+          'restart_policy':p.get('Restart') or None,'action_level':classify(unit,p.get('Description','')),
+        })
+    return sorted(result,key=lambda x:x['service'])
+
+def main():
+    timers=timer_inventory(); timer_services={x['service'] for x in timers if x.get('service')}
+    continuous=continuous_inventory(timer_services)
+    failures=sum(1 for x in timers if x['service_state']=='failed' or x['last_result'] not in (None,'','success'))
+    data={
+      'contract':'wwcx.edge1-automation-inventory.v1','generated_at':dt.datetime.now(dt.timezone.utc).isoformat(),
+      'summary':{'timers':len(timers),'custom_timers':sum(x['custom'] for x in timers),'continuous_workers':len(continuous),'failed_or_non_success':failures},
+      'timers':timers,'continuous_services':continuous,
+      'safety':{'inventory_read_only':True,'secrets_exposed':False,'action_classification_conservative':True}
+    }
+    OUTPUT.parent.mkdir(parents=True,exist_ok=True); OUTPUT.write_text(json.dumps(data,indent=2)+'\n'); OUTPUT.chmod(0o644)
+    print(json.dumps(data['summary'],sort_keys=True))
+if __name__=='__main__': main()

@@ -31,6 +31,12 @@ declare -a FILES=(
   "src/web/dns/index.html|dns/index.html"
   "src/web/dns/app.js|dns/app.js"
   "src/web/dns/styles.css|dns/styles.css"
+  "src/web/automation-center/index.html|automation-center/index.html"
+  "src/web/automation-center/app.js|automation-center/app.js"
+  "src/web/automation-center/styles.css|automation-center/styles.css"
+  "src/web/api-directory/index.html|api-directory/index.html"
+  "src/web/api-directory/app.js|api-directory/app.js"
+  "src/web/api-directory/styles.css|api-directory/styles.css"
 )
 
 NAV_DB=/var/lib/edge1-navigation/navigation.sqlite3

@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Edge1 API directory
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=edge1-api-directory.service
+
+[Install]
+WantedBy=timers.target
