@@ -2386,3 +2386,248 @@ body[data-edge1-module="contacts"] .directory-search-row select {
   overflow-wrap: anywhere;
   letter-spacing: .02em;
 }
+
+/* ==========================================================
+   Contacts — profile-card record (avatar hero, tabs, grid)
+   ========================================================== */
+
+.contact-workspace.has-contact-hero .contact-record-header {
+  display: none;
+}
+
+.contact-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 6px 2px 18px;
+}
+
+.contact-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 88px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: hsl(var(--avatar-hue, 205) 55% 90%);
+  color: hsl(var(--avatar-hue, 205) 55% 28%);
+  font-size: 1.9rem;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.contact-avatar.organization {
+  border-radius: 18px;
+}
+
+.contact-hero-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.contact-hero-name {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.contact-hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.contact-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contact-quick-actions:empty {
+  display: none;
+}
+
+.contact-hero-actions .contact-record-actions {
+  margin: 0;
+}
+
+a.contact-quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text) !important;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+a.contact-quick:hover {
+  border-color: var(--border-strong);
+  background: var(--blue-soft);
+}
+
+a.contact-quick.primary {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff !important;
+}
+
+a.contact-quick.primary:hover {
+  background: var(--blue-dark);
+}
+
+.contact-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+/* theme.css styles every button with !important; tabs opt out. */
+.contact-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0 !important;
+  padding: 9px 12px !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.contact-tab:hover {
+  color: var(--text);
+}
+
+.contact-tab[aria-selected="true"] {
+  border-bottom-color: var(--blue) !important;
+  color: var(--blue-dark);
+}
+
+.contact-tab-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--blue-soft);
+  font-size: 0.72rem;
+}
+
+.contact-tab-panel > .contact-record-section:first-child {
+  border-top: 0;
+}
+
+.contact-tab-panel .contact-technical-details {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.contact-tab-panel .contact-info-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 10px;
+}
+
+.contact-tab-panel .contact-info-row {
+  align-items: flex-start;
+}
+
+.contact-info-row[data-point-type="phone"] .contact-info-value,
+.contact-info-row[data-point-type="fax"] .contact-info-value {
+  white-space: nowrap;
+}
+
+/* Skeleton loader */
+
+.contact-skeleton {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #edf1f5 25%, #f6f8fa 50%, #edf1f5 75%);
+  background-size: 200% 100%;
+  animation: contact-shimmer 1.3s ease-in-out infinite;
+}
+
+.contact-skeleton-tabs {
+  display: flex;
+  gap: 18px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.contact-skeleton-heading {
+  width: 160px;
+  height: 14px;
+  margin: 20px 0 14px;
+}
+
+.contact-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 10px;
+}
+
+.contact-skeleton-tile {
+  display: flex;
+  gap: 11px;
+  padding: 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.contact-skeleton-icon {
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+
+.contact-skeleton-lines {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 8px;
+  align-content: center;
+}
+
+@keyframes contact-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-skeleton {
+    animation: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .contact-hero {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .contact-avatar {
+    flex-basis: 64px;
+    width: 64px;
+    height: 64px;
+    font-size: 1.4rem;
+  }
+
+  .contact-hero-name {
+    font-size: 1.2rem;
+  }
+}
