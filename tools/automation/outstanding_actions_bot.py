@@ -26,6 +26,10 @@ def normalized_subject(value):
 def age_hours(value):
     try:return (datetime.now(timezone.utc)-datetime.fromisoformat(str(value).replace('Z','+00:00'))).total_seconds()/3600
     except Exception:return None
+def keep_active_mail_action(priority, occurred_at, routine_days=7):
+    age=age_hours(occurred_at)
+    if age is None:return True
+    return priority=='high' or age <= routine_days*24
 
 def mail_actions(limit=40):
     if not MAIL.is_file() or not SEC.is_file(): return [],'unavailable'
@@ -64,6 +68,7 @@ def mail_actions(limit=40):
             if notice_key[1]: seen_automated_notices.add(notice_key)
         if thread_key: seen_action_threads.add(thread_key)
         priority='high' if any(x in text for x in ('urgent','asap','deadline','past due','pre-suspension','suspension','payment declined','action required')) else 'medium'
+        if not keep_active_mail_action(priority,r['occurred_at']): continue
         detail=(f"Reply likely needed to {r['sender']}" if needs_reply else f"Review/action likely needed from automated message by {r['sender']}")
         actions.append({'id':'mail:'+midhash(r['message_id']),'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':'mail-room:message:'+midhash(r['message_id']),'action_level':'REVIEW-REQUIRED'})
         if len(actions)>=limit: break

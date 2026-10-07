@@ -47,6 +47,10 @@ class Wave1Tests(unittest.TestCase):
         checker=(ROOT/'tools/edge1_operator/check_ui_publication.py').read_text()
         self.assertIn("'--no-optional-locks'",source)
         self.assertIn("'--no-optional-locks'",checker)
+    def test_routine_mail_actions_age_out_but_high_priority_remain(self):
+        old=(actions.datetime.now(actions.timezone.utc)-actions.timedelta(days=8)).isoformat()
+        self.assertFalse(actions.keep_active_mail_action('medium',old))
+        self.assertTrue(actions.keep_active_mail_action('high',old))
     def test_action_markdown_declares_advisory_boundary(self):
         data={'generated_at':'x','summary':{'total':0,'high':0,'medium':0,'low':0},'actions':[]}
         text=actions.markdown(data)
