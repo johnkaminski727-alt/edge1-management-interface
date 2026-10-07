@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh accounting intake every fifteen minutes
+[Timer]
+OnBootSec=7min
+OnUnitActiveSec=15min
+Persistent=true
+Unit=edge1-accounting-intake.service
+[Install]
+WantedBy=timers.target

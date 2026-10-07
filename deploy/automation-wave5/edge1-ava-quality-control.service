@@ -1,0 +1,17 @@
+[Unit]
+Description=Review Ava browser routing and evidence quality metadata
+After=network-online.target private-ai-browser-worker.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+EnvironmentFile=/etc/wwcx/private-ai-browser-worker.env
+Environment=AVA_QUALITY_WINDOW_DAYS=7
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/ava_quality_control_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/ava-quality /var/lib/bigbird-ai-library
