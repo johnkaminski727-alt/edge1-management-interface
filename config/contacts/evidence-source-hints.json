@@ -1,0 +1,96 @@
+{
+  "contract": "edge1.contacts.evidence-source-hints.v1",
+  "updated_at": "2026-10-07T11:18:00Z",
+  "hints": [
+    {
+      "provenance_id": 725,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill October 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAEe54%2FWAAAA&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month October",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 727,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill September 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAEJu66fAAAA&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month September",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 720,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill August 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAAA9t2kfQAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month August",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 721,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill July 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAAA3MsaNAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month July",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 722,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill June 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAAAzVTs8AAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month June",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 723,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill May 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAAAuZsDZAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month May",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 716,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill April 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAAAolPbgQAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month April",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 718,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill March 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAACAQwAAAA7LfS%2FhsQCRLT53Dg9YxflAAAAkLoepgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month March",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 717,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill January 2025 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAAAe1A6ywAAADst9L%2BGxAJEtPncOD1jF%2BUAAAB7UOEVAAAA&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month January",
+      "confidence": "high"
+    },
+    {
+      "provenance_id": 713,
+      "source_system": "outlook",
+      "source_type": "originating_email",
+      "label": "TELUS eBill December 2024 / account 42823007",
+      "location": "https://outlook.live.com/owa/?ItemID=AQMkADAwATM3ZmYBLTgyY2EtODdjMy0wMAItMDAKAEYAAAMkVLEP4QQ1T4FyAMkwDLneBwA7LfS%2FhsQCRLT53Dg9YxflAAAAe1A6ywAAADst9L%2BGxAJEtPncOD1jF%2BUAAAB7UOEYAAAA&exvsurl=1&viewmodel=ReadMessageItem",
+      "match_basis": "same provider, account 42823007, bill month December",
+      "confidence": "high"
+    }
+  ]
+}
