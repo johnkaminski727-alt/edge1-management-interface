@@ -51,6 +51,10 @@ class Edge1OperatorShellTests(unittest.TestCase):
         self.assertIn('aria-modal', script)
         self.assertIn('aria-current', script)
         self.assertIn('event.key === "Escape" && !drawer.hidden', script)
+        self.assertIn('collapseKey = "wwcx.edge1.operator.rail-collapsed.v1"', script)
+        self.assertIn('wwcx-shell-module-icon', script)
+        self.assertIn('aria-label", "Collapse Edge1 toolbar"', script)
+        self.assertIn('wwcx-shell-collapsed', style)
 
 
 if __name__ == "__main__":

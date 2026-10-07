@@ -9,6 +9,14 @@
 
   const recentKey = "wwcx.edge1.operator.recent.v2";
   const favoriteKey = "wwcx.edge1.operator.favorites.v2";
+  const collapseKey = "wwcx.edge1.operator.rail-collapsed.v1";
+  const iconMap = {
+    "operations-center":"⌂", "contacts-relationships":"◎", "ava-agent":"◇", "mail-room":"✉",
+    "cookie-monster":"◉", "security-operations":"⛨", "security-correlation":"⌁", "network-defense":"⌬",
+    "wireguard-vpn":"↔", "disaster-recovery":"↶", "email-gateway-security":"✉", "navigation-management":"☷",
+    "egress-routing":"⇢", "dns-operations":"⌘"
+  };
+  const moduleIcon = (item) => iconMap[item.id] || ({Security:"⛨", Network:"⌬", Email:"✉", Tools:"◆", Operations:"▦", AI:"◇"}[item.section] || "•");
   const make = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -50,6 +58,10 @@
       link.href = item.browser_route;
       link.dataset.moduleId = item.id;
       if (item.id === activeId) link.setAttribute("aria-current", "page");
+      const icon = make("span", "wwcx-shell-module-icon", moduleIcon(item));
+      icon.setAttribute("aria-hidden", "true");
+      link.title = item.label;
+      link.append(icon);
       link.append(make("span", "wwcx-shell-module-label", item.label));
       link.append(make("span", "wwcx-shell-module-badge live", badgeLabel(item)));
       link.addEventListener("click", () => remember(item.id));
@@ -58,6 +70,10 @@
     const row = make("div", compact ? "wwcx-shell-module upcoming compact" : "wwcx-shell-module upcoming");
     row.setAttribute("aria-disabled", "true");
     row.title = item.description || "Module not yet accepted for browser navigation.";
+    const icon = make("span", "wwcx-shell-module-icon", moduleIcon(item));
+    icon.setAttribute("aria-hidden", "true");
+    row.title = item.label + " · " + (item.description || "Upcoming module");
+    row.append(icon);
     row.append(make("span", "wwcx-shell-module-label", item.label));
     row.append(make("span", "wwcx-shell-module-badge", badgeLabel(item)));
     return row;
@@ -83,6 +99,8 @@
     const brandCopy = make("span", "wwcx-shell-brand-copy");
     brandCopy.append(make("strong", "", "WW.CX"), make("small", "", "Edge1 Control Center"));
     brand.append(brandMark, brandCopy);
+    const brandWrap = make("div", "wwcx-shell-brand-wrap");
+    brandWrap.append(brand, collapse);
 
     const activeModule = (modules.find((item) => item.id === activeId) || {});
     // Theme belongs to the navigation/module registry, not to a page-specific rail.
@@ -99,6 +117,25 @@
     mobile.type = "button";
     mobile.setAttribute("aria-expanded", "false");
     mobile.setAttribute("aria-controls", "wwcx-shell-drawer");
+
+    const collapse = make("button", "wwcx-shell-collapse", "‹");
+    collapse.type = "button";
+    collapse.setAttribute("aria-label", "Collapse Edge1 toolbar");
+    collapse.setAttribute("aria-expanded", "true");
+    collapse.title = "Collapse toolbar";
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(collapseKey) === "1"; } catch (_) {}
+    const applyCollapsed = (value) => {
+      collapsed = Boolean(value);
+      document.documentElement.classList.toggle("wwcx-shell-collapsed", collapsed);
+      collapse.textContent = collapsed ? "›" : "‹";
+      collapse.setAttribute("aria-expanded", String(!collapsed));
+      collapse.setAttribute("aria-label", collapsed ? "Expand Edge1 toolbar" : "Collapse Edge1 toolbar");
+      collapse.title = collapsed ? "Expand toolbar" : "Collapse toolbar";
+      try { localStorage.setItem(collapseKey, collapsed ? "1" : "0"); } catch (_) {}
+    };
+    applyCollapsed(collapsed);
+    collapse.addEventListener("click", () => applyCollapsed(!collapsed));
 
     const nav = make("nav", "wwcx-shell-nav");
     nav.setAttribute("aria-label", "Edge1 modules");
@@ -125,7 +162,7 @@
     const safety = make("span", "wwcx-shell-safety", "Read-only · mutations disabled");
     const utility = make("div", "wwcx-shell-utility");
     utility.append(jump, safety);
-    bar.append(brand, mobile, breadcrumb, nav, toolbox, make("span", "wwcx-shell-spacer"), utility);
+    bar.append(brandWrap, mobile, breadcrumb, nav, toolbox, make("span", "wwcx-shell-spacer"), utility);
     mount.replaceChildren(bar);
 
     if (!document.querySelector(".wwcx-control-footer")) {
