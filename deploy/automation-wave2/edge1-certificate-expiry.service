@@ -1,0 +1,14 @@
+[Unit]
+Description=Read-only Edge1 certificate and OpenPGP expiry monitor
+After=local-fs.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/certificate_expiry_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/certificate-expiry /var/lib/bigbird-ai-library

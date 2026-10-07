@@ -1,0 +1,14 @@
+[Unit]
+Description=Guarded Edge1 Git metadata ownership hygiene
+After=local-fs.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/git_hygiene_bot.py --apply-safe
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/edge1-management-interface/.git /var/lib/edge1-git-hygiene /var/www/edge1-status/git-hygiene

@@ -1,0 +1,9 @@
+[Unit]
+Description=Check storage and critical database health nightly
+[Timer]
+OnCalendar=*-*-* 02:40:00 America/Regina
+RandomizedDelaySec=20m
+Persistent=true
+Unit=edge1-storage-health.service
+[Install]
+WantedBy=timers.target

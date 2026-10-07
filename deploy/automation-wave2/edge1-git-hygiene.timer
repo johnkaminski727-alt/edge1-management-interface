@@ -1,0 +1,9 @@
+[Unit]
+Description=Repair safe Git metadata ownership drift every thirty minutes
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=edge1-git-hygiene.service
+[Install]
+WantedBy=timers.target

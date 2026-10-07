@@ -1,0 +1,9 @@
+[Unit]
+Description=Check certificate and key expiry daily
+[Timer]
+OnCalendar=*-*-* 08:30:00 America/Regina
+RandomizedDelaySec=20m
+Persistent=true
+Unit=edge1-certificate-expiry.service
+[Install]
+WantedBy=timers.target
