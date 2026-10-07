@@ -163,13 +163,11 @@ PY
   STAMP=$(date -u +%Y%m%dT%H%M%SZ); BK=/root/mail-room-send-update-$STAMP; POLICY=/etc/wwcx/outbound-mail/policy.json
   GW_NEW=$REL/mail-room-send-gateway-$STAMP; MR_NEW=$REL/mail-room-send-mailroom-$STAMP
   mkdir -p "$BK"; cp -a "$GW_D/95-mail-room-send.conf" "$BK/gateway-95.conf"; cp -a "$MR_D/95-mail-room-send.conf" "$BK/mailroom-95.conf"
-  cp -a "$POLICY" "$BK/policy.json"; cp -a "$WWW" "$BK/www-mail-room"
+  cp -a "$POLICY" "$BK/policy.json"
   cp -a "$GW_CUR" "$GW_NEW"; cp -a "$MR_CUR" "$MR_NEW"
   install -m 0644 "$SRC"/gateway/server/*.py "$GW_NEW/server/"
   install -m 0644 "$SRC"/mailroom/server/*.py "$MR_NEW/server/"
-  for f in index.html app.js styles.css; do
-    install -m 0644 "$REPO/src/web/mail-room/$f" "$MR_NEW/src/web/mail-room/$f"; install -m 0644 "$REPO/src/web/mail-room/$f" "$WWW/$f"
-  done
+  # Page files in $WWW are deployed separately (other work also ships there); --update leaves them alone.
   for f in "$SRC"/gateway/server/*.py; do python3 -m py_compile "$GW_NEW/server/$(basename "$f")"; done
   for f in "$SRC"/mailroom/server/*.py; do python3 -m py_compile "$MR_NEW/server/$(basename "$f")"; done
   # The policy keeps its own sender-domain list; align it with the commissioned local-MTA domains.
@@ -193,7 +191,7 @@ PY
   if [ $failed = 1 ]; then
     echo "Update failed; restoring the previous releases." >&2
     cp -a "$BK/gateway-95.conf" "$GW_D/95-mail-room-send.conf"; cp -a "$BK/mailroom-95.conf" "$MR_D/95-mail-room-send.conf"
-    cp -a "$BK/policy.json" "$POLICY"; cp -a "$BK/www-mail-room/." "$WWW/"
+    cp -a "$BK/policy.json" "$POLICY"
     restart || true; exit 1
   fi
   echo "Updated ($STAMP): gateway $GW_NEW, Mail Room $MR_NEW. Backups in $BK."
