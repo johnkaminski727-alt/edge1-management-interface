@@ -8,6 +8,7 @@ never mutates either database.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -38,6 +39,42 @@ class UnifiedContactsMaintenance:
                 tuple(sorted(ids)),
             ).fetchall()
             return {int(row["id"]): row["name"] for row in rows}
+        finally:
+            con.close()
+
+    @staticmethod
+    def _organization_key(value: str) -> str:
+        tokens = re.findall(r"[a-z0-9]+", str(value or "").casefold())
+        suffixes = {
+            "inc", "incorporated", "ltd", "limited", "llc", "lp", "corp",
+            "corporation", "company", "co", "plc", "group",
+        }
+        while len(tokens) > 1 and tokens[-1] in suffixes:
+            tokens.pop()
+        return "".join(tokens)
+
+    @classmethod
+    def _domain_organization_key(cls, domain: str) -> str:
+        parts = [part for part in str(domain or "").casefold().strip(".").split(".") if part]
+        if len(parts) < 2:
+            return ""
+        public_suffix_pairs = {"co.uk", "org.uk", "com.au", "co.nz", "com.br"}
+        suffix_pair = ".".join(parts[-2:])
+        label = parts[-3] if suffix_pair in public_suffix_pairs and len(parts) >= 3 else parts[-2]
+        return cls._organization_key(label)
+
+    def _organization_suggestions(self) -> dict[str, tuple[int, str]]:
+        con = self._open(self.contacts_database)
+        try:
+            grouped: dict[str, list[tuple[int, str]]] = {}
+            for row in con.execute(
+                "SELECT id,COALESCE(display_name,canonical_name) AS name "
+                "FROM contact_entities WHERE entity_type='organization' AND lifecycle_status='active'"
+            ).fetchall():
+                key = self._organization_key(row["name"])
+                if key:
+                    grouped.setdefault(key, []).append((int(row["id"]), row["name"]))
+            return {key: values[0] for key, values in grouped.items() if len(values) == 1}
         finally:
             con.close()
 
@@ -129,14 +166,35 @@ class UnifiedContactsMaintenance:
                     params,
                 ).fetchall():
                     item = dict(r)
+                    sender_email = str(r["sender_email"] or "").casefold()
+                    local = sender_email.split("@", 1)[0] if "@" in sender_email else sender_email
+                    message_count = int(r["message_count"] or 0)
+                    generic_local = local in {
+                        "info", "hello", "news", "newsletter", "noreply", "no-reply", "no_reply",
+                        "reminder", "renewals", "ebill", "notifications", "notification",
+                        "marketing", "promotions", "offers", "catch",
+                    }
+                    named_local = bool(
+                        re.fullmatch(r"[a-z][a-z'-]{1,40}\.[a-z][a-z'-]{1,40}", local)
+                    )
+                    service_local = local in {"support", "service", "customerservice", "customercare"}
+                    priority = 40 + min(message_count, 20)
+                    if r["proposed_entity_name"]:
+                        priority += 55
+                    if named_local:
+                        priority += 70
+                    if service_local:
+                        priority += 35
+                    if generic_local:
+                        priority -= 30
                     item.update({
                         "maintenance_kind": "discovery",
                         "maintenance_item_id": r["id"],
                         "action_level": "AUTO_STAGE",
-                        "review_priority": 100 + min(int(r["message_count"] or 0), 100),
+                        "review_priority": priority,
                         "normalized_value": r["sender_email"],
                         "title": r["proposed_entity_name"] or r["sender_domain"],
-                        "review_summary": f"{r['sender_email']} · {int(r['message_count'] or 0)} messages · corroborated contact evidence",
+                        "review_summary": f"{r['sender_email']} · {message_count} messages · corroborated contact evidence",
                     })
                     try:
                         evidence = json.loads(r["evidence_json"] or "{}")
@@ -256,11 +314,23 @@ class UnifiedContactsMaintenance:
                 if value is not None and str(value).isdigit()
             }
             names = self._entity_names(entity_ids)
+            organization_suggestions = self._organization_suggestions()
             for item in rows:
                 if item.get("entity_id") is not None:
                     item["entity_name"] = names.get(int(item["entity_id"]))
                 if item.get("matched_entity_id") is not None:
                     item["matched_entity_name"] = names.get(int(item["matched_entity_id"]))
+                if (
+                    item.get("maintenance_kind") == "discovery"
+                    and not item.get("matched_entity_id")
+                ):
+                    domain_key = self._domain_organization_key(item.get("sender_domain") or "")
+                    suggestion = organization_suggestions.get(domain_key)
+                    if suggestion:
+                        item["suggested_entity_id"] = suggestion[0]
+                        item["suggested_entity_name"] = suggestion[1]
+                        item["suggestion_reason"] = "unique organization-name match to sender domain"
+                        item["review_priority"] = int(item.get("review_priority") or 0) + 45
 
             rows.sort(
                 key=lambda item: (

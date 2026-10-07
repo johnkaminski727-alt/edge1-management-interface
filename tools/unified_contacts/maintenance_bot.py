@@ -322,6 +322,8 @@ def plausible_mail_phone_candidate(raw, context=''):
         return False
     if raw.startswith('+'):
         return 8 <= len(digits) <= 15
+    if '\n' in raw or '\r' in raw:
+        return False
     labelled=any(x in before for x in phone_words)
     formatted=bool(re.search(r'[()\-\s]', raw))
     if len(digits)==10 and digits[0] in '23456789' and digits[3] in '23456789':
@@ -399,11 +401,14 @@ def mail_candidate_disposition(row):
         return None
     if ctype=='postal_address':
         compact=' '.join(value.split())
+        compact_low=compact.casefold()
         if re.fullmatch(r'[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ][ -]?\d[ABCEGHJ-NPRSTVWXYZ]\d',compact,re.I):
             return 'informational_only'
+        if any(term in compact_low for term in ('phone/text/fax','phone / text / fax','telephone','fax:')):
+            return 'rejected_noise'
+        if re.match(r'^\+?\d[\d() .-]{6,}\s+[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ][ -]?\d[ABCEGHJ-NPRSTVWXYZ]\d$', compact, re.I):
+            return 'rejected_noise'
         return None
-    return None
-
 
 def suppress_low_value_mail_candidates(dst):
     disposition_by_id={}

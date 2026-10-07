@@ -17,10 +17,12 @@ class UnifiedContactsMaintenanceReviewTests(unittest.TestCase):
         con.executescript('''
             CREATE TABLE contact_entities(
               id INTEGER PRIMARY KEY,
+              entity_type TEXT NOT NULL,
               canonical_name TEXT NOT NULL,
-              display_name TEXT
+              display_name TEXT,
+              lifecycle_status TEXT NOT NULL
             );
-            INSERT INTO contact_entities VALUES(7,'Example Org','Example Org');
+            INSERT INTO contact_entities VALUES(7,'organization','Example Org','Example Org','active');
         ''')
         con.commit(); con.close()
 
@@ -69,6 +71,19 @@ class UnifiedContactsMaintenanceReviewTests(unittest.TestCase):
         rows = self.model.items(kind='identity', status='pending', query='5550123')
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['maintenance_kind'], 'identity')
+
+    def test_discovery_suggests_unique_existing_organization_from_domain(self):
+        con = sqlite3.connect(self.contacts)
+        con.execute("INSERT INTO contact_entities VALUES(8,'organization','ClaimsPro LP','ClaimsPro LP','active')")
+        con.commit(); con.close()
+        con = sqlite3.connect(self.maintenance)
+        con.execute("INSERT INTO contact_discovery_queue VALUES(2,'c','denny.vachon@claimspro.ca','claimspro.ca',NULL,8,'{\"coordinates\":[]}','pending',NULL,'2026-10-07','2026-10-07')")
+        con.commit(); con.close()
+        rows = self.model.items(kind='discoveries', status='pending', query='claimspro')
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['suggested_entity_id'], 8)
+        self.assertEqual(rows[0]['suggested_entity_name'], 'ClaimsPro LP')
+        self.assertIn('sender domain', rows[0]['suggestion_reason'])
 
 
 if __name__ == '__main__':
