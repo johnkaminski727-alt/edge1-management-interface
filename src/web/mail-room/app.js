@@ -80,6 +80,7 @@
     const actions=container;
     for(const [label,action] of [["Spam","spam"],["Not spam","not_spam"],["Report phishing","phishing"],...(decision?.state==="quarantine"?[["Confirm phishing","confirmed_phishing"],["Release after review","release"]]:[])]){
       const b=element("button",label);b.type="button";
+      if(action==="release"){b.disabled=true;b.dataset.reviewRelease="true";b.title="Review the plain text first";}
       b.onclick=safely(async()=>{
         if(action==="release"&&!window.confirm("Release this message to the inbox and AVA after your review? Malware and incomplete checks cannot be overridden."))return;
         let interacted=false;
@@ -105,8 +106,8 @@
       const review=element("button","Review plain text without AVA");review.onclick=safely(async()=>{
         if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
         const result=await request("review",{message_id:m.message_id,acknowledged:true});
-        const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;
-      });bar.append(review);securityActions(m,bar,decision);say("Held mail stays outside AVA and the normal inbox.");return;
+        const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;for(const button of bar.querySelectorAll("[data-review-release]")){button.disabled=false;button.title="Release after your review; security checks still apply";}
+      });bar.append(review);$("reading").append(element("p","This message is outside the inbox. First review plain text, then choose Release after review if it is legitimate. Malware findings and incomplete checks remain blocked.","notice"));securityActions(m,bar,decision);say("Held mail stays outside AVA and the normal inbox.");return;
     }
     say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
     clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);
@@ -128,10 +129,43 @@
   function select(b){for(const x of listItems)x.classList.toggle("selected",x===b);selectedKey=b.dataset.key;b.scrollIntoView({block:"nearest"});}
   function step(delta){if(!listItems.length)return;const i=listItems.findIndex(b=>b.classList.contains("selected"));const next=listItems[Math.min(listItems.length-1,Math.max(0,i<0?0:i+delta))];if(next&&!next.classList.contains("selected"))next.click();}
   function updateFilterCount(){let n=0;for(const [k,v] of new FormData($("search")))if(k!=="q"&&v&&!(k==="room"&&v==="all")&&!(k==="folder"&&v==="inbox"))n++;$("filter-count").textContent=n?"("+n+" active)":"";}
+  function reviewFolder(folder){
+    if(!canLeave())return;
+    mode="inbox";offset=0;$("search").hidden=false;
+    for(const name of views)$(name).classList.toggle("active",name==="inbox");
+    $("search").reset();$("search").elements.folder.value=folder;
+    updateFilterCount();return load();
+  }
+  function folderContext(){
+    const target=$("folder-context");target.hidden=mode!=="inbox";
+    if(target.hidden)return;
+    const f=$("search").elements.folder, folder=f.value;
+    const descriptions={inbox:"Only cleared messages appear here. Quarantine, Junk, Pending checks and Import holds are outside this inbox.",unread:"Only unread, cleared messages appear here. Held messages are in the review queues above.",archive:"Archived, cleared messages. Held messages are in separate review queues.",all:"All cleared messages, including archived mail. This does not include quarantine, junk, pending checks or import holds.",quarantine:"Outside the inbox. Open a message, review its plain text, then release it if the security checks allow.",junk:"Outside the inbox. Open a legitimate message and choose Not spam.",pending:"Outside the inbox while security checks finish. Incomplete checks cannot be overridden."};
+    target.replaceChildren(element("strong",f.options[f.selectedIndex].textContent),element("p",descriptions[folder]||"","small"));
+    const domain=$("domain").value;if(domain)target.append(element("p","Filtered to "+domain,"small"));
+  }
+  function renderReviewQueues(report){
+    const target=$("review-queues"),q=report.backlog||{},counts=q.classification_counts||{};
+    target.replaceChildren(element("strong","Outside the inbox"),element("p","Intake totals across all domains. Shortcuts clear your search filters.","small"));
+    const bar=element("div","","review-shortcuts");
+    for(const [folder,label,count] of [["quarantine","Quarantine",counts.quarantine||0],["junk","Junk",counts.junk||0],["pending","Pending checks",q.pending_or_unchecked||0]]){
+      const b=element("button",label+" ("+count+")");b.type="button";b.onclick=safely(()=>reviewFolder(folder));bar.append(b);
+    }
+    const held=q.held_normalization||0,b=element("button","Import holds ("+held+")");b.type="button";
+    b.onclick=()=>{
+      if(!canLeave())return;showReader(true);$("editor").hidden=true;
+      $("reading").replaceChildren(element("h2","Import holds · "+held),element("p","These archived messages have not entered the Mail Room message list. They are separate from security quarantine and cannot be released with the quarantine button."),element("p","An administrator must inspect the import failure, correct the import metadata or parser, then retry ingestion. Imported mail must still pass security checks before entering the inbox."),element("p","Original messages remain preserved. AVA cannot read them here.","small"));
+    };bar.append(b);target.append(bar);
+    target.append(element("p","Counts checked "+new Date(report.generated_at).toLocaleString()+(Date.now()-Date.parse(report.generated_at)>15*60000?" · Report is stale":""),"small"));
+  }
+  async function refreshReviewQueues(){
+    try{renderReviewQueues(await request("readiness"));}
+    catch(e){$("review-queues").replaceChildren(element("strong","Outside the inbox"),element("p","Review counts unavailable. Use Folder to open Quarantine, Junk or Pending checks.","small"));}
+  }
   async function load(){
-    const current=++generation;$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
+    const current=++generation;folderContext();if(mode==="inbox")refreshReviewQueues();$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
     if(mode==="readiness"){
-      const report=await request("readiness");if(current!==generation)return;
+      const report=await request("readiness");if(current!==generation)return;renderReviewQueues(report);
       $("list").replaceChildren(element("p","Readiness evidence for each domain. Live sending status and commissioning evidence for each domain."));
       const render=()=>{
         if(!canLeave())return;clearTimeout(autosave);$("editor").hidden=true;dirty=false;
@@ -184,7 +218,7 @@
     const result=await request(mode==="inbox"?"messages?"+filters:mode==="drafts"?"drafts":"activity");if(current!==generation)return;const items=mode==="inbox"?result.messages:mode==="drafts"?result.drafts:result.events;more=!!result.has_more;$("list").replaceChildren();
     listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":({sent:"Sent",sending:"Sending…",send_outcome_unknown:"Send outcome unknown — check before retrying"}[m.state]||"Prepared · not sent"),"who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
     const keep=listItems.find(b=>b.dataset.key&&b.dataset.key===selectedKey);if(keep)keep.classList.add("selected");
-    if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages in this folder.":mode==="drafts"?"No saved drafts yet.":"No message activity yet."));
+    if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages in this folder. Check the review queues above for mail outside the inbox.":mode==="drafts"?"No saved drafts yet.":"No message activity yet."));
     $("previous").disabled=offset===0||mode!=="inbox";$("next").disabled=!more||mode!=="inbox";$("page").textContent=mode==="inbox"?"Page "+(offset/25+1):"Latest 100";
   }
   $("search").onsubmit=safely(()=>{offset=0;updateFilterCount();return load();});$("search").onchange=e=>{if(e.target.tagName==="SELECT")$("search").requestSubmit();};

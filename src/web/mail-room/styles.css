@@ -121,3 +121,10 @@ footer{font-size:12px;color:var(--muted);padding:10px 0}
   .mail-text{font-size:15px;padding:12px 14px 18px}
 }
 @media(max-width:900px){html.wwcx-shell-active body{padding-top:80px!important}#wwcx-operator-shell .wwcx-shell-bar{min-height:70px}#wwcx-operator-shell .wwcx-shell-brand{font-size:24px;padding:0}#wwcx-operator-shell .wwcx-shell-brand small{font-size:11px}#wwcx-operator-shell button{color:#173047;background:#eef3f8;border-color:#cad8e6}#wwcx-operator-shell nav{margin-bottom:0;padding:0;overflow:visible}#wwcx-operator-shell .wwcx-shell-drawer{top:70px}.list-pane{height:calc(100vh - 250px)}}
+
+/* Visible mail review queues, independent of collapsed filters. */
+.review-queues,.folder-context{padding:12px 14px;border-bottom:1px solid var(--border,#34435a)}
+.review-queues{background:rgba(222,167,65,.08)}
+.review-shortcuts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.review-shortcuts button{padding:6px 9px;font-size:.82rem}
+.folder-context strong{font-size:1rem}.folder-context p,.review-queues p{margin:6px 0}
