@@ -1,0 +1,164 @@
+{
+  "contract": "edge1.contacts-public-phone-resolutions.v1",
+  "updated_at": "2026-10-07",
+  "entries": [
+    {
+      "normalized_number": "+13065635641",
+      "display_number": "306-563-5641",
+      "resolution": "existing_organization",
+      "canonical_name": "Crossroads Credit Union",
+      "confidence": "document_sourced",
+      "rationale": "Public business sources identify 306-563-5641 as the Canora branch/head-office number for Crossroads Credit Union.",
+      "sources": [
+        {
+          "name": "Crossroads Credit Union service packages and fees",
+          "url": "https://www.crossroadscu.ca/media/1457/service-packages-and-fees.pdf",
+          "evidence": "Canora Branch (Head Office), 113 2nd Avenue East, Canora SK; call or text 306-563-5641; reception@crossroadscu.ca."
+        },
+        {
+          "name": "YellowPages - Crossroads Credit Union (Canora)",
+          "url": "https://www.yellowpages.ca/bus/Saskatchewan/Canora/Crossroads-Credit-Union/5956898.html",
+          "evidence": "Crossroads Credit Union (Canora), 113 2nd Ave E, phone 306-563-5641."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13065471555",
+      "display_number": "306-547-1555",
+      "resolution": "new_organization",
+      "canonical_name": "Preeceville Dental",
+      "confidence": "document_sourced",
+      "rationale": "Preeceville Dental's own website and the Town of Preeceville identify 306-547-1555 as the clinic number at 27 Main St N, Preeceville, Saskatchewan.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://preecevilledental.ca",
+          "display_value": "preecevilledental.ca"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "27 Main St N, Preeceville, SK S0A 3B0, Canada",
+          "display_value": "27 Main St N, Preeceville, SK S0A 3B0, Canada"
+        },
+        {
+          "point_type": "email",
+          "value": "info@preecevilledental.com",
+          "display_value": "info@preecevilledental.com"
+        }
+      ],
+      "sources": [
+        {
+          "name": "Preeceville Dental - Book Appointment",
+          "url": "https://preecevilledental.ca/book-appointment/",
+          "evidence": "Clinic address 27 Main St N, Preeceville SK S0A 3B0 and phone 306-547-1555."
+        },
+        {
+          "name": "Town of Preeceville - Health Services",
+          "url": "https://www.townofpreeceville.ca/health-services.html",
+          "evidence": "Town health-services page announces Preeceville Dental at 27 Main St North with phone 306-547-1555."
+        },
+        {
+          "name": "Dental Hygienists Alliance of Saskatchewan - Preeceville Dental job posting",
+          "url": "https://dhsask.ca/author/dhasadmin/page/2/",
+          "evidence": "Preeceville Dental contact phone 306-547-1555 and email info@preecevilledental.com."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13065692225",
+      "display_number": "306-569-2225",
+      "resolution": "existing_organization",
+      "canonical_name": "Access Communications Co-operative",
+      "confidence": "document_sourced",
+      "rationale": "Access Communications identifies 306-569-2225 as its Regina customer-care/residential technical-support number.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://www.myaccess.ca",
+          "display_value": "myaccess.ca"
+        },
+        {
+          "point_type": "email",
+          "value": "customer.care@myaccess.coop",
+          "display_value": "customer.care@myaccess.coop"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "2250 Park Street, Regina, SK S4N 7K7, Canada",
+          "display_value": "2250 Park Street, Regina, SK S4N 7K7, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "Access Communications - Contact",
+          "url": "https://www.myaccess.ca/contact",
+          "evidence": "Residential technical support 306-569-2225; head office 2250 Park Street, Regina SK S4N 7K7."
+        },
+        {
+          "name": "Access Communications - Contact Us",
+          "url": "https://www.myaccess.ca/contact-us-1",
+          "evidence": "Sales/support/questions 306-569-2225 and customer.care@myaccess.coop."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13067823937",
+      "display_number": "306-782-3937",
+      "resolution": "new_organization",
+      "canonical_name": "Sherring Optical",
+      "confidence": "document_sourced",
+      "rationale": "Sherring Optical identifies 306-782-3937 as its Yorkton store number.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://sherringoptical.com",
+          "display_value": "sherringoptical.com"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "277 Broadway St E, Unit 13, Yorkton, SK S3N 3G7, Canada",
+          "display_value": "277 Broadway St E, Unit 13, Yorkton, SK S3N 3G7, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "Sherring Optical",
+          "url": "https://sherringoptical.com/",
+          "evidence": "Official site lists 306-782-3937 and Parkland Mall Yorkton."
+        },
+        {
+          "name": "Parkland Mall - Sherring Optical",
+          "url": "https://parklandmall.com/stores/sherring-optical",
+          "evidence": "Store listing gives 306-782-3937 and 277 Broadway Street, Yorkton SK S3N 3G7."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13067822261",
+      "display_number": "306-782-2261",
+      "resolution": "new_organization",
+      "canonical_name": "Terry Ortynsky's Royal Ford",
+      "confidence": "document_sourced",
+      "rationale": "Terry Ortynsky's Royal Ford identifies 306-782-2261 as its general Yorkton dealership number.",
+      "contact_points": [
+        {
+          "point_type": "website",
+          "value": "https://www.royalford.ca",
+          "display_value": "royalford.ca"
+        },
+        {
+          "point_type": "postal_address",
+          "value": "81 Dracup Avenue, Yorkton, SK S3N 3P9, Canada",
+          "display_value": "81 Dracup Avenue, Yorkton, SK S3N 3P9, Canada"
+        }
+      ],
+      "sources": [
+        {
+          "name": "Terry Ortynsky's Royal Ford - The Royal Treatment",
+          "url": "https://www.royalford.ca/the-royal-treatment.html",
+          "evidence": "Official dealership page lists 81 Dracup Avenue, Yorkton SK S3N 3P9 and general phone 306-782-2261."
+        }
+      ]
+    }
+  ]
+}

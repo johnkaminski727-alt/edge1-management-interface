@@ -2,8 +2,9 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from tools.unified_contacts.maintenance_bot import apply_safe_fixes, open_source, open_state, run, process_mail_contact_candidates, build_relationship_suggestions
+from tools.unified_contacts.maintenance_bot import apply_public_phone_resolutions, apply_safe_fixes, open_source, open_state, run, process_mail_contact_candidates, build_relationship_suggestions
 
 
 SCHEMA = '''
@@ -244,6 +245,46 @@ class MaintenanceBotTests(unittest.TestCase):
             dst.commit()
             self.assertEqual(summary['known_service_numbers_seen'], 1)
             self.assertEqual(dst.execute("SELECT COUNT(*) FROM identity_resolution_queue WHERE contact_point_id=10 AND status='pending'").fetchone()[0], 0)
+            src.close(); dst.close()
+
+
+    def test_public_phone_resolutions_stage_existing_and_new_organization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA + """
+                INSERT INTO contact_entities VALUES(76,'organization','Crossroads Credit Union','Crossroads Credit Union','active','document_sourced',NULL);
+                INSERT INTO contact_points VALUES(31,'phone','+13065635641','306-563-5641',NULL,'unknown',NULL);
+                INSERT INTO contact_points VALUES(43,'phone','+13065471555','306-547-1555',NULL,'unknown',NULL);
+            """)
+            dst = open_state(Path(directory) / 'state.sqlite')
+            now = '2026-10-07T00:00:00+00:00'
+            for point_id, number in ((31,'+13065635641'),(43,'+13065471555')):
+                dst.execute("INSERT INTO identity_resolution_queue(fingerprint,contact_point_id,resolution_kind,normalized_value,status,rationale,created_at,updated_at) VALUES(?,?, 'reverse_phone',?,'pending','test',?,?)", (f'i{point_id}',point_id,number,now,now))
+            fixture = {
+                '+13065635641': {
+                    'normalized_number': '+13065635641', 'resolution': 'existing_organization',
+                    'canonical_name': 'Crossroads Credit Union', 'confidence': 'document_sourced',
+                    'rationale': 'verified public source', 'sources': [{'url':'https://example.test/crossroads'}],
+                },
+                '+13065471555': {
+                    'normalized_number': '+13065471555', 'resolution': 'new_organization',
+                    'canonical_name': 'Preeceville Dental', 'confidence': 'document_sourced',
+                    'rationale': 'verified public source', 'sources': [{'url':'https://example.test/dental'}],
+                    'contact_points': [{'point_type':'website','value':'https://preecevilledental.ca'}],
+                },
+            }
+            with patch('tools.unified_contacts.maintenance_bot.load_public_phone_resolutions', return_value=fixture):
+                stats = apply_public_phone_resolutions(src, dst)
+            dst.commit()
+            self.assertEqual(stats['matched_existing'], 1)
+            self.assertEqual(stats['new_organization_candidates'], 1)
+            existing = dst.execute("SELECT status,matched_entity_id,proposed_entity_name FROM identity_resolution_queue WHERE contact_point_id=31").fetchone()
+            self.assertEqual((existing['status'], existing['matched_entity_id'], existing['proposed_entity_name']), ('matched_existing',76,'Crossroads Credit Union'))
+            new = dst.execute("SELECT status,proposed_entity_name FROM identity_resolution_queue WHERE contact_point_id=43").fetchone()
+            self.assertEqual((new['status'],new['proposed_entity_name']), ('review_required','Preeceville Dental'))
+            self.assertEqual(dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE target_table='contact_assertions' AND status='pending'").fetchone()[0], 1)
+            self.assertEqual(dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE target_table='contact_entities' AND target_field='create_from_phone_resolution' AND status='pending'").fetchone()[0], 1)
             src.close(); dst.close()
 
 

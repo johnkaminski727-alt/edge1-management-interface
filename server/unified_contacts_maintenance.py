@@ -122,8 +122,11 @@ class UnifiedContactsMaintenance:
                 clauses = []
                 params: list[object] = []
                 if status:
-                    clauses.append("status=?")
-                    params.append("pending" if status == "open" else status)
+                    if status in {"pending", "open"}:
+                        clauses.append("status IN ('pending','review_required')")
+                    else:
+                        clauses.append("status=?")
+                        params.append(status)
                 if query:
                     clauses.append("(normalized_value LIKE ? OR COALESCE(proposed_entity_name,'') LIKE ? OR rationale LIKE ?)")
                     needle = f"%{query}%"
@@ -153,6 +156,11 @@ class UnifiedContactsMaintenance:
                         item["recovered_source_document_count"] = recovered_source_document_count
                         item["source_family_count"] = source_family_count
                         item["source_families"] = evidence.get("source_families")
+                        if isinstance(evidence.get("sources"), list):
+                            item["public_sources"] = evidence.get("sources")
+                        if isinstance(evidence.get("contact_points"), list):
+                            item["proposed_contact_points"] = evidence.get("contact_points")
+                        item["public_resolution"] = evidence.get("public_resolution")
                         item["review_priority"] = (
                             50
                             + min(occurrence_count, 50)

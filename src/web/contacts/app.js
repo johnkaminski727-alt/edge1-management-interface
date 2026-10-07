@@ -1632,6 +1632,18 @@ function maintenanceActionButtons(row) {
     : "";
 }
 
+function maintenancePublicSourceLinks(row) {
+  if (!Array.isArray(row.public_sources) || !row.public_sources.length) return "";
+  const links = row.public_sources
+    .filter((source) => source && /^https?:\/\//i.test(String(source.url || "")))
+    .map((source) => {
+      const label = source.name || source.url;
+      return `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+    });
+  if (!links.length) return "";
+  return `<div class="detail-block"><div class="detail-label">Public evidence</div><div class="detail-value">${links.join("<br>")}</div></div>`;
+}
+
 function renderMaintenanceDetail(row) {
   const title =
     row.title ||
@@ -1668,6 +1680,12 @@ function renderMaintenanceDetail(row) {
   if (row.source_document_count) blocks.push(detailBlock("Source documents", row.source_document_count));
   if (row.recovered_source_document_count) blocks.push(detailBlock("Recovered source documents", row.recovered_source_document_count));
   if (row.source_families) blocks.push(detailBlock("Source families", row.source_families));
+  if (row.public_resolution) blocks.push(detailBlock("Public resolution", row.public_resolution));
+  if (Array.isArray(row.proposed_contact_points) && row.proposed_contact_points.length) {
+    blocks.push(detailBlock("Proposed contact information", row.proposed_contact_points.map((item) => `${item.point_type || "contact"}: ${item.display_value || item.value || ""}`).join("\n")));
+  }
+  const publicSourceLinks = maintenancePublicSourceLinks(row);
+  if (publicSourceLinks) blocks.push(publicSourceLinks);
   if (row.source_kind || row.source_reference) blocks.push(detailBlock("Source context", [row.source_kind, row.source_reference].filter(Boolean).join(" · ")));
   if (row.example_message_id) blocks.push(detailBlock("Example message", row.example_message_id));
   if (row.target_table || row.target_field) {

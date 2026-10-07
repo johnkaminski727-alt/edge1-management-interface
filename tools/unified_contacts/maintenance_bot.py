@@ -163,6 +163,27 @@ def load_known_service_numbers():
     return numbers if isinstance(numbers,dict) else {}
 
 
+def load_public_phone_resolutions():
+    path=Path('/opt/edge1-management-interface/config/contacts/public-phone-resolutions.json')
+    if not path.is_file():
+        return {}
+    try:
+        payload=json.loads(path.read_text())
+    except (OSError,json.JSONDecodeError):
+        return {}
+    entries=payload.get('entries') if isinstance(payload,dict) else None
+    if not isinstance(entries,list):
+        return {}
+    result={}
+    for entry in entries:
+        if not isinstance(entry,dict):
+            continue
+        number=str(entry.get('normalized_number') or '').strip()
+        if number:
+            result[number]=entry
+    return result
+
+
 def source_sha(path):
     digest = hashlib.sha256()
     with open(path, 'rb') as handle:
@@ -228,6 +249,48 @@ def identity_resolution(dst, point_id, resolution_kind, normalized_value, ration
             status=CASE WHEN identity_resolution_queue.status IN ('resolved','superseded','checking') THEN 'pending' ELSE identity_resolution_queue.status END
     ''', (key, point_id, resolution_kind, normalized_value, rationale, confidence, evidence_json, now, now))
 
+
+def apply_public_phone_resolutions(src, dst):
+    resolutions=load_public_phone_resolutions()
+    stats={'matched_existing':0,'new_organization_candidates':0,'unresolved_config_entries':0}
+    for number,entry in resolutions.items():
+        points=src.execute("SELECT id,display_value FROM contact_points WHERE point_type='phone' AND normalized_value=? ORDER BY id",(number,)).fetchall()
+        if len(points)!=1:
+            stats['unresolved_config_entries']+=1
+            continue
+        point_id=int(points[0]['id'])
+        resolution=str(entry.get('resolution') or '')
+        canonical_name=str(entry.get('canonical_name') or '').strip()
+        confidence=str(entry.get('confidence') or 'probable')
+        sources=entry.get('sources') if isinstance(entry.get('sources'),list) else []
+        contact_points=entry.get('contact_points') if isinstance(entry.get('contact_points'),list) else []
+        evidence={
+            'display_value':entry.get('display_number') or points[0]['display_value'] or number,
+            'public_resolution':resolution,
+            'canonical_name':canonical_name,
+            'sources':sources,
+            'contact_points':contact_points,
+        }
+        rationale=str(entry.get('rationale') or 'Evidence-backed public phone resolution.')
+        if resolution=='existing_organization':
+            matches=src.execute("SELECT id FROM contact_entities WHERE entity_type='organization' AND lifecycle_status='active' AND lower(canonical_name)=lower(?) ORDER BY id",(canonical_name,)).fetchall()
+            if len(matches)!=1:
+                stats['unresolved_config_entries']+=1
+                continue
+            entity_id=int(matches[0]['id'])
+            candidate(dst,'AUTO_STAGE','contact_assertions',point_id,'entity_id',None,str(entity_id),rationale,entity=entity_id,point=point_id)
+            dst.execute("UPDATE identity_resolution_queue SET status='matched_existing',matched_entity_id=?,proposed_entity_name=?,confidence=?,rationale=?,evidence_json=?,updated_at=? WHERE contact_point_id=? AND resolution_kind='reverse_phone'",
+                        (entity_id,canonical_name,confidence,rationale,json.dumps(evidence,sort_keys=True),utcnow(),point_id))
+            stats['matched_existing']+=1
+        elif resolution=='new_organization':
+            proposed=json.dumps({'entity_type':'organization','canonical_name':canonical_name,'verification_status':confidence,'phone':number,'contact_points':contact_points,'sources':sources},sort_keys=True)
+            candidate(dst,'REVIEW_REQUIRED','contact_entities',point_id,'create_from_phone_resolution',None,proposed,rationale,point=point_id)
+            dst.execute("UPDATE identity_resolution_queue SET status='review_required',matched_entity_id=NULL,proposed_entity_name=?,confidence=?,rationale=?,evidence_json=?,updated_at=? WHERE contact_point_id=? AND resolution_kind='reverse_phone'",
+                        (canonical_name,confidence,rationale,json.dumps(evidence,sort_keys=True),utcnow(),point_id))
+            stats['new_organization_candidates']+=1
+        else:
+            stats['unresolved_config_entries']+=1
+    return stats
 
 def collect_safe_fixes(src):
     fixes = []
@@ -906,6 +969,7 @@ def run(src, dst):
                       'Invalid syntax requires evidence-backed correction; never guess a replacement.', point=row['id'])
 
     mail_candidates = process_mail_contact_candidates(src, dst)
+    public_phone_resolutions = apply_public_phone_resolutions(src, dst)
     return {
         'entities': len(rows),
         'open_findings': dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'").fetchone()[0],
@@ -913,6 +977,7 @@ def run(src, dst):
         'pending_candidates': dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'").fetchone()[0],
         'known_service_numbers_seen': known_service_numbers_seen,
         'mail_contact_candidates': mail_candidates,
+        'public_phone_resolutions': public_phone_resolutions,
     }
 
 
