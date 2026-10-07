@@ -148,9 +148,10 @@ def backup_file(source: Path, backup_dir: Path, name: str) -> dict[str, Any]:
 def ensure_dir(path: Path, mode: int, uid: int = 0, gid: int = 0) -> bool:
     created = not path.exists()
     path.mkdir(parents=True, exist_ok=True)
-    if created:
-        os.chown(path, uid, gid)
-        os.chmod(path, mode)
+    # These are installer-owned Cookie Monster paths. Re-apply the declared
+    # metadata so an interrupted or older install can be repaired safely.
+    os.chown(path, uid, gid)
+    os.chmod(path, mode)
     return created
 
 
@@ -200,7 +201,10 @@ def apply(repo: Path = EXPECTED_REPO, backup_root: Path = BACKUP_ROOT) -> dict[s
     state['user_created'] = user_created
     ensure_dir(DATASET_ROOT, 0o755)
     ensure_dir(STAGING_DATASET, 0o555)
-    ensure_dir(RUNTIME_ROOT, 0o750)
+    # Fengus must be able to traverse the private runtime parent to reach its
+    # own inbox/outbox.  Generated evidence remains root-only and is also
+    # explicitly hidden by the hardened systemd unit.
+    ensure_dir(RUNTIME_ROOT, 0o750, 0, gid)
     ensure_dir(GENERATED_ROOT, 0o750)
     ensure_dir(FENGUS_ROOT, 0o750, 0, gid)
     ensure_dir(FENGUS_INBOX, 0o750, 0, gid)

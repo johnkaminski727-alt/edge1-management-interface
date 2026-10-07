@@ -64,6 +64,11 @@ class InstallTests(unittest.TestCase):
             with self.assertRaises(cm.InstallError):
                 cm.load_registry(path)
 
+    def test_runtime_parent_is_traversable_by_fengus_group(self):
+        text = (ROOT / "deploy" / "cookie_monster_edge1_install.py").read_text(encoding="utf-8")
+        self.assertIn("ensure_dir(RUNTIME_ROOT, 0o750, 0, gid)", text)
+        self.assertIn("ensure_dir(GENERATED_ROOT, 0o750)", text)
+
     def test_unit_hardening_is_required(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
