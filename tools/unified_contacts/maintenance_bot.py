@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS mail_contact_candidates(
  UNIQUE(extraction_id,candidate_type,normalized_value,source_reference)
 );
 CREATE INDEX IF NOT EXISTS idx_mail_contact_candidate_status ON mail_contact_candidates(status,candidate_type);
+CREATE TABLE IF NOT EXISTS contact_discovery_queue(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
+ sender_email TEXT NOT NULL, sender_domain TEXT NOT NULL, proposed_entity_name TEXT,
+ message_count INTEGER NOT NULL, evidence_json TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'pending', matched_entity_id INTEGER,
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_contact_discovery_status
+ON contact_discovery_queue(status,message_count);
 '''
 
 
@@ -117,6 +126,19 @@ def open_state(path):
     _ensure_column(connection, 'maintenance_runs', 'source_sha256_after TEXT')
     _ensure_column(connection, 'maintenance_findings', "action_level TEXT NOT NULL DEFAULT 'REVIEW_REQUIRED'")
     return connection
+
+
+def _table_exists(connection, name):
+    return connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        (name,),
+    ).fetchone() is not None
+
+
+def _column_exists(connection, table, column):
+    if not _table_exists(connection, table):
+        return False
+    return any(row[1] == column for row in connection.execute(f'PRAGMA table_info({table})'))
 
 
 def source_sha(path):
@@ -167,17 +189,22 @@ def candidate(dst, action_level, target_table, target_id, target_field, current,
     ''', (key, action_level, entity, point, target_table, target_field, current, proposed, rationale, now, now))
 
 
-def identity_resolution(dst, point_id, resolution_kind, normalized_value, rationale):
+def identity_resolution(dst, point_id, resolution_kind, normalized_value, rationale, confidence=None, evidence=None):
     now = utcnow()
     key = fp(point_id, resolution_kind, normalized_value)
+    evidence_json = json.dumps(evidence, sort_keys=True) if isinstance(evidence, dict) else None
     dst.execute('''
         INSERT INTO identity_resolution_queue(
-            fingerprint,contact_point_id,resolution_kind,normalized_value,status,rationale,created_at,updated_at
-        ) VALUES(?,?,?,?, 'pending', ?, ?, ?)
+            fingerprint,contact_point_id,resolution_kind,normalized_value,status,rationale,
+            confidence,evidence_json,created_at,updated_at
+        ) VALUES(?,?,?,?, 'pending', ?, ?, ?, ?, ?)
         ON CONFLICT(fingerprint) DO UPDATE SET
-            rationale=excluded.rationale,updated_at=excluded.updated_at,
+            rationale=excluded.rationale,
+            confidence=COALESCE(excluded.confidence,identity_resolution_queue.confidence),
+            evidence_json=COALESCE(excluded.evidence_json,identity_resolution_queue.evidence_json),
+            updated_at=excluded.updated_at,
             status=CASE WHEN identity_resolution_queue.status IN ('resolved','superseded','checking') THEN 'pending' ELSE identity_resolution_queue.status END
-    ''', (key, point_id, resolution_kind, normalized_value, rationale, now, now))
+    ''', (key, point_id, resolution_kind, normalized_value, rationale, confidence, evidence_json, now, now))
 
 
 def collect_safe_fixes(src):
@@ -326,16 +353,48 @@ def mail_candidate_disposition(row):
         if domain=='property.booking.com' and re.match(r'^\d',local):
             return 'informational_only'
         system_locals=('noreply','no-reply','do-not-reply','donotreply','account-security-noreply','appleid')
-        if source_kind=='message_header' and any(local==x or local.startswith(x+'+') for x in system_locals):
+        if source_kind=='message_header' and any(
+            local==x
+            or local.startswith(x+'+')
+            or local.startswith(x+'.')
+            or local.startswith(x+'-')
+            for x in system_locals
+        ):
+            return 'informational_only'
+        bulk_domains=('newsletter.','marketing.','mail.')
+        generic_locals=('news','newsletter','marketing','promotions','offers','team')
+        if source_kind=='message_header' and (
+            any(domain.startswith(prefix) for prefix in bulk_domains)
+            and local in generic_locals
+        ):
             return 'informational_only'
         return None
     if ctype=='job_title':
         if 'http://' in low or 'https://' in low or '@' in value:
             return 'rejected_noise'
-        if len(value)>80 or len(value.split())>10:
+        words=value.split()
+        if len(value)>80 or len(words)>9 or len(words)<2:
             return 'rejected_noise'
-        generic={'apple support','support team','customer support','technical support','help desk'}
-        if low in generic or low.startswith(('learn more','if you need','support:','contact support')):
+        if re.search(r'\d{3,}', value) or any(ch in value for ch in ('📞','☎','\\n')):
+            return 'rejected_noise'
+        generic_terms=(
+            'support center','support team','customer support','technical support','help desk',
+            'contact support','contact our','need help','toll-free support','support line',
+            'support number','roadside support','life support','support package',
+            'support channels','support regarding','feature updates','spinal alignment',
+            'sleep positions','minor sprains','business directory','group owner or manager',
+            'store owners','thank you for contacting','qualify for elite support',
+            'threatens man','manager-kontos gesperrt','administratora danych osobowych',
+        )
+        if any(term in low for term in generic_terms):
+            return 'informational_only'
+        role_terms=(
+            'director','manager','president','vice president','owner','founder','coordinator',
+            'administrator','representative','officer','accountant','lawyer','counsel',
+        )
+        if not any(re.search(r'\b'+re.escape(term)+r'\b', low) for term in role_terms):
+            return 'informational_only'
+        if low.startswith(('-', '*')) or low.endswith((':', '?')):
             return 'informational_only'
         return None
     if ctype=='postal_address':
@@ -351,7 +410,7 @@ def suppress_low_value_mail_candidates(dst):
     rows=dst.execute("""
         SELECT id,candidate_type,display_value,normalized_value,context,source_kind
         FROM mail_contact_candidates
-        WHERE status IN ('pending','queued_review')
+        WHERE status IN ('pending','queued_review','bundled_review')
     """).fetchall()
     for row in rows:
         disposition=mail_candidate_disposition(row)
@@ -382,8 +441,134 @@ def suppress_low_value_mail_candidates(dst):
     }
 
 
+def _discovery_name_from_subjects(subjects):
+    for subject in subjects:
+        text=' '.join(str(subject or '').split())
+        match=re.search(r'\bfrom\s+([A-Z][A-Za-z0-9& .\'’/-]{2,79})',text)
+        if not match:
+            continue
+        value=match.group(1).strip(' .:-')
+        value=re.split(r'\s+[|–—-]\s+',value,maxsplit=1)[0].strip()
+        if 2 <= len(value.split()) <= 10 and len(value) <= 80:
+            return value
+    return None
+
+
+def _resolve_mail_review_artifacts(dst, candidate_ids):
+    affected={int(value) for value in candidate_ids}
+    if not affected:
+        return
+    for row in dst.execute("SELECT id,proposed_value FROM candidate_changes WHERE target_table='mail_contact_candidates' AND status IN ('pending','checking')").fetchall():
+        try: detail=json.loads(row['proposed_value'] or '{}')
+        except (TypeError,json.JSONDecodeError): continue
+        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in affected:
+            dst.execute("UPDATE candidate_changes SET status='superseded',updated_at=? WHERE id=?",(utcnow(),row['id']))
+    for row in dst.execute("SELECT id,detail FROM maintenance_findings WHERE finding_type='mail_contact_candidate' AND status IN ('open','checking')").fetchall():
+        try: detail=json.loads(row['detail'] or '{}')
+        except (TypeError,json.JSONDecodeError): continue
+        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in affected:
+            dst.execute("UPDATE maintenance_findings SET status='resolved',last_seen_at=? WHERE id=?",(utcnow(),row['id']))
+
+
+def build_contact_discoveries(dst):
+    now=utcnow(); created_or_refreshed=0; bundled_ids=[]
+    senders=dst.execute("""
+        SELECT c.normalized_value sender_email,COUNT(DISTINCT c.extraction_id) message_count
+        FROM mail_contact_candidates c
+        WHERE c.candidate_type='email'
+          AND c.source_kind='message_header'
+          AND c.source_reference='sender'
+          AND c.status IN ('pending','queued_review','bundled_review')
+        GROUP BY c.normalized_value
+        HAVING COUNT(DISTINCT c.extraction_id)>=2
+        ORDER BY message_count DESC,c.normalized_value
+        LIMIT 1000
+    """).fetchall()
+    for sender in senders:
+        email=str(sender['sender_email'] or '').casefold()
+        if '@' not in email:
+            continue
+        extraction_rows=dst.execute("""
+            SELECT DISTINCT c.extraction_id,e.message_id,e.subject,e.occurred_at
+            FROM mail_contact_candidates c
+            JOIN mail_contact_extractions e ON e.id=c.extraction_id
+            WHERE c.candidate_type='email' AND c.normalized_value=?
+              AND c.source_kind='message_header' AND c.source_reference='sender'
+              AND c.status IN ('pending','queued_review','bundled_review')
+            ORDER BY e.occurred_at DESC,c.extraction_id DESC
+        """,(email,)).fetchall()
+        extraction_ids=[int(r['extraction_id']) for r in extraction_rows]
+        if not extraction_ids:
+            continue
+        placeholders=','.join('?' for _ in extraction_ids)
+        raw_related=dst.execute(f"""
+            SELECT id,candidate_type,normalized_value,display_value,confidence,source_kind,source_reference,context
+            FROM mail_contact_candidates
+            WHERE extraction_id IN ({placeholders})
+              AND status IN ('pending','queued_review','bundled_review')
+              AND candidate_type IN ('phone','postal_address','email')
+            ORDER BY candidate_type,id
+        """,extraction_ids).fetchall()
+        related=[]
+        seen_coordinates=set()
+        for candidate_row in raw_related:
+            candidate_type=str(candidate_row['candidate_type'] or '')
+            candidate_value=str(candidate_row['normalized_value'] or '').casefold()
+            if candidate_type=='email' and candidate_value != email:
+                continue
+            coordinate_key=(candidate_type,candidate_value)
+            if coordinate_key in seen_coordinates:
+                continue
+            seen_coordinates.add(coordinate_key)
+            related.append(candidate_row)
+        corroborating=[r for r in related if not (r['candidate_type']=='email' and str(r['normalized_value']).casefold()==email)]
+        strong=[r for r in corroborating if r['candidate_type'] in ('phone','postal_address')]
+        if not strong:
+            continue
+        subjects=[r['subject'] for r in extraction_rows if r['subject']]
+        proposed=_discovery_name_from_subjects(subjects)
+        evidence={
+            'message_ids':[r['message_id'] for r in extraction_rows[:20]],
+            'subjects':subjects[:10],
+            'coordinates':[
+                {
+                    'candidate_id':int(r['id']),
+                    'type':r['candidate_type'],
+                    'value':r['normalized_value'],
+                    'display':r['display_value'],
+                    'confidence':r['confidence'],
+                    'source_kind':r['source_kind'],
+                    'source_reference':r['source_reference'],
+                }
+                for r in related[:40]
+            ],
+        }
+        domain=email.rsplit('@',1)[1]
+        key=fp('contact_discovery',email)
+        dst.execute("""
+            INSERT INTO contact_discovery_queue(
+                fingerprint,sender_email,sender_domain,proposed_entity_name,message_count,
+                evidence_json,status,created_at,updated_at
+            ) VALUES(?,?,?,?,?,?,'pending',?,?)
+            ON CONFLICT(fingerprint) DO UPDATE SET
+                proposed_entity_name=COALESCE(excluded.proposed_entity_name,contact_discovery_queue.proposed_entity_name),
+                message_count=excluded.message_count,evidence_json=excluded.evidence_json,
+                updated_at=excluded.updated_at,
+                status=CASE WHEN contact_discovery_queue.status IN ('resolved','superseded','checking') THEN 'pending' ELSE contact_discovery_queue.status END
+        """,(key,email,domain,proposed,len(extraction_ids),json.dumps(evidence,sort_keys=True),now,now))
+        ids=[int(r['id']) for r in raw_related]
+        if ids:
+            marks=','.join('?' for _ in ids)
+            dst.execute(f"UPDATE mail_contact_candidates SET status='bundled_review' WHERE id IN ({marks})",ids)
+            bundled_ids.extend(ids)
+        created_or_refreshed+=1
+    _resolve_mail_review_artifacts(dst,bundled_ids)
+    return {'discoveries':created_or_refreshed,'bundled_candidates':len(set(bundled_ids))}
+
+
 def process_mail_contact_candidates(src, dst):
     suppressed = suppress_low_value_mail_candidates(dst)
+    discoveries = build_contact_discoveries(dst)
     groups = dst.execute("""
         SELECT MIN(c.id) AS representative_id,c.candidate_type,c.normalized_value,
                COUNT(*) AS evidence_count,MIN(e.message_id) AS example_message_id
@@ -393,7 +578,7 @@ def process_mail_contact_candidates(src, dst):
         GROUP BY c.candidate_type,c.normalized_value
         ORDER BY representative_id LIMIT 5000
     """).fetchall()
-    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, **suppressed}
+    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, **suppressed, **discoveries}
     point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
     for group in groups:
         ctype, value = group['candidate_type'], group['normalized_value']
@@ -442,11 +627,39 @@ def process_mail_contact_candidates(src, dst):
     return stats
 
 
+def suggested_owner_for_unassigned_email(src, value):
+    value=str(value or '').strip().casefold()
+    if '@' not in value:
+        return None
+    domain=value.rsplit('@',1)[1]
+    rows=src.execute('''
+        SELECT e.id,COUNT(*) n
+        FROM contact_points cp
+        JOIN contact_assertions ca ON ca.contact_point_id=cp.id
+        JOIN contact_entities e ON e.id=ca.entity_id
+        WHERE cp.lifecycle_status='active'
+          AND cp.point_type='email'
+          AND lower(cp.normalized_value) LIKE ?
+          AND e.entity_type='organization'
+          AND e.lifecycle_status='active'
+        GROUP BY e.id
+        ORDER BY n DESC,e.id
+    ''', ('%@'+domain,)).fetchall()
+    if not rows or int(rows[0]['n']) < 2:
+        return None
+    top=int(rows[0]['n'])
+    second=int(rows[1]['n']) if len(rows)>1 else 0
+    if second and top < second * 2:
+        return None
+    return int(rows[0]['id'])
+
+
 def begin_reconciliation_cycle(dst):
     dst.execute("UPDATE maintenance_findings SET status='checking' WHERE status='open'")
     dst.execute("UPDATE enrichment_queue SET status='checking' WHERE status='pending'")
     dst.execute("UPDATE candidate_changes SET status='checking' WHERE status='pending'")
     dst.execute("UPDATE identity_resolution_queue SET status='checking' WHERE status='pending'")
+    dst.execute("UPDATE contact_discovery_queue SET status='checking' WHERE status='pending'")
 
 
 def finish_reconciliation_cycle(dst):
@@ -454,6 +667,7 @@ def finish_reconciliation_cycle(dst):
     dst.execute("UPDATE enrichment_queue SET status='resolved' WHERE status='checking'")
     dst.execute("UPDATE candidate_changes SET status='superseded' WHERE status='checking'")
     dst.execute("UPDATE identity_resolution_queue SET status='superseded' WHERE status='checking'")
+    dst.execute("UPDATE contact_discovery_queue SET status='superseded' WHERE status='checking'")
 
 
 def run(src, dst):
@@ -492,15 +706,64 @@ def run(src, dst):
             SELECT 1 FROM contact_assertions ca WHERE ca.contact_point_id=cp.id
         )
     '''):
+        suggested_entity = (
+            suggested_owner_for_unassigned_email(src, row['normalized_value'])
+            if row['point_type'] == 'email'
+            else None
+        )
+        if suggested_entity:
+            detail = (
+                f"{row['point_type']} {row['normalized_value']} has no canonical entity; "
+                f"same-domain organization mailbox history suggests entity_id={suggested_entity}"
+            )
+            rationale = (
+                'The mailbox domain has a dominant established organization owner. Stage attachment to that existing organization; do not create a duplicate contact.'
+            )
+            proposed = str(suggested_entity)
+        else:
+            detail = f"{row['point_type']} {row['normalized_value']} has no canonical entity"
+            rationale = 'Unassigned contact point needs evidence-based identity resolution before attachment.'
+            proposed = None
         finding(dst, 'unassigned_contact_point', 'low', 'Unassigned contact point',
-                f"{row['point_type']} {row['normalized_value']} has no canonical entity",
-                point=row['id'], action_level='AUTO_STAGE')
-        candidate(dst, 'AUTO_STAGE', 'contact_assertions', row['id'], 'entity_id', None, None,
-                  'Unassigned contact point needs evidence-based identity resolution before attachment.', point=row['id'])
+                detail, entity=suggested_entity, point=row['id'], action_level='AUTO_STAGE')
+        candidate(dst, 'AUTO_STAGE', 'contact_assertions', row['id'], 'entity_id', None, proposed,
+                  rationale, entity=suggested_entity, point=row['id'])
         if row['point_type'] in ('phone', 'fax'):
             identity_resolution(
                 dst, row['id'], 'reverse_phone', row['normalized_value'],
                 'Correlate this unassigned number against existing contacts and approved evidence. Public external lookup is limited to business, organization, and public service identities; private-person identity discovery from a phone number is not automatic.'
+            )
+
+    if _table_exists(src, 'phone_numbers') and _column_exists(src, 'contact_points', 'legacy_phone_number_id'):
+        legacy_rows = src.execute('''
+            SELECT cp.id,cp.normalized_value,cp.display_value,
+                   COALESCE(pn.status,'') legacy_status,
+                   COALESCE(pn.occurrence_count,0) occurrence_count
+            FROM contact_points cp
+            LEFT JOIN phone_numbers pn ON pn.id=cp.legacy_phone_number_id
+            WHERE cp.point_type='phone'
+              AND cp.lifecycle_status='unknown'
+              AND NOT EXISTS(
+                  SELECT 1 FROM contact_assertions ca
+                  WHERE ca.contact_point_id=cp.id
+              )
+              AND COALESCE(pn.status,'unresolved')='unresolved'
+            ORDER BY COALESCE(pn.occurrence_count,0) DESC,cp.id
+            LIMIT 500
+        ''').fetchall()
+        for row in legacy_rows:
+            identity_resolution(
+                dst,
+                row['id'],
+                'reverse_phone',
+                row['normalized_value'],
+                'Legacy unresolved phone observed repeatedly; correlate against canonical contacts, messages, documents, registers, and approved public/business lookup sources before any activation or assignment.',
+                confidence='observed',
+                evidence={
+                    'occurrence_count': int(row['occurrence_count'] or 0),
+                    'legacy_status': row['legacy_status'] or 'unresolved',
+                    'display_value': row['display_value'],
+                },
             )
 
     for entity in rows:

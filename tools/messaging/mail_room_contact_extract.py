@@ -51,7 +51,7 @@ EMAIL_RE=re.compile(r'(?<![\w.+-])([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})(?![\
 URL_RE=re.compile(r'https?://[^\s<>"\']+',re.I)
 PHONE_RE=re.compile(r'(?<!\d)(\+?\d[\d().\-\s]{6,}\d)(?!\d)')
 POSTAL_RE=re.compile(r'\b([ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ][ -]?\d[ABCEGHJ-NPRSTVWXYZ]\d)\b',re.I)
-TITLE_WORDS=('director','manager','president','vice president','owner','founder','coordinator','administrator','representative','officer','accountant','lawyer','counsel','support')
+TITLE_WORDS=('director','manager','president','vice president','owner','founder','coordinator','administrator','representative','officer','accountant','lawyer','counsel')
 
 def utcnow(): return datetime.now(timezone.utc).isoformat(timespec='seconds')
 def sha(s): return hashlib.sha256(s.encode()).hexdigest()
