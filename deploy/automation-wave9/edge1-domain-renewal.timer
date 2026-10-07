@@ -1,0 +1,10 @@
+[Unit]
+Description=Check managed domain expirations daily
+[Timer]
+OnBootSec=18min
+OnCalendar=*-*-* 08:40:00 UTC
+RandomizedDelaySec=20m
+Persistent=true
+Unit=edge1-domain-renewal.service
+[Install]
+WantedBy=timers.target

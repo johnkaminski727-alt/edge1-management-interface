@@ -1,0 +1,15 @@
+[Unit]
+Description=Monitor managed domain registration expirations via RDAP
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/domain_renewal_monitor.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/domain-renewal /var/lib/bigbird-ai-library

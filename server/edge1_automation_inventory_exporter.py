@@ -22,6 +22,7 @@ STATUS_ALIASES={
  'edge1-certificate-expiry.service':'certificate-expiry',
  'edge1-credential-lifecycle.service':'credential-lifecycle',
  'edge1-document-filing.service':'document-filing',
+ 'edge1-domain-renewal.service':'domain-renewal',
  'edge1-drift-monitor.service':'drift-monitor',
  'edge1-evidence-integrity.service':'evidence-integrity',
  'edge1-git-hygiene.service':'git-hygiene',
@@ -42,6 +43,7 @@ SAFE_SUMMARY_KEYS={
  'resolved_this_run','resolved_last_7d','reopened','listeners','added','removed','unattributed',
  'live_products','fallback_active','fallback_inactive','pages_checked','sites','custom_timers',
  'stale_or_missing_snapshots','documents','filed','unfiled','healthy','warning','attention',
+ 'domains','expiring_180d','expiring_60d','expiring_30d','lookup_failures','nearest_expiry_days',
 }
 
 def _safe_scalar(value):
@@ -74,7 +76,7 @@ AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archiv
 READ_ONLY_ALLOW={
  'edge1-outstanding-actions.service','edge1-drift-monitor.service','edge1-backup-verification.service',
  'edge1-mail-restore-rehearsal.service','edge1-certificate-expiry.service','edge1-storage-health.service',
- 'edge1-weekly-executive-briefing.service','edge1-mail-domain-health.service','edge1-knowledge-consolidation.service','edge1-website-health.service','edge1-seo-audit.service','edge1-security-baseline.service'
+ 'edge1-weekly-executive-briefing.service','edge1-mail-domain-health.service','edge1-knowledge-consolidation.service','edge1-website-health.service','edge1-seo-audit.service','edge1-security-baseline.service','edge1-domain-renewal.service'
 }
 AUTO_STAGE_ALLOW={'edge1-document-filing.service'}
 AUTO_FIX_ALLOW={
