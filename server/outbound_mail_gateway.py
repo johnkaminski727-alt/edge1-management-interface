@@ -28,7 +28,7 @@ import outbound_mail_preparation_auth
 
 
 CONTRACT = "wwcx.outbound-mail-gateway.v1"
-SUPPORTED_PROVIDER_TYPES = {"disabled", "smtp", "gmail_api", "webhook"}
+SUPPORTED_PROVIDER_TYPES = {"disabled", "smtp", "gmail_api", "webhook", "local_mta"}
 SUPPORTED_MESSAGE_CLASSES = outbound_mail_policy.ALLOWED_MESSAGE_CLASSES
 
 
@@ -72,6 +72,39 @@ class ProviderStatus:
 
 def load_json(path: str | Path) -> dict[str, Any]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+COMMISSIONING_EVIDENCE = "/etc/wwcx/mail-commissioning.json"
+_LOCAL_MTA_REQUIRED_CHECKS = ("outbound_delivery", "sender_authentication")
+
+
+def _require_commissioned_local_mta_domains(domains: Any, label: str, evidence_path: str | None = None) -> None:
+    """Local MTA sending is allowed only for domains with recorded commissioning evidence.
+
+    Replaces the former hard-coded SCG-only guard. Every listed domain must be marked
+    commissioned with outbound delivery and sender authentication verified in the
+    operator-maintained commissioning record. Missing or unreadable evidence fails closed.
+    """
+    import json as _json
+
+    if not isinstance(domains, list) or not domains:
+        raise ConfigurationError(f"{label}.allowed_from_domains must be a non-empty list")
+    if len(set(domains)) != len(domains):
+        raise ConfigurationError(f"{label}.allowed_from_domains contains duplicates")
+    try:
+        with open(evidence_path or COMMISSIONING_EVIDENCE, encoding="utf-8") as handle:
+            evidence = _json.load(handle).get("domains", {})
+    except (OSError, ValueError) as exc:
+        raise ConfigurationError("local MTA commissioning evidence is unavailable") from exc
+    for domain in domains:
+        if not isinstance(domain, str) or domain != domain.strip().lower() or not domain:
+            raise ConfigurationError(f"{label}.allowed_from_domains entry is invalid")
+        record = evidence.get(domain) or {}
+        if record.get("commissioned") is not True:
+            raise ConfigurationError(f"local MTA domain {domain} is not commissioned")
+        for check in _LOCAL_MTA_REQUIRED_CHECKS:
+            if record.get(check) != "verified":
+                raise ConfigurationError(f"local MTA domain {domain} lacks verified {check}")
 
 
 def _require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
@@ -163,6 +196,9 @@ def validate_gateway_config(config: dict[str, Any]) -> None:
                 _require_text(profile[key], f"provider.{name}.{key}")
             _require_bool(profile["starttls"], f"provider.{name}.starttls")
             _require_int(profile["timeout_seconds"], f"provider.{name}.timeout_seconds", 1, 120)
+        elif provider_type == "local_mta":
+            _require_exact_keys(profile, {"type", "enabled", "allowed_from_domains"}, f"provider.{name}")
+            _require_commissioned_local_mta_domains(profile["allowed_from_domains"], f"provider.{name}")
         elif provider_type == "gmail_api":
             _require_exact_keys(profile, {"type", "enabled", "credential_source"}, f"provider.{name}")
             _require_text(profile["credential_source"], f"provider.{name}.credential_source")
@@ -258,6 +294,9 @@ def provider_statuses(config: dict[str, Any]) -> list[ProviderStatus]:
             ]
             configured = all(_environment_value(item) for item in required_names)
             detail = "Runtime SMTP settings present" if configured else "Runtime SMTP settings incomplete"
+        elif provider_type == "local_mta":
+            configured = True
+            detail = "Edge1 loopback submission with mandatory final scan"
         elif provider_type == "gmail_api":
             configured = False
             detail = "Connector adapter reserved; no live adapter installed"
@@ -427,7 +466,12 @@ def compose_preview(
 def build_email_message(preview: dict[str, Any]) -> EmailMessage:
     request = preview["request"]
     message = EmailMessage(policy=email.policy.SMTP)
-    message["From"] = request["from_address"]
+    display_name = request.get("from_display_name")
+    message["From"] = (
+        email.utils.formataddr((display_name, request["from_address"]))
+        if display_name
+        else request["from_address"]
+    )
     message["To"] = ", ".join(request["to"])
     if request["cc"]:
         message["Cc"] = ", ".join(request["cc"])

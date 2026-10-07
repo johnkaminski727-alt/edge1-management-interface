@@ -2,8 +2,8 @@
 """Loopback outbound-mail gateway server with fail-closed suppression checks.
 
 This entrypoint preserves the existing preparation API and admin routes while
-routing only POST /outbound-mail/send through the hashed-recipient suppression
-gate. The committed gateway configuration remains disabled, so adding this
+routing only POST /outbound-mail/send through HMAC caller authentication
+(outbound_mail_send_auth) and then the hashed-recipient suppression gate. The committed gateway configuration remains disabled, so adding this
 entrypoint does not activate a provider, sender, delivery path, or message.
 """
 
@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import outbound_mail_gateway_server as base
+import outbound_mail_send_auth as send_auth
 import outbound_mail_suppression_gate as suppression_gate
 
 
@@ -38,11 +39,13 @@ def guarded_send(
     suppression_database: str | Path,
     openpgp_adapter=None,
     openpgp_request_resolver=None,
+    final_scanner=None,
 ) -> dict[str, Any]:
     def send_with_openpgp(*args, **kwargs):
         return base.identity_gateway.send_message(
             *args,
             **kwargs,
+            final_scanner=final_scanner,
             openpgp_adapter=openpgp_adapter,
             openpgp_request_resolver=openpgp_request_resolver,
         )
@@ -80,8 +83,14 @@ class SuppressedGatewayHandler(base.GatewayHandler):
             return
         try:
             config, policy, identities, audit_path, _nonce_path = self.application.load()
-            max_bytes = config["admin"]["max_body_bytes"] + 65536
-            payload = self._read_json(max_bytes)
+            max_bytes = min(
+                config["admin"]["max_body_bytes"] + 65536,
+                send_auth.SEND_AUTH["max_request_bytes"],
+            )
+            # Authenticate the exact bytes before parsing; loopback alone is not trusted.
+            body = self._read_body(max_bytes)
+            send_auth.verify_send(dict(self.headers.items()), "POST", parsed.path, body)
+            payload = self._decode_json(body)
             confirmation = payload.pop("confirm_send", False) is True
             result = guarded_send(
                 config,
@@ -91,6 +100,7 @@ class SuppressedGatewayHandler(base.GatewayHandler):
                 confirmation=confirmation,
                 audit_path=audit_path,
                 suppression_database=self.suppression_database,
+                final_scanner=getattr(self.server, "final_scanner", None),
                 openpgp_adapter=self.openpgp_adapter,
                 openpgp_request_resolver=self.openpgp_request_resolver,
             )
@@ -108,10 +118,12 @@ class SuppressedGatewayServer(ThreadingHTTPServer):
         *,
         openpgp_adapter=None,
         openpgp_request_resolver=None,
+        final_scanner=None,
     ) -> None:
         super().__init__(address, SuppressedGatewayHandler)
         self.application = application
         self.suppression_database = suppression_database.resolve()
+        self.final_scanner = final_scanner
         self.openpgp_adapter = openpgp_adapter
         self.openpgp_request_resolver = openpgp_request_resolver
 

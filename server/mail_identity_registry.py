@@ -433,7 +433,8 @@ def resolve_sender(registry: dict[str, Any], payload: dict[str, Any]) -> SenderS
         return SenderSelection(address=selected, identity_key=_profile_key_for_address(registry, selected),
             reason=reason, submitted_from_present=submitted_from is not None,
             from_address_replaced=bool(submitted_from and submitted_from != selected),
-            live_enabled=False, reply_to=selected)
+            live_enabled=bool(registry["outbound_activation_authorized"]
+                and catch_config["default_sender"] in selection["live_sender_allowlist"]), reply_to=selected)
     if not original_recipient and identity_hint_raw in catch_all and not system_generated:
         identity_hint_raw = catch_all[identity_hint_raw]["default_sender"]
 

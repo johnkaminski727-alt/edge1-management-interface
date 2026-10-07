@@ -79,6 +79,8 @@ def _resolve_sender_with_catchall_proposal(
         return mail_identity_registry.resolve_sender(identities, payload)
 
     domain = original_recipient.rsplit("@", 1)[1]
+    if domain in identities.get("catch_all_domains", {}):
+        return mail_identity_registry.resolve_sender(identities, payload)
     if domain not in identities["domains"]:
         return mail_identity_registry.resolve_sender(identities, payload)
 
@@ -138,6 +140,43 @@ def prepare_payload(
     return prepared, selection
 
 
+# Website and privacy links per sending domain (each site hosts its own privacy notice).
+DOMAIN_LINKS = {
+    "ww.cx": ("https://ww.cx", "https://ww.cx/privacy"),
+    "spiritcreekgardens.com": ("https://spiritcreekgardens.com", "https://spiritcreekgardens.com/privacy"),
+    "scgardens.ca": ("https://scgardens.ca", "https://scgardens.ca/privacy"),
+    "creekco.ca": ("https://creekco.ca", "https://creekco.ca/privacy.html"),
+    "omegafx.com": ("https://omegafx.com", "https://omegafx.com/privacy/"),
+}
+
+
+def organization_for_sender(policy: dict[str, Any], identities: dict[str, Any], from_address: str) -> dict[str, Any]:
+    """Sign as the sending domain's organization rather than the single base-policy organization."""
+    domain = str(from_address).rsplit("@", 1)[-1].casefold()
+    info = identities.get("domains", {}).get(domain)
+    if not info:
+        return policy
+    candidate = copy.deepcopy(policy)
+    organization = candidate["organization"]
+    organization["legal_name"] = info["legal_name"]
+    organization["operating_name"] = info["operating_name"]
+    website, privacy = DOMAIN_LINKS.get(domain, (None, None))
+    if website:
+        organization["website"] = website
+    if privacy:
+        organization["privacy_url"] = privacy
+    return candidate
+
+
+def sender_display_name(identities: dict[str, Any], address: str) -> str | None:
+    address = str(address).casefold()
+    for profile in identities.get("sender_profiles", {}).values():
+        if profile["address"].casefold() == address:
+            return profile.get("display_name") or None
+    domain = identities.get("domains", {}).get(address.rsplit("@", 1)[-1], {})
+    return domain.get("operating_name") or None
+
+
 def compose_preview(
     config: dict[str, Any],
     policy: dict[str, Any],
@@ -145,7 +184,9 @@ def compose_preview(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     prepared, selection = prepare_payload(identities, payload)
+    policy = organization_for_sender(policy, identities, prepared["from_address"])
     preview = outbound_mail_gateway.compose_preview(config, policy, prepared)
+    preview["request"]["from_display_name"] = sender_display_name(identities, preview["request"]["from_address"])
     preview["sender_selection"] = selection.to_dict()
     preview["request"]["sender_selection_reason"] = selection.reason
     preview["request"]["sender_identity_key"] = selection.identity_key

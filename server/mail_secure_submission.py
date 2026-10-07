@@ -113,7 +113,10 @@ def send_preview(
 
     selected = config["provider"]["selected"]
     provider_type = config["provider"]["profiles"][selected]["type"]
-    if provider_type == "smtp":
+    if provider_type == "local_mta":
+        import mail_local_mta
+        delivery = mail_local_mta.submit(config, preview, message_bytes, str(message["Message-ID"]))
+    elif provider_type == "smtp":
         delivery = _submit_smtp_message(
             config,
             preview,

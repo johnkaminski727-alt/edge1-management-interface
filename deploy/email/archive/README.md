@@ -1,0 +1,1 @@
+The single-domain SCG installer is retained for commissioning history only. Do not execute it against the commissioned multi-domain server. Use deploy/email/mail-room-send/install.sh and commission-domains.py for the current controlled runtime.

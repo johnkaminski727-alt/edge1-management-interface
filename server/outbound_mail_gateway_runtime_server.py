@@ -18,6 +18,7 @@ import outbound_mail_runtime_application as runtime_application
 import outbound_mail_runtime_paths as runtime_paths
 import mail_openpgp_outbound_runtime
 import mail_openpgp_socket_adapter
+import mail_local_mta
 
 
 DEFAULT_SUPPRESSION_DATABASE = (
@@ -87,6 +88,7 @@ def main() -> int:
         (host, port),
         application,
         suppression_database,
+        final_scanner=mail_local_mta.scan,
         openpgp_adapter=mail_openpgp_socket_adapter.transform,
         openpgp_request_resolver=openpgp_resolver,
     )

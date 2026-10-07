@@ -41,7 +41,7 @@
     $("from").disabled=!!original&&!policy;
     if(mapped&&!policy)$("from").value=mapped;
     const effective=selected()||item;
-    $("sender-note").textContent=original ? "Reply sender selected below. Sending is disabled." : effective.organization+" · "+(effective.live_enabled?"Outbound identity enabled; sending is currently disabled":"Available for drafting; outbound commissioning pending");
+    $("sender-note").textContent=effective.organization+" · "+(sendEnabled&&effective.live_enabled?(original?"Reply from the selected receiving address or domain contact":"Sending enabled · Prepare for review, then Send"):"Available for drafting; sending is disabled for this identity");
     for(const name of ["signer_name","signer_title","mailing_address"]){const f=$("editor").elements[name];if(overwrite||!f.value)f.value=effective.signature[name]||(name==="mailing_address"?DEFAULT_MAILING_ADDRESS:"");}
   }
   function showEditor(data={},id=null){
@@ -132,7 +132,7 @@
     const current=++generation;$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
     if(mode==="readiness"){
       const report=await request("readiness");if(current!==generation)return;
-      $("list").replaceChildren(element("p","Readiness evidence for each domain. No routing changes or sending are enabled."));
+      $("list").replaceChildren(element("p","Readiness evidence for each domain. Live sending status and commissioning evidence for each domain."));
       const render=()=>{
         if(!canLeave())return;clearTimeout(autosave);$("editor").hidden=true;dirty=false;
         $("reading").replaceChildren(element("h2","Mail readiness & health"),element("p","Updated "+new Date(report.generated_at).toLocaleString()));
@@ -184,7 +184,7 @@
     const result=await request(mode==="inbox"?"messages?"+filters:mode==="drafts"?"drafts":"activity");if(current!==generation)return;const items=mode==="inbox"?result.messages:mode==="drafts"?result.drafts:result.events;more=!!result.has_more;$("list").replaceChildren();
     listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":({sent:"Sent",sending:"Sending…",send_outcome_unknown:"Send outcome unknown — check before retrying"}[m.state]||"Prepared · not sent"),"who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
     const keep=listItems.find(b=>b.dataset.key&&b.dataset.key===selectedKey);if(keep)keep.classList.add("selected");
-    if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages. Provider intake is pending.":mode==="drafts"?"No saved drafts yet.":"No prepared messages yet. Sending and provider delivery receipts remain unavailable."));
+    if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages in this folder.":mode==="drafts"?"No saved drafts yet.":"No message activity yet."));
     $("previous").disabled=offset===0||mode!=="inbox";$("next").disabled=!more||mode!=="inbox";$("page").textContent=mode==="inbox"?"Page "+(offset/25+1):"Latest 100";
   }
   $("search").onsubmit=safely(()=>{offset=0;updateFilterCount();return load();});$("search").onchange=e=>{if(e.target.tagName==="SELECT")$("search").requestSubmit();};
@@ -250,5 +250,8 @@
     }
     target.append(element("p","Warnings after 3 hours without a definition check or 36 hours without package maintenance. New mail is held if definitions have not been verified for 24 hours. Custom domain policy stays versioned; Spam/Not spam corrections are learned during the minute-by-minute scan job.","small"));
   }
-  request("status").then(s=>{sendEnabled=s.send_enabled===true;$("connection").textContent="Mail Room ready · Security gate active · "+(sendEnabled?"Sending enabled for authorized senders":"Sending disabled");if(s.updates?.warnings?.length)$("connection").textContent+=" · Security updates need attention";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
+  request("status").then(s=>{sendEnabled=s.send_enabled===true;$("connection").textContent="Mail Room ready · Security gate active · "+(sendEnabled?"Sending enabled for authorized senders":"Sending disabled");if(senders&&!$("editor").hidden)signature();if(s.updates?.warnings?.length)$("connection").textContent+=" · Security updates need attention";}).catch(e=>{$("connection").textContent=e.message;});safely(load)();
+  // Deep link from Contacts: ?compose=1&to=address opens a new draft addressed to that contact.
+  const linked=new URLSearchParams(location.search);
+  if(linked.get("compose")==="1"){const to=(linked.get("to")||"").trim();history.replaceState(null,"",location.pathname);if(!to||(to.length<=320&&/^[^\s@,<>]+@[^\s@,<>]+$/.test(to))){showReader(true);showEditor(to?{to}:{});}}
 })();
