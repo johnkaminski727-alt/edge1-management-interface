@@ -26,6 +26,7 @@ from server.edge1_operations_typed_actions import (
 )
 from server.vpn_access_registration import RegistrationStore
 from server.unified_contacts import UnifiedContacts
+from server.unified_contacts_maintenance import UnifiedContactsMaintenance
 from server.phone_intelligence import (
     PhoneIntelligenceError,
     PhoneIntelligenceStore,
@@ -557,6 +558,28 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 payload = store.summary()
+
+            elif path == "/v1/contacts/maintenance-summary":
+                if parsed.query:
+                    self.send_json(400, {"error": "maintenance summary accepts no query parameters"})
+                    return
+                payload = UnifiedContactsMaintenance().summary()
+
+            elif path == "/v1/contacts/maintenance":
+                allowed = {"kind", "status", "q", "limit", "offset"}
+                if set(query) - allowed:
+                    self.send_json(400, {"error": "unsupported query parameter"})
+                    return
+                offset = integer("offset", 0)
+                if offset < 0:
+                    raise ValueError("offset must be zero or greater")
+                payload = UnifiedContactsMaintenance().items(
+                    kind=one("kind", "all"),
+                    status=one("status", "pending"),
+                    query=one("q"),
+                    limit=limit,
+                    offset=offset,
+                )
 
             elif path == "/v1/contacts/entities":
                 allowed = {

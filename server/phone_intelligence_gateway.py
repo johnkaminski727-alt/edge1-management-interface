@@ -33,6 +33,10 @@ ALLOWED_API_PATHS = {
         "/v1/contacts/summary",
     "/api/contacts/entities":
         "/v1/contacts/entities",
+    "/api/contacts/maintenance-summary":
+        "/v1/contacts/maintenance-summary",
+    "/api/contacts/maintenance":
+        "/v1/contacts/maintenance",
     "/api/contacts/search":
         "/v1/contacts/search",
     "/api/contacts/unassigned":
@@ -62,6 +66,14 @@ ALLOWED_QUERY_KEYS = {
     "/api/contacts/entities": {
         "q",
         "entity_type",
+        "limit",
+        "offset",
+    },
+    "/api/contacts/maintenance-summary": set(),
+    "/api/contacts/maintenance": {
+        "kind",
+        "status",
+        "q",
         "limit",
         "offset",
     },

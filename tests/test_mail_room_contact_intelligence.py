@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.messaging.mail_room_contact_extract import extract_candidates, norm_phone
+from tools.messaging.mail_room_contact_extract import extract_candidates, norm_phone, plausible_phone_candidate
 from tools.messaging.ava_daily_mail_briefing import action_score, evidence_ref
 from tools.unified_contacts.maintenance_bot import open_state, process_mail_contact_candidates
 
@@ -18,6 +18,21 @@ class MailContactIntelligenceTests(unittest.TestCase):
         self.assertIn('email',types); self.assertIn('phone',types); self.assertIn('domain',types); self.assertIn('website',types)
         self.assertEqual(norm_phone('+1 (306) 555-1212'),'+13065551212')
         self.assertTrue(any(r.get('attachment_sha256')=='a'*64 for r in rows))
+
+    def test_phone_candidate_filter_rejects_tokens_and_ip_addresses(self):
+        self.assertFalse(plausible_phone_candidate('4.206.209.230','IP address: 4.206.209.230'))
+        self.assertFalse(plausible_phone_candidate('4516649582','Booking.com Confirmation: 4516649582 PIN: 6604'))
+        self.assertFalse(plausible_phone_candidate('97299355','https://example.test/key=abc97299355def'))
+        self.assertTrue(plausible_phone_candidate('+66 2 430 4464','Phone +66 2 430 4464'))
+        self.assertTrue(plausible_phone_candidate('306-555-1212','Jane Example'))
+
+    def test_extractor_does_not_stage_obvious_numeric_noise_as_phone(self):
+        body='''IP address: 4.206.209.230\nConfirmation: 4516649582\nPhone +66 2 430 4464'''
+        phones=[r for r in extract_candidates('Test <test@example.ca>',body,[]) if r['type']=='phone']
+        values={r['value'] for r in phones}
+        self.assertIn('+6624304464',values)
+        self.assertNotIn('4206209230',values)
+        self.assertNotIn('4516649582',values)
 
     def test_briefing_helpers(self):
         self.assertGreater(action_score('Action required: invoice due','Please confirm payment.'),1)

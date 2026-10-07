@@ -2,6 +2,7 @@ const state = {
   view: "all",
   query: (new URLSearchParams(window.location.search).get("q") || "").slice(0, 200),
   verification: "",
+  maintenanceKind: "all",
   rows: [],
   selected: null,
 };
@@ -57,11 +58,15 @@ function titleForView(view) {
     sources: "Sources & Provenance",
     observations: "Observations",
     connections: "Connections",
+    maintenance: "Maintenance & Review",
   }[view] || "All Contacts";
 }
 
 async function loadSummary() {
-  const summary = await api("/api/contacts/summary");
+  const [summary, maintenance] = await Promise.all([
+    api("/api/contacts/summary"),
+    api("/api/contacts/maintenance-summary"),
+  ]);
 
   $("#metric-entities").textContent =
     summary.entities.toLocaleString();
@@ -92,9 +97,23 @@ async function loadSummary() {
 
   $("#metric-observations").textContent =
     summary.observations.toLocaleString();
+
+  $("#metric-maintenance-review").textContent =
+    Number(
+      maintenance.review_required_findings ?? 0
+    ).toLocaleString();
+
+  $("#metric-identity-jobs").textContent =
+    Number(
+      maintenance.pending_identity_resolution ?? 0
+    ).toLocaleString();
 }
 
 function rowKey(row) {
+  if (row.maintenance_item_id) {
+    return `maintenance:${row.maintenance_kind}:${row.maintenance_item_id}`;
+  }
+
   if (row.relationship_id) {
     return `relationship:${row.relationship_id}`;
   }
@@ -123,6 +142,10 @@ function rowKey(row) {
 }
 
 function passesVerification(row) {
+  if (state.view === "maintenance") {
+    return true;
+  }
+
   if (!state.verification) {
     return true;
   }
@@ -177,6 +200,46 @@ function verificationBadgeLabel(value) {
 }
 
 function resultTemplate(row) {
+  if (row.maintenance_item_id) {
+    const kind = row.maintenance_kind || "maintenance";
+    const title =
+      row.title ||
+      row.proposed_entity_name ||
+      row.entity_name ||
+      row.normalized_value ||
+      row.task_type ||
+      `${kind} item`;
+    const detail =
+      row.review_summary ||
+      row.detail ||
+      row.rationale ||
+      row.proposed_value ||
+      row.normalized_value ||
+      "Maintenance review item";
+    const status = row.status || "pending";
+    const action = row.action_level || "AUTO_STAGE";
+    return `
+      <button
+        class="result maintenance-result"
+        data-key="${escapeHtml(rowKey(row))}"
+        type="button">
+        <div class="result-head">
+          <div>
+            <div class="result-name">${escapeHtml(title)}</div>
+            <div class="result-value">${escapeHtml(detail)}</div>
+          </div>
+          <span class="badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
+        </div>
+        <div class="result-meta">
+          <span>${escapeHtml(kind)}</span>
+          <span>${escapeHtml(action)}</span>
+          ${row.entity_name ? `<span>${escapeHtml(row.entity_name)}</span>` : ""}
+          ${row.matched_entity_name ? `<span>match: ${escapeHtml(row.matched_entity_name)}</span>` : ""}
+        </div>
+      </button>
+    `;
+  }
+
   if (row.relationship_id) {
     const left =
       row.left_display_name ||
@@ -1499,8 +1562,100 @@ function renderObservationDetail(row) {
     );
 }
 
+function maintenanceActionButtons(row) {
+  const buttons = [];
+
+  const searchValue =
+    row.matched_entity_name ||
+    row.entity_name ||
+    row.proposed_entity_name ||
+    row.normalized_value ||
+    row.proposed_value ||
+    "";
+
+  if (searchValue) {
+    buttons.push(`
+      <button type="button" class="primary" data-maintenance-action="find-match" data-maintenance-search="${escapeHtml(searchValue)}">
+        Find matching contact
+      </button>
+    `);
+  }
+
+  if (row.entity_name || row.matched_entity_name) {
+    buttons.push(`
+      <button type="button" class="secondary" data-maintenance-action="open-contact" data-maintenance-search="${escapeHtml(row.matched_entity_name || row.entity_name)}">
+        Open existing contact
+      </button>
+    `);
+  }
+
+  const creatableCandidate =
+    row.maintenance_kind === "identity" ||
+    (row.maintenance_kind === "finding" &&
+      ["phone", "email"].includes(row.candidate_type));
+
+  if (creatableCandidate && !row.matched_entity_id) {
+    buttons.push(`
+      <button type="button" class="secondary" data-maintenance-action="create-contact" data-maintenance-name="${escapeHtml(row.proposed_entity_name || "")}" data-maintenance-value="${escapeHtml(row.normalized_value || "")}" data-maintenance-point-type="${escapeHtml(row.candidate_type || "phone")}" data-maintenance-confidence="${escapeHtml(row.confidence || "unverified")}">
+        Create warranted contact
+      </button>
+    `);
+  }
+
+  return buttons.length
+    ? `<div class="maintenance-actions">${buttons.join("")}</div>`
+    : "";
+}
+
+function renderMaintenanceDetail(row) {
+  const title =
+    row.title ||
+    row.proposed_entity_name ||
+    row.entity_name ||
+    row.normalized_value ||
+    row.task_type ||
+    "Maintenance item";
+
+  $("#detail-title").textContent = title;
+  $("#detail-content").className = "contact-record-body";
+
+  const blocks = [
+    detailBlock("Work type", row.maintenance_kind),
+    detailBlock("Status", row.status || "pending"),
+    detailBlock("Action policy", row.action_level || "AUTO_STAGE"),
+  ];
+
+  if (row.finding_type) blocks.push(detailBlock("Finding", row.finding_type));
+  if (row.severity) blocks.push(detailBlock("Severity", row.severity));
+  if (row.entity_name) blocks.push(detailBlock("Contact", row.entity_name));
+  if (row.matched_entity_name) blocks.push(detailBlock("Matched contact", row.matched_entity_name));
+  if (row.normalized_value) blocks.push(detailBlock("Normalized value", row.normalized_value));
+  if (row.proposed_entity_name) blocks.push(detailBlock("Proposed identity", row.proposed_entity_name));
+  if (row.task_type) blocks.push(detailBlock("Enrichment task", row.task_type));
+  if (row.candidate_type) blocks.push(detailBlock("Candidate type", row.candidate_type));
+  if (row.evidence_count) blocks.push(detailBlock("Evidence occurrences", row.evidence_count));
+  if (row.source_kind || row.source_reference) blocks.push(detailBlock("Source context", [row.source_kind, row.source_reference].filter(Boolean).join(" · ")));
+  if (row.example_message_id) blocks.push(detailBlock("Example message", row.example_message_id));
+  if (row.target_table || row.target_field) {
+    blocks.push(detailBlock("Candidate field", [row.target_table, row.target_field].filter(Boolean).join(" · ")));
+  }
+  if (row.current_value !== undefined && row.current_value !== null) blocks.push(detailBlock("Current value", row.current_value));
+  if (row.proposed_value !== undefined && row.proposed_value !== null) blocks.push(detailBlock("Proposed value", row.proposed_value));
+  blocks.push(detailBlock("Reason", row.review_summary || row.detail || row.rationale || "Review this item against existing contact evidence."));
+  if (row.occurrences) blocks.push(detailBlock("Times observed", row.occurrences));
+  blocks.push(detailBlock("Safety rule", "Search and reconcile against existing canonical contacts before creating or attaching anything. Ambiguous identity changes remain review-required."));
+
+  $("#detail-content").innerHTML =
+    `<section class="maintenance-review-card">${blocks.join("")}${maintenanceActionButtons(row)}</section>`;
+}
+
 async function renderDetail(row) {
   state.selected = row;
+
+  if (row.maintenance_item_id) {
+    renderMaintenanceDetail(row);
+    return;
+  }
 
   document
     .querySelectorAll(".result")
@@ -1635,6 +1790,21 @@ async function relationshipSearch() {
   );
 }
 
+async function maintenanceSearch() {
+  const params = new URLSearchParams({
+    kind: state.maintenanceKind || "all",
+    status: "pending",
+    limit: "250",
+    offset: "0",
+  });
+
+  if (state.query && state.query.trim()) {
+    params.set("q", state.query.trim());
+  }
+
+  return api(`/api/contacts/maintenance?${params}`);
+}
+
 async function correlationSearch() {
   const params = new URLSearchParams({
     review_status: "pending",
@@ -1657,7 +1827,10 @@ async function loadDirectory() {
 
   let rows = [];
 
-  if (state.view === "connections") {
+  if (state.view === "maintenance") {
+    rows = await maintenanceSearch();
+
+  } else if (state.view === "connections") {
     const [relationships, correlations] =
       await Promise.all([
         relationshipSearch(),
@@ -1736,7 +1909,8 @@ async function loadDirectory() {
     state.view === "phones" ||
     state.view === "emails" ||
     state.view === "domains" ||
-    state.view === "unassigned"
+    state.view === "unassigned" ||
+    state.view === "maintenance"
   ) {
     $("#detail-content").innerHTML = `
       <div class="contact-record-empty-state">
@@ -1765,9 +1939,33 @@ async function loadDirectory() {
   }
 }
 
+function updateViewControls() {
+  const maintenance = state.view === "maintenance";
+  const verificationFilter = $("#verification-filter");
+  const maintenanceFilter = $("#maintenance-kind-filter");
+  const newButton = $("#new-contact-button");
+  const search = $("#search");
+  const safety = document.querySelector(".directory-safety-note");
+
+  if (verificationFilter) verificationFilter.hidden = maintenance;
+  if (maintenanceFilter) maintenanceFilter.hidden = !maintenance;
+  if (newButton) newButton.hidden = maintenance;
+  if (search) {
+    search.placeholder = maintenance
+      ? "Search maintenance work, number, contact or task"
+      : "Search contacts, numbers or email";
+  }
+  if (safety) {
+    safety.textContent = maintenance
+      ? "Review existing identity and evidence before attaching information or creating a new canonical contact."
+      : "Matches do not create identity associations.";
+  }
+}
+
 async function runSearch() {
   state.query = $("#search").value.trim();
   state.verification = $("#verification").value;
+  state.maintenanceKind = $("#maintenance-kind")?.value || "all";
 
   try {
     await loadDirectory();
@@ -1785,6 +1983,15 @@ $("#search-button").addEventListener(
   runSearch,
 );
 
+if ($("#maintenance-kind")) {
+  $("#maintenance-kind").addEventListener(
+    "change",
+    () => {
+      if (state.view === "maintenance") runSearch();
+    },
+  );
+}
+
 $("#search").addEventListener(
   "keydown",
   (event) => {
@@ -1799,9 +2006,11 @@ $("#clear-button").addEventListener(
   () => {
     $("#search").value = "";
     $("#verification").value = "";
+    if ($("#maintenance-kind")) $("#maintenance-kind").value = "all";
 
     state.query = "";
     state.verification = "";
+    state.maintenanceKind = "all";
 
     loadDirectory();
   },
@@ -1818,6 +2027,7 @@ $("#view-tabs").addEventListener(
     }
 
     state.view = button.dataset.view;
+    updateViewControls();
 
     document
       .querySelectorAll("#view-tabs button")
@@ -1852,6 +2062,57 @@ $("#results").addEventListener(
     }
   },
 );
+
+async function openMaintenanceSearch(value) {
+  const text = String(value || "").trim();
+  if (!text) return;
+  state.view = "all";
+  updateViewControls();
+  state.query = text;
+  state.verification = "";
+  $("#search").value = text;
+  $("#verification").value = "";
+  document.querySelectorAll("#view-tabs button").forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === "all");
+  });
+  await loadDirectory();
+}
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-maintenance-action]");
+  if (!button) return;
+
+  const action = button.dataset.maintenanceAction;
+  if (action === "find-match" || action === "open-contact") {
+    event.preventDefault();
+    await openMaintenanceSearch(button.dataset.maintenanceSearch || "");
+    return;
+  }
+
+  if (action === "create-contact") {
+    event.preventDefault();
+    openNewContactEditor();
+    const name = button.dataset.maintenanceName || "";
+    const pointValue = button.dataset.maintenanceValue || "";
+    const pointType = button.dataset.maintenancePointType || "phone";
+    const confidence = button.dataset.maintenanceConfidence || "unverified";
+    const nameField = document.querySelector('#editor-fields [name="canonical_name"]');
+    const displayField = document.querySelector('#editor-fields [name="display_name"]');
+    const typeField = document.querySelector('#editor-fields [name="initial_point_type"]');
+    const valueField = document.querySelector('#editor-fields [name="initial_point_value"]');
+    const confidenceField = document.querySelector('#editor-fields [name="initial_point_confidence"]');
+    const notesField = document.querySelector('#editor-fields [name="initial_point_notes"]');
+    if (nameField && name) nameField.value = name;
+    if (displayField && name) displayField.value = name;
+    if (typeField) {
+      typeField.value = ["phone", "email"].includes(pointType) ? pointType : "phone";
+      typeField.dispatchEvent(new Event("change"));
+    }
+    if (valueField) valueField.value = pointValue;
+    if (confidenceField) confidenceField.value = ["confirmed","probable","unverified"].includes(confidence) ? confidence : "unverified";
+    if (notesField) notesField.value = "Created from Contacts maintenance identity-resolution review. Verify existing contacts and evidence before saving.";
+  }
+});
 
 document.addEventListener("click", async (event) => {
   const sourceButton = event.target.closest("[data-open-source]");

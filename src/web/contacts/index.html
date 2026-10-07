@@ -87,6 +87,14 @@
       <span>OBSERVATIONS</span>
       <strong id="metric-observations">—</strong>
     </article>
+    <article>
+      <span>MAINTENANCE REVIEW</span>
+      <strong id="metric-maintenance-review">—</strong>
+    </article>
+    <article>
+      <span>IDENTITY JOBS</span>
+      <strong id="metric-identity-jobs">—</strong>
+    </article>
     </section>
   </details>
 
@@ -101,6 +109,7 @@
     <button data-view="sources">Sources</button>
     <button data-view="observations">Observations</button>
     <button data-view="connections">Connections</button>
+    <button data-view="maintenance">Maintenance &amp; Review</button>
   </nav>
 
   <section class="directory-layout contacts-workspace">
@@ -140,7 +149,7 @@
               autocomplete="off">
           </label>
 
-          <label class="directory-filter-field" for="verification">
+          <label id="verification-filter" class="directory-filter-field" for="verification">
             <span class="sr-only">Verification</span>
             <select id="verification">
               <option value="">All statuses</option>
@@ -154,6 +163,17 @@
               <option value="missing_source">
                 Missing source
               </option>
+            </select>
+          </label>
+
+          <label id="maintenance-kind-filter" class="directory-filter-field" for="maintenance-kind" hidden>
+            <span class="sr-only">Maintenance queue</span>
+            <select id="maintenance-kind">
+              <option value="all">All maintenance</option>
+              <option value="identity">Identity resolution</option>
+              <option value="findings">Findings</option>
+              <option value="enrichment">Enrichment</option>
+              <option value="candidates">Candidate changes</option>
             </select>
           </label>
 

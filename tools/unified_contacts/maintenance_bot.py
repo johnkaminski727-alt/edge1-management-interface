@@ -257,7 +257,58 @@ def apply_safe_fixes(src, source_path, dst, run_id, backup_dir):
     return {'planned': len(fixes), 'applied': len(applied), 'backup': str(backup_path), 'source_sha256_after': after_sha}
 
 
+def plausible_mail_phone_candidate(raw, context=''):
+    raw=str(raw or '').strip(); context=str(context or '')
+    digits=re.sub(r'\D','',raw); low=context.casefold()
+    pos=context.find(raw)
+    before=(context[max(0,pos-50):pos] if pos >= 0 else context[:50]).casefold()
+    phone_words=('phone','telephone','tel:','mobile','cell','fax','call','contact details','contact number')
+    obvious_noise=('ip address','confirmation number','confirmation:','pin code','tracking_pixel','token=','key=','alert/nt/','order number','invoice number')
+    if any(x in low for x in obvious_noise) and not any(x in before for x in phone_words):
+        return False
+    if re.fullmatch(r'\d{1,3}(?:\.\d{1,3}){3}', raw):
+        return False
+    if raw.startswith('+'):
+        return 8 <= len(digits) <= 15
+    if len(digits)==10:
+        return digits[0] in '23456789' and digits[3] in '23456789'
+    if len(digits)==11 and digits.startswith('1'):
+        return digits[1] in '23456789' and digits[4] in '23456789'
+    if any(x in before for x in phone_words):
+        return 7 <= len(digits) <= 15 and len(set(digits)) > 2
+    return False
+
+
+def suppress_noisy_mail_phone_candidates(dst):
+    rejected=[]
+    rows=dst.execute("""
+        SELECT id,display_value,normalized_value,context
+        FROM mail_contact_candidates
+        WHERE candidate_type='phone' AND status IN ('pending','queued_review')
+    """).fetchall()
+    for row in rows:
+        if not plausible_mail_phone_candidate(row['display_value'] or row['normalized_value'], row['context'] or ''):
+            rejected.append(int(row['id']))
+    if not rejected:
+        return 0
+    placeholders=','.join('?' for _ in rejected)
+    dst.execute(f"UPDATE mail_contact_candidates SET status='rejected_noise' WHERE id IN ({placeholders})", rejected)
+    rejected_set=set(rejected)
+    for row in dst.execute("SELECT id,proposed_value FROM candidate_changes WHERE target_table='mail_contact_candidates' AND status='pending'").fetchall():
+        try: detail=json.loads(row['proposed_value'] or '{}')
+        except (TypeError,json.JSONDecodeError): continue
+        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in rejected_set:
+            dst.execute("UPDATE candidate_changes SET status='superseded',updated_at=? WHERE id=?",(utcnow(),row['id']))
+    for row in dst.execute("SELECT id,detail FROM maintenance_findings WHERE finding_type='mail_contact_candidate' AND status='open'").fetchall():
+        try: detail=json.loads(row['detail'] or '{}')
+        except (TypeError,json.JSONDecodeError): continue
+        if isinstance(detail,dict) and int(detail.get('representative_candidate_id') or 0) in rejected_set:
+            dst.execute("UPDATE maintenance_findings SET status='resolved',last_seen_at=? WHERE id=?",(utcnow(),row['id']))
+    return len(rejected)
+
+
 def process_mail_contact_candidates(src, dst):
+    rejected_noise = suppress_noisy_mail_phone_candidates(dst)
     groups = dst.execute("""
         SELECT MIN(c.id) AS representative_id,c.candidate_type,c.normalized_value,
                COUNT(*) AS evidence_count,MIN(e.message_id) AS example_message_id
@@ -267,7 +318,7 @@ def process_mail_contact_candidates(src, dst):
         GROUP BY c.candidate_type,c.normalized_value
         ORDER BY representative_id LIMIT 5000
     """).fetchall()
-    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0}
+    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0, 'rejected_noise': rejected_noise}
     point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
     for group in groups:
         ctype, value = group['candidate_type'], group['normalized_value']

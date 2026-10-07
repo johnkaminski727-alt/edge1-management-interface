@@ -60,6 +60,36 @@ def norm_phone(v):
     if len(digits)<7 or len(digits)>15: return None
     return ('+' if v.startswith('+') else '')+digits
 
+
+def plausible_phone_candidate(raw, context=''):
+    """Reject numeric tokens that merely look phone-like.
+
+    The mail extractor sees tracking tokens, IP addresses, booking numbers and
+    timestamps. International numbers carrying an explicit + are allowed;
+    plain North-American numbers must satisfy NANP structure; shorter/plain
+    numbers require nearby phone-oriented language.
+    """
+    raw=str(raw or '').strip(); context=str(context or '')
+    digits=re.sub(r'\D','',raw)
+    low=context.casefold()
+    pos=context.find(raw)
+    before=(context[max(0,pos-50):pos] if pos >= 0 else context[:50]).casefold()
+    phone_words=('phone','telephone','tel:','mobile','cell','fax','call','contact details','contact number')
+    obvious_noise=('ip address','confirmation number','confirmation:','pin code','tracking_pixel','token=','key=','alert/nt/','order number','invoice number')
+    if any(x in low for x in obvious_noise) and not any(x in before for x in phone_words):
+        return False
+    if re.fullmatch(r'\d{1,3}(?:\.\d{1,3}){3}', raw):
+        return False
+    if raw.startswith('+'):
+        return 8 <= len(digits) <= 15
+    if len(digits)==10:
+        return digits[0] in '23456789' and digits[3] in '23456789'
+    if len(digits)==11 and digits.startswith('1'):
+        return digits[1] in '23456789' and digits[4] in '23456789'
+    if any(x in before for x in phone_words):
+        return 7 <= len(digits) <= 15 and len(set(digits)) > 2
+    return False
+
 def safe_excerpt(v,n=500):
     return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]+',' ',str(v or '')).strip()[:n]
 
@@ -145,8 +175,11 @@ def extract_candidates(sender,body,attachments):
         for m in EMAIL_RE.finditer(text):
             v=m.group(1).lower(); add('email',v,v,'medium',source,ref,text[max(0,m.start()-100):m.end()+100],ash)
         for m in PHONE_RE.finditer(text):
-            n=norm_phone(m.group(1));
-            if n:add('phone',n,m.group(1).strip(),'medium',source,ref,text[max(0,m.start()-100):m.end()+100],ash)
+            raw=m.group(1).strip()
+            context=text[max(0,m.start()-100):m.end()+100]
+            n=norm_phone(raw)
+            if n and plausible_phone_candidate(raw,context):
+                add('phone',n,raw,'medium',source,ref,context,ash)
         for m in URL_RE.finditer(text):
             url=m.group(0).rstrip('.,);]')
             try:
