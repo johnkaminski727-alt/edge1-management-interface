@@ -18,6 +18,9 @@ class Wave2Tests(unittest.TestCase):
   self.assertTrue(git_hygiene.eligible_source('tools/automation/example.py'))
   self.assertTrue(git_hygiene.eligible_source('config/automation/public-websites.json'))
   self.assertFalse(git_hygiene.eligible_source('config/contacts/private.json'))
+ def test_git_hygiene_uses_no_optional_locks(self):
+  source=(ROOT/'tools/automation/git_hygiene_bot.py').read_text()
+  self.assertIn("'--no-optional-locks'",source)
  def test_git_hygiene_restores_git_modes(self):
   self.assertEqual(git_hygiene.expected_mode('100644'),0o644)
   self.assertEqual(git_hygiene.expected_mode('100755'),0o755)

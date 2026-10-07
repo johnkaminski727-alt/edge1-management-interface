@@ -10,7 +10,7 @@ STATUS=Path('/var/www/edge1-status/git-hygiene/status.json')
 SOURCE_PREFIXES=('server/','tools/','tests/','deploy/','src/','docs/','bin/','config/automation/','config/edge1_operator/')
 
 def run(*args): return subprocess.run(args,text=True,capture_output=True,check=False)
-def git(*args): return run('git','-c',f'safe.directory={REPO}','-C',str(REPO),*args).stdout.strip()
+def git(*args): return run('git','--no-optional-locks','-c',f'safe.directory={REPO}','-C',str(REPO),*args).stdout.strip()
 def eligible_source(path:str)->bool: return path.startswith(SOURCE_PREFIXES)
 def expected_mode(index_mode:str)->int|None:
     if index_mode=='100755': return 0o755
@@ -26,7 +26,7 @@ def dirty_tracked()->set[str]:
 
 def tracked_entries():
     result=[]
-    raw=run('git','-c',f'safe.directory={REPO}','-C',str(REPO),'ls-files','-s','-z').stdout
+    raw=run('git','--no-optional-locks','-c',f'safe.directory={REPO}','-C',str(REPO),'ls-files','-s','-z').stdout
     for record in raw.split('\0'):
         if not record or '\t' not in record: continue
         meta,path=record.split('\t',1); mode=meta.split()[0]
