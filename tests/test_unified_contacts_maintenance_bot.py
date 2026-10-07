@@ -81,6 +81,70 @@ class MaintenanceBotTests(unittest.TestCase):
             self.assertEqual(dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE finding_type='shared_contact_point' AND status='open'").fetchone()[0], 0)
             src.close(); dst.close()
 
+    def test_repeated_business_sender_with_phone_becomes_discovery_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA)
+            dst = open_state(Path(directory) / 'state.sqlite')
+            for idx in (1, 2):
+                dst.execute("INSERT INTO mail_contact_extractions(id,fingerprint,message_id,message_sha256,occurred_at,sender,subject,security_state,reviewed,extracted_at,attachment_count,candidate_count) VALUES(?,?,?,?,?,?,?,?,?,?,0,2)", (idx,f'f{idx}',f'<m{idx}>',f'h{idx}',f'2026-10-0{idx}', 'info@hartfamilyvet.com','Appointment Confirmation from Hart Family Veterinary Clinic','released',0,'2026-10-07'))
+                dst.execute("INSERT INTO mail_contact_candidates(fingerprint,extraction_id,candidate_type,normalized_value,display_value,confidence,source_kind,source_reference,context,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'queued_review','now')", (f'e{idx}',idx,'email','info@hartfamilyvet.com','info@hartfamilyvet.com','high','message_header','sender','info@hartfamilyvet.com'))
+                dst.execute("INSERT INTO mail_contact_candidates(fingerprint,extraction_id,candidate_type,normalized_value,display_value,confidence,source_kind,source_reference,context,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'queued_review','now')", (f'p{idx}',idx,'phone','+12509627808','250-962-7808','medium','message_body','body','call 250-962-7808'))
+            stats = process_mail_contact_candidates(src, dst)
+            dst.commit()
+            self.assertEqual(stats['discoveries'], 1)
+            row = dst.execute("SELECT sender_email,proposed_entity_name,message_count,status FROM contact_discovery_queue").fetchone()
+            self.assertEqual(row['sender_email'], 'info@hartfamilyvet.com')
+            self.assertEqual(row['proposed_entity_name'], 'Hart Family Veterinary Clinic')
+            self.assertEqual(row['message_count'], 2)
+            self.assertEqual(row['status'], 'pending')
+            self.assertEqual(dst.execute("SELECT COUNT(*) FROM mail_contact_candidates WHERE status='bundled_review'").fetchone()[0], 4)
+            src.close(); dst.close()
+
+    def test_legacy_unresolved_phone_enters_identity_resolution_by_observation_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA + """
+                ALTER TABLE contact_points ADD COLUMN legacy_phone_number_id INTEGER;
+                CREATE TABLE phone_numbers(id INTEGER PRIMARY KEY,status TEXT,occurrence_count INTEGER);
+                INSERT INTO phone_numbers VALUES(10,'unresolved',362);
+                INSERT INTO contact_points(id,point_type,normalized_value,display_value,classification,lifecycle_status,updated_at,legacy_phone_number_id) VALUES(10,'phone','+13065550199','(306) 555-0199',NULL,'unknown',NULL,10);
+            """)
+            dst = open_state(Path(directory) / 'state.sqlite')
+            run(src, dst); dst.commit()
+            row = dst.execute("SELECT contact_point_id,resolution_kind,normalized_value,status,confidence,evidence_json FROM identity_resolution_queue WHERE contact_point_id=10").fetchone()
+            self.assertIsNotNone(row)
+            self.assertEqual(row['status'], 'pending')
+            self.assertEqual(row['confidence'], 'observed')
+            self.assertIn('362', row['evidence_json'])
+            self.assertEqual(src.execute('SELECT COUNT(*) FROM contact_assertions WHERE contact_point_id=10').fetchone()[0], 0)
+            src.close(); dst.close()
+
+    def test_unassigned_role_mailbox_is_staged_to_dominant_existing_org(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = sqlite3.connect(':memory:')
+            src.row_factory = sqlite3.Row
+            src.executescript(SCHEMA + """
+                INSERT INTO contact_entities VALUES(1,'organization','Example Communications','Example Communications','active','verified',NULL);
+                INSERT INTO contact_entities VALUES(2,'organization','Example Holding','Example Holding','active','verified',NULL);
+                INSERT INTO contact_points VALUES(1,'email','contact@example.ca','contact@example.ca',NULL,'active',NULL);
+                INSERT INTO contact_points VALUES(2,'email','support@example.ca','support@example.ca',NULL,'active',NULL);
+                INSERT INTO contact_points VALUES(3,'email','owner@example.ca','owner@example.ca',NULL,'active',NULL);
+                INSERT INTO contact_points VALUES(4,'email','billing@example.ca','billing@example.ca',NULL,'active',NULL);
+                INSERT INTO contact_assertions VALUES(1,1,1,'confirmed');
+                INSERT INTO contact_assertions VALUES(2,1,2,'document_sourced');
+                INSERT INTO contact_assertions VALUES(3,2,3,'confirmed');
+            """)
+            dst = open_state(Path(directory) / 'state.sqlite')
+            run(src, dst); dst.commit()
+            row = dst.execute("SELECT entity_id,contact_point_id,proposed_value,status FROM candidate_changes WHERE target_table='contact_assertions' AND contact_point_id=4 AND status='pending'").fetchone()
+            self.assertIsNotNone(row)
+            self.assertEqual(row['entity_id'], 1)
+            self.assertEqual(row['proposed_value'], '1')
+            src.close(); dst.close()
+
     def test_low_value_mail_candidates_leave_active_review_without_losing_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             src = sqlite3.connect(':memory:')

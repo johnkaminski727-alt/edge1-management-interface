@@ -19,6 +19,7 @@ class UnifiedContactsMaintenanceUiTests(unittest.TestCase):
         self.assertIn('metric-last-maintenance', HTML)
         self.assertIn('id="maintenance-kind"', HTML)
         self.assertIn('Identity resolution', HTML)
+        self.assertIn('Contact discoveries', HTML)
         self.assertIn('Candidate changes', HTML)
 
     def test_read_only_maintenance_api_is_used(self):

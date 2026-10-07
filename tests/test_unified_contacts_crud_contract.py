@@ -31,6 +31,10 @@ EXPECTED = {
         "contacts.entity.merge",
         "contacts_entity_merge",
     ),
+    "discovery.promote": (
+        "contacts.discovery.promote",
+        "contacts_discovery_promote",
+    ),
     "point.add": (
         "contacts.point.add",
         "contacts_point_add",
@@ -102,8 +106,8 @@ class UnifiedContactsCrudContractTests(unittest.TestCase):
         assert set(ACTION_MAP.values()) == expected_operations
 
 
-    def test_crud_contract_is_exactly_eight_operations(self):
-        assert len(EXPECTED) == 8
+    def test_crud_contract_is_exactly_nine_operations(self):
+        assert len(EXPECTED) == 9
 
 
 class UnifiedContactsCrudIdempotencyTests(unittest.TestCase):

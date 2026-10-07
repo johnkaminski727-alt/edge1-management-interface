@@ -117,6 +117,12 @@
       "timeout_seconds": 30,
       "typed_handler": "contacts_candidate_reject"
     },
+    "contacts.discovery.promote": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 60,
+      "typed_handler": "contacts_discovery_promote"
+    },
     "contacts.entity.archive": {
       "mutating": true,
       "mutation_gate": "contacts_crud_mutations",
@@ -128,6 +134,12 @@
       "mutation_gate": "contacts_crud_mutations",
       "timeout_seconds": 30,
       "typed_handler": "contacts_entity_create"
+    },
+    "contacts.entity.merge": {
+      "mutating": true,
+      "mutation_gate": "contacts_crud_mutations",
+      "timeout_seconds": 120,
+      "typed_handler": "contacts_entity_merge"
     },
     "contacts.entity.restore": {
       "mutating": true,
@@ -404,13 +416,7 @@
       ],
       "mutating": false,
       "timeout_seconds": 300
-    },
-    "contacts.entity.merge": {
-      "typed_handler": "contacts_entity_merge",
-      "mutating": true,
-      "mutation_gate": "contacts_crud_mutations",
-      "timeout_seconds": 120
     }
   },
-  "version": 6
+  "version": 7
 }

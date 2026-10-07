@@ -18,6 +18,7 @@ POINT_TYPES = {
     "website",
     "domain",
     "postal",
+    "postal_address",
 }
 
 ENTITY_LIFECYCLES = {"active", "inactive", "unknown", "retired"}

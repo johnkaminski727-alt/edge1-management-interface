@@ -30,6 +30,7 @@ ACTION_SCOPES = {
     "contacts.entity.archive": "edge1.contacts.manage",
     "contacts.entity.restore": "edge1.contacts.manage",
     "contacts.entity.merge": "edge1.contacts.manage",
+    "contacts.discovery.promote": "edge1.contacts.manage",
     "contacts.point.add": "edge1.contacts.manage",
     "contacts.point.update": "edge1.contacts.manage",
     "contacts.point.detach": "edge1.contacts.manage",

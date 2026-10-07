@@ -1608,12 +1608,13 @@ function maintenanceActionButtons(row) {
 
   const creatableCandidate =
     row.maintenance_kind === "identity" ||
+    row.maintenance_kind === "discovery" ||
     (row.maintenance_kind === "finding" &&
       ["phone", "email"].includes(row.candidate_type));
 
   if (creatableCandidate && !row.matched_entity_id) {
     buttons.push(`
-      <button type="button" class="secondary" data-maintenance-action="create-contact" data-maintenance-name="${escapeHtml(row.proposed_entity_name || "")}" data-maintenance-value="${escapeHtml(row.normalized_value || "")}" data-maintenance-point-type="${escapeHtml(row.candidate_type || "phone")}" data-maintenance-confidence="${escapeHtml(row.confidence || "unverified")}">
+      <button type="button" class="secondary" data-maintenance-action="create-contact" data-maintenance-name="${escapeHtml(row.proposed_entity_name || "")}" data-maintenance-value="${escapeHtml(row.normalized_value || "")}" data-maintenance-point-type="${escapeHtml(row.candidate_type || (row.maintenance_kind === "discovery" ? "email" : "phone"))}" data-maintenance-confidence="${escapeHtml(row.confidence || "unverified")}">
         Create warranted contact
       </button>
     `);

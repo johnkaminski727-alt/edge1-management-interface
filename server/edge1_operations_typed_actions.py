@@ -31,7 +31,9 @@ from server.unified_contacts_crud import (
     ContactsCrudError,
     ContactsNotFound,
     UnifiedContactsCrud,
+    normalize_contact_point,
 )
+from tools.unified_contacts.identity_gate import require_safe_entity_resolution
 
 from server.asterisk_process_identity import resolve_asterisk_pid
 
@@ -427,6 +429,9 @@ CONTACTS_DB = Path(
     "/var/lib/edge1-phone-intelligence/"
     "phone-intelligence.sqlite"
 )
+CONTACTS_MAINTENANCE_DB = Path(
+    "/var/lib/edge1-contacts-maintenance/maintenance.sqlite"
+)
 
 
 def _positive_integer(name: str, value: Any) -> int:
@@ -815,6 +820,353 @@ def contacts_point_detach(
 
 
 
+def _validate_contacts_discovery_promote(parameters: dict[str, Any]) -> dict[str, Any]:
+    result = _contacts_crud_schema(
+        parameters,
+        {"discovery_id", "entity_type", "canonical_name"},
+    )
+    result["discovery_id"] = _positive_integer(
+        "discovery_id",
+        result["discovery_id"],
+    )
+    if result["entity_type"] not in {"person", "organization"}:
+        raise TypedActionValidationError(
+            "entity_type must be person or organization"
+        )
+    name = result["canonical_name"]
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 200:
+        raise TypedActionValidationError(
+            "canonical_name is invalid"
+        )
+    result["canonical_name"] = name.strip()
+    return result
+
+
+def contacts_discovery_promote(parameters: dict[str, Any]) -> dict[str, Any]:
+    p = _validate_contacts_discovery_promote(parameters)
+    if not CONTACTS_MAINTENANCE_DB.is_file():
+        raise RuntimeError("contacts maintenance database is unavailable")
+
+    connection = sqlite3.connect(str(CONTACTS_DB), timeout=15)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys=ON")
+    connection.execute(
+        "ATTACH DATABASE ? AS maintenance",
+        (str(CONTACTS_MAINTENANCE_DB),),
+    )
+
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        discovery = connection.execute(
+            """
+            SELECT id,sender_email,sender_domain,proposed_entity_name,
+                   message_count,evidence_json,status,matched_entity_id
+            FROM maintenance.contact_discovery_queue
+            WHERE id=?
+            """,
+            (p["discovery_id"],),
+        ).fetchone()
+        if discovery is None:
+            raise TypedActionValidationError(
+                "contact discovery not found"
+            )
+        if discovery["status"] == "promoted" and discovery["matched_entity_id"]:
+            connection.rollback()
+            return {
+                "operation": "discovery.promote",
+                "discovery_id": p["discovery_id"],
+                "entity_id": int(discovery["matched_entity_id"]),
+                "entity_created": False,
+                "already_promoted": True,
+                "contact_points_promoted": 0,
+                "provenance_records": 0,
+            }
+        if discovery["status"] not in {"pending", "review_required"}:
+            raise TypedActionValidationError(
+                "contact discovery is not promotable"
+            )
+
+        try:
+            evidence = json.loads(discovery["evidence_json"] or "{}")
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise TypedActionValidationError(
+                "contact discovery evidence is invalid"
+            ) from exc
+        if not isinstance(evidence, dict):
+            raise TypedActionValidationError(
+                "contact discovery evidence is invalid"
+            )
+
+        entity_id, create_new, match = require_safe_entity_resolution(
+            connection,
+            p["entity_type"],
+            p["canonical_name"],
+        )
+        crud = UnifiedContactsCrud(connection)
+        entity_created = False
+        if create_new:
+            created = crud.create_entity(
+                entity_type=p["entity_type"],
+                canonical_name=p["canonical_name"],
+                display_name=p["canonical_name"],
+                verification_status="document_sourced",
+                notes=(
+                    "Promoted from Contacts maintenance discovery "
+                    f"#{p['discovery_id']} with repeated Mail Room evidence."
+                ),
+            )
+            entity_id = int(created.entity_id)
+            entity_created = True
+        elif entity_id is None:
+            raise TypedActionValidationError(
+                "contact discovery identity resolution failed"
+            )
+
+        message_ids = [
+            str(value).strip()
+            for value in evidence.get("message_ids", [])
+            if isinstance(value, str) and value.strip()
+        ][:50]
+        if not message_ids:
+            raise TypedActionValidationError(
+                "contact discovery has no source messages"
+            )
+
+        provenance_ids = []
+        for message_id in message_ids:
+            existing = connection.execute(
+                """
+                SELECT id FROM provenance_records
+                WHERE source_kind='email'
+                  AND source_name='Mail Room'
+                  AND source_reference=?
+                  AND COALESCE(extraction_method,'')='contact_discovery_promotion'
+                ORDER BY id LIMIT 1
+                """,
+                (message_id,),
+            ).fetchone()
+            if existing:
+                provenance_id = int(existing["id"])
+            else:
+                cur = connection.execute(
+                    """
+                    INSERT INTO provenance_records(
+                        source_kind,source_name,source_reference,
+                        extraction_method,verification_status,notes
+                    ) VALUES(
+                        'email','Mail Room',?,
+                        'contact_discovery_promotion','document_sourced',?
+                    )
+                    """,
+                    (
+                        message_id,
+                        f"Security-released source message supporting discovery #{p['discovery_id']}.",
+                    ),
+                )
+                provenance_id = int(cur.lastrowid)
+            provenance_ids.append(provenance_id)
+
+        if provenance_ids:
+            first_provenance = provenance_ids[0]
+            existing_attestation = connection.execute(
+                """
+                SELECT id FROM contact_attestations
+                WHERE entity_id=? AND contact_point_id IS NULL
+                  AND provenance_id=? AND attribute='canonical_name'
+                  AND attested_value=?
+                LIMIT 1
+                """,
+                (entity_id, first_provenance, p["canonical_name"]),
+            ).fetchone()
+            if existing_attestation is None:
+                connection.execute(
+                    """
+                    INSERT INTO contact_attestations(
+                        entity_id,provenance_id,attribute,attested_value,
+                        classification,verification_status,source_path,notes
+                    ) VALUES(?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        entity_id,
+                        first_provenance,
+                        "canonical_name",
+                        p["canonical_name"],
+                        "mail_contact_discovery",
+                        "document_sourced",
+                        "mailroom://contact-discovery",
+                        f"Identity supported by discovery #{p['discovery_id']} and repeated message context.",
+                    ),
+                )
+
+        promoted_points = []
+        sender_point_id = None
+        coordinates = evidence.get("coordinates", [])
+        if not isinstance(coordinates, list):
+            coordinates = []
+        seen = set()
+        for coordinate in coordinates:
+            if not isinstance(coordinate, dict):
+                continue
+            point_type = str(coordinate.get("type") or "").strip()
+            if point_type not in {"email", "phone"}:
+                continue
+            raw_value = str(
+                coordinate.get("display")
+                or coordinate.get("value")
+                or ""
+            ).strip()
+            if not raw_value:
+                continue
+            normalized, _ = normalize_contact_point(
+                point_type,
+                raw_value,
+            )
+            point_key = (point_type, normalized)
+            if point_key in seen:
+                continue
+            seen.add(point_key)
+            confidence = (
+                "document_sourced"
+                if str(coordinate.get("confidence") or "") in {"high", "confirmed", "document_sourced"}
+                else "probable"
+            )
+            try:
+                result = crud.add_contact_point(
+                    entity_id=entity_id,
+                    point_type=point_type,
+                    value=raw_value,
+                    classification="discovery_evidence",
+                    confidence=confidence,
+                    assertion_notes=(
+                        f"Promoted from discovery #{p['discovery_id']} using repeated Mail Room evidence."
+                    ),
+                )
+                point_id = int(result.contact_point_id)
+                assertion_id = int(result.assertion_id)
+            except ContactsConflict:
+                point = connection.execute(
+                    """
+                    SELECT id FROM contact_points
+                    WHERE point_type=? AND normalized_value=?
+                    ORDER BY id LIMIT 1
+                    """,
+                    (point_type, normalized),
+                ).fetchone()
+                if point is None:
+                    raise
+                point_id = int(point["id"])
+                assertion = connection.execute(
+                    """
+                    SELECT id FROM contact_assertions
+                    WHERE entity_id=? AND contact_point_id=?
+                      AND assertion_type='contact' AND valid_to IS NULL
+                    ORDER BY id DESC LIMIT 1
+                    """,
+                    (entity_id, point_id),
+                ).fetchone()
+                if assertion is None:
+                    raise
+                assertion_id = int(assertion["id"])
+
+            for provenance_id in provenance_ids:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO assertion_evidence(
+                        assertion_id,provenance_id,evidence_role,evidence_summary
+                    ) VALUES(?,?,'supports',?)
+                    """,
+                    (
+                        assertion_id,
+                        provenance_id,
+                        f"Mail Room evidence bundle for discovery #{p['discovery_id']}.",
+                    ),
+                )
+            promoted_points.append(point_id)
+            if point_type == "email" and normalized == str(discovery["sender_email"]).casefold():
+                sender_point_id = point_id
+
+        if sender_point_id is not None:
+            for message_id, provenance_id in zip(message_ids, provenance_ids):
+                extraction = connection.execute(
+                    """
+                    SELECT occurred_at FROM maintenance.mail_contact_extractions
+                    WHERE message_id=? ORDER BY id DESC LIMIT 1
+                    """,
+                    (message_id,),
+                ).fetchone()
+                occurred_at = extraction["occurred_at"] if extraction else None
+                exists = connection.execute(
+                    """
+                    SELECT id FROM contact_observations
+                    WHERE contact_point_id=? AND provenance_id=?
+                      AND observation_type='email_occurrence'
+                    LIMIT 1
+                    """,
+                    (sender_point_id, provenance_id),
+                ).fetchone()
+                if exists is None:
+                    connection.execute(
+                        """
+                        INSERT INTO contact_observations(
+                            contact_point_id,provenance_id,observation_type,
+                            observed_value,occurred_at,direction,classification,
+                            confidence,notes
+                        ) VALUES(?,?,'email_occurrence',?,?,'inbound','normal','probable',?)
+                        """,
+                        (
+                            sender_point_id,
+                            provenance_id,
+                            discovery["sender_email"],
+                            occurred_at,
+                            f"Observed in discovery #{p['discovery_id']} source message.",
+                        ),
+                    )
+
+        connection.execute(
+            """
+            UPDATE maintenance.contact_discovery_queue
+            SET status='promoted',matched_entity_id=?,updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+            """,
+            (entity_id, p["discovery_id"]),
+        )
+        marks = ",".join("?" for _ in message_ids)
+        extraction_rows = connection.execute(
+            f"SELECT id FROM maintenance.mail_contact_extractions WHERE message_id IN ({marks})",
+            message_ids,
+        ).fetchall()
+        extraction_ids = [int(row["id"]) for row in extraction_rows]
+        if extraction_ids:
+            placeholders = ",".join("?" for _ in extraction_ids)
+            connection.execute(
+                f"UPDATE maintenance.mail_contact_candidates SET status='promoted',matched_entity_id=? "
+                f"WHERE extraction_id IN ({placeholders}) AND status='bundled_review'",
+                (entity_id, *extraction_ids),
+            )
+
+        connection.commit()
+        return {
+            "operation": "discovery.promote",
+            "discovery_id": p["discovery_id"],
+            "entity_id": entity_id,
+            "entity_created": entity_created,
+            "identity_resolution": match,
+            "contact_points_promoted": len(set(promoted_points)),
+            "contact_point_ids": sorted(set(promoted_points)),
+            "provenance_records": len(set(provenance_ids)),
+            "already_promoted": False,
+        }
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        try:
+            connection.execute("DETACH DATABASE maintenance")
+        except sqlite3.Error:
+            pass
+        connection.close()
+
+
 def _validate_contacts_entity_merge(parameters):
     if not isinstance(parameters, dict):
         raise TypedActionValidationError(
@@ -891,6 +1243,7 @@ TYPED_ACTION_VALIDATORS = {
     "contacts_point_add": _validate_contacts_point_add,
     "contacts_point_update": _validate_contacts_point_update,
     "contacts_point_detach": _validate_contacts_point_detach,
+    "contacts_discovery_promote": _validate_contacts_discovery_promote,
     "contacts_candidate_promote": _validate_contacts_candidate_promote,
     "contacts_candidate_reject": _validate_contacts_candidate_reject,
     "telephony_console_reload": _validate_reload,
@@ -967,6 +1320,7 @@ TYPED_ACTION_HANDLERS = {
     "contacts_point_add": contacts_point_add,
     "contacts_point_update": contacts_point_update,
     "contacts_point_detach": contacts_point_detach,
+    "contacts_discovery_promote": contacts_discovery_promote,
     "contacts_candidate_promote": contacts_candidate_promote,
     "contacts_candidate_reject": contacts_candidate_reject,
     "telephony_console_reload": telephony_console_reload,

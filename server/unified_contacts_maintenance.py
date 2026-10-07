@@ -54,6 +54,7 @@ class UnifiedContactsMaintenance:
                 "pending_candidates": scalar("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'"),
                 "pending_enrichment": scalar("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'"),
                 "pending_identity_resolution": scalar("SELECT COUNT(*) FROM identity_resolution_queue WHERE status='pending'"),
+                "pending_discoveries": scalar("SELECT COUNT(*) FROM contact_discovery_queue WHERE status='pending'"),
                 "review_required_findings": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND action_level='REVIEW_REQUIRED'"),
                 "duplicate_risks": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='duplicate_entity'"),
                 "shared_contact_risks": scalar("SELECT COUNT(*) FROM maintenance_findings WHERE status='open' AND finding_type='shared_contact_point'"),
@@ -66,7 +67,7 @@ class UnifiedContactsMaintenance:
             con.close()
 
     def items(self, *, kind: str = "all", status: str = "pending", query: str = "", limit: int = 250, offset: int = 0) -> list[dict]:
-        allowed_kinds = {"all", "identity", "findings", "enrichment", "candidates"}
+        allowed_kinds = {"all", "identity", "discoveries", "findings", "enrichment", "candidates"}
         if kind not in allowed_kinds:
             raise ValueError("invalid maintenance kind")
         if status not in {"", "pending", "open", "resolved", "dismissed", "superseded", "matched_existing", "enriched", "distinct_identity", "review_required"}:
@@ -98,6 +99,51 @@ class UnifiedContactsMaintenance:
                 ).fetchall():
                     item = dict(r)
                     item.update({"maintenance_kind": "identity", "maintenance_item_id": r["id"], "action_level": "REVIEW_REQUIRED" if r["status"] == "review_required" else "AUTO_STAGE"})
+                    try:
+                        evidence = json.loads(r["evidence_json"] or "{}")
+                    except (TypeError, json.JSONDecodeError):
+                        evidence = {}
+                    if isinstance(evidence, dict):
+                        occurrence_count = int(evidence.get("occurrence_count") or 0)
+                        item["occurrence_count"] = occurrence_count
+                        item["legacy_status"] = evidence.get("legacy_status")
+                        item["display_value"] = evidence.get("display_value") or r["normalized_value"]
+                        item["review_priority"] = 50 + min(occurrence_count, 500)
+                    rows.append(item)
+
+            if kind in {"all", "discoveries"}:
+                clauses = []
+                params = []
+                desired = "pending" if status in {"pending", "open"} else status
+                if desired:
+                    clauses.append("status=?")
+                    params.append(desired)
+                if query:
+                    clauses.append("(sender_email LIKE ? OR sender_domain LIKE ? OR COALESCE(proposed_entity_name,'') LIKE ?)")
+                    needle = f"%{query}%"
+                    params.extend([needle, needle, needle])
+                where = " WHERE " + " AND ".join(clauses) if clauses else ""
+                for r in con.execute(
+                    "SELECT id,sender_email,sender_domain,proposed_entity_name,message_count,evidence_json,status,matched_entity_id,created_at,updated_at "
+                    "FROM contact_discovery_queue" + where + " ORDER BY message_count DESC,updated_at DESC,id DESC",
+                    params,
+                ).fetchall():
+                    item = dict(r)
+                    item.update({
+                        "maintenance_kind": "discovery",
+                        "maintenance_item_id": r["id"],
+                        "action_level": "AUTO_STAGE",
+                        "review_priority": 100 + min(int(r["message_count"] or 0), 100),
+                        "normalized_value": r["sender_email"],
+                        "title": r["proposed_entity_name"] or r["sender_domain"],
+                        "review_summary": f"{r['sender_email']} · {int(r['message_count'] or 0)} messages · corroborated contact evidence",
+                    })
+                    try:
+                        evidence = json.loads(r["evidence_json"] or "{}")
+                    except (TypeError, json.JSONDecodeError):
+                        evidence = {}
+                    if isinstance(evidence, dict):
+                        item["discovery_evidence"] = evidence
                     rows.append(item)
 
             if kind in {"all", "findings"}:
