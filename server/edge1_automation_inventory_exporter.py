@@ -34,6 +34,7 @@ STATUS_ALIASES={
  'edge1-service-self-heal.service':'service-self-heal',
  'edge1-security-baseline.service':'security-baseline',
  'edge1-storage-health.service':'storage-health',
+ 'edge1-update-readiness.service':'update-readiness',
  'edge1-website-health.service':'website-health',
  'edge1-weekly-executive-briefing.service':'executive-briefing',
 }
@@ -44,6 +45,7 @@ SAFE_SUMMARY_KEYS={
  'live_products','fallback_active','fallback_inactive','pages_checked','sites','custom_timers',
  'stale_or_missing_snapshots','documents','filed','unfiled','healthy','warning','attention',
  'domains','expiring_180d','expiring_60d','expiring_30d','lookup_failures','nearest_expiry_days',
+ 'pending_updates','security_updates','kernel_updates','persistent_failed_units','transient_failed_units','reboot_required','apt_metadata_age_hours',
 }
 
 def _safe_scalar(value):
@@ -76,7 +78,7 @@ AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archiv
 READ_ONLY_ALLOW={
  'edge1-outstanding-actions.service','edge1-drift-monitor.service','edge1-backup-verification.service',
  'edge1-mail-restore-rehearsal.service','edge1-certificate-expiry.service','edge1-storage-health.service',
- 'edge1-weekly-executive-briefing.service','edge1-mail-domain-health.service','edge1-knowledge-consolidation.service','edge1-website-health.service','edge1-seo-audit.service','edge1-security-baseline.service','edge1-domain-renewal.service'
+ 'edge1-weekly-executive-briefing.service','edge1-mail-domain-health.service','edge1-knowledge-consolidation.service','edge1-website-health.service','edge1-seo-audit.service','edge1-security-baseline.service','edge1-domain-renewal.service','edge1-update-readiness.service'
 }
 AUTO_STAGE_ALLOW={'edge1-document-filing.service'}
 AUTO_FIX_ALLOW={

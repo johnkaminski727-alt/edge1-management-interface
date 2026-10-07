@@ -1,0 +1,9 @@
+[Unit]
+Description=Assess Edge1 update readiness every six hours
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=edge1-update-readiness.service
+[Install]
+WantedBy=timers.target
