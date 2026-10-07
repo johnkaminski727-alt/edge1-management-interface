@@ -1,5 +1,8 @@
 #!/bin/sh
 set -eu
+echo "STOP: retired 2026-10-07. Dyn Standard DNS remains public authoritative; Edge1 publishes through authenticated TSIG/API synchronization. The BIND/AXFR hidden-primary runtime must not be reactivated by this script." >&2
+exit 64
+
 ROOT=${EDGE1_MANAGEMENT_ROOT:-/opt/edge1-management-interface}
 STATE=${EDGE1_HIDDEN_PRIMARY_STATE:-/var/lib/edge1-authoritative-dns}
 RUNTIME=${EDGE1_HIDDEN_PRIMARY_RUNTIME:-/var/lib/bind/wwcx-hidden-primary}

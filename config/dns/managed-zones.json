@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "contract": "edge1.managed-dns-zones.v1",
+  "public_authoritative_provider": "Dyn Standard DNS",
+  "publication_method": "authenticated TSIG/API synchronization",
+  "zones": [
+    {
+      "zone": "ww.cx",
+      "inventory_file": "/var/lib/edge1-authoritative-dns/ww.cx-inventory.json",
+      "zone_file": "/var/lib/edge1-authoritative-dns/ww.cx.zone",
+      "mx_cutover_authorized": false
+    },
+    {
+      "zone": "spiritcreekgardens.com",
+      "inventory_file": "/var/lib/edge1-authoritative-dns/spiritcreekgardens.com-inventory.json",
+      "zone_file": "/var/lib/edge1-authoritative-dns/spiritcreekgardens.com.zone",
+      "mx_cutover_authorized": false
+    }
+  ]
+}
