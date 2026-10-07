@@ -85,6 +85,39 @@ def timer_inventory():
     timers.sort(key=lambda x:(not x['custom'],x['timer']))
     return timers
 
+def path_inventory():
+    rows=run('systemctl','list-unit-files','--type=path','--no-legend','--no-pager').splitlines()
+    items=[]
+    for row in rows:
+        if not row.strip(): continue
+        fields=row.split(); unit=fields[0]
+        p=props(unit,'Description','ActiveState','UnitFileState','Unit','Paths','Triggers')
+        service=p.get('Unit') or p.get('Triggers') or None
+        items.append({
+          'path_unit':unit,'description':clean_description(p.get('Description')),'state':p.get('ActiveState','unknown'),
+          'enabled':p.get('UnitFileState') or (fields[1] if len(fields)>1 else 'unknown'),'service':service,
+          'watched_paths':p.get('Paths') or None,'action_level':classify(service or unit,p.get('Description','')),
+          'custom':unit.startswith(CUSTOM_PREFIXES),
+        })
+    return sorted(items,key=lambda x:(not x['custom'],x['path_unit']))
+
+def cron_inventory():
+    sources=[Path('/etc/crontab')]
+    cron_d=Path('/etc/cron.d')
+    if cron_d.is_dir(): sources.extend(sorted(x for x in cron_d.iterdir() if x.is_file()))
+    items=[]
+    for source in sources:
+        try: lines=source.read_text(errors='ignore').splitlines()
+        except OSError: continue
+        for line in lines:
+            line=line.strip()
+            if not line or line.startswith('#') or '=' in line.split()[0]: continue
+            parts=line.split()
+            if len(parts)<7: continue
+            schedule=' '.join(parts[:5]); user=parts[5]
+            items.append({'source':str(source),'schedule':schedule,'user':user,'command':'redacted','action_level':'REVIEW-REQUIRED'})
+    return items
+
 def continuous_inventory(timer_services):
     rows=run('systemctl','list-units','--type=service','--state=running','--no-legend','--no-pager').splitlines()
     result=[]
@@ -104,12 +137,12 @@ def continuous_inventory(timer_services):
 
 def main():
     timers=timer_inventory(); timer_services={x['service'] for x in timers if x.get('service')}
-    continuous=continuous_inventory(timer_services)
+    continuous=continuous_inventory(timer_services); paths=path_inventory(); cron=cron_inventory()
     failures=sum(1 for x in timers if x['service_state']=='failed' or x['last_result'] not in (None,'','success'))
     data={
       'contract':'wwcx.edge1-automation-inventory.v1','generated_at':dt.datetime.now(dt.timezone.utc).isoformat(),
-      'summary':{'timers':len(timers),'custom_timers':sum(x['custom'] for x in timers),'continuous_workers':len(continuous),'failed_or_non_success':failures},
-      'timers':timers,'continuous_services':continuous,
+      'summary':{'timers':len(timers),'custom_timers':sum(x['custom'] for x in timers),'continuous_workers':len(continuous),'path_triggers':len(paths),'custom_path_triggers':sum(x['custom'] for x in paths),'cron_jobs':len(cron),'failed_or_non_success':failures},
+      'timers':timers,'continuous_services':continuous,'path_triggers':paths,'cron_jobs':cron,
       'safety':{'inventory_read_only':True,'secrets_exposed':False,'action_classification_conservative':True}
     }
     OUTPUT.parent.mkdir(parents=True,exist_ok=True); OUTPUT.write_text(json.dumps(data,indent=2)+'\n'); OUTPUT.chmod(0o644)
