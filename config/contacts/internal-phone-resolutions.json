@@ -1,0 +1,38 @@
+{
+  "contract": "edge1.contacts-internal-phone-resolutions.v1",
+  "updated_at": "2026-10-07",
+  "entries": [
+    {
+      "normalized_number": "+13065923699",
+      "display_number": "306-592-3699",
+      "resolution": "existing_person",
+      "canonical_name": "John Kaminski",
+      "confidence": "document_sourced",
+      "evidence_scope": "restricted_internal",
+      "rationale": "Retained resume source identifies 306-592-3699 as a John Kaminski contact number. Attach to the existing canonical person rather than creating a new identity.",
+      "sources": [
+        {
+          "name": "John Kaminski Resume.docx",
+          "locator": "library:file_00000000c93c722f85ee5ae496cc3174",
+          "evidence": "Resume header lists John Kaminski with phone 306-592-3699."
+        }
+      ]
+    },
+    {
+      "normalized_number": "+13065936047",
+      "display_number": "306-593-6047",
+      "resolution": "existing_person",
+      "canonical_name": "John Kaminski",
+      "confidence": "document_sourced",
+      "evidence_scope": "restricted_internal",
+      "rationale": "Canada Post PO Box contact register identifies 306-593-6047 as the customer phone for John Kaminski / Spirit Creek Gardens. Attach to the existing canonical person rather than creating a new identity.",
+      "sources": [
+        {
+          "name": "processed_file_intake_canadapost_pobox_20251008_20260706.xlsx",
+          "locator": "library:file_0000000082fc720c954dc05b3e323ae5",
+          "evidence": "Contacts sheet identifies John Kaminski / Spirit Creek Gardens authorized pickup with phone 306-593-6047."
+        }
+      ]
+    }
+  ]
+}

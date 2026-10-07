@@ -163,8 +163,8 @@ def load_known_service_numbers():
     return numbers if isinstance(numbers,dict) else {}
 
 
-def load_public_phone_resolutions():
-    path=Path('/opt/edge1-management-interface/config/contacts/public-phone-resolutions.json')
+def _load_phone_resolution_file(path):
+    path=Path(path)
     if not path.is_file():
         return {}
     try:
@@ -182,6 +182,14 @@ def load_public_phone_resolutions():
         if number:
             result[number]=entry
     return result
+
+
+def load_public_phone_resolutions():
+    return _load_phone_resolution_file('/opt/edge1-management-interface/config/contacts/public-phone-resolutions.json')
+
+
+def load_internal_phone_resolutions():
+    return _load_phone_resolution_file('/opt/edge1-management-interface/config/contacts/internal-phone-resolutions.json')
 
 
 def source_sha(path):
@@ -252,6 +260,7 @@ def identity_resolution(dst, point_id, resolution_kind, normalized_value, ration
 
 def apply_public_phone_resolutions(src, dst):
     resolutions=load_public_phone_resolutions()
+    resolutions.update(load_internal_phone_resolutions())
     stats={'matched_existing':0,'new_organization_candidates':0,'unresolved_config_entries':0}
     for number,entry in resolutions.items():
         points=src.execute("SELECT id,display_value FROM contact_points WHERE point_type='phone' AND normalized_value=? ORDER BY id",(number,)).fetchall()
@@ -267,13 +276,15 @@ def apply_public_phone_resolutions(src, dst):
         evidence={
             'display_value':entry.get('display_number') or points[0]['display_value'] or number,
             'public_resolution':resolution,
+            'evidence_scope':entry.get('evidence_scope') or 'public',
             'canonical_name':canonical_name,
             'sources':sources,
             'contact_points':contact_points,
         }
         rationale=str(entry.get('rationale') or 'Evidence-backed public phone resolution.')
-        if resolution=='existing_organization':
-            matches=src.execute("SELECT id FROM contact_entities WHERE entity_type='organization' AND lifecycle_status='active' AND lower(canonical_name)=lower(?) ORDER BY id",(canonical_name,)).fetchall()
+        if resolution in {'existing_organization','existing_person'}:
+            entity_type='organization' if resolution=='existing_organization' else 'person'
+            matches=src.execute("SELECT id FROM contact_entities WHERE entity_type=? AND lifecycle_status='active' AND lower(canonical_name)=lower(?) ORDER BY id",(entity_type,canonical_name)).fetchall()
             if len(matches)!=1:
                 stats['unresolved_config_entries']+=1
                 continue
