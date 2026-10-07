@@ -36,7 +36,11 @@ def main():
             client = imaplib.IMAP4_SSL("mail.privateemail.com", 993,
                 ssl_context=ssl.create_default_context(), timeout=25)
             stage = "mailbox login"
-            status, _ = client.login(account, secret)
+            client.sock.settimeout(90)
+            print(account + ": authenticating (allow up to 90 seconds)…", flush=True)
+            auth = ("\x00" + account + "\x00" + secret).encode("utf-8")
+            status, _ = client.authenticate("PLAIN", lambda challenge: auth)
+            auth = b""
             if status != "OK":
                 raise ValueError("login failed")
             stage = "folder listing"
