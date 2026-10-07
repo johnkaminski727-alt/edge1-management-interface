@@ -28,7 +28,7 @@ def build():
     auth=dns.get('authoritative_dns') or {}; resolver=dns.get('resolver') or {}
     if resolver.get('adguard_active') is False or resolver.get('unbound_active') is False:warnings.append('resolver_component_inactive')
     auth_state=auth.get('state')
-    if auth.get('enabled') and auth_state not in {'active','healthy','accepted_live'}:
+    if auth.get('enabled') and auth_state not in {'active','healthy','accepted_live','operational'}:
         if auth_state=='local_active_pending_secondary': followups.append('authoritative_dns_secondary_pending')
         else: warnings.append('authoritative_dns_attention')
     backlog=gate.get('backlog') or {}; pending=int(backlog.get('pending_or_unchecked') or 0)
