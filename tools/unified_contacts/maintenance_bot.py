@@ -192,6 +192,16 @@ def load_internal_phone_resolutions():
     return _load_phone_resolution_file('/opt/edge1-management-interface/config/contacts/internal-phone-resolutions.json')
 
 
+def _active_contact_assertion_exists(src, entity_id, point_id):
+    clauses=['entity_id=?','contact_point_id=?']
+    params=[entity_id,point_id]
+    if _column_exists(src,'contact_assertions','assertion_type'):
+        clauses.append("assertion_type='contact'")
+    if _column_exists(src,'contact_assertions','valid_to'):
+        clauses.append('valid_to IS NULL')
+    return src.execute('SELECT 1 FROM contact_assertions WHERE ' + ' AND '.join(clauses) + ' LIMIT 1',params).fetchone() is not None
+
+
 def source_sha(path):
     digest = hashlib.sha256()
     with open(path, 'rb') as handle:
@@ -289,16 +299,31 @@ def apply_public_phone_resolutions(src, dst):
                 stats['unresolved_config_entries']+=1
                 continue
             entity_id=int(matches[0]['id'])
-            candidate(dst,'AUTO_STAGE','contact_assertions',point_id,'entity_id',None,str(entity_id),rationale,entity=entity_id,point=point_id)
+            owns=_active_contact_assertion_exists(src,entity_id,point_id)
+            if not owns:
+                candidate(dst,'AUTO_STAGE','contact_assertions',point_id,'entity_id',None,str(entity_id),rationale,entity=entity_id,point=point_id)
             dst.execute("UPDATE identity_resolution_queue SET status='matched_existing',matched_entity_id=?,proposed_entity_name=?,confidence=?,rationale=?,evidence_json=?,updated_at=? WHERE contact_point_id=? AND resolution_kind='reverse_phone'",
                         (entity_id,canonical_name,confidence,rationale,json.dumps(evidence,sort_keys=True),utcnow(),point_id))
             stats['matched_existing']+=1
         elif resolution=='new_organization':
-            proposed=json.dumps({'entity_type':'organization','canonical_name':canonical_name,'verification_status':confidence,'phone':number,'contact_points':contact_points,'sources':sources},sort_keys=True)
-            candidate(dst,'REVIEW_REQUIRED','contact_entities',point_id,'create_from_phone_resolution',None,proposed,rationale,point=point_id)
-            dst.execute("UPDATE identity_resolution_queue SET status='review_required',matched_entity_id=NULL,proposed_entity_name=?,confidence=?,rationale=?,evidence_json=?,updated_at=? WHERE contact_point_id=? AND resolution_kind='reverse_phone'",
-                        (canonical_name,confidence,rationale,json.dumps(evidence,sort_keys=True),utcnow(),point_id))
-            stats['new_organization_candidates']+=1
+            matches=src.execute("SELECT id FROM contact_entities WHERE entity_type='organization' AND lifecycle_status='active' AND lower(canonical_name)=lower(?) ORDER BY id",(canonical_name,)).fetchall()
+            if len(matches)>1:
+                stats['unresolved_config_entries']+=1
+                continue
+            if len(matches)==1:
+                entity_id=int(matches[0]['id'])
+                owns=_active_contact_assertion_exists(src,entity_id,point_id)
+                if not owns:
+                    candidate(dst,'AUTO_STAGE','contact_assertions',point_id,'entity_id',None,str(entity_id),rationale,entity=entity_id,point=point_id)
+                dst.execute("UPDATE identity_resolution_queue SET status='matched_existing',matched_entity_id=?,proposed_entity_name=?,confidence=?,rationale=?,evidence_json=?,updated_at=? WHERE contact_point_id=? AND resolution_kind='reverse_phone'",
+                            (entity_id,canonical_name,confidence,rationale,json.dumps(evidence,sort_keys=True),utcnow(),point_id))
+                stats['matched_existing']+=1
+            else:
+                proposed=json.dumps({'entity_type':'organization','canonical_name':canonical_name,'verification_status':confidence,'phone':number,'contact_points':contact_points,'sources':sources},sort_keys=True)
+                candidate(dst,'REVIEW_REQUIRED','contact_entities',point_id,'create_from_phone_resolution',None,proposed,rationale,point=point_id)
+                dst.execute("UPDATE identity_resolution_queue SET status='review_required',matched_entity_id=NULL,proposed_entity_name=?,confidence=?,rationale=?,evidence_json=?,updated_at=? WHERE contact_point_id=? AND resolution_kind='reverse_phone'",
+                            (canonical_name,confidence,rationale,json.dumps(evidence,sort_keys=True),utcnow(),point_id))
+                stats['new_organization_candidates']+=1
         else:
             stats['unresolved_config_entries']+=1
     return stats
