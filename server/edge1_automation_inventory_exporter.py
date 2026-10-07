@@ -12,6 +12,11 @@ CUSTOM_PREFIXES=('edge1-','wwcx-','bigbird-','ava-')
 CONTINUOUS_TOKENS=('worker','collector','poller','monitor','watch','gateway','relay','broker','sync','reconcile','maintenance','exporter','scanner','sensor')
 READ_ONLY_TOKENS=('export','status','observation','telemetry','search','readiness','summary','report','inventory','health','history','timeline','trends','correlation','briefing')
 AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archive','stager','index')
+READ_ONLY_ALLOW={
+ 'edge1-outstanding-actions.service','edge1-drift-monitor.service','edge1-backup-verification.service',
+ 'edge1-mail-restore-rehearsal.service'
+}
+AUTO_STAGE_ALLOW={'edge1-document-filing.service'}
 AUTO_FIX_ALLOW={
  'edge1-contacts-maintenance.service','edge1-egress-reconcile.service','edge1-spamhaus-refresh.service',
  'edge1-navigation-export.service','wwcx-vpn-registration-sync.service','wwcx-mail-security-scan.service',
@@ -36,6 +41,8 @@ def clean_description(value):
 def classify(unit,description):
     text=(unit+' '+description).lower()
     if unit in AUTO_FIX_ALLOW: return 'AUTO-FIX'
+    if unit in READ_ONLY_ALLOW: return 'READ-ONLY'
+    if unit in AUTO_STAGE_ALLOW: return 'AUTO-STAGE'
     if any(x in text for x in READ_ONLY_TOKENS): return 'READ-ONLY'
     if any(x in text for x in AUTO_STAGE_TOKENS): return 'AUTO-STAGE'
     return 'REVIEW-REQUIRED'
