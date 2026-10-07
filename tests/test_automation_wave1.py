@@ -28,6 +28,11 @@ class Wave1Tests(unittest.TestCase):
             self.assertEqual(sqlite3.connect(p).execute('select count(*) from t').fetchone()[0],1)
     def test_subject_normalization_collapses_reply_prefixes(self):
         self.assertEqual(actions.normalized_subject(' Re: FWD: Your library request is ready! '),'your library request is ready')
+    def test_automated_notice_families_group_related_account_notices(self):
+        self.assertEqual(actions.automated_notice_family('ACTION REQUIRED: Bell Pre-Suspension Notice'),'billing-account')
+        self.assertEqual(actions.automated_notice_family('Bell Reminder: There is a past due balance on your account.'),'billing-account')
+        self.assertEqual(actions.automated_notice_family('Sign in to your Google Account'),'account-access-security')
+        self.assertEqual(actions.automated_notice_family('Your Google Account is no longer recoverable'),'account-access-security')
     def test_outbound_check_is_commissioning_language(self):
         source=(ROOT/'tools/automation/outstanding_actions_bot.py').read_text()
         self.assertIn("'outbound check'",source)

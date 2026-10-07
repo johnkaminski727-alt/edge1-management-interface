@@ -23,6 +23,16 @@ def normalized_subject(value):
         if newer==text: break
         text=newer
     return text.strip(' .!-_')
+def automated_notice_family(subject, text=''):
+    combined=(' '.join([str(subject or ''),str(text or '')])).casefold()
+    if any(x in combined for x in ('past due','pre-suspension','suspension','payment declined','amount due','e-bill','balance on your account')):
+        return 'billing-account'
+    if any(x in combined for x in ('security alert','no longer recoverable','account locked','sign in to your google account','google account')):
+        return 'account-access-security'
+    if any(x in combined for x in ('request is ready','request ready','ready for pickup','ready for pick up')):
+        return 'request-ready'
+    return normalized_subject(subject)
+
 def age_hours(value):
     try:return (datetime.now(timezone.utc)-datetime.fromisoformat(str(value).replace('Z','+00:00'))).total_seconds()/3600
     except Exception:return None
@@ -50,7 +60,7 @@ def mail_actions(limit=40):
     exclude=('auth check','outbound check','dkim','commissioning','test message','acceptance','pilot')
     promotional=('unsubscribe','last chance','% off','discount','special offer','launches in','privacy policy','terms of service','premium offer')
     automated_localparts=('noreply','no-reply','no_reply','notifications','notices','ebill','recommendations','payments-noreply')
-    seen_action_threads=set(); seen_automated_notices=set()
+    seen_action_threads=set(); automated_groups={}
     for r in rows:
         if r['direction']!='inbound' or midhash(r['message_id']) not in released: continue
         subject=(r['subject'] or '').strip(); body=(r['body_text'] or '')[:4000]; text=(subject+' '+body).lower(); sender=(r['sender'] or '').lower(); local=sender.split('@',1)[0]
@@ -62,16 +72,35 @@ def mail_actions(limit=40):
         if needs_reply and outbound_latest.get(r['thread_id'],'') > (r['occurred_at'] or ''): continue
         thread_key=(r['thread_id'] or '').strip()
         if thread_key and thread_key in seen_action_threads: continue
+        group_key=None
         if automated:
-            notice_key=(sender,normalized_subject(subject))
-            if notice_key[1] and notice_key in seen_automated_notices: continue
-            if notice_key[1]: seen_automated_notices.add(notice_key)
+            family=automated_notice_family(subject,text)
+            group_key=(sender,family) if family else None
+            if group_key and group_key in automated_groups:
+                existing=automated_groups[group_key]
+                existing['evidence_count']=int(existing.get('evidence_count',1))+1
+                evidence='mail-room:message:'+midhash(r['message_id'])
+                existing.setdefault('related_evidence',[]).append(evidence)
+                continue
         if thread_key: seen_action_threads.add(thread_key)
         priority='high' if any(x in text for x in ('urgent','asap','deadline','past due','pre-suspension','suspension','payment declined','action required')) else 'medium'
         if not keep_active_mail_action(priority,r['occurred_at']): continue
         detail=(f"Reply likely needed to {r['sender']}" if needs_reply else f"Review/action likely needed from automated message by {r['sender']}")
-        actions.append({'id':'mail:'+midhash(r['message_id']),'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':'mail-room:message:'+midhash(r['message_id']),'action_level':'REVIEW-REQUIRED'})
+        evidence='mail-room:message:'+midhash(r['message_id'])
+        action_id='mail:'+midhash(r['message_id'])
+        extra={}
+        if automated and group_key:
+            stable=hashlib.sha256((group_key[0]+'|'+group_key[1]).encode()).hexdigest()
+            action_id='mail-group:'+stable
+            extra={'evidence_count':1,'related_evidence':[evidence],'notice_family':group_key[1]}
+        action={'id':action_id,'source':'mail','priority':priority,'title':subject or '(no subject)','detail':detail,'occurred_at':r['occurred_at'],'evidence':evidence,'action_level':'REVIEW-REQUIRED',**extra}
+        actions.append(action)
+        if automated and group_key: automated_groups[group_key]=action
         if len(actions)>=limit: break
+    for action in actions:
+        count=int(action.get('evidence_count',1))
+        if count>1:
+            action['detail']=f"{count} related automated notices grouped together; review the latest notice and supporting evidence."
     return actions,'available'
 
 def contacts_actions():
