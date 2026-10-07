@@ -24,6 +24,9 @@ declare -a FILES=(
   "src/web/operator-shell/shell.js|operator-shell/shell.js"
   "config/edge1_operator/navigation_registry.json|operator-shell/navigation.json"
   "src/web/edge1-ops/ava/index.html|ava/index.html"
+  "src/web/time-authority/index.html|time-authority/index.html"
+  "src/web/time-authority/app.js|time-authority/app.js"
+  "src/web/time-authority/styles.css|time-authority/styles.css"
 )
 
 NAV_DB=/var/lib/edge1-navigation/navigation.sqlite3
