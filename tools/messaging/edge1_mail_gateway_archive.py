@@ -367,7 +367,7 @@ def archive_and_normalize(
         parsed=BytesParser(policy=policy.default).parsebytes(raw,headersonly=True)
         from mail_edge1_gateway_source import _date
         try:_date(parsed)
-        except Edge1MailGatewaySourceError:metadata['normalization']['date_source']='local_archive_receipt' 
+        except Edge1MailGatewaySourceError:metadata['normalization']['date_source']='local_archive_receipt'
     except (Edge1MailGatewaySourceError, OSError, ValueError) as exc:
         metadata["normalization"] = {
             "status": "held",
