@@ -129,6 +129,38 @@ def _schedule(unit):
         if line.startswith(allowed) and line not in values: values.append(line)
     return '; '.join(values)[:500] or None
 
+def synthetic_status(item):
+    if not item.get('custom'):
+        return None
+    enabled=str(item.get('enabled') or '').lower()
+    last_result=item.get('last_result')
+    service_state=item.get('service_state')
+    timer_state=item.get('state')
+    if enabled in {'disabled','masked'}:
+        state='disabled'
+    elif service_state=='failed' or last_result not in (None,'','success'):
+        state='attention'
+    elif timer_state=='active':
+        state='healthy'
+    else:
+        state='unknown'
+    slug=(item.get('service') or item.get('timer') or 'automation').removesuffix('.service').removesuffix('.timer')
+    return {
+      'slug':slug,
+      'available':True,
+      'synthetic':True,
+      'state':state,
+      'generated_at':dt.datetime.now(dt.timezone.utc).isoformat(),
+      'summary':{
+        'enabled':item.get('enabled'),
+        'timer_state':timer_state,
+        'service_state':service_state,
+        'last_result':last_result or 'success/unknown',
+        'next_run':item.get('next_run'),
+      },
+    }
+
+
 def timer_inventory():
     names=run('systemctl','list-unit-files','--type=timer','--no-legend','--no-pager').splitlines()
     try:
@@ -144,7 +176,7 @@ def timer_inventory():
         rt=timing.get(unit,{})
         service=p.get('Unit') or rt.get('activates') or (unit[:-6]+'.service' if unit.endswith('.timer') else '')
         sp=props(service,'Description','ActiveState','SubState','Result','ExecMainStatus') if service else {}
-        timers.append({
+        item={
           'timer':unit,'description':clean_description(p.get('Description')),'state':p.get('ActiveState','unknown'),
           'enabled':p.get('UnitFileState') or unit_file_state,'next_run':_stamp(rt.get('next')),
           'last_run':_stamp(rt.get('last')),'schedule':_schedule(unit),
@@ -153,8 +185,9 @@ def timer_inventory():
           'last_result':sp.get('Result') or None,'exit_status':sp.get('ExecMainStatus') or None,
           'action_level':classify(service or unit,sp.get('Description') or p.get('Description','')),
           'custom':unit.startswith(CUSTOM_PREFIXES),
-          'bot_status':status_projection(service),
-        })
+        }
+        item['bot_status']=status_projection(service) or synthetic_status(item)
+        timers.append(item)
     timers.sort(key=lambda x:(not x['custom'],x['timer']))
     return timers
 

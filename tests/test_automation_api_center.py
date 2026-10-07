@@ -26,6 +26,19 @@ class AutomationApiCenterTests(unittest.TestCase):
         mods=sorted(data['modules'],key=lambda m:(m['sort_order'],m['section'],m['label']))
         self.assertEqual([m['id'] for m in mods[:2]],['contacts-relationships','ava-agent'])
         ids={m['id'] for m in mods}; self.assertIn('automation-center',ids); self.assertIn('api-directory',ids)
+
+    def test_synthetic_status_covers_custom_timer_without_feed(self):
+        item={
+            "timer":"edge1-example.timer", "service":"edge1-example.service",
+            "custom":True, "enabled":"enabled", "state":"active",
+            "service_state":"inactive", "last_result":"success", "next_run":"soon",
+        }
+        result=auto.synthetic_status(item)
+        self.assertTrue(result["available"])
+        self.assertTrue(result["synthetic"])
+        self.assertEqual(result["state"],"healthy")
+        self.assertEqual(result["slug"],"edge1-example")
+
     def test_ui_assets_use_operator_shell_and_inventory(self):
         for page,module in [('automation-center','automation-center'),('api-directory','api-directory')]:
             html=(ROOT/f'src/web/{page}/index.html').read_text()
