@@ -225,8 +225,13 @@ def mail_room_read(payload: dict[str, Any]) -> tuple[str, list[dict[str, Any]], 
     elif "unread" in lowered:
         folder = "unread"
     params = {"folder": folder}
-    generic = {"triage the inbox", "triage inbox", "inbox", "mail room", "mailroom", "email", "mail"}
-    if lowered not in generic and len(routing) <= 120:
+    # Inbox/triage language requests a mailbox view, not a literal subject search.
+    # Only explicit search/find/lookup language should become a Mail Room q filter.
+    explicit_search = any(token in lowered for token in (
+        "find email", "find mail", "search email", "search mail", "look up email",
+        "lookup email", "from:", "subject:", "sender:",
+    ))
+    if explicit_search and len(routing) <= 120:
         params["q"] = routing
     url = MAIL_ROOM_READ_URL + "?" + urllib.parse.urlencode(params)
     request = urllib.request.Request(url, method="GET", headers={"X-Ava-Mail-Read-Key": key})
@@ -275,6 +280,11 @@ def mail_room_read(payload: dict[str, Any]) -> tuple[str, list[dict[str, Any]], 
             f"Body excerpt: {excerpt[:2400]}"
         )
     context = "\n\n".join(blocks)
+    if not sources:
+        context = (
+            "MAIL ROOM RESULT: The selected local Mail Room view returned no matching messages. "
+            "Do not ask for a Gmail account unless the user explicitly requested Gmail."
+        )
     return context[:18000], sources, None
 
 
