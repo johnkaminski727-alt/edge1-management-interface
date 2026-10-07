@@ -13,7 +13,7 @@ AUDIT=STATE/'audit.jsonl'
 STATUS=STATE/'status.json'
 DKIM_FILE=pathlib.Path('/var/lib/wwcx-mail-gateway/wwcx-edge1-202610-dkim.txt')
 OLD_SPF='v=spf1 include:spf.privateemail.com ~all'
-NEW_SPF='v=spf1 ip4:89.126.248.191 include:spf.privateemail.com ~all'
+NEW_SPF='v=spf1 ip4:89.126.248.191 ~all'
 DMARC='v=DMARC1; p=none; rua=mailto:dmarc@ww.cx; adkim=r; aspf=r; pct=100'
 MAIL_IP='89.126.248.191'
 
