@@ -1,0 +1,9 @@
+[Unit]
+Description=Audit Edge1 security baseline every ten minutes
+[Timer]
+OnBootSec=12min
+OnUnitActiveSec=10min
+Persistent=true
+Unit=edge1-security-baseline.service
+[Install]
+WantedBy=timers.target

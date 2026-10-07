@@ -31,6 +31,7 @@ STATUS_ALIASES={
  'edge1-outstanding-actions.service':'outstanding-actions',
  'edge1-seo-audit.service':'seo-audit',
  'edge1-service-self-heal.service':'service-self-heal',
+ 'edge1-security-baseline.service':'security-baseline',
  'edge1-storage-health.service':'storage-health',
  'edge1-website-health.service':'website-health',
  'edge1-weekly-executive-briefing.service':'executive-briefing',
@@ -73,7 +74,7 @@ AUTO_STAGE_TOKENS=('candidate','intake','import','scan','classification','archiv
 READ_ONLY_ALLOW={
  'edge1-outstanding-actions.service','edge1-drift-monitor.service','edge1-backup-verification.service',
  'edge1-mail-restore-rehearsal.service','edge1-certificate-expiry.service','edge1-storage-health.service',
- 'edge1-weekly-executive-briefing.service','edge1-mail-domain-health.service','edge1-knowledge-consolidation.service','edge1-website-health.service','edge1-seo-audit.service'
+ 'edge1-weekly-executive-briefing.service','edge1-mail-domain-health.service','edge1-knowledge-consolidation.service','edge1-website-health.service','edge1-seo-audit.service','edge1-security-baseline.service'
 }
 AUTO_STAGE_ALLOW={'edge1-document-filing.service'}
 AUTO_FIX_ALLOW={
