@@ -22,6 +22,7 @@ FREE_DOMAINS={'gmail.com','outlook.com','hotmail.com','live.com','yahoo.com','ic
 EMAIL_RE=re.compile(r'(?<![\w.+-])([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})(?![\w.-])',re.I)
 PHONE_RE=re.compile(r'(?<!\d)(\+?\d[\d().\-\s]{6,}\d)(?!\d)')
 POSTAL_RE=re.compile(r'\b([ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ][ -]?\d[ABCEGHJ-NPRSTVWXYZ]\d)\b',re.I)
+PROVINCE_RE=r'(?:Alberta|British Columbia|Manitoba|New Brunswick|Newfoundland(?: and Labrador)?|Nova Scotia|Ontario|Prince Edward Island|Quebec|Québec|Saskatchewan|Northwest Territories|Nunavut|Yukon|AB|BC|MB|NB|NL|NS|NT|NU|ON|PE|QC|SK|YT)'
 TAG_RE=re.compile(r'<[^>]+>')
 SCRIPT_RE=re.compile(r'<(script|style)\b[^>]*>.*?</\1>',re.I|re.S)
 
@@ -93,6 +94,27 @@ def relevant_name(text,name):
     words=[w.casefold() for w in re.findall(r'[A-Za-z0-9]+',name or '') if len(w)>=4 and w.casefold() not in {'incorporated','limited','corporation','company'}]
     low=text.casefold()
     return bool(words and any(w in low for w in words[:4]))
+def concise_address(text, match):
+    compact=re.sub(r'\s','',match.group(1).upper())
+    if len(compact)!=6:
+        return None
+    formatted=compact[:3]+' '+compact[3:]
+    postal_pattern=re.escape(compact[:3])+r'[ -]?'+re.escape(compact[3:])
+    a=max(0,match.start()-180); b=min(len(text),match.end()+28); snippet=text[a:b]
+    name_chars=r"[A-Za-z][A-Za-z .'-]"
+    po_pattern=(r"\b((?:P\.?\s*O\.?\s*Box|PO Box|Box)\s+\d+[A-Za-z0-9-]*\s*,?\s+"
+                +name_chars+r"{1,55},?\s+"+PROVINCE_RE+r"\s+"+postal_pattern+r"(?:\s+Canada)?)\b")
+    po=re.search(po_pattern,snippet,re.I)
+    if po:
+        value=re.sub(r'\s+',' ',po.group(1)).strip(' ,.;')
+        return POSTAL_RE.sub(formatted,value,count=1)
+    street_pattern=(r"\b(\d{1,6}\s+[A-Za-z0-9 .'#-]{2,70}?(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Highway|Hwy\.?|Lane|Ln\.?|Court|Ct\.?)"
+                    r"\s*,?\s+"+name_chars+r"{1,45},?\s+"+PROVINCE_RE+r"\s+"+postal_pattern+r"(?:\s+Canada)?)\b")
+    street=re.search(street_pattern,snippet,re.I)
+    if street:
+        value=re.sub(r'\s+',' ',street.group(1)).strip(' ,.;')
+        return POSTAL_RE.sub(formatted,value,count=1)
+    return None
 
 def extract_page(raw,url,base):
     text=clean_text(raw); low=text.casefold(); result={'emails':set(),'phones':set(),'postals':{},'text':text[:12000],'url':url}
@@ -103,8 +125,8 @@ def extract_page(raw,url,base):
         value=norm_phone(m.group(1))
         if value: result['phones'].add(value)
     for m in POSTAL_RE.finditer(text):
-        code=re.sub(r'\s','',m.group(1).upper()); a=max(0,m.start()-110); b=min(len(text),m.end()+80)
-        result['postals'][code]=text[a:b].strip()[:260]
+        code=re.sub(r'\s','',m.group(1).upper()); address=concise_address(text,m)
+        if address: result['postals'][code]=address
     return result
 
 def known_domains(db,entity_id):

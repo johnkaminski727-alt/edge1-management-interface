@@ -16,6 +16,16 @@ class ContactEnrichmentResearchTests(unittest.TestCase):
         self.assertIn('S4P3Y2',page['postals'])
         self.assertNotIn('evil@example.com',page['emails'])
 
+    def test_address_is_concise_not_surrounding_page_prose(self):
+        raw='<html><body>Support text before. Mail OmegaFX Marketing Group Inc. PO Box 333 Invermay, Saskatchewan S0A 1M0 Canada Product support text after.</body></html>'
+        page=extract_page(raw,'https://omegafx.com/contact','omegafx.com')
+        self.assertEqual(page['postals']['S0A1M0'], 'PO Box 333 Invermay, Saskatchewan S0A 1M0 Canada')
+
+    def test_postal_code_without_parseable_address_is_not_staged(self):
+        raw='<html><body>Example Clinic serves postal region S4P 3Y2. No mailing address is published.</body></html>'
+        page=extract_page(raw,'https://example.com/contact','example.com')
+        self.assertNotIn('S4P3Y2',page['postals'])
+
     def test_unique_contact_page_candidate_can_be_staged(self):
         page={'name_relevant':True,'phones':{'+13065551212'},'emails':set(),'postals':{},'url':'https://example.com/contact','text':'Example Clinic'}
         result=choose('find_phone',[page],'example.com','Example Clinic')
