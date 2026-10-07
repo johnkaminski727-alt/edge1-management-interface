@@ -47,6 +47,7 @@ SAFE_SUMMARY_KEYS={
  'domains','expiring_180d','expiring_60d','expiring_30d','lookup_failures','nearest_expiry_days',
  'pending_updates','security_updates','kernel_updates','persistent_failed_units','transient_failed_units','reboot_required','apt_metadata_age_hours',
  'repaired_verified','transient_failures_cleared','failed_now',
+ 'git_metadata_root_owned_before','tracked_source_mismatches_before','repairs_applied','deferred_dirty','deferred_sensitive','remaining_auto_repairable',
 }
 
 def _safe_scalar(value):

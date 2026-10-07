@@ -1,5 +1,5 @@
 [Unit]
-Description=Guarded Edge1 Git metadata ownership hygiene
+Description=Guarded Edge1 Git and tracked source ownership hygiene
 After=local-fs.target
 [Service]
 Type=oneshot
@@ -12,3 +12,5 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/opt/edge1-management-interface/.git /var/lib/edge1-git-hygiene /var/www/edge1-status/git-hygiene
+ReadWritePaths=/opt/edge1-management-interface/server /opt/edge1-management-interface/tools /opt/edge1-management-interface/tests /opt/edge1-management-interface/deploy /opt/edge1-management-interface/src /opt/edge1-management-interface/docs /opt/edge1-management-interface/bin
+ReadWritePaths=-/opt/edge1-management-interface/config/automation -/opt/edge1-management-interface/config/edge1_operator
