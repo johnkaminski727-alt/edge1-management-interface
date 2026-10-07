@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering","readiness"];
-  let mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
+  let selectedKey="",current_actions=null,listItems=[],mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
     const r=await fetch(api+path,{credentials:"same-origin",cache:"no-store",...(data===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-Mail-Room-Request":"1"},body:JSON.stringify(data)})});
@@ -12,6 +12,10 @@
   }
   function element(tag,text,className){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
   function safely(fn){return(...args)=>{if(args[0]?.type==="submit")args[0].preventDefault();return Promise.resolve().then(()=>fn(...args)).catch(e=>say(e.message));};}
+  function senderName(sender){const m=(sender||"").match(/^\s*"?([^"<]*?)"?\s*<([^<>]+)>/);return m?(m[1].trim()||m[2]):(sender||"(Unknown sender)");}
+  function shortDate(value){const d=new Date(value);if(isNaN(d))return "";const now=new Date();if(d.toDateString()===now.toDateString())return d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});return d.toLocaleDateString([],d.getFullYear()===now.getFullYear()?{month:"short",day:"numeric"}:{year:"numeric",month:"short",day:"numeric"});}
+  function showReader(on){document.querySelector(".workspace").classList.toggle("reading",on);if(on)document.querySelector(".reader").scrollTop=0;}
+  function section(title,open=false){const d=element("details","","side-section");d.open=open;d.append(element("summary",title));return d;}
   function canLeave(){return !dirty||window.confirm("Leave this unsaved draft? Save it first to keep your changes.");}
   function selected(){
     const address=$("from").value, known=senders?.senders.find(s=>s.address===address);
@@ -54,16 +58,23 @@
     try{const d=await request("drafts",{id:draftId,payload:snapshot});if(session===editorSession){draftId=d.id;dirty=JSON.stringify(payload())!==JSON.stringify(snapshot);$("saved").textContent=dirty?"Saved earlier version · New changes not saved":"Saved on Edge1 · "+new Date(d.updated).toLocaleString();}if(!quiet)say("Draft saved. Nothing sent.");return d;}finally{saving=false;}
   }
   function changed(){dirty=true;$("prepared").hidden=true;$("saved").textContent="Unsaved changes · Autosave pending";clearTimeout(autosave);autosave=setTimeout(()=>save(true).catch(e=>{say(e.message);$("saved").textContent="Autosave failed · Unsaved text is still here";}),1500);}
-  function renderMail(m,container){
-    const a=element("article","","thread-message");a.append(element("h2",m.subject||"(No subject)"));const meta=element("div","","mail-meta");meta.append(element("p","From: "+m.sender),element("p","Original recipients: "+(m.recipients||[]).join(", ")),element("p",new Date(m.occurred_at).toLocaleString()));
+  function renderMail(m,container,open=true){
+    const a=element("details","","thread-message");a.open=open;const head=element("summary","");head.append(element("strong",senderName(m.sender)),element("span",new Date(m.occurred_at).toLocaleString()));a.append(head);
+    const meta=element("div","","mail-meta");meta.append(element("p","From: "+m.sender),element("p","To: "+(m.recipients||[]).join(", ")));
     const email=(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1];const link=element("a","Find sender in Contacts");link.href="/edge1-ops/contacts/?q="+encodeURIComponent(email);link.target="_blank";link.rel="noopener";meta.append(link);a.append(meta,element("div",m.body_text||"(No plain-text body)","mail-text"));container.append(a);
+  }
+  function securityBadges(decision){
+    const auth=decision.authentication||{},row=element("div","","security-badges"),state=v=>/^pass/i.test(v||"")?" pass":/fail|reject/i.test(v||"")?" fail":"";
+    row.append(element("span","Security: "+decision.state,"badge"+(decision.state==="released"?" pass":" fail")));
+    for(const k of ["spf","dkim","dmarc"])row.append(element("span",k.toUpperCase()+" "+(auth[k]||"not verified"),"badge"+state(auth[k])));
+    return row;
   }
   function securityDetails(decision, container){
     if(decision.operator_report)container.append(element("p",decision.operator_report==="phishing"?"Reported phishing · Awaiting confirmation":decision.operator_report==="confirmed_phishing"?"Confirmed phishing":decision.operator_report.startsWith("reviewed_release:")?"Released after manual review":"Operator classification: "+decision.operator_report.replaceAll("_"," ")));
-    container.append(element("h2", "Security · "+decision.state),element("p", "Sender: "+(decision.authentication?.status||"not_verified").replaceAll("_"," ")),element("p", "SPF: "+(decision.authentication?.spf||"not verified")+" · DKIM: "+(decision.authentication?.dkim||"not verified")+" · DMARC: "+(decision.authentication?.dmarc||"not verified")),element("p", (decision.reasons||[]).join(" · ").replaceAll("_"," ")),element("p", "Domain authentication does not verify the person or guarantee safe content.", "small"));
+    container.append(element("p", "State: "+decision.state),element("p", "Sender: "+(decision.authentication?.status||"not_verified").replaceAll("_"," ")),element("p", "SPF: "+(decision.authentication?.spf||"not verified")+" · DKIM: "+(decision.authentication?.dkim||"not verified")+" · DMARC: "+(decision.authentication?.dmarc||"not verified")),element("p", (decision.reasons||[]).join(" · ").replaceAll("_"," ")),element("p", "Domain authentication does not verify the person or guarantee safe content.", "small"));
   }
   function securityActions(m, container, decision){
-    const actions=element("div","","actions");
+    const actions=container;
     for(const [label,action] of [["Spam","spam"],["Not spam","not_spam"],["Report phishing","phishing"],...(decision?.state==="quarantine"?[["Confirm phishing","confirmed_phishing"],["Release after review","release"]]:[])]){
       const b=element("button",label);b.type="button";
       b.onclick=safely(async()=>{
@@ -78,32 +89,42 @@
         $("reading").replaceChildren(element("h2","Message moved to "+result.state));await load();
         say(interacted?"Phishing reported. Stop interacting with the message. If you entered a password, change it through the service’s known website and revoke active sessions; if you opened a file, arrange a device security check.":"Security classification saved. Related messages flagged: "+result.related_flagged);
       });actions.append(b);
-    }container.append(actions);
+    }
   }
   async function openMessage(m){
     if(!canLeave())return;const current=++generation;
     const decision=await request("security/"+encodeURIComponent(m.message_id));
     if(current!==generation)return;
     if(decision.state!=="released"){
-      clearTimeout(autosave);$("editor").hidden=true;dirty=false;$("reading").replaceChildren(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender));securityDetails(decision,$("reading"));
+      clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);current_actions=null;
+      const head=element("div","","reading-head"),bar=element("div","","toolbar");head.append(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender),bar,securityBadges(decision));$("reading").replaceChildren(head);
+      const sec=section("Security details",true);securityDetails(decision,sec);$("reading").append(sec);
       const review=element("button","Review plain text without AVA");review.onclick=safely(async()=>{
         if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
         const result=await request("review",{message_id:m.message_id,acknowledged:true});
         const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;
-      });$("reading").append(review);securityActions(m,$("reading"),decision);say("Held mail stays outside AVA and the normal inbox.");return;
+      });bar.append(review);securityActions(m,bar,decision);say("Held mail stays outside AVA and the normal inbox.");return;
     }
     say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
-    clearTimeout(autosave);$("editor").hidden=true;dirty=false;$("reading").replaceChildren();for(const item of data.thread.messages)renderMail(item,$("reading"));
-    securityDetails(decision,$("reading"));securityActions(m,$("reading"),decision);
-    const actions=element("div","","actions"),reply=element("button","Draft a reply"),archive=element("button",m.archived?"Move to inbox":"Archive"),read=element("button","Mark unread"),tag=element("button","Edit tags");
+    clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);
+    const head=element("div","","reading-head"),bar=element("div","","toolbar"),msgs=data.thread.messages;head.append(element("h2",m.subject||"(No subject)"),bar,securityBadges(decision));$("reading").replaceChildren(head);
+    if(msgs.length>1)$("reading").append(element("p",msgs.length+" messages in this thread · earlier messages are collapsed","small"));
+    msgs.forEach((item,i)=>renderMail(item,$("reading"),i===msgs.length-1));
+    const reply=element("button","Reply","primary"),archive=element("button",m.archived?"Move to inbox":"Archive"),read=element("button","Mark unread"),tag=element("button","Tags");
+    reply.title="Draft a reply (r)";archive.title="Archive (e)";
     const replyData=()=>({to:[(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1]],subject:/^re:/i.test(m.subject)?m.subject:"Re: "+m.subject,original_recipient:m.recipients.length===1?m.recipients[0]:"",thread_id:m.thread_id,source_message_id:m.message_id,in_reply_to:m.message_id});
-    reply.onclick=()=>showEditor(replyData());archive.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,archived:!m.archived});await load();say(m.archived?"Moved to inbox.":"Archived in Mail Room. Source mail is retained.");});read.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,is_read:false});await load();say("Marked unread.");});tag.onclick=safely(async()=>{const text=window.prompt("Tags, separated by commas",(m.tags||[]).join(", "));if(text===null)return;await request("flags",{message_id:m.message_id,tags:text.split(",").map(t=>t.trim()).filter(Boolean)});await load();say("Tags saved.");});actions.append(reply,archive,read,tag);$("reading").append(actions);
-    const box=element("section","","assistant-box");box.append(element("h2","AVA assistance"),element("p","Ask AVA’s configured model to review this thread. Suggestions stay editable; nothing is sent or applied automatically."));const summary=element("button","Summarize thread"),suggest=element("button","Suggest reply"),output=element("pre",""),use=element("button","Use suggestion in a draft");use.hidden=true;
+    reply.onclick=()=>showEditor(replyData());archive.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,archived:!m.archived});await load();say(m.archived?"Moved to inbox.":"Archived in Mail Room. Source mail is retained.");});read.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,is_read:false});await load();say("Marked unread.");});tag.onclick=safely(async()=>{const text=window.prompt("Tags, separated by commas",(m.tags||[]).join(", "));if(text===null)return;await request("flags",{message_id:m.message_id,tags:text.split(",").map(t=>t.trim()).filter(Boolean)});await load();say("Tags saved.");});
+    bar.append(reply,archive,read,tag,element("span","","sep"));securityActions(m,bar,decision);current_actions={reply,archive};
+    const sec=section("Security details");securityDetails(decision,sec);
+    const box=section("AVA assistance");box.append(element("p","Ask AVA’s configured model to review this thread. Suggestions stay editable; nothing is sent or applied automatically."));const summary=element("button","Summarize thread"),suggest=element("button","Suggest reply"),output=element("pre",""),use=element("button","Use suggestion in a draft");use.hidden=true;
     for(const [b,operation] of [[summary,"summary"],[suggest,"reply"]])b.onclick=safely(async()=>{summary.disabled=suggest.disabled=true;use.hidden=true;output.textContent="AVA is reviewing the thread…";try{const d=await request("assist",{operation,thread_id:m.thread_id});output.textContent=d.text+(d.truncated_context?"\n\nOnly the latest bounded excerpts were reviewed.":"");use.hidden=operation!=="reply";use.onclick=()=>showEditor({...replyData(),body:d.text});}finally{summary.disabled=suggest.disabled=false;}});
-    box.append(summary,suggest,output,use);$("reading").append(box);
+    const tools=element("div","","actions");tools.append(summary,suggest);box.append(tools,output,use);$("reading").append(box,sec);
     await request("flags",{message_id:m.message_id,is_read:true});
-    const attachments=await request("attachments/"+encodeURIComponent(m.message_id));const check=element("section","","assistant-box");check.append(element("h2","Attachment checks"));check.append(element("p",attachments.indexed===false?"Attachment inventory not yet indexed. Downloads blocked.":attachments.attachments.length?"Downloads remain disabled pending attachment acceptance.":"No attachments found in the native archive."));for(const a of attachments.attachments)check.append(element("p",a.filename+" · "+Math.ceil(a.size_bytes/1024)+" KB · "+a.state.replaceAll("_"," ")));$("reading").append(check);say("Thread opened. Email content is displayed as plain text.");
+    const attachments=await request("attachments/"+encodeURIComponent(m.message_id));const check=section("Attachments"+(attachments.attachments.length?" ("+attachments.attachments.length+")":""),attachments.attachments.length>0);check.append(element("p",attachments.indexed===false?"Attachment inventory not yet indexed. Downloads blocked.":attachments.attachments.length?"Downloads remain disabled pending attachment acceptance.":"No attachments found in the native archive."));for(const a of attachments.attachments)check.append(element("p",a.filename+" · "+Math.ceil(a.size_bytes/1024)+" KB · "+a.state.replaceAll("_"," ")));$("reading").append(check);say("Thread opened. Email content is displayed as plain text.");
   }
+  function select(b){for(const x of listItems)x.classList.toggle("selected",x===b);selectedKey=b.dataset.key;b.scrollIntoView({block:"nearest"});}
+  function step(delta){if(!listItems.length)return;const i=listItems.findIndex(b=>b.classList.contains("selected"));const next=listItems[Math.min(listItems.length-1,Math.max(0,i<0?0:i+delta))];if(next&&!next.classList.contains("selected"))next.click();}
+  function updateFilterCount(){let n=0;for(const [k,v] of new FormData($("search")))if(k!=="q"&&v&&!(k==="room"&&v==="all")&&!(k==="folder"&&v==="inbox"))n++;$("filter-count").textContent=n?"("+n+" active)":"";}
   async function load(){
     const current=++generation;$("list").replaceChildren(element("p","Loading…"));const filters=new URLSearchParams(new FormData($("search")));filters.set("offset",offset);
     if(mode==="readiness"){
@@ -158,14 +179,28 @@
       if(!reports.dates.length)$("list").append(element("p","First report is being generated."));$("previous").disabled=$("next").disabled=true;$("page").textContent="Saskatchewan time";return;
     }
     const result=await request(mode==="inbox"?"messages?"+filters:mode==="drafts"?"drafts":"activity");if(current!==generation)return;const items=mode==="inbox"?result.messages:mode==="drafts"?result.drafts:result.events;more=!!result.has_more;$("list").replaceChildren();
-    for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));b.append(element("strong",m.subject||"(No subject)"),element("span",mode==="inbox"?m.sender:mode==="drafts"?"Saved draft":"Prepared · not sent"),element("span",new Date(m.occurred_at||m.updated).toLocaleString()));if(m.tags?.length)b.append(element("span",m.tags.join(" · ")));b.onclick=safely(()=>mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>showEditor(d.payload,d.id)));$("list").append(b);}
+    listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":"Prepared · not sent","who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
+    const keep=listItems.find(b=>b.dataset.key&&b.dataset.key===selectedKey);if(keep)keep.classList.add("selected");
     if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages. Provider intake is pending.":mode==="drafts"?"No saved drafts yet.":"No prepared messages yet. Sending and provider delivery receipts remain unavailable."));
     $("previous").disabled=offset===0||mode!=="inbox";$("next").disabled=!more||mode!=="inbox";$("page").textContent=mode==="inbox"?"Page "+(offset/25+1):"Latest 100";
   }
-  $("search").onsubmit=safely(()=>{offset=0;return load();});
-  for(const name of views)$(name).onclick=safely(()=>{mode=name;offset=0;$("search").hidden=name!=="inbox";for(const n of views)$(n).classList.toggle("active",n===name);return load();});
+  $("search").onsubmit=safely(()=>{offset=0;updateFilterCount();return load();});$("search").onchange=e=>{if(e.target.tagName==="SELECT")$("search").requestSubmit();};
+  $("list").addEventListener("click",e=>{if(e.target.closest(".message"))showReader(true);});
+  $("back").onclick=()=>{if(!$("editor").hidden&&!canLeave())return;showReader(false);};
+  document.addEventListener("keydown",e=>{
+    if(e.ctrlKey||e.metaKey||e.altKey)return;const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.isContentEditable;
+    if(e.key==="Escape"){if(typing)e.target.blur();else if(document.querySelector(".workspace.reading"))$("back").click();return;}
+    if(typing)return;
+    const ready=current_actions&&$("editor").hidden&&current_actions.reply.isConnected;
+    if(e.key==="/"){e.preventDefault();$("search").elements.q.focus();}
+    else if(e.key==="j"){e.preventDefault();step(1);}
+    else if(e.key==="k"){e.preventDefault();step(-1);}
+    else if(e.key==="r"&&ready)current_actions.reply.click();
+    else if(e.key==="e"&&ready)current_actions.archive.click();
+  });
+  for(const name of views)$(name).onclick=safely(()=>{mode=name;current_actions=null;offset=0;$("search").hidden=name!=="inbox";for(const n of views)$(n).classList.toggle("active",n===name);return load();});
   $("previous").onclick=safely(()=>{offset=Math.max(0,offset-25);return load();});$("next").onclick=safely(()=>{offset+=25;return load();});
-  $("compose").onclick=()=>showEditor();$("close").onclick=()=>{if(canLeave()){clearTimeout(autosave);$("editor").hidden=true;dirty=false;editorSession++;}};
+  $("compose").onclick=()=>{showReader(true);showEditor();};$("close").onclick=()=>{if(canLeave()){clearTimeout(autosave);$("editor").hidden=true;dirty=false;editorSession++;}};
   $("editor").addEventListener("invalid",()=>{$("editor").querySelector("details").open=true;},true);$("editor").oninput=changed;
   $("from").onchange=()=>{signature(true);changed();};$("editor").elements.original_recipient.onchange=()=>{senderChoices($("editor").elements.original_recipient.value);signature();changed();};
   $("save").onclick=safely(()=>{clearTimeout(autosave);return save();});
