@@ -1,0 +1,17 @@
+[Unit]
+Description=Publish completed-day Mail Room and operations briefing for Ava
+After=edge1-mail-contact-intake.service wwcx-mail-room-daily-summary.service edge1-private-library-search.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/messaging/ava_daily_mail_briefing.py --json
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/wwcx-mail-room /var/lib/wwcx-mail-security /var/lib/edge1-contacts-maintenance /var/lib/wwcx-mail-room-reports /var/lib/wwcx-mail-intelligence
+ReadWritePaths=/var/lib/wwcx-daily-briefings /var/lib/bigbird-ai-library

@@ -1,0 +1,11 @@
+[Unit]
+Description=Publish the previous day briefing for Ava
+
+[Timer]
+OnCalendar=*-*-* 00:20:00 America/Regina
+RandomizedDelaySec=10m
+Persistent=true
+Unit=edge1-ava-daily-briefing.service
+
+[Install]
+WantedBy=timers.target

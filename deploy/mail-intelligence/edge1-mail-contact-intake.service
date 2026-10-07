@@ -1,0 +1,17 @@
+[Unit]
+Description=Extract Mail Room contact evidence for Unified Contacts maintenance
+After=wwcx-mail-room.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/messaging/mail_room_contact_extract.py --json --limit 5000
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/lib/wwcx-mail-room /var/lib/wwcx-mail-room-drafts /var/lib/wwcx-mail-security /var/lib/wwcx-mail-gateway/inbound
+ReadWritePaths=/var/lib/edge1-contacts-maintenance /var/lib/wwcx-mail-intelligence

@@ -51,6 +51,23 @@ CREATE INDEX IF NOT EXISTS idx_findings_status ON maintenance_findings(status, f
 CREATE INDEX IF NOT EXISTS idx_enrichment_status ON enrichment_queue(status, task_type);
 CREATE INDEX IF NOT EXISTS idx_candidate_status ON candidate_changes(status, action_level);
 CREATE INDEX IF NOT EXISTS idx_remediation_run ON remediation_actions(run_id, action_level);
+CREATE TABLE IF NOT EXISTS mail_contact_extractions(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
+ message_id TEXT NOT NULL, message_sha256 TEXT NOT NULL, occurred_at TEXT,
+ sender TEXT, subject TEXT, security_state TEXT NOT NULL, reviewed INTEGER NOT NULL DEFAULT 0,
+ extracted_at TEXT NOT NULL, attachment_count INTEGER NOT NULL DEFAULT 0,
+ candidate_count INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'staged'
+);
+CREATE TABLE IF NOT EXISTS mail_contact_candidates(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
+ extraction_id INTEGER NOT NULL REFERENCES mail_contact_extractions(id) ON DELETE CASCADE,
+ candidate_type TEXT NOT NULL, normalized_value TEXT NOT NULL, display_value TEXT NOT NULL,
+ confidence TEXT NOT NULL, source_kind TEXT NOT NULL, source_reference TEXT NOT NULL,
+ context TEXT, attachment_sha256 TEXT, status TEXT NOT NULL DEFAULT 'pending',
+ matched_entity_id INTEGER, matched_contact_point_id INTEGER, created_at TEXT NOT NULL,
+ UNIQUE(extraction_id,candidate_type,normalized_value,source_reference)
+);
+CREATE INDEX IF NOT EXISTS idx_mail_contact_candidate_status ON mail_contact_candidates(status,candidate_type);
 '''
 
 
@@ -218,6 +235,66 @@ def apply_safe_fixes(src, source_path, dst, run_id, backup_dir):
     return {'planned': len(fixes), 'applied': len(applied), 'backup': str(backup_path), 'source_sha256_after': after_sha}
 
 
+def process_mail_contact_candidates(src, dst):
+    rows = dst.execute("""
+        SELECT c.*, e.message_id
+        FROM mail_contact_candidates c
+        JOIN mail_contact_extractions e ON e.id=c.extraction_id
+        WHERE c.status='pending' ORDER BY c.id LIMIT 2000
+    """).fetchall()
+    stats = {'pending_seen': len(rows), 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0}
+    anchors = {}
+    for extraction_id in sorted({r['extraction_id'] for r in rows}):
+        sender_row = dst.execute("SELECT sender FROM mail_contact_extractions WHERE id=?", (extraction_id,)).fetchone()
+        sender = (sender_row[0] or '') if sender_row else ''
+        match = re.search(r'([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})', sender, re.I)
+        if not match:
+            continue
+        address = match.group(1).lower()
+        owners = src.execute("""
+            SELECT DISTINCT ca.entity_id
+            FROM contact_points cp JOIN contact_assertions ca ON ca.contact_point_id=cp.id
+            WHERE cp.lifecycle_status='active' AND cp.point_type='email' AND lower(cp.normalized_value)=lower(?)
+        """, (address,)).fetchall()
+        if len(owners) == 1:
+            anchors[extraction_id] = owners[0][0]
+    point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
+    for row in rows:
+        ctype, value = row['candidate_type'], row['normalized_value']
+        entity = anchors.get(row['extraction_id'])
+        point_type = point_map.get(ctype)
+        matches = src.execute(
+            "SELECT id FROM contact_points WHERE lifecycle_status='active' AND point_type=? AND lower(normalized_value)=lower(?) ORDER BY id",
+            (point_type, value)
+        ).fetchall() if point_type else []
+        if len(matches) == 1:
+            point_id = matches[0][0]
+            owners = src.execute("SELECT DISTINCT entity_id FROM contact_assertions WHERE contact_point_id=?", (point_id,)).fetchall()
+            matched_entity = owners[0][0] if len(owners) == 1 else entity
+            dst.execute("UPDATE mail_contact_candidates SET status='matched_existing',matched_contact_point_id=?,matched_entity_id=? WHERE id=?", (point_id, matched_entity, row['id']))
+            stats['matched_existing'] += 1
+            continue
+        if len(matches) > 1:
+            finding(dst, 'mail_contact_candidate_ambiguous', 'high', 'Mail-derived contact evidence is ambiguous',
+                    f"candidate_id={row['id']}; type={ctype}; value={value}; message_id={row['message_id']}", action_level='REVIEW_REQUIRED')
+            dst.execute("UPDATE mail_contact_candidates SET status='ambiguous' WHERE id=?", (row['id'],))
+            stats['ambiguous'] += 1
+            continue
+        evidence = json.dumps({
+            'candidate_id': row['id'], 'type': ctype, 'value': value,
+            'message_id': row['message_id'], 'source_kind': row['source_kind'],
+            'source_reference': row['source_reference'], 'attachment_sha256': row['attachment_sha256']
+        }, sort_keys=True)
+        level = 'AUTO_STAGE' if entity and ctype in point_map else 'REVIEW_REQUIRED'
+        rationale = 'Evidence extracted from a security-released Mail Room message; candidate-only until Contacts policy validates identity and ownership.'
+        finding(dst, 'mail_contact_candidate', 'low' if level=='AUTO_STAGE' else 'medium',
+                'Mail-derived contact candidate', evidence, entity=entity, action_level=level)
+        candidate(dst, level, 'mail_contact_candidates', row['id'], 'candidate_review', None, evidence, rationale, entity=entity)
+        dst.execute("UPDATE mail_contact_candidates SET status='queued_review',matched_entity_id=? WHERE id=?", (entity, row['id']))
+        stats['queued_review'] += 1
+    return stats
+
+
 def run(src, dst):
     rows = src.execute("SELECT id,entity_type,canonical_name FROM contact_entities WHERE lifecycle_status='active'").fetchall()
     groups = {}
@@ -287,11 +364,13 @@ def run(src, dst):
             candidate(dst, 'AUTO_STAGE', 'contact_points', row['id'], 'normalized_value', value, None,
                       'Invalid syntax requires evidence-backed correction; never guess a replacement.', point=row['id'])
 
+    mail_candidates = process_mail_contact_candidates(src, dst)
     return {
         'entities': len(rows),
         'open_findings': dst.execute("SELECT COUNT(*) FROM maintenance_findings WHERE status='open'").fetchone()[0],
         'pending_enrichment': dst.execute("SELECT COUNT(*) FROM enrichment_queue WHERE status='pending'").fetchone()[0],
         'pending_candidates': dst.execute("SELECT COUNT(*) FROM candidate_changes WHERE status='pending'").fetchone()[0],
+        'mail_contact_candidates': mail_candidates,
     }
 
 

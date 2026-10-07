@@ -1,0 +1,12 @@
+[Unit]
+Description=Continuously extract contact evidence from released Mail Room messages
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=edge1-mail-contact-intake.service
+
+[Install]
+WantedBy=timers.target
