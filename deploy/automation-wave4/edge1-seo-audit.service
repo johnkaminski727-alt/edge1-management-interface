@@ -1,0 +1,16 @@
+[Unit]
+Description=Read-only sitemap and SEO crawl audit
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/seo_crawl_audit_bot.py
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/edge1-status/seo-audit /var/lib/bigbird-ai-library
+TimeoutStartSec=15min

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run public website SEO crawl audit daily
+[Timer]
+OnCalendar=*-*-* 05:30:00 America/Regina
+RandomizedDelaySec=20m
+Persistent=true
+Unit=edge1-seo-audit.service
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+{
+  "contract": "wwcx.public-websites.v1",
+  "sites": [
+    {"domain":"ww.cx","base_url":"https://ww.cx/"},
+    {"domain":"spiritcreekgardens.com","base_url":"https://spiritcreekgardens.com/"},
+    {"domain":"scgardens.ca","base_url":"https://scgardens.ca/"},
+    {"domain":"creekco.ca","base_url":"https://creekco.ca/"},
+    {"domain":"omegafx.com","base_url":"https://omegafx.com/"}
+  ]
+}

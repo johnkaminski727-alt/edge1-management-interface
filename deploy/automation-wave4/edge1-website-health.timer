@@ -1,0 +1,9 @@
+[Unit]
+Description=Check public websites every fifteen minutes
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+Unit=edge1-website-health.service
+[Install]
+WantedBy=timers.target
