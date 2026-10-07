@@ -475,14 +475,18 @@ def mail_candidate_disposition(row):
             return 'informational_only'
         if domain=='property.booking.com' and re.match(r'^\d',local):
             return 'informational_only'
-        system_locals=('noreply','no-reply','do-not-reply','donotreply','account-security-noreply','appleid')
-        if source_kind=='message_header' and any(
+        system_locals=('noreply','no-reply','no_reply','do-not-reply','donotreply','account-security-noreply','appleid')
+        machine_marker=any(marker in local for marker in ('noreply','no-reply','no_reply','do-not-reply','donotreply'))
+        commissioning_marker=any(marker in local for marker in ('precutover','acceptance','commissioning','canary')) and (
+            domain in {'ww.cx','spiritcreekgardens.com','example.test','example.net'} or domain.endswith('.ww.cx')
+        )
+        if source_kind=='message_header' and (machine_marker or commissioning_marker or any(
             local==x
             or local.startswith(x+'+')
             or local.startswith(x+'.')
             or local.startswith(x+'-')
             for x in system_locals
-        ):
+        )):
             return 'informational_only'
         bulk_domains=('newsletter.','marketing.','mail.')
         generic_locals=('news','newsletter','marketing','promotions','offers','team')

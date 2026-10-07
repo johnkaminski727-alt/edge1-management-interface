@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.unified_contacts.maintenance_bot import apply_public_phone_resolutions, apply_safe_fixes, open_source, open_state, run, process_mail_contact_candidates, build_relationship_suggestions
+from tools.unified_contacts.maintenance_bot import apply_public_phone_resolutions, apply_safe_fixes, open_source, open_state, run, process_mail_contact_candidates, build_relationship_suggestions, mail_candidate_disposition
 
 
 SCHEMA = '''
@@ -145,6 +145,13 @@ class MaintenanceBotTests(unittest.TestCase):
             self.assertEqual(row['entity_id'], 1)
             self.assertEqual(row['proposed_value'], '1')
             src.close(); dst.close()
+
+    def test_machine_and_commissioning_header_senders_are_informational(self):
+        for value in ('payments-noreply@google.com','workspace_noreply@google.com','precutover@spiritcreekgardens.com','mail-gateway-acceptance@ww.cx','canary@example.net'):
+            row={'candidate_type':'email','normalized_value':value,'display_value':value,'context':'','source_kind':'message_header'}
+            self.assertEqual(mail_candidate_disposition(row),'informational_only',value)
+        human={'candidate_type':'email','normalized_value':'notices@parklandlibrary.ca','display_value':'notices@parklandlibrary.ca','context':'','source_kind':'message_header'}
+        self.assertIsNone(mail_candidate_disposition(human))
 
     def test_low_value_mail_candidates_leave_active_review_without_losing_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
