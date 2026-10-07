@@ -14,6 +14,7 @@ REPORT_DIR=Path('/var/lib/wwcx-mail-room-reports')
 BRIEF_DIR=Path('/var/lib/wwcx-daily-briefings')
 LIBRARY_DB=Path('/var/lib/bigbird-ai-library/library.sqlite3')
 NOREPLY=('no-reply','noreply','donotreply','do-not-reply','mailer-daemon','postmaster@')
+TEST_WORDS=('auth check','acceptance','commissioning','pilot','smoke test','test message','dkim signing','mailroom test')
 ACTION_WORDS=('action required','please','request','invoice','payment','due','deadline','confirm','confirmation','verify','verification','renew','renewal','support','question','respond','reply','signature','sign','approval','review required')
 
 def bounds(day):
@@ -54,8 +55,11 @@ def build(day,repo_root:Path):
         later_out=any(t>r['occurred_at'] for t in outbound_by_thread.get(r['thread_id'],[]))
         sender=(r['sender'] or '').casefold(); score=action_score(r['subject'] or '',r['body_text'] or '')
         likely_auto=any(x in sender for x in NOREPLY)
+        subject_text=(r['subject'] or '').casefold()
+        internal_test=any(word in subject_text for word in TEST_WORDS)
         item={'message_id':r['message_id'],'sender':esc(r['sender']),'subject':esc(r['subject']),'occurred_at':r['occurred_at'],'evidence':evidence_ref(r['message_id']),'score':score}
-        if not later_out and not likely_auto and (score or '?' in (r['subject'] or '') or '?' in (r['body_text'] or '')[:2000]): reply.append(item)
+        if internal_test: info.append(item)
+        elif not later_out and not likely_auto and (score or '?' in (r['subject'] or '') or '?' in (r['body_text'] or '')[:2000]): reply.append(item)
         elif score>=2: action.append(item)
         else: info.append(item)
     activity={}
