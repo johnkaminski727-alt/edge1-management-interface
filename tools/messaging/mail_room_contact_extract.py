@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from email import policy
 from email.utils import parseaddr
 from pathlib import Path
+from urllib.parse import urlsplit
 from xml.etree import ElementTree as ET
 
 MAIL_DB=Path('/var/lib/wwcx-mail-room/correspondence.sqlite3')
@@ -147,9 +148,19 @@ def extract_candidates(sender,body,attachments):
             n=norm_phone(m.group(1));
             if n:add('phone',n,m.group(1).strip(),'medium',source,ref,text[max(0,m.start()-100):m.end()+100],ash)
         for m in URL_RE.finditer(text):
-            url=m.group(0).rstrip('.,);]'); add('website',url.lower(),url,'medium',source,ref,text[max(0,m.start()-80):m.end()+80],ash)
-            host=re.sub(r'^www\.','',re.sub(r'^https?://','',url,flags=re.I).split('/')[0].split(':')[0].lower())
-            if '.' in host:add('domain',host,host,'medium',source,ref,url,ash)
+            url=m.group(0).rstrip('.,);]')
+            try:
+                parsed=urlsplit(url)
+                host=(parsed.hostname or '').lower()
+                clean_host=re.sub(r'^www\.','',host)
+                shallow_path=parsed.path in ('','/') or (parsed.path.count('/') <= 1 and len(parsed.path) <= 48)
+                if not clean_host or '.' not in clean_host or parsed.query or parsed.fragment or not shallow_path:
+                    continue
+                website=f'{parsed.scheme.lower()}://{host}' + ('/' if parsed.path=='/' else parsed.path)
+                add('website',website.lower(),website,'medium',source,ref,text[max(0,m.start()-80):m.end()+80],ash)
+                add('domain',clean_host,clean_host,'medium',source,ref,website,ash)
+            except Exception:
+                continue
         for m in POSTAL_RE.finditer(text):
             lines=text[max(0,m.start()-160):m.end()+40].splitlines(); street=next((x.strip() for x in reversed(lines[:-1]) if re.search(r'\d+\s+\S+',x)), '')
             val=(' '.join([street,m.group(1).upper()])).strip(); add('postal_address',val,val,'low',source,ref,val,ash)

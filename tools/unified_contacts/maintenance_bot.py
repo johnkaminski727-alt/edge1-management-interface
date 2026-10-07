@@ -258,62 +258,61 @@ def apply_safe_fixes(src, source_path, dst, run_id, backup_dir):
 
 
 def process_mail_contact_candidates(src, dst):
-    rows = dst.execute("""
-        SELECT c.*, e.message_id
+    groups = dst.execute("""
+        SELECT MIN(c.id) AS representative_id,c.candidate_type,c.normalized_value,
+               COUNT(*) AS evidence_count,MIN(e.message_id) AS example_message_id
         FROM mail_contact_candidates c
         JOIN mail_contact_extractions e ON e.id=c.extraction_id
-        WHERE c.status='pending' ORDER BY c.id LIMIT 2000
+        WHERE c.status='pending'
+        GROUP BY c.candidate_type,c.normalized_value
+        ORDER BY representative_id LIMIT 5000
     """).fetchall()
-    stats = {'pending_seen': len(rows), 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0}
-    anchors = {}
-    for extraction_id in sorted({r['extraction_id'] for r in rows}):
-        sender_row = dst.execute("SELECT sender FROM mail_contact_extractions WHERE id=?", (extraction_id,)).fetchone()
-        sender = (sender_row[0] or '') if sender_row else ''
-        match = re.search(r'([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})', sender, re.I)
-        if not match:
-            continue
-        address = match.group(1).lower()
-        owners = src.execute("""
-            SELECT DISTINCT ca.entity_id
-            FROM contact_points cp JOIN contact_assertions ca ON ca.contact_point_id=cp.id
-            WHERE cp.lifecycle_status='active' AND cp.point_type='email' AND lower(cp.normalized_value)=lower(?)
-        """, (address,)).fetchall()
-        if len(owners) == 1:
-            anchors[extraction_id] = owners[0][0]
+    stats = {'unique_seen': len(groups), 'observations_seen': 0, 'matched_existing': 0, 'queued_review': 0, 'ambiguous': 0, 'deferred_unanchored': 0}
     point_map = {'email':'email','phone':'phone','domain':'domain','website':'website','postal_address':'postal_address'}
-    for row in rows:
-        ctype, value = row['candidate_type'], row['normalized_value']
-        entity = anchors.get(row['extraction_id'])
-        point_type = point_map.get(ctype)
-        matches = src.execute(
-            "SELECT id FROM contact_points WHERE lifecycle_status='active' AND point_type=? AND lower(normalized_value)=lower(?) ORDER BY id",
-            (point_type, value)
-        ).fetchall() if point_type else []
-        if len(matches) == 1:
-            point_id = matches[0][0]
-            owners = src.execute("SELECT DISTINCT entity_id FROM contact_assertions WHERE contact_point_id=?", (point_id,)).fetchall()
-            matched_entity = owners[0][0] if len(owners) == 1 else entity
-            dst.execute("UPDATE mail_contact_candidates SET status='matched_existing',matched_contact_point_id=?,matched_entity_id=? WHERE id=?", (point_id, matched_entity, row['id']))
-            stats['matched_existing'] += 1
-            continue
-        if len(matches) > 1:
-            finding(dst, 'mail_contact_candidate_ambiguous', 'high', 'Mail-derived contact evidence is ambiguous',
-                    f"candidate_id={row['id']}; type={ctype}; value={value}; message_id={row['message_id']}", action_level='REVIEW_REQUIRED')
-            dst.execute("UPDATE mail_contact_candidates SET status='ambiguous' WHERE id=?", (row['id'],))
-            stats['ambiguous'] += 1
-            continue
-        evidence = json.dumps({
-            'candidate_id': row['id'], 'type': ctype, 'value': value,
-            'message_id': row['message_id'], 'source_kind': row['source_kind'],
-            'source_reference': row['source_reference'], 'attachment_sha256': row['attachment_sha256']
-        }, sort_keys=True)
-        level = 'AUTO_STAGE' if entity and ctype in point_map else 'REVIEW_REQUIRED'
-        rationale = 'Evidence extracted from a security-released Mail Room message; candidate-only until Contacts policy validates identity and ownership.'
-        finding(dst, 'mail_contact_candidate', 'low' if level=='AUTO_STAGE' else 'medium',
-                'Mail-derived contact candidate', evidence, entity=entity, action_level=level)
-        candidate(dst, level, 'mail_contact_candidates', row['id'], 'candidate_review', None, evidence, rationale, entity=entity)
-        dst.execute("UPDATE mail_contact_candidates SET status='queued_review',matched_entity_id=? WHERE id=?", (entity, row['id']))
-        stats['queued_review'] += 1
+    for group in groups:
+        ctype, value = group['candidate_type'], group['normalized_value']
+        stats['observations_seen'] += int(group['evidence_count'])
+        occurrences = dst.execute("""
+            SELECT c.id,c.extraction_id,c.source_kind,c.source_reference,c.attachment_sha256,e.message_id,e.sender
+            FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id
+            WHERE c.status='pending' AND c.candidate_type=? AND c.normalized_value=? ORDER BY c.id
+        """, (ctype, value)).fetchall()
+        anchor_entities=set()
+        for item in occurrences:
+            match=re.search(r'([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63})', item['sender'] or '', re.I)
+            if not match: continue
+            owners=src.execute("""
+                SELECT DISTINCT ca.entity_id FROM contact_points cp
+                JOIN contact_assertions ca ON ca.contact_point_id=cp.id
+                WHERE cp.lifecycle_status='active' AND cp.point_type='email' AND lower(cp.normalized_value)=lower(?)
+            """, (match.group(1).lower(),)).fetchall()
+            if len(owners)==1: anchor_entities.add(owners[0][0])
+        entity=next(iter(anchor_entities)) if len(anchor_entities)==1 else None
+        point_type=point_map.get(ctype)
+        matches=src.execute("SELECT id FROM contact_points WHERE lifecycle_status='active' AND point_type=? AND lower(normalized_value)=lower(?) ORDER BY id",(point_type,value)).fetchall() if point_type else []
+        ids=[r['id'] for r in occurrences]
+        placeholders=','.join('?' for _ in ids)
+        if len(matches)==1:
+            point_id=matches[0][0]
+            owners=src.execute("SELECT DISTINCT entity_id FROM contact_assertions WHERE contact_point_id=?",(point_id,)).fetchall()
+            matched_entity=owners[0][0] if len(owners)==1 else entity
+            dst.execute(f"UPDATE mail_contact_candidates SET status='matched_existing',matched_contact_point_id=?,matched_entity_id=? WHERE id IN ({placeholders})",(point_id,matched_entity,*ids))
+            stats['matched_existing']+=1; continue
+        if len(matches)>1 or len(anchor_entities)>1:
+            finding(dst,'mail_contact_candidate_ambiguous','high','Mail-derived contact evidence is ambiguous',f"type={ctype}; value={value}; evidence_count={group['evidence_count']}; example_message={group['example_message_id']}",action_level='REVIEW_REQUIRED')
+            dst.execute(f"UPDATE mail_contact_candidates SET status='ambiguous' WHERE id IN ({placeholders})",ids)
+            stats['ambiguous']+=1; continue
+        if ctype in {'domain','website'} and entity is None:
+            dst.execute(f"UPDATE mail_contact_candidates SET status='deferred_unanchored' WHERE id IN ({placeholders})",ids)
+            stats['deferred_unanchored']+=1; continue
+        rep=occurrences[0]
+        evidence=json.dumps({'representative_candidate_id':group['representative_id'],'type':ctype,'value':value,'evidence_count':group['evidence_count'],'example_message_id':group['example_message_id'],'source_kind':rep['source_kind'],'source_reference':rep['source_reference'],'attachment_sha256':rep['attachment_sha256']},sort_keys=True)
+        level='AUTO_STAGE' if entity and ctype in point_map else 'REVIEW_REQUIRED'
+        rationale='Aggregated evidence from security-released Mail Room messages; candidate-only until Contacts policy validates identity and ownership.'
+        finding(dst,'mail_contact_candidate','low' if level=='AUTO_STAGE' else 'medium','Mail-derived contact candidate',evidence,entity=entity,action_level=level)
+        candidate(dst,level,'mail_contact_candidates',group['representative_id'],'candidate_review',None,evidence,rationale,entity=entity)
+        dst.execute(f"UPDATE mail_contact_candidates SET status='queued_review',matched_entity_id=? WHERE id IN ({placeholders})",(entity,*ids))
+        stats['queued_review']+=1
     return stats
 
 
