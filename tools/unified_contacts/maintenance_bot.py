@@ -39,6 +39,15 @@ CREATE TABLE IF NOT EXISTS candidate_changes(
  current_value TEXT, proposed_value TEXT, rationale TEXT NOT NULL,
  status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS identity_resolution_queue(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL UNIQUE,
+ contact_point_id INTEGER NOT NULL, resolution_kind TEXT NOT NULL,
+ normalized_value TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+ rationale TEXT NOT NULL, matched_entity_id INTEGER, proposed_entity_name TEXT,
+ confidence TEXT, evidence_json TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_identity_resolution_status
+ON identity_resolution_queue(status,resolution_kind);
 CREATE TABLE IF NOT EXISTS remediation_actions(
  id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER,
  action_level TEXT NOT NULL, action_type TEXT NOT NULL,
@@ -155,6 +164,19 @@ def candidate(dst, action_level, target_table, target_id, target_field, current,
         ON CONFLICT(fingerprint) DO UPDATE SET updated_at=excluded.updated_at,
             status=CASE WHEN candidate_changes.status='superseded' THEN 'pending' ELSE candidate_changes.status END
     ''', (key, action_level, entity, point, target_table, target_field, current, proposed, rationale, now, now))
+
+
+def identity_resolution(dst, point_id, resolution_kind, normalized_value, rationale):
+    now = utcnow()
+    key = fp(point_id, resolution_kind, normalized_value)
+    dst.execute('''
+        INSERT INTO identity_resolution_queue(
+            fingerprint,contact_point_id,resolution_kind,normalized_value,status,rationale,created_at,updated_at
+        ) VALUES(?,?,?,?, 'pending', ?, ?, ?)
+        ON CONFLICT(fingerprint) DO UPDATE SET
+            rationale=excluded.rationale,updated_at=excluded.updated_at,
+            status=CASE WHEN identity_resolution_queue.status IN ('resolved','superseded') THEN 'pending' ELSE identity_resolution_queue.status END
+    ''', (key, point_id, resolution_kind, normalized_value, rationale, now, now))
 
 
 def collect_safe_fixes(src):
@@ -332,6 +354,11 @@ def run(src, dst):
                 point=row['id'], action_level='AUTO_STAGE')
         candidate(dst, 'AUTO_STAGE', 'contact_assertions', row['id'], 'entity_id', None, None,
                   'Unassigned contact point needs evidence-based identity resolution before attachment.', point=row['id'])
+        if row['point_type'] in ('phone', 'fax'):
+            identity_resolution(
+                dst, row['id'], 'reverse_phone', row['normalized_value'],
+                'Correlate this unassigned number against existing contacts and approved evidence. Public external lookup is limited to business, organization, and public service identities; private-person identity discovery from a phone number is not automatic.'
+            )
 
     for entity in rows:
         types = {x[0] for x in src.execute('''
