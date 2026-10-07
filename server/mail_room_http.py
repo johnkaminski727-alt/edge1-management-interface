@@ -74,9 +74,50 @@ class DraftStore:
         return self.get(key)
 
 
-def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None, session_check=None, sender=None):
+def make_handler(mail, store, proxy_key, features=None, assistant=None, security=None, session_check=None, sender=None, ava_read_key=None):
     if len(proxy_key) < 32:
         raise ValueError("Mail Room proxy key is required")
+
+    if ava_read_key is not None and len(ava_read_key) < 32:
+        raise ValueError("Ava Mail Room read key is invalid")
+
+    def ava_messages(query):
+        if not features:
+            raise ValueError("Mail Room features unavailable")
+        allowed = {"q", "recipient", "domain", "folder", "room", "tag"}
+        if set(query) - allowed:
+            raise ValueError("Invalid Ava mail filters")
+        listing = features.messages(query)
+        folder = query.get("folder", ["inbox"])[0]
+        include_body = folder not in {"quarantine", "junk", "pending"}
+        messages = []
+        for item in listing.get("messages", [])[:8]:
+            safe = {k: item.get(k) for k in (
+                "message_id", "thread_id", "sender", "recipients", "subject", "occurred_at",
+                "direction", "is_read", "archived", "tags", "provenance",
+            )}
+            safe["body_excerpt"] = ""
+            if include_body:
+                try:
+                    record = mail.correspondence_message(message_id=item["message_id"])
+                    message = record.get("message", record) if isinstance(record, dict) else {}
+                    body = message.get("body_text", "") if isinstance(message, dict) else ""
+                    if isinstance(body, str):
+                        safe["body_excerpt"] = body[:2400]
+                except Exception:
+                    pass
+            messages.append(safe)
+        return {
+            "contract": "wwcx.ava-mail-room-read.v1",
+            "messages": messages,
+            "count": len(messages),
+            "has_more": bool(listing.get("has_more")),
+            "folder": folder,
+            "content_is_untrusted": True,
+            "send_authorized": False,
+            "mutation_authorized": False,
+            "body_policy": "bounded_plain_text" if include_body else "metadata_only",
+        }
 
     def send_enabled():
         if not sender:
@@ -162,9 +203,20 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
             return valid
 
         def do_GET(self):
+            parsed = urlsplit(self.path)
+            if parsed.path == PREFIX + "ava/messages":
+                valid = bool(ava_read_key) and hmac.compare_digest(
+                    self.headers.get("X-Ava-Mail-Read-Key", ""), str(ava_read_key)
+                )
+                if not valid:
+                    self.reply(403, {"error": "Access denied"}); return
+                try:
+                    self.reply(200, ava_messages(parse_qs(parsed.query)))
+                except (ValueError, RuntimeError, KeyError):
+                    self.reply(422, {"error": "Mail Room read request rejected"})
+                return
             if not self.authorized():
                 return
-            parsed = urlsplit(self.path)
             if not parsed.path.startswith(PREFIX):
                 self.reply(404, {"error": "Not found"}); return
             route = parsed.path[len(PREFIX):]
@@ -295,7 +347,11 @@ def main():
     store = DraftStore(args.database)
     identities = json.loads(Path("/etc/wwcx/outbound-mail/identities.json").read_text())
     features = MailRoomFeatures(store, "/var/lib/wwcx-mail-room/correspondence.sqlite3", identities)
-    handler = make_handler(mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(), SecurityStore() if security_required() else None, session_check=admin_session, sender=MailRoomSendClient.from_environment())
+    handler = make_handler(
+        mail, store, os.environ["WWCX_MAIL_ROOM_PROXY_KEY"], features, AvaMailAssistant(),
+        SecurityStore() if security_required() else None, session_check=admin_session,
+        sender=MailRoomSendClient.from_environment(), ava_read_key=os.environ.get("WWCX_AVA_MAIL_READ_KEY"),
+    )
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     server.timeout = 10
     server.serve_forever()

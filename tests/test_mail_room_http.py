@@ -16,8 +16,20 @@ class FakeMail:
         return {"messages": [], "filters": filters}
     def correspondence_thread(self, **filters):
         return {"thread": {"messages": [{"body_text": "<script>untrusted</script>"}]}}
+    def correspondence_message(self, **filters):
+        return {"message": {"body_text": "Bounded private mail body"}}
     def prepare_draft(self, payload):
         return {"preparation_api": {"delivery_status": "prepared_not_sent"}, "external_delivery_enabled": False}
+
+
+class AvaFeatures:
+    def messages(self, query):
+        return {"messages": [{
+            "message_id": "<mail@test>", "thread_id": "thread-1", "sender": "sender@example.test",
+            "recipients": ["john@ww.cx"], "subject": "Action requested", "occurred_at": "2026-10-07T10:00:00Z",
+            "direction": "inbound", "is_read": False, "archived": False, "tags": [],
+            "provenance": {"source": "fixture", "scope": "production_native", "authoritative": True},
+        }], "has_more": False}
 
 
 class MailRoomTests(unittest.TestCase):
@@ -55,6 +67,32 @@ class MailRoomTests(unittest.TestCase):
         self.assertFalse(prepared['external_delivery_enabled'])
         self.assertEqual(self.request('send', {})[0], 404)
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
+    def test_ava_mail_read_uses_separate_key_and_is_read_only(self):
+        ava_key = 'a' * 48
+        server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(FakeMail(), self.store, self.key, AvaFeatures(), ava_read_key=ava_key))
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            url = 'http://127.0.0.1:%s%sava/messages?folder=inbox' % (server.server_port, PREFIX)
+            bad = urllib.request.Request(url, headers={"X-Ava-Mail-Read-Key": "wrong"})
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(bad)
+            self.assertEqual(raised.exception.code, 403)
+            good = urllib.request.Request(url, headers={"X-Ava-Mail-Read-Key": ava_key})
+            with urllib.request.urlopen(good) as response:
+                data = json.load(response)
+            self.assertEqual(data["contract"], "wwcx.ava-mail-room-read.v1")
+            self.assertFalse(data["send_authorized"])
+            self.assertFalse(data["mutation_authorized"])
+            self.assertEqual(data["messages"][0]["body_excerpt"], "Bounded private mail body")
+
+            quarantine = urllib.request.Request(url.replace('folder=inbox','folder=quarantine'), headers={"X-Ava-Mail-Read-Key": ava_key})
+            with urllib.request.urlopen(quarantine) as response:
+                qdata = json.load(response)
+            self.assertEqual(qdata["body_policy"], "metadata_only")
+            self.assertEqual(qdata["messages"][0]["body_excerpt"], "")
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
+
     def test_search_and_payload_limits(self):
         self.assertEqual(self.request('messages?offset=10001')[0], 400)
         self.assertEqual(self.request('messages?q=' + 'a'*201)[0], 400)

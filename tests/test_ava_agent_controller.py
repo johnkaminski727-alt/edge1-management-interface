@@ -20,13 +20,14 @@ def base_payload() -> dict:
         "request_id": "a" * 32,
         "user": {"id": "u", "role": "internal_viewer", "scopes": [
             "chat:general", "edge1:status:read", "library:search", "library:document:read",
-            "communications:read", "contacts:read", "telephony:read",
+            "mail:read", "communications:read", "contacts:read", "telephony:read",
         ]},
         "message": "Check Edge1 health and find the latest project documentation",
         "include_edge1_status": True,
         "include_library": True,
         "include_documentation": True,
         "library_collections": ["operations"],
+        "include_mail": True,
         "include_communications": True,
         "communications_groups": ["ops"],
         "include_contacts": True,
@@ -59,6 +60,22 @@ class AvaAgentControllerTests(unittest.TestCase):
         self.assertNotIn("contacts:read", prepared["user"]["scopes"])
         self.assertNotIn("telephony:read", prepared["user"]["scopes"])
         self.assertEqual(prepared["communications_groups"], [])
+
+    def test_auto_route_separates_mail_room_from_communications_relay(self) -> None:
+        payload = base_payload()
+        payload["agent_auto_route"] = True
+        payload["routing_message"] = "Triage the inbox"
+        plan = agent.build_plan(payload)
+        self.assertTrue(plan.source_flags["include_mail"])
+        self.assertFalse(plan.source_flags["include_communications"])
+        prepared = agent.prepare_gateway_request(payload, plan)
+        self.assertIn("mail:read", prepared["user"]["scopes"])
+        self.assertNotIn("communications:read", prepared["user"]["scopes"])
+
+        payload["routing_message"] = "Check the NNTP news relay"
+        plan = agent.build_plan(payload)
+        self.assertFalse(plan.source_flags["include_mail"])
+        self.assertTrue(plan.source_flags["include_communications"])
 
     def test_auto_route_selects_contacts_for_directory_lookup(self) -> None:
         payload = base_payload()

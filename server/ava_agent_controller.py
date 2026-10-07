@@ -63,8 +63,11 @@ SOURCE_RULES: tuple[SourceRule, ...] = (
     SourceRule("documentation", "Review documentation", "include_documentation", "library:document:read", (
         "documentation", "docs", "runbook", "procedure", "architecture", "design", "config", "configuration", "how", "reference",
     )),
+    SourceRule("mail", "Review Mail Room", "include_mail", "mail:read", (
+        "email", "mail", "message", "inbox", "mail room", "mailroom", "quarantine", "junk", "unread", "correspondence",
+    )),
     SourceRule("communications", "Review communications", "include_communications", "communications:read", (
-        "email", "mail", "message", "communications", "conversation", "thread", "reply", "said", "wrote", "inbox", "correspondence",
+        "communications", "conversation", "irc", "nntp", "news", "newsgroup", "relay", "said", "wrote",
     )),
     SourceRule("contacts", "Search Unified Contacts", "include_contacts", "contacts:read", (
         "contact", "contacts", "person", "people", "organization", "company", "business",
@@ -169,6 +172,8 @@ def prepare_gateway_request(payload: dict[str, Any], plan: AgentPlan) -> dict[st
                 allowed_optional.add("edge1:status:read")
             if prepared.get("include_library") is True:
                 allowed_optional.update({"library:search", "library:document:read"})
+            if prepared.get("include_mail") is True:
+                allowed_optional.add("mail:read")
             if prepared.get("include_communications") is True:
                 allowed_optional.add("communications:read")
             if prepared.get("include_contacts") is True:

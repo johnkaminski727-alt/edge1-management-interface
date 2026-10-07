@@ -73,6 +73,36 @@ class BrowserWorkerTests(unittest.TestCase):
         self.assertNotIn("print(queue_secret", source)
         self.assertNotIn("print(gateway_secret", source)
 
+    def test_mail_room_read_injects_bounded_evidence(self) -> None:
+        original_urlopen = worker.urllib.request.urlopen
+        original_env = dict(worker.os.environ)
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return None
+            def read(self, _limit):
+                return json.dumps({
+                    "contract": "wwcx.ava-mail-room-read.v1", "folder": "inbox", "messages": [{
+                        "message_id": "<m@test>", "thread_id": "t", "sender": "sender@example.test",
+                        "recipients": ["john@ww.cx"], "subject": "Please review", "occurred_at": "2026-10-07T10:00:00Z",
+                        "direction": "inbound", "is_read": False, "archived": False, "body_excerpt": "Action item text",
+                    }]
+                }).encode()
+        captured = []
+        def fake_urlopen(req, timeout=0):
+            captured.append(req)
+            return Response()
+        worker.urllib.request.urlopen = fake_urlopen
+        worker.os.environ[worker.MAIL_READ_KEY_ENV] = "r" * 48
+        try:
+            context, sources, warning = worker.mail_room_read({"include_mail": True, "routing_message": "Triage the inbox"})
+        finally:
+            worker.urllib.request.urlopen = original_urlopen
+            worker.os.environ.clear(); worker.os.environ.update(original_env)
+        self.assertIn("Action item text", context)
+        self.assertEqual(sources[0]["system"], "Mail Room")
+        self.assertIsNone(warning)
+        self.assertEqual(captured[0].headers.get("X-ava-mail-read-key"), "r" * 48)
+
     def test_progress_is_optional_for_old_queue(self) -> None:
         original = worker.queue_call
         worker.queue_call = lambda *args, **kwargs: (_ for _ in ()).throw(worker.WorkerError("queue returned HTTP 400"))
