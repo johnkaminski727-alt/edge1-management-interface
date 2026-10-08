@@ -1,0 +1,10 @@
+[Unit]
+Description=Fallback AVA Executive reconciliation every ten minutes
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=edge1-ava-executive.service
+[Install]
+WantedBy=timers.target

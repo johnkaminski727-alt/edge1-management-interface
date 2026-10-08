@@ -103,6 +103,39 @@ class AvaOfficeReadModel:
             output.append(item)
         return output
 
+    def executive_summary(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            team={str(r["health_state"]):int(r["count"]) for r in conn.execute("SELECT health_state,COUNT(*) count FROM executive_team_members WHERE active=1 GROUP BY health_state")}
+            departments={str(r["department"]):int(r["count"]) for r in conn.execute("SELECT department,COUNT(*) count FROM executive_team_members WHERE active=1 GROUP BY department ORDER BY department")}
+            assignments={str(r["state"]):int(r["count"]) for r in conn.execute("SELECT state,COUNT(*) count FROM executive_assignments GROUP BY state")}
+            attention=int(conn.execute("SELECT COUNT(*) FROM executive_team_members WHERE active=1 AND health_state IN ('attention','failed','error','critical','degraded','unhealthy')").fetchone()[0])
+            recent=int(conn.execute("SELECT COUNT(*) FROM executive_reports WHERE created_at_utc>=datetime('now','-24 hours')").fetchone()[0])
+        return {"role":"CEO / Executive Orchestrator","coordination_authority":True,"generic_execution_authority":False,"team_health":team,"departments":departments,"assignments":assignments,"attention_reports":attention,"reports_24h":recent}
+
+    def team(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute("SELECT member_id,display_name,department,role,service_unit,timer_unit,action_level,authority_ceiling,active,health_state,last_checkin_at_utc,last_report_id,updated_at_utc FROM executive_team_members WHERE active=1 ORDER BY CASE health_state WHEN 'attention' THEN 0 WHEN 'failed' THEN 0 WHEN 'error' THEN 0 WHEN 'healthy' THEN 2 ELSE 1 END,department,display_name LIMIT ?",(limit,)).fetchall()
+        out=[]
+        for row in rows:
+            d=dict(row); d['active']=bool(d['active']); out.append(d)
+        return out
+
+    def assignments(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute("SELECT a.id,a.work_item_id,a.member_id,m.display_name,a.objective,a.state,a.priority,a.requested_by,a.created_at_utc,a.updated_at_utc FROM executive_assignments a JOIN executive_team_members m ON m.member_id=a.member_id ORDER BY CASE a.state WHEN 'failed' THEN 0 WHEN 'review' THEN 1 WHEN 'working' THEN 2 WHEN 'waiting' THEN 3 ELSE 4 END,a.updated_at_utc DESC LIMIT ?",(limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def executive_reports(self, *, attention_only: bool = False, limit: int = 100) -> list[dict[str, Any]]:
+        sql="SELECT r.id,r.member_id,m.display_name,m.department,r.assignment_id,r.report_type,r.health_state,r.summary,r.needs_attention,r.severity,r.source_ref,r.created_at_utc FROM executive_reports r JOIN executive_team_members m ON m.member_id=r.member_id"
+        if attention_only:
+            sql+=" WHERE r.needs_attention=1 AND r.id=(SELECT r2.id FROM executive_reports r2 WHERE r2.member_id=r.member_id ORDER BY r2.created_at_utc DESC,r2.rowid DESC LIMIT 1)"
+        sql+=" ORDER BY r.created_at_utc DESC LIMIT ?"
+        with self._connect() as conn: rows=conn.execute(sql,(limit,)).fetchall()
+        out=[]
+        for row in rows:
+            d=dict(row); d['needs_attention']=bool(d['needs_attention']); out.append(d)
+        return out
+
     def instructions(self, *, limit: int = 100) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -153,6 +186,22 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/ava-office/summary":
                 self._json(200, self.read_model.summary())
+                return
+            if parsed.path == "/api/ava-office/executive":
+                self._json(200, self.read_model.executive_summary())
+                return
+            if parsed.path == "/api/ava-office/team":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.team(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/assignments":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.assignments(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/reports":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                attention = query.get("attention", ["0"])[0] in {"1","true","yes"}
+                self._json(200, {"items": self.read_model.executive_reports(attention_only=attention, limit=limit)})
                 return
             if parsed.path == "/api/ava-office/work-items":
                 state = query.get("state", [None])[0]

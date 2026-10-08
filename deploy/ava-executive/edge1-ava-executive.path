@@ -1,0 +1,8 @@
+[Unit]
+Description=Wake AVA Executive when bot inventory or direct reports change
+[Path]
+PathChanged=/var/www/edge1-status/automation-center/inventory.json
+PathChanged=/var/lib/wwcx-ava-office-manager/report-inbox
+Unit=edge1-ava-executive.service
+[Install]
+WantedBy=multi-user.target

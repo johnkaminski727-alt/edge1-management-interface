@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 WORK_STATES = {"new", "working", "waiting_external", "needs_owner", "scheduled", "completed", "cancelled"}
 WORK_PRIORITIES = {"low", "normal", "high", "urgent"}
 INSTRUCTION_EFFECTS = {"deny", "require_confirmation", "prefer"}
@@ -288,6 +288,53 @@ class OfficeManagerStore:
                     previous_hash TEXT NOT NULL,
                     event_hash TEXT NOT NULL UNIQUE
                 );
+                CREATE TABLE IF NOT EXISTS executive_team_members(
+                    member_id TEXT PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    department TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    service_unit TEXT,
+                    timer_unit TEXT,
+                    action_level TEXT NOT NULL,
+                    authority_ceiling TEXT NOT NULL,
+                    capabilities_json TEXT NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 1,
+                    health_state TEXT NOT NULL DEFAULT 'unknown',
+                    last_checkin_at_utc TEXT,
+                    last_report_id TEXT,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    created_at_utc TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_team_department_health ON executive_team_members(department,health_state,active);
+                CREATE TABLE IF NOT EXISTS executive_assignments(
+                    id TEXT PRIMARY KEY,
+                    work_item_id TEXT REFERENCES work_items(id) ON DELETE SET NULL,
+                    member_id TEXT NOT NULL REFERENCES executive_team_members(member_id) ON DELETE RESTRICT,
+                    objective TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    priority TEXT NOT NULL,
+                    dependencies_json TEXT NOT NULL DEFAULT '[]',
+                    requested_by TEXT NOT NULL,
+                    created_at_utc TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_assignments_member_state ON executive_assignments(member_id,state,updated_at_utc);
+                CREATE TABLE IF NOT EXISTS executive_reports(
+                    id TEXT PRIMARY KEY,
+                    member_id TEXT NOT NULL REFERENCES executive_team_members(member_id) ON DELETE RESTRICT,
+                    assignment_id TEXT REFERENCES executive_assignments(id) ON DELETE SET NULL,
+                    report_type TEXT NOT NULL,
+                    health_state TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    detail_json TEXT NOT NULL,
+                    needs_attention INTEGER NOT NULL DEFAULT 0,
+                    severity TEXT NOT NULL DEFAULT 'info',
+                    source_ref TEXT NOT NULL,
+                    created_at_utc TEXT NOT NULL,
+                    UNIQUE(member_id,source_ref)
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_reports_attention ON executive_reports(needs_attention,severity,created_at_utc);
                 """
             )
         if str(self.path) != ":memory:" and self.path.exists():
@@ -520,6 +567,61 @@ class OfficeManagerStore:
             conn.execute("UPDATE action_proposals SET authorization='approved',executable=?,reason=?,status='approved',updated_at_utc=? WHERE id=?", (1 if executable else 0, reason, now, proposal_id))
         self._audit(actor, "action.approved", "action_proposal", proposal_id, {"executable": executable})
         return self.get_action_proposal(proposal_id)
+
+    def upsert_team_member(self, *, member_id: str, display_name: str, department: str, role: str, action_level: str, authority_ceiling: str, service_unit: str | None = None, timer_unit: str | None = None, capabilities: list[str] | None = None, health_state: str = "unknown", metadata: dict[str, Any] | None = None, actor: str = "ava-executive") -> dict[str, Any]:
+        member_id = _clean_text(member_id, "member_id", maximum=128)
+        if not CAPABILITY_RE.fullmatch(member_id):
+            raise OfficeManagerError("team member id is invalid")
+        display_name = _clean_text(display_name, "display_name", maximum=256)
+        department = _clean_text(department, "department", maximum=128)
+        role = _clean_text(role, "role", maximum=512)
+        action_level = _clean_text(action_level, "action_level", maximum=64)
+        authority_ceiling = _clean_text(authority_ceiling, "authority_ceiling", maximum=64)
+        service_unit = _optional_text(service_unit, "service_unit", maximum=256)
+        timer_unit = _optional_text(timer_unit, "timer_unit", maximum=256)
+        capabilities = [] if capabilities is None else capabilities
+        metadata = {} if metadata is None else metadata
+        _reject_sensitive(metadata, "metadata")
+        now = utc_now()
+        with self._lock, self.connect() as conn:
+            existed = conn.execute("SELECT 1 FROM executive_team_members WHERE member_id=?", (member_id,)).fetchone() is not None
+            conn.execute("""INSERT INTO executive_team_members(member_id,display_name,department,role,service_unit,timer_unit,action_level,authority_ceiling,capabilities_json,active,health_state,last_checkin_at_utc,metadata_json,created_at_utc,updated_at_utc) VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?, ?, ?) ON CONFLICT(member_id) DO UPDATE SET display_name=excluded.display_name,department=excluded.department,role=excluded.role,service_unit=excluded.service_unit,timer_unit=excluded.timer_unit,action_level=excluded.action_level,authority_ceiling=excluded.authority_ceiling,capabilities_json=excluded.capabilities_json,active=1,health_state=excluded.health_state,last_checkin_at_utc=excluded.last_checkin_at_utc,metadata_json=excluded.metadata_json,updated_at_utc=excluded.updated_at_utc""", (member_id,display_name,department,role,service_unit,timer_unit,action_level,authority_ceiling,_canonical(capabilities),health_state,now,_canonical(metadata),now,now))
+        if not existed:
+            self._audit(actor, "team.member.registered", "team_member", member_id, {"department": department, "action_level": action_level, "authority_ceiling": authority_ceiling})
+        return self.get_team_member(member_id)
+
+    def get_team_member(self, member_id: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            row=conn.execute("SELECT * FROM executive_team_members WHERE member_id=?",(member_id,)).fetchone()
+        if not row: raise OfficeManagerError("team member was not found")
+        out=dict(row); out["active"]=bool(out["active"]); out["capabilities"]=json.loads(out.pop("capabilities_json")); out["metadata"]=json.loads(out.pop("metadata_json")); return out
+
+    def record_team_report(self, *, member_id: str, report_type: str, health_state: str, summary: str, detail: dict[str, Any], source_ref: str, needs_attention: bool = False, severity: str = "info", assignment_id: str | None = None, actor: str = "ava-executive") -> dict[str, Any]:
+        self.get_team_member(member_id)
+        report_type=_clean_text(report_type,"report_type",maximum=64); health_state=_clean_text(health_state,"health_state",maximum=64); summary=_clean_text(summary,"summary",maximum=2000); source_ref=_clean_text(source_ref,"source_ref",maximum=1024); severity=_clean_text(severity,"severity",maximum=32); _reject_sensitive(detail,"report.detail")
+        if assignment_id is not None and not ID_RE.fullmatch(assignment_id): raise OfficeManagerError("assignment id is invalid")
+        now=utc_now(); report_id=_new_id("report")
+        with self._lock, self.connect() as conn:
+            existing=conn.execute("SELECT id FROM executive_reports WHERE member_id=? AND source_ref=?",(member_id,source_ref)).fetchone()
+            if existing: report_id=str(existing["id"])
+            else:
+                conn.execute("INSERT INTO executive_reports(id,member_id,assignment_id,report_type,health_state,summary,detail_json,needs_attention,severity,source_ref,created_at_utc) VALUES(?,?,?,?,?,?,?,?,?,?,?)",(report_id,member_id,assignment_id,report_type,health_state,summary,_canonical(detail),1 if needs_attention else 0,severity,source_ref,now))
+            conn.execute("UPDATE executive_team_members SET health_state=?,last_checkin_at_utc=?,last_report_id=?,updated_at_utc=? WHERE member_id=?",(health_state,now,report_id,now,member_id))
+        if not existing:
+            self._audit(actor,"team.report.received","team_report",report_id,{"member_id":member_id,"health_state":health_state,"needs_attention":bool(needs_attention),"severity":severity})
+        return {"id":report_id,"member_id":member_id,"health_state":health_state,"summary":summary,"needs_attention":bool(needs_attention),"severity":severity,"source_ref":source_ref,"created_at_utc":now,"new":not bool(existing)}
+
+    def create_assignment(self, *, member_id: str, objective: str, priority: str = "normal", work_item_id: str | None = None, dependencies: list[str] | None = None, requested_by: str = "ava", state: str = "assigned", actor: str = "ava-executive") -> dict[str, Any]:
+        self.get_team_member(member_id)
+        if work_item_id is not None: self.get_work_item(work_item_id)
+        objective=_clean_text(objective,"objective",maximum=4000)
+        if priority not in WORK_PRIORITIES: raise OfficeManagerError("assignment priority is invalid")
+        if state not in {"assigned","working","waiting","review","completed","failed","cancelled"}: raise OfficeManagerError("assignment state is invalid")
+        dependencies=[] if dependencies is None else dependencies; requested_by=_clean_text(requested_by,"requested_by",maximum=128); aid=_new_id("assignment"); now=utc_now()
+        with self._lock,self.connect() as conn:
+            conn.execute("INSERT INTO executive_assignments(id,work_item_id,member_id,objective,state,priority,dependencies_json,requested_by,created_at_utc,updated_at_utc) VALUES(?,?,?,?,?,?,?,?,?,?)",(aid,work_item_id,member_id,objective,state,priority,_canonical(dependencies),requested_by,now,now))
+        self._audit(actor,"assignment.created","assignment",aid,{"member_id":member_id,"work_item_id":work_item_id,"priority":priority,"state":state})
+        return {"id":aid,"work_item_id":work_item_id,"member_id":member_id,"objective":objective,"state":state,"priority":priority,"dependencies":dependencies,"requested_by":requested_by,"created_at_utc":now,"updated_at_utc":now}
 
     def summary(self) -> dict[str, Any]:
         with self.connect() as conn:

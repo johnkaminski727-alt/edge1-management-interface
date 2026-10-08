@@ -40,7 +40,7 @@
       "runtime_route": "/edge1-ops/status/ava/",
       "availability": "accepted_live",
       "authorization": "authenticated",
-      "description": "Primary AI workspace for planning, operator assistance, approvals, contacts, communications, connector health and bounded actions.",
+      "description": "Executive AI orchestrator for the Edge1 automation team, coordinating bot reports, assignments, dependencies, approvals, contacts, communications and bounded actions.",
       "palette": false,
       "toolbox": false,
       "evidence_status": "accepted_authenticated_browser",
