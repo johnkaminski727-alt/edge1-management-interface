@@ -271,11 +271,18 @@ def refresh_entity_profiles(store: OfficeManagerStore) -> int:
             rels=[]
             if has_rel:
                 rels=[dict(r) for r in src.execute('''SELECT cr.relationship_type,cr.confidence,cr.lifecycle_status,CASE WHEN cr.left_entity_id=? THEN r.canonical_name ELSE l.canonical_name END related_name,CASE WHEN cr.left_entity_id=? THEN r.entity_type ELSE l.entity_type END related_type FROM contact_relationships cr LEFT JOIN contact_entities l ON l.id=cr.left_entity_id LEFT JOIN contact_entities r ON r.id=cr.right_entity_id WHERE cr.left_entity_id=? OR cr.right_entity_id=? ORDER BY cr.lifecycle_status,cr.relationship_type LIMIT 40''',(eid,eid,eid,eid)).fetchall()]
-            prov=src.execute('''SELECT COUNT(DISTINCT ae.provenance_id),COUNT(DISTINCT pr.source_document_id) FROM contact_assertions ca JOIN assertion_evidence ae ON ae.assertion_id=ca.id JOIN provenance_records pr ON pr.id=ae.provenance_id WHERE ca.entity_id=?''',(eid,)).fetchone()
-            docs=[dict(r) for r in src.execute('''SELECT DISTINCT pr.source_name,pr.source_reference,pr.source_page,pr.verification_status FROM contact_assertions ca JOIN assertion_evidence ae ON ae.assertion_id=ca.id JOIN provenance_records pr ON pr.id=ae.provenance_id WHERE ca.entity_id=? ORDER BY pr.id DESC LIMIT 16''',(eid,)).fetchall()]
+            evidence_rows=[dict(r) for r in src.execute('''SELECT DISTINCT pr.id provenance_id,pr.source_name,pr.source_reference,pr.source_page,pr.verification_status,pr.source_document_id FROM contact_assertions ca JOIN assertion_evidence ae ON ae.assertion_id=ca.id JOIN provenance_records pr ON pr.id=ae.provenance_id WHERE ca.entity_id=?''',(eid,)).fetchall()]
+            if table_exists(src,'contact_attestations'):
+                evidence_rows.extend(dict(r) for r in src.execute('''SELECT DISTINCT pr.id provenance_id,pr.source_name,pr.source_reference,pr.source_page,pr.verification_status,pr.source_document_id FROM contact_attestations att JOIN provenance_records pr ON pr.id=att.provenance_id WHERE att.entity_id=? OR att.contact_point_id IN (SELECT DISTINCT contact_point_id FROM contact_assertions WHERE entity_id=?)''',(eid,eid)).fetchall())
+            evidence_by_id={int(r['provenance_id']):r for r in evidence_rows}
+            provenance_count=len(evidence_by_id)
+            document_count=len({int(r['source_document_id']) for r in evidence_by_id.values() if r.get('source_document_id') is not None})
+            docs=[]
+            for pid in sorted(evidence_by_id,reverse=True)[:24]:
+                r=dict(evidence_by_id[pid]); r.pop('provenance_id',None); docs.append(r)
             detail={'display_name':e['display_name'],'contact_points':points,'relationships':rels,'evidence':docs}
             out.execute('''INSERT INTO executive_entity_profiles(entity_key,entity_id,entity_type,canonical_name,verification_status,lifecycle_status,contact_points,relationships,provenance_count,document_count,accounting_documents,detail_json,updated_at_utc) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-                        (f"{e['entity_type']}:{eid}",eid,e['entity_type'],name,e['verification_status'],e['lifecycle_status'],len(points),len(rels),int(prov[0] or 0),int(prov[1] or 0),acct[name.lower().strip()],json.dumps(detail,sort_keys=True),now))
+                        (f"{e['entity_type']}:{eid}",eid,e['entity_type'],name,e['verification_status'],e['lifecycle_status'],len(points),len(rels),provenance_count,document_count,acct[name.lower().strip()],json.dumps(detail,sort_keys=True),now))
     src.close(); return len(entities)
 
 
