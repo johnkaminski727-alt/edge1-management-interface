@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import grp
 import hashlib
 import json
+import os
+import pwd
 import shutil
 import sqlite3
 from datetime import datetime, timezone
@@ -11,6 +14,14 @@ from pathlib import Path
 
 DB = Path('/var/lib/edge1-phone-intelligence/phone-intelligence.sqlite')
 ROOT = Path('/var/lib/edge1-evidence-intake')
+
+
+def bot_access(path: Path, mode: int) -> None:
+    path.chmod(mode)
+    if os.geteuid() == 0:
+        uid = pwd.getpwnam('wwadmin').pw_uid
+        gid = grp.getgrnam('wwadmin').gr_gid
+        os.chown(path, uid, gid)
 
 
 def sha256(path: Path) -> str:
@@ -32,6 +43,7 @@ def safe_name(value: str) -> str:
 def ensure_manifest_dir() -> Path:
     p = ROOT / 'manifests'
     p.mkdir(parents=True, exist_ok=True)
+    bot_access(p, 0o750)
     return p
 
 
@@ -68,6 +80,7 @@ def write_manifest(payload: dict) -> tuple[Path, str]:
     path = directory / f'{basename}-{stamp}.json'
     encoded = (json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False) + '\n').encode('utf-8')
     path.write_bytes(encoded)
+    bot_access(path, 0o640)
     return path, hashlib.sha256(encoded).hexdigest()
 
 
@@ -110,11 +123,16 @@ def ingest_file(args) -> dict:
     if not source.is_file():
         raise SystemExit(f'file not found: {source}')
     digest = sha256(source)
-    target_dir = ROOT / 'objects' / digest[:2] / digest
+    prefix = ROOT / 'objects' / digest[:2]
+    prefix.mkdir(parents=True, exist_ok=True)
+    bot_access(prefix, 0o750)
+    target_dir = prefix / digest
     target_dir.mkdir(parents=True, exist_ok=True)
+    bot_access(target_dir, 0o750)
     target = target_dir / source.name
     if not target.exists():
         shutil.copy2(source, target)
+    bot_access(target, 0o640)
     if sha256(target) != digest:
         raise RuntimeError('evidence copy hash mismatch')
     manifest = {

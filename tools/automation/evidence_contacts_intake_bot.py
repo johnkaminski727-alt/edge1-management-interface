@@ -110,6 +110,13 @@ def process_supported_imports(db,res):
 def downstream(res):
  if not (res['files_preserved'] or res['source_documents_backfilled'] or res['imports_run']): return
  try:
+  py=ROOT/'.venv-evidence-extractor/bin/python'
+  if not py.is_file(): raise RuntimeError('evidence extractor virtualenv is unavailable')
+  out=run([str(py),str(ROOT/'tools/automation/evidence_document_contact_extractor.py')],600)
+  res['document_extraction_ran']=True
+  res['document_extraction']=json.loads(out)
+ except Exception as e: res['errors'].append({'source':'document-contact-extractor','error':str(e)})
+ try:
   run([sys.executable,str(ROOT/'tools/unified_contacts/maintenance_bot.py'),'--apply-safe','--json'],600);res['maintenance_ran']=True
  except Exception as e: res['errors'].append({'source':'contacts-maintenance','error':str(e)})
  try:
@@ -118,7 +125,7 @@ def downstream(res):
 
 def main():
  EVID.mkdir(parents=True,exist_ok=True);STAGING.mkdir(parents=True,exist_ok=True)
- res={'contract':'edge1.evidence-contacts-intake.v1','generated_at':now(),'files_preserved':0,'source_documents_backfilled':0,'imports_run':0,'local_references':0,'connector_deferred':[],'maintenance_ran':False,'autopromote_ran':False,'errors':[]}
+ res={'contract':'edge1.evidence-contacts-intake.v1','generated_at':now(),'files_preserved':0,'source_documents_backfilled':0,'imports_run':0,'local_references':0,'connector_deferred':[],'document_extraction_ran':False,'document_extraction':None,'maintenance_ran':False,'autopromote_ran':False,'errors':[]}
  with sqlite3.connect(STATE) as db:
   db.executescript(SCHEMA)
   process_inbox(db,res);process_local_registry(db,res);backfill_local_source_documents(db,res);process_supported_imports(db,res);db.commit()
