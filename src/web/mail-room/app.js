@@ -162,7 +162,7 @@
     if(current!==generation)return;
     if(decision.state!=="released"){
       clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);current_actions=null;
-      const head=element("div","","reading-head"),bar=element("div","","toolbar");head.append(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender),bar,securityBadges(decision),securityReasonNotice(decision));$("reading").replaceChildren(head);
+      const head=element("div","","reading-head"),bar=element("div","","toolbar");head.append(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender),element("p","Received for: "+((m.recipients||[]).join(", ")||"Not recorded")),bar,securityBadges(decision),securityReasonNotice(decision));$("reading").replaceChildren(head);
       const sec=section("Security details",true);securityDetails(decision,sec);$("reading").append(sec);
       const body=element("section","","thread-message");body.append(element("h3","Message text"),element("p","Loading stripped text for manual review…","small"));head.after(body);
       const review=element("button","Retry loading message text");review.hidden=true;
