@@ -15,6 +15,7 @@ import subprocess
 import time
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from dataclasses import asdict
@@ -1316,6 +1317,105 @@ def _resolve_person_for_relationship(db: sqlite3.Connection, row: dict[str, Any]
     return person_id,created,point_added
 
 
+
+IDENTITY_DISPOSITIONS = {
+    "disconnected",
+    "former_number",
+    "still_current",
+    "wrong_association",
+}
+
+
+def _validate_contacts_maintenance_identity_disposition(parameters: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(parameters, dict):
+        raise TypedActionValidationError("typed action parameters must be an object")
+    allowed={"maintenance_item_id","disposition","note","idempotency_key"}
+    extra=set(parameters)-allowed
+    if extra:
+        raise TypedActionValidationError("unexpected maintenance identity parameter: "+sorted(extra)[0])
+    item_id=_positive_integer("maintenance_item_id",parameters.get("maintenance_item_id"))
+    disposition=parameters.get("disposition")
+    if disposition not in IDENTITY_DISPOSITIONS:
+        raise TypedActionValidationError("maintenance identity disposition is invalid")
+    note=parameters.get("note","")
+    if not isinstance(note,str):
+        raise TypedActionValidationError("maintenance identity note must be text")
+    return {"maintenance_item_id":item_id,"disposition":disposition,"note":note.strip()[:1000]}
+
+
+def contacts_maintenance_identity_disposition(parameters: dict[str, Any], *, actor=None, **kwargs) -> dict[str, Any]:
+    validated=_validate_contacts_maintenance_identity_disposition(parameters)
+    item_id=validated["maintenance_item_id"]
+    disposition=validated["disposition"]
+    note=validated["note"]
+    m=sqlite3.connect(str(CONTACTS_MAINTENANCE_DB),timeout=10); m.row_factory=sqlite3.Row
+    row=m.execute("SELECT * FROM identity_resolution_queue WHERE id=?",(item_id,)).fetchone()
+    if row is None:
+        m.close(); raise TypedActionValidationError("maintenance identity item not found")
+    if row["resolution_kind"]!="reverse_phone":
+        m.close(); raise TypedActionValidationError("identity disposition currently supports reverse_phone items only")
+    if row["status"]=="dismissed" and disposition!="still_current":
+        try:
+            evidence=json.loads(row["evidence_json"] or "{}")
+        except (TypeError,json.JSONDecodeError): evidence={}
+        if isinstance(evidence,dict) and evidence.get("operator_disposition")==disposition:
+            m.close(); return {"operation":"maintenance.identity.disposition","maintenance_item_id":item_id,"disposition":disposition,"status":"dismissed","idempotent":True}
+    db=sqlite3.connect(str(CONTACTS_DB),timeout=10); db.row_factory=sqlite3.Row; db.execute("PRAGMA foreign_keys=ON")
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        point=db.execute("SELECT id,legacy_phone_number_id,lifecycle_status FROM contact_points WHERE id=? AND point_type='phone'",(row["contact_point_id"],)).fetchone()
+        if point is None:
+            raise TypedActionValidationError("phone contact point for maintenance item no longer exists")
+        assertion_closed=0
+        if disposition=="disconnected":
+            db.execute("UPDATE contact_points SET lifecycle_status='inactive',updated_at=CURRENT_TIMESTAMP WHERE id=?",(point["id"],))
+            if point["legacy_phone_number_id"] is not None:
+                db.execute("UPDATE phone_numbers SET status='retired',updated_at=CURRENT_TIMESTAMP WHERE id=?",(point["legacy_phone_number_id"],))
+        elif disposition=="still_current":
+            db.execute("UPDATE contact_points SET lifecycle_status='active',updated_at=CURRENT_TIMESTAMP WHERE id=?",(point["id"],))
+        elif disposition in {"former_number","wrong_association"} and row["matched_entity_id"] is not None:
+            cur=db.execute("UPDATE contact_assertions SET valid_to=COALESCE(valid_to,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP WHERE entity_id=? AND contact_point_id=? AND valid_to IS NULL",(row["matched_entity_id"],point["id"]))
+            assertion_closed=cur.rowcount
+        db.commit()
+    except Exception:
+        if db.in_transaction: db.rollback()
+        db.close(); m.close(); raise
+    finally:
+        if db: db.close()
+    try:
+        m.execute("BEGIN IMMEDIATE")
+        try:
+            evidence=json.loads(row["evidence_json"] or "{}")
+        except (TypeError,json.JSONDecodeError): evidence={}
+        if not isinstance(evidence,dict): evidence={}
+        evidence.update({
+            "operator_disposition":disposition,
+            "operator_disposition_note":note or None,
+            "operator_disposition_actor":actor or "edge1.contacts.manage",
+            "operator_disposition_at":datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        })
+        if disposition=="still_current":
+            status="review_required"
+            rationale="Operator confirmed the phone line is still current; identity ownership remains unresolved and requires review."
+        elif disposition=="disconnected":
+            status="dismissed"
+            rationale="Operator confirmed this historical phone number is disconnected. Historical observations are preserved; no current identity assignment is implied."
+        elif disposition=="former_number":
+            status="dismissed"
+            rationale="Operator confirmed this is a former phone number. Historical observations are preserved and any matched current assertion was ended."
+        else:
+            status="dismissed"
+            rationale="Operator rejected the suggested/current identity association. Historical observations are preserved without a current identity assignment."
+        m.execute("UPDATE identity_resolution_queue SET status=?,rationale=?,evidence_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",(status,rationale,json.dumps(evidence,sort_keys=True),item_id))
+        m.commit()
+    except Exception:
+        if m.in_transaction: m.rollback()
+        raise
+    finally:
+        m.close()
+    return {"operation":"maintenance.identity.disposition","maintenance_item_id":item_id,"disposition":disposition,"status":status,"contact_point_id":int(row["contact_point_id"]),"assertions_closed":assertion_closed,"idempotent":False}
+
+
 def contacts_maintenance_relationship_approve(parameters: dict[str, Any], *, actor=None, **kwargs) -> dict[str, Any]:
     validated=_validate_contacts_maintenance_relationship(parameters)
     item_id=validated["maintenance_item_id"]
@@ -1418,6 +1518,7 @@ TYPED_ACTION_VALIDATORS = {
     "contacts_discovery_promote": _validate_contacts_discovery_promote,
     "contacts_maintenance_relationship_approve": _validate_contacts_maintenance_relationship,
     "contacts_maintenance_relationship_reject": _validate_contacts_maintenance_relationship,
+    "contacts_maintenance_identity_disposition": _validate_contacts_maintenance_identity_disposition,
     "contacts_candidate_promote": _validate_contacts_candidate_promote,
     "contacts_candidate_reject": _validate_contacts_candidate_reject,
     "telephony_console_reload": _validate_reload,
@@ -1497,6 +1598,7 @@ TYPED_ACTION_HANDLERS = {
     "contacts_discovery_promote": contacts_discovery_promote,
     "contacts_maintenance_relationship_approve": contacts_maintenance_relationship_approve,
     "contacts_maintenance_relationship_reject": contacts_maintenance_relationship_reject,
+    "contacts_maintenance_identity_disposition": contacts_maintenance_identity_disposition,
     "contacts_candidate_promote": contacts_candidate_promote,
     "contacts_candidate_reject": contacts_candidate_reject,
     "telephony_console_reload": telephony_console_reload,

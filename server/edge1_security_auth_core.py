@@ -33,6 +33,7 @@ ACTION_SCOPES = {
     "contacts.discovery.promote": "edge1.contacts.manage",
     "contacts.maintenance.relationship.approve": "edge1.contacts.manage",
     "contacts.maintenance.relationship.reject": "edge1.contacts.manage",
+    "contacts.maintenance.identity.disposition": "edge1.contacts.manage",
     "contacts.point.add": "edge1.contacts.manage",
     "contacts.point.update": "edge1.contacts.manage",
     "contacts.point.detach": "edge1.contacts.manage",

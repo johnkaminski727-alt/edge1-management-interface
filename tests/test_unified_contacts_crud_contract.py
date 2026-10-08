@@ -43,6 +43,10 @@ EXPECTED = {
         "contacts.maintenance.relationship.reject",
         "contacts_maintenance_relationship_reject",
     ),
+    "maintenance.identity.disposition": (
+        "contacts.maintenance.identity.disposition",
+        "contacts_maintenance_identity_disposition",
+    ),
     "point.add": (
         "contacts.point.add",
         "contacts_point_add",
@@ -114,8 +118,8 @@ class UnifiedContactsCrudContractTests(unittest.TestCase):
         assert set(ACTION_MAP.values()) == expected_operations
 
 
-    def test_crud_contract_is_exactly_eleven_operations(self):
-        assert len(EXPECTED) == 11
+    def test_crud_contract_is_exactly_twelve_operations(self):
+        assert len(EXPECTED) == 12
 
 
 class UnifiedContactsCrudIdempotencyTests(unittest.TestCase):

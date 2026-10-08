@@ -1583,6 +1583,23 @@ function renderObservationDetail(row) {
 function maintenanceActionButtons(row) {
   const buttons = [];
 
+  if (row.maintenance_kind === "identity" && row.resolution_kind === "reverse_phone" && ["pending", "review_required"].includes(row.status || "pending")) {
+    buttons.push(`
+      <button type="button" class="secondary" data-maintenance-action="identity-disposition" data-maintenance-disposition="disconnected" data-maintenance-id="${Number(row.maintenance_item_id)}">
+        Mark disconnected
+      </button>
+      <button type="button" class="secondary" data-maintenance-action="identity-disposition" data-maintenance-disposition="former_number" data-maintenance-id="${Number(row.maintenance_item_id)}">
+        Mark as former number
+      </button>
+      <button type="button" class="secondary" data-maintenance-action="identity-disposition" data-maintenance-disposition="still_current" data-maintenance-id="${Number(row.maintenance_item_id)}">
+        Still current
+      </button>
+      <button type="button" class="secondary" data-maintenance-action="identity-disposition" data-maintenance-disposition="wrong_association" data-maintenance-id="${Number(row.maintenance_item_id)}">
+        Wrong association
+      </button>
+    `);
+  }
+
   if (row.maintenance_kind === "relationship_suggestion" && (row.status || "pending") === "pending") {
     buttons.push(`
       <button type="button" class="primary" data-maintenance-action="approve-relationship" data-maintenance-id="${Number(row.maintenance_item_id)}">
@@ -2165,6 +2182,34 @@ document.addEventListener("click", async (event) => {
   if (!button) return;
 
   const action = button.dataset.maintenanceAction;
+  if (action === "identity-disposition") {
+    event.preventDefault();
+    const itemId = Number(button.dataset.maintenanceId || 0);
+    const disposition = button.dataset.maintenanceDisposition || "";
+    if (!Number.isInteger(itemId) || itemId < 1) return;
+    const prompts = {
+      disconnected: "Mark this phone number as disconnected? Historical evidence will be preserved.",
+      former_number: "Mark this as a former number? Historical evidence will be preserved and any matched current association will be ended.",
+      still_current: "Confirm this phone line is still current? Its identity will remain unresolved for review.",
+      wrong_association: "Mark the current/suggested association as wrong? Historical evidence will be preserved."
+    };
+    if (!window.confirm(prompts[disposition] || "Apply this phone-number disposition?")) return;
+    button.disabled = true;
+    try {
+      await submitContactMutation("maintenance.identity.disposition", {
+        maintenance_item_id: itemId,
+        disposition,
+      });
+      state.selected = null;
+      await refreshContactManager();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to update phone-number disposition.");
+    } finally {
+      button.disabled = false;
+    }
+    return;
+  }
+
   if (action === "find-match" || action === "open-contact") {
     event.preventDefault();
     await openMaintenanceSearch(button.dataset.maintenanceSearch || "");

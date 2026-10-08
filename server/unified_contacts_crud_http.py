@@ -35,6 +35,7 @@ ACTION_MAP = {
     "discovery.promote": "contacts.discovery.promote",
     "maintenance.relationship.approve": "contacts.maintenance.relationship.approve",
     "maintenance.relationship.reject": "contacts.maintenance.relationship.reject",
+    "maintenance.identity.disposition": "contacts.maintenance.identity.disposition",
     "point.add": "contacts.point.add",
     "point.update": "contacts.point.update",
     "point.detach": "contacts.point.detach",
