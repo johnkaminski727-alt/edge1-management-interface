@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'server'))
 from mail_correspondence_store import MailCorrespondenceStore, CorrespondenceStoreError
-from server.mail_room_security import SecurityStore, classify, rspamd_scan, message_hash
+from server.mail_room_security import SecurityStore, classify, rspamd_scan, message_hash, decision_fingerprint
 from server.mail_room_features import MailRoomFeatures
 from server.mail_room_http import DraftStore
 from tools.messaging.mail_room_security_scan import inspect
@@ -103,6 +103,33 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(self.security.get(self.ids[0])['state'],'released')
         self.security.write(self.ids[0],'a'*64,{**held,'reasons':['new_phishing_finding'],'symbols':['PHISHING']})
         self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
+    def test_lookup_availability_does_not_revoke_reviewed_release(self):
+        held={**CLEAN,'state':'quarantine','reasons':['phishing_or_sender_authentication_failure'],'symbols':['PHISHING']}
+        self.security.write(self.ids[0],'a'*64,held)
+        self.security.action(self.ids[0],'release')
+        self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_BLOCKED']})
+        self.assertEqual(self.security.get(self.ids[0])['state'],'released')
+        self.security.write(self.ids[0],'a'*64,held)
+        self.assertEqual(self.security.get(self.ids[0])['state'],'released')
+        self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_PHISH']})
+        self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
+
+    def test_legacy_review_migration_keeps_security_gates(self):
+        held={**CLEAN,'state':'quarantine','reasons':['review'],'symbols':['PHISHING']}
+        for variant in [[],['URIBL_BLOCKED']]:
+            old={**held,'symbols':held['symbols']+variant}
+            self.security.write(self.ids[0],'a'*64,held)
+            with self.security.connect() as db:
+                db.execute('UPDATE decisions SET override=? WHERE message_hash=?',('reviewed_release:'+decision_fingerprint(old,legacy=True),message_hash(self.ids[0])))
+            self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_BLOCKED']})
+            self.assertEqual(self.security.get(self.ids[0])['state'],'released')
+            self.security.write(self.ids[0],'a'*64,{**held,'hard_block':True})
+            self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
+            self.security.write(self.ids[0],'a'*64,{**held,'scan_complete':False})
+            self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
+        self.security.write(self.ids[0],'b'*64,held)
+        self.assertTrue(self.security.get(self.ids[0])['hard_block'])
+
     def test_authentication_and_scan_failures(self):
         clean={'score':0,'symbols':{},'action':'no action'}
         decision,_,_=inspect(RAW,scan=lambda _: 'clean_download_disabled',spam_scan=lambda *a:clean)

@@ -33,10 +33,22 @@ def message_hash(message_id):
     return hashlib.sha256(message_id.encode()).hexdigest()
 
 
-def decision_fingerprint(decision):
+def decision_fingerprint(decision, *, legacy=False):
     # Human release is bound to reviewed findings, never future changed findings.
-    facts={'state':decision['state'],'reasons':sorted(decision.get('reasons',[])),'symbols':sorted(decision.get('symbols',[]))}
+    # URIBL_BLOCKED means the lookup provider denied a query, not a URL threat.
+    symbols=[s for s in decision.get('symbols',[]) if legacy or s != 'URIBL_BLOCKED']
+    facts={'state':decision['state'],'reasons':sorted(decision.get('reasons',[])),'symbols':sorted(symbols)}
     return hashlib.sha256(json.dumps(facts,sort_keys=True).encode()).hexdigest()
+
+
+def reviewed_release_matches(override, decision):
+    if override == 'reviewed_release:'+decision_fingerprint(decision):
+        return True
+    # Migrate existing approvals only when all findings match, allowing this
+    # one diagnostic to have appeared/disappeared during periodic rescanning.
+    symbols=[s for s in decision.get('symbols',[]) if s != 'URIBL_BLOCKED']
+    variants=[{**decision,'symbols':symbols},{**decision,'symbols':symbols+['URIBL_BLOCKED']}]
+    return any(override == 'reviewed_release:'+decision_fingerprint(v,legacy=True) for v in variants)
 
 
 def attach(db):
@@ -95,8 +107,9 @@ CREATE TABLE IF NOT EXISTS filter_settings(domain TEXT PRIMARY KEY, payload TEXT
             if override in {'phishing','confirmed_phishing'}: state='quarantine'
             elif override == 'spam' and state == 'released': state='junk'
             elif override == 'not_spam' and state == 'junk' and decision.get('scan_complete') and not decision.get('hard_block'): state='released'
-            elif override == 'reviewed_release:'+decision_fingerprint(decision) and decision.get('scan_complete') and not decision.get('hard_block') and state != 'pending': state='released'
-            db.execute('INSERT INTO decisions VALUES (?,?,?,?,?,?,?) ON CONFLICT(message_hash) DO UPDATE SET raw_hash=excluded.raw_hash,state=excluded.state,automatic_state=excluded.automatic_state,payload=excluded.payload,checked=excluded.checked', (key,raw_hash,state,decision['state'],json.dumps(decision),time.time(),override))
+            elif reviewed_release_matches(override, decision) and decision.get('scan_complete') and not decision.get('hard_block') and state != 'pending':
+                state='released'; override='reviewed_release:'+decision_fingerprint(decision)
+            db.execute('INSERT INTO decisions VALUES (?,?,?,?,?,?,?) ON CONFLICT(message_hash) DO UPDATE SET raw_hash=excluded.raw_hash,state=excluded.state,automatic_state=excluded.automatic_state,payload=excluded.payload,checked=excluded.checked,override=excluded.override', (key,raw_hash,state,decision['state'],json.dumps(decision),time.time(),override))
             if not old or old[1] != state:
                 db.execute('INSERT INTO events(message_hash,action,occurred) VALUES (?,?,?)',(key,'classified_'+state,time.time()))
             for kind, digest in indicators:
