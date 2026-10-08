@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh AVA Operations Intelligence
+
+[Timer]
+OnBootSec=6min
+OnUnitActiveSec=15min
+RandomizedDelaySec=90s
+Persistent=true
+Unit=edge1-ava-operations-intelligence.service
+
+[Install]
+WantedBy=timers.target

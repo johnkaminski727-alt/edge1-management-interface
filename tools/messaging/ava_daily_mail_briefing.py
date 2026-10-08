@@ -13,6 +13,7 @@ STATE_DB=Path('/var/lib/edge1-contacts-maintenance/maintenance.sqlite')
 REPORT_DIR=Path('/var/lib/wwcx-mail-room-reports')
 BRIEF_DIR=Path('/var/lib/wwcx-daily-briefings')
 LIBRARY_DB=Path('/var/lib/bigbird-ai-library/library.sqlite3')
+AVA_INTELLIGENCE=Path('/var/www/edge1-status/ava/operations-intelligence.json')
 NOREPLY=('no-reply','noreply','donotreply','do-not-reply','mailer-daemon','postmaster@')
 TEST_WORDS=('auth check','acceptance','commissioning','pilot','smoke test','test message','dkim signing','mailroom test')
 ACTION_WORDS=('action required','please','request','invoice','payment','due','deadline','confirm','confirmation','verify','verification','renew','renewal','support','question','respond','reply','signature','sign','approval','review required')
@@ -76,12 +77,23 @@ def build(day,repo_root:Path):
             try:
                 for status,n in c.execute("SELECT c.status,count(*) FROM mail_contact_candidates c JOIN mail_contact_extractions e ON e.id=c.extraction_id WHERE julianday(e.occurred_at)>=julianday(?) AND julianday(e.occurred_at)<julianday(?) GROUP BY c.status",(start,end)): contact_counts[status]=n
             except sqlite3.Error: pass
+    intelligence={}
+    if AVA_INTELLIGENCE.is_file():
+        try: intelligence=json.loads(AVA_INTELLIGENCE.read_text())
+        except Exception: intelligence={}
+    executive=intelligence.get('briefing',{}) if isinstance(intelligence,dict) else {}
     lines=[f'# Ava Daily Operations & Email Briefing — {day.isoformat()}','',f'Generated from completed `{day.isoformat()}` records in America/Regina.','', '## Executive summary','']
     counts=activity.get('counts',{}) if isinstance(activity,dict) else {}
     lines.append(f"- Email: **{len(inbound)} released inbound**; **{len(reply)} likely need replies**; **{len(action)} other action items**; **{len(info)} informational**.")
     lines.append(f"- Attachments: **{len(attachment_rows)} analyzed/indexable records**; **{sum(1 for a in attachment_rows if a.get('state')=='text_extracted')} text-extracted**.")
     lines.append(f"- Contacts: **{sum(contact_counts.values())} contact candidates observed**; statuses: {json.dumps(contact_counts,sort_keys=True)}.")
     if counts: lines.append(f"- Operations counts: {json.dumps(counts,sort_keys=True)}")
+    if executive:
+        lines.append(f"- AVA workflows (last 24h): **{executive.get('workflows_completed',0)} completed**, **{executive.get('workflows_failed',0)} failed**.")
+        lines.append(f"- AVA owner queue: **{executive.get('owner_actions_required',0)} owner-gated item(s)**; routine/team-managed rollups are excluded.")
+        lines.append(f"- Documents: **{executive.get('documents_new',0)} new**, **{executive.get('documents_changed',0)} changed**, **{executive.get('documents_indexed',0)} indexed**.")
+        lines.append(f"- Contacts/accounting: **{executive.get('contacts_updated',0)} Contacts entities updated**; **{executive.get('accounting_documents_updated',0)} accounting records updated**.")
+        lines.append(f"- Source health: {json.dumps(executive.get('source_health',{}),sort_keys=True)}; automation failures: **{executive.get('automation_failures',0)}**.")
     def section(title,items):
         lines.extend(['',f'## {title}',''])
         if not items: lines.append('- None identified.'); return

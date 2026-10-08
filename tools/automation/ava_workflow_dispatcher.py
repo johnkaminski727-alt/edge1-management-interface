@@ -69,7 +69,8 @@ def create_run(store:OfficeManagerStore, reg:dict[str,Any], request:dict[str,Any
     if existing_work_id:
         work=store.get_work_item(existing_work_id)
     else:
-        work=store.create_work_item(title='AVA workflow: '+str(flow.get('name') or wid),desired_outcome=str(flow.get('description') or 'Complete the registered autonomous workflow.'),source_channel='ava-workflow',source_ref='workflow:'+wid+':'+hashlib.sha256(trigger_ref.encode()).hexdigest()[:24],priority=str(request.get('priority') or 'normal'),owner='ava',actor='ava-dispatcher')
+        objective=str(request.get('objective') or '').strip()[:1000]
+        work=store.create_work_item(title='AVA workflow: '+str(flow.get('name') or wid),desired_outcome=objective or str(flow.get('description') or 'Complete the registered autonomous workflow.'),source_channel='ava-workflow',source_ref='workflow:'+wid+':'+hashlib.sha256(trigger_ref.encode()).hexdigest()[:24],priority=str(request.get('priority') or 'normal'),owner='ava',actor='ava-dispatcher')
     run_id=_id('workflow');
     with store.connect() as c:
         c.execute('INSERT INTO executive_workflow_runs(id,workflow_id,trigger_type,trigger_ref,state,requested_by,work_item_id,created_at_utc,updated_at_utc) VALUES(?,?,?,?,?,?,?,?,?)',(run_id,wid,trigger_type,trigger_ref,'queued',requested_by,work['id'],now,now))

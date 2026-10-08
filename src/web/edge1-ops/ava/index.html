@@ -1,1 +1,91 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AVA Executive Office | Edge1</title><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css"><link rel="stylesheet" href="/edge1-ops/status/operator-shell/theme.css"></head><body data-edge1-module="ava-agent"><div id="wwcx-operator-shell"></div><main class="app"><header><div><p class="eyebrow">AI &amp; AUTOMATION · EXECUTIVE OFFICE</p><h1>AVA</h1><p class="subtitle">Executive orchestrator for the Edge1 automation team.</p></div><div id="fresh" class="pill">Loading</div></header><section class="boundary"><strong>AVA coordinates the team; existing control planes still govern execution.</strong><span>Restricted actions remain fail-closed.</span></section><section id="summary" class="summary"></section><nav class="tabs"><button class="active" data-tab="team">Team</button><button data-tab="tools">Tools &amp; Connectors</button><button data-tab="workflows">Workflows</button><button data-tab="assignments">Assignments</button><button data-tab="reports">Executive Inbox</button><button data-tab="work">Work Queue</button><button data-tab="decisions">Needs You</button></nav><section class="panel active" data-panel="team"><div class="head"><div><p class="eyebrow">ORGANIZATION</p><h2>AVA's Team</h2></div><input id="teamSearch" type="search" placeholder="Search team"></div><div id="departments" class="departments"></div><div class="table"><table><thead><tr><th>Team member</th><th>Department</th><th>Authority</th><th>Health</th><th>Last check-in</th></tr></thead><tbody id="teamRows"></tbody></table></div></section><section class="panel" data-panel="tools"><div class="head"><div><p class="eyebrow">CAPABILITIES</p><h2>Tools &amp; Connectors</h2></div></div><p class="subtitle">Live conversational connector inventory, transport boundaries, and retired/superseded AVA tools.</p><div id="toolSummary" class="summary"></div><div id="toolCards" class="cards"></div></section><section class="panel" data-panel="workflows"><div class="head"><div><p class="eyebrow">AUTONOMY</p><h2>Workflow Engine</h2></div></div><p class="subtitle">AVA dispatches registered capabilities, tracks dependencies, and stops on blocked or failed steps.</p><div id="workflowCards" class="cards"></div></section><section class="panel" data-panel="assignments"><div class="head"><div><p class="eyebrow">COORDINATION</p><h2>Assignments</h2></div></div><div id="assignmentCards" class="cards"></div></section><section class="panel" data-panel="reports"><div class="head"><div><p class="eyebrow">REPORTING</p><h2>Executive Inbox</h2></div><label><input id="attentionOnly" type="checkbox" checked> Attention only</label></div><div id="reportCards" class="cards"></div></section><section class="panel" data-panel="work"><div class="head"><div><p class="eyebrow">AVA OFFICE</p><h2>Work Queue</h2></div></div><div id="workCards" class="cards"></div></section><section class="panel" data-panel="decisions"><div class="head"><div><p class="eyebrow">OWNER REVIEW</p><h2>Needs You</h2></div></div><div id="decisionCards" class="cards"></div></section></main><script src="./app.js"></script><script src="/edge1-ops/status/operator-shell/shell.js" defer data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="ava-agent"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AVA Executive Office | Edge1</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="/edge1-ops/status/operator-shell/shell.css">
+  <link rel="stylesheet" href="/edge1-ops/status/operator-shell/theme.css">
+</head>
+<body data-edge1-module="ava-agent">
+<div id="wwcx-operator-shell"></div>
+<main class="app">
+  <header>
+    <div><p class="eyebrow">AI &amp; AUTOMATION · EXECUTIVE OFFICE</p><h1>AVA</h1><p class="subtitle">CEO / Executive orchestrator for the Edge1 automation team.</p></div>
+    <div id="fresh" class="pill">Loading</div>
+  </header>
+  <section class="boundary"><strong>AVA handles routine backend coordination and delegates bounded work.</strong><span>Ambiguity, restricted authority, destructive operations and exhausted remediation remain owner-gated.</span></section>
+  <section id="summary" class="summary"></section>
+  <nav class="tabs">
+    <button class="active" data-tab="briefing">Briefing</button>
+    <button data-tab="reviews">Needs You</button>
+    <button data-tab="team">Team</button>
+    <button data-tab="entities">Entities</button>
+    <button data-tab="sources">Sources &amp; Accounting</button>
+    <button data-tab="workflows">Delegate &amp; Workflows</button>
+    <button data-tab="tools">Tools &amp; Connectors</button>
+    <button data-tab="hygiene">Hygiene &amp; Lifecycle</button>
+    <button data-tab="assignments">Assignments</button>
+    <button data-tab="reports">Executive Inbox</button>
+    <button data-tab="work">Work Queue</button>
+  </nav>
+
+  <section class="panel active" data-panel="briefing">
+    <div class="head"><div><p class="eyebrow">TODAY</p><h2>Executive Briefing</h2></div></div>
+    <div id="briefingMetrics" class="summary"></div>
+    <div id="briefingAttention" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="reviews">
+    <div class="head"><div><p class="eyebrow">OWNER REVIEW</p><h2>Unified Review Queue</h2></div><label><input id="ownerOnly" type="checkbox" checked> Owner-required only</label></div>
+    <p class="subtitle">One review surface for Contacts, Mail, Accounting, Security, Automation and AVA authority gates.</p>
+    <div id="reviewCards" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="team">
+    <div class="head"><div><p class="eyebrow">ORGANIZATION</p><h2>AVA's Team Scorecards</h2></div><input id="teamSearch" type="search" placeholder="Search team"></div>
+    <div id="departments" class="departments"></div>
+    <div class="table"><table><thead><tr><th>Team member</th><th>Department</th><th>Maturity</th><th>Health</th><th>Runs</th><th>Success</th><th>Failures / retries</th></tr></thead><tbody id="teamRows"></tbody></table></div>
+  </section>
+
+  <section class="panel" data-panel="entities">
+    <div class="head"><div><p class="eyebrow">ENTITY-CENTRIC OPERATIONS</p><h2>People &amp; Organizations</h2></div><input id="entitySearch" type="search" placeholder="Search people or organizations"></div>
+    <p class="subtitle">Contacts, relationships, evidence, documents and accounting context projected into one view.</p>
+    <div id="entityCards" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="sources">
+    <div class="head"><div><p class="eyebrow">DATA CONTINUITY</p><h2>Source Health &amp; Accounting Completeness</h2></div></div>
+    <h3>Source health / missing data</h3><div id="sourceCards" class="cards"></div>
+    <h3>Recurring financial documents</h3><div id="accountingCards" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="workflows">
+    <div class="head"><div><p class="eyebrow">DELEGATION</p><h2>Assign Work to AVA</h2></div></div>
+    <div class="card delegation"><label for="delegateObjective"><strong>Objective</strong></label><textarea id="delegateObjective" rows="3" placeholder="e.g. Organize all new SaskTel records and process any verified evidence."></textarea><div class="meta"><select id="templateSelect"></select><button id="suggestTemplate" type="button">Suggest template</button><button id="runTemplate" type="button">Assign to AVA</button><span id="delegateStatus"></span></div></div>
+    <h3>Workflow templates</h3><div id="templateCards" class="cards"></div>
+    <h3>Workflow runs</h3><div id="workflowCards" class="cards"></div>
+    <h3>Why AVA did this</h3><div id="whyCards" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="tools">
+    <div class="head"><div><p class="eyebrow">CAPABILITIES</p><h2>Tools &amp; Connectors</h2></div></div>
+    <div id="toolSummary" class="summary"></div><div id="toolCards" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="hygiene">
+    <div class="head"><div><p class="eyebrow">CONTINUOUS IMPROVEMENT</p><h2>Automation Hygiene &amp; Lifecycle</h2></div></div>
+    <p class="subtitle">Retirement candidates are recommendations only. AVA does not remove automation merely because it is disabled or superseded.</p>
+    <div id="hygieneCards" class="cards"></div>
+    <h3>Candidate → Production → Retired</h3><div id="lifecycleCards" class="cards"></div>
+  </section>
+
+  <section class="panel" data-panel="assignments"><div class="head"><div><p class="eyebrow">COORDINATION</p><h2>Assignments</h2></div></div><div id="assignmentCards" class="cards"></div></section>
+  <section class="panel" data-panel="reports"><div class="head"><div><p class="eyebrow">REPORTING</p><h2>Executive Inbox</h2></div><label><input id="attentionOnly" type="checkbox" checked> Attention only</label></div><div id="reportCards" class="cards"></div></section>
+  <section class="panel" data-panel="work"><div class="head"><div><p class="eyebrow">AVA OFFICE</p><h2>Work Queue</h2></div></div><div id="workCards" class="cards"></div></section>
+</main>
+<script src="./app.js"></script>
+<script src="/edge1-ops/status/operator-shell/shell.js" defer data-registry="/edge1-ops/status/operator-shell/navigation.json" data-module="ava-agent"></script>
+</body>
+</html>

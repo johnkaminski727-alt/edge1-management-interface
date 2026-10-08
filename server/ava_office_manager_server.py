@@ -149,6 +149,108 @@ class AvaOfficeReadModel:
                 out.append(item)
         return out
 
+    def latest_briefing(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row=conn.execute("SELECT id,briefing_type,period_start_utc,period_end_utc,title,summary_json,owner_action_count,created_at_utc FROM executive_briefings ORDER BY period_end_utc DESC LIMIT 1").fetchone()
+        if row is None:
+            return {}
+        item=dict(row)
+        item['summary']=json.loads(item.pop('summary_json') or '{}')
+        return item
+
+    def reviews(self, *, owner_only: bool=False, state: str='open', limit: int=100) -> list[dict[str, Any]]:
+        if state not in {'open','resolved','all'}:
+            raise AvaOfficeReadError('review state filter is invalid')
+        clauses=[]
+        params=[]
+        if state!='all':
+            clauses.append('state=?')
+            params.append(state)
+        if owner_only:
+            clauses.append('owner_required=1')
+        sql='SELECT id,source_system,source_ref,category,title,summary,severity,state,owner_required,recommended_action,evidence_json,first_seen_at_utc,updated_at_utc,resolved_at_utc FROM executive_reviews'
+        if clauses:
+            sql+=' WHERE '+' AND '.join(clauses)
+        sql+=" ORDER BY CASE severity WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,updated_at_utc DESC LIMIT ?"
+        params.append(limit)
+        with self._connect() as conn:
+            rows=conn.execute(sql,params).fetchall()
+        out=[]
+        for row in rows:
+            item=dict(row)
+            item['owner_required']=bool(item['owner_required'])
+            item['evidence']=json.loads(item.pop('evidence_json') or '[]')
+            out.append(item)
+        return out
+
+    def team_scorecards(self, *, limit: int=100) -> list[dict[str, Any]]:
+        sql=("SELECT m.member_id,m.display_name,m.department,m.role,m.action_level,m.authority_ceiling,m.health_state,m.last_checkin_at_utc,"
+             "COALESCE(x.maturity_level,'Observe') maturity_level,COALESCE(x.run_count,0) run_count,COALESCE(x.success_count,0) success_count,"
+             "COALESCE(x.failure_count,0) failure_count,COALESCE(x.retry_count,0) retry_count,x.success_rate,x.last_success_at_utc,x.last_failure_at_utc,x.recommendation "
+             "FROM executive_team_members m LEFT JOIN executive_team_metrics x ON x.member_id=m.member_id WHERE m.active=1 "
+             "ORDER BY CASE m.health_state WHEN 'failed' THEN 0 WHEN 'error' THEN 0 WHEN 'attention' THEN 1 ELSE 2 END,m.department,m.display_name LIMIT ?")
+        with self._connect() as conn:
+            rows=conn.execute(sql,(limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def source_health(self, *, limit: int=100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute("SELECT source_id,provider,name,state,last_sync_at_utc,age_hours,expected_hours,issue,updated_at_utc FROM executive_source_health ORDER BY CASE state WHEN 'error' THEN 0 WHEN 'stale' THEN 1 WHEN 'unknown' THEN 2 WHEN 'deferred' THEN 3 ELSE 4 END,provider,name LIMIT ?",(limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def accounting_completeness(self, *, limit: int=100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute("SELECT key,vendor_name,document_kind,observed_periods,first_period,last_period,missing_periods_json,state,updated_at_utc FROM executive_accounting_completeness ORDER BY CASE state WHEN 'gaps' THEN 0 WHEN 'learning' THEN 1 ELSE 2 END,vendor_name LIMIT ?",(limit,)).fetchall()
+        out=[]
+        for r in rows:
+            d=dict(r)
+            d['missing_periods']=json.loads(d.pop('missing_periods_json') or '[]')
+            out.append(d)
+        return out
+
+    def entity_profiles(self, *, query: str|None=None, limit: int=100) -> list[dict[str, Any]]:
+        sql='SELECT entity_key,entity_id,entity_type,canonical_name,verification_status,lifecycle_status,contact_points,relationships,provenance_count,document_count,accounting_documents,detail_json,updated_at_utc FROM executive_entity_profiles'
+        params=[]
+        if query:
+            q=query.strip()[:128]
+            sql+=' WHERE canonical_name LIKE ?'
+            params.append('%'+q+'%')
+        sql+=' ORDER BY canonical_name LIMIT ?'
+        params.append(limit)
+        with self._connect() as conn:
+            rows=conn.execute(sql,params).fetchall()
+        out=[]
+        for r in rows:
+            d=dict(r)
+            d['detail']=json.loads(d.pop('detail_json') or '{}')
+            out.append(d)
+        return out
+
+    def hygiene(self, *, limit: int=100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute('SELECT id,category,subject,state,rationale,recommended_action,updated_at_utc FROM executive_automation_hygiene ORDER BY category,subject LIMIT ?',(limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def workflow_templates(self, *, limit: int=100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute("SELECT id,name,category,description,workflow_id,trigger_examples_json,state,owner_gate,updated_at_utc FROM executive_workflow_templates ORDER BY CASE state WHEN 'production' THEN 0 ELSE 1 END,category,name LIMIT ?",(limit,)).fetchall()
+        out=[]
+        for r in rows:
+            d=dict(r)
+            d['trigger_examples']=json.loads(d.pop('trigger_examples_json') or '[]')
+            out.append(d)
+        return out
+
+    def automation_lifecycle(self, *, limit: int=200) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute("SELECT object_type,object_id,stage,version,validation_state,rollback_ref,notes,updated_at_utc FROM executive_automation_lifecycle ORDER BY CASE stage WHEN 'candidate' THEN 0 WHEN 'validated' THEN 1 WHEN 'production' THEN 2 WHEN 'retired' THEN 3 ELSE 4 END,object_type,object_id LIMIT ?",(limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def why_events(self, *, limit: int=100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows=conn.execute('SELECT id,object_type,object_id,trigger_text,policy_text,action_text,outcome_text,owner_approval,created_at_utc FROM executive_why_events ORDER BY created_at_utc DESC LIMIT ?',(limit,)).fetchall()
+        return [dict(r) for r in rows]
+
     @staticmethod
     def _loopback_health(url: str) -> dict[str, Any]:
         try:
@@ -247,6 +349,48 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/ava-office/workflows":
                 limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
                 self._json(200, {"items": self.read_model.workflows(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/briefing":
+                self._json(200, self.read_model.latest_briefing())
+                return
+            if parsed.path == "/api/ava-office/reviews":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                owner_only = query.get("owner", ["0"])[0] in {"1","true","yes"}
+                state = query.get("state", ["open"])[0]
+                self._json(200, {"items": self.read_model.reviews(owner_only=owner_only, state=state, limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/scorecards":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.team_scorecards(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/source-health":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.source_health(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/accounting-completeness":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.accounting_completeness(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/entities":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                q = query.get("q", [None])[0]
+                self._json(200, {"items": self.read_model.entity_profiles(query=q, limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/hygiene":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.hygiene(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/workflow-templates":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.workflow_templates(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/automation-lifecycle":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.automation_lifecycle(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/why":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.why_events(limit=limit)})
                 return
             if parsed.path == "/api/ava-office/tools":
                 self._json(200, self.read_model.tools_connectors())

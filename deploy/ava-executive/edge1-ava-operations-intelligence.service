@@ -1,0 +1,19 @@
+[Unit]
+Description=AVA Operations Intelligence projection
+After=network-online.target edge1-automation-inventory.service edge1-library-source-catalog.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/edge1-management-interface/tools/automation/ava_operations_intelligence.py --json
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/lib/wwcx-ava-office-manager /var/www/edge1-status/ava
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077

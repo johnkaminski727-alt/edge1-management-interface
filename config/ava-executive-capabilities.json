@@ -322,6 +322,26 @@
         "action": "backup-verification"
       },
       "description": "Run backup and restore posture verification."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "ava.operations_intelligence.refresh",
+      "team_member": "edge1-ava-operations-intelligence",
+      "authority": "observe",
+      "body": {
+        "action": "operations-intelligence-refresh"
+      },
+      "description": "Refresh AVA unified review, scorecard, source-health, entity, accounting-completeness and executive briefing projections."
     }
   ],
   "workflows": [
@@ -485,6 +505,11 @@
       "description": "Refresh evidence/backup posture and generate executive briefings.",
       "steps": [
         {
+          "id": "intelligence",
+          "capability": "ava.operations_intelligence.refresh",
+          "depends_on": []
+        },
+        {
           "id": "evidence",
           "capability": "evidence.integrity.audit",
           "depends_on": []
@@ -499,7 +524,8 @@
           "capability": "report.daily.generate",
           "depends_on": [
             "evidence",
-            "backup"
+            "backup",
+            "intelligence"
           ]
         },
         {
@@ -507,7 +533,8 @@
           "capability": "report.weekly.generate",
           "depends_on": [
             "evidence",
-            "backup"
+            "backup",
+            "intelligence"
           ]
         }
       ]

@@ -368,6 +368,62 @@ class OfficeManagerStore:
                     UNIQUE(run_id,step_key)
                 );
                 CREATE INDEX IF NOT EXISTS idx_exec_workflow_steps_run_state ON executive_workflow_steps(run_id,state,step_key);
+                CREATE TABLE IF NOT EXISTS executive_reviews(
+                    id TEXT PRIMARY KEY, source_system TEXT NOT NULL, source_ref TEXT NOT NULL, category TEXT NOT NULL,
+                    title TEXT NOT NULL, summary TEXT NOT NULL, severity TEXT NOT NULL, state TEXT NOT NULL,
+                    owner_required INTEGER NOT NULL DEFAULT 1, recommended_action TEXT, evidence_json TEXT NOT NULL DEFAULT '[]',
+                    first_seen_at_utc TEXT NOT NULL, updated_at_utc TEXT NOT NULL, resolved_at_utc TEXT, UNIQUE(source_system,source_ref)
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_reviews_state ON executive_reviews(state,owner_required,severity,updated_at_utc);
+                CREATE TABLE IF NOT EXISTS executive_briefings(
+                    id TEXT PRIMARY KEY, briefing_type TEXT NOT NULL, period_start_utc TEXT NOT NULL, period_end_utc TEXT NOT NULL,
+                    title TEXT NOT NULL, summary_json TEXT NOT NULL, owner_action_count INTEGER NOT NULL DEFAULT 0, created_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_team_run_observations(
+                    member_id TEXT NOT NULL REFERENCES executive_team_members(member_id) ON DELETE CASCADE,
+                    run_ref TEXT NOT NULL, result TEXT NOT NULL, observed_at_utc TEXT NOT NULL,
+                    PRIMARY KEY(member_id,run_ref)
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_team_run_result ON executive_team_run_observations(member_id,result,observed_at_utc);
+                CREATE TABLE IF NOT EXISTS executive_team_metrics(
+                    member_id TEXT PRIMARY KEY REFERENCES executive_team_members(member_id) ON DELETE CASCADE, maturity_level TEXT NOT NULL,
+                    run_count INTEGER NOT NULL DEFAULT 0, success_count INTEGER NOT NULL DEFAULT 0, failure_count INTEGER NOT NULL DEFAULT 0,
+                    retry_count INTEGER NOT NULL DEFAULT 0, success_rate REAL, last_success_at_utc TEXT, last_failure_at_utc TEXT,
+                    recommendation TEXT, updated_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_source_health(
+                    source_id TEXT PRIMARY KEY, provider TEXT NOT NULL, name TEXT NOT NULL, state TEXT NOT NULL, last_sync_at_utc TEXT,
+                    age_hours REAL, expected_hours REAL, issue TEXT, updated_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_accounting_completeness(
+                    key TEXT PRIMARY KEY, vendor_name TEXT NOT NULL, document_kind TEXT NOT NULL, observed_periods INTEGER NOT NULL,
+                    first_period TEXT, last_period TEXT, missing_periods_json TEXT NOT NULL DEFAULT '[]', state TEXT NOT NULL, updated_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_entity_profiles(
+                    entity_key TEXT PRIMARY KEY, entity_id INTEGER NOT NULL, entity_type TEXT NOT NULL, canonical_name TEXT NOT NULL,
+                    verification_status TEXT NOT NULL, lifecycle_status TEXT NOT NULL, contact_points INTEGER NOT NULL DEFAULT 0,
+                    relationships INTEGER NOT NULL DEFAULT 0, provenance_count INTEGER NOT NULL DEFAULT 0, document_count INTEGER NOT NULL DEFAULT 0,
+                    accounting_documents INTEGER NOT NULL DEFAULT 0, detail_json TEXT NOT NULL DEFAULT '{}', updated_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_automation_hygiene(
+                    id TEXT PRIMARY KEY, category TEXT NOT NULL, subject TEXT NOT NULL, state TEXT NOT NULL, rationale TEXT NOT NULL,
+                    recommended_action TEXT NOT NULL, updated_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_why_events(
+                    id TEXT PRIMARY KEY, object_type TEXT NOT NULL, object_id TEXT NOT NULL, trigger_text TEXT NOT NULL, policy_text TEXT NOT NULL,
+                    action_text TEXT NOT NULL, outcome_text TEXT NOT NULL, owner_approval TEXT NOT NULL, created_at_utc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_why_object ON executive_why_events(object_type,object_id,created_at_utc);
+                CREATE TABLE IF NOT EXISTS executive_workflow_templates(
+                    id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL,
+                    workflow_id TEXT, trigger_examples_json TEXT NOT NULL DEFAULT '[]', state TEXT NOT NULL,
+                    owner_gate TEXT NOT NULL, updated_at_utc TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS executive_automation_lifecycle(
+                    object_type TEXT NOT NULL, object_id TEXT NOT NULL, stage TEXT NOT NULL, version TEXT,
+                    validation_state TEXT NOT NULL, rollback_ref TEXT, notes TEXT, updated_at_utc TEXT NOT NULL,
+                    PRIMARY KEY(object_type,object_id)
+                );
                 """
             )
         if str(self.path) != ":memory:" and self.path.exists():

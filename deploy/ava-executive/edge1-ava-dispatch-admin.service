@@ -15,6 +15,7 @@ PrivateTmp=true
 PrivateDevices=true
 ProtectHome=true
 ProtectSystem=strict
+ReadWritePaths=/var/lib/wwcx-ava-office-manager/workflow-inbox
 RestrictAddressFamilies=AF_UNIX AF_INET
 
 [Install]

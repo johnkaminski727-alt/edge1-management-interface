@@ -49,10 +49,16 @@ class AvaExecutiveTests(unittest.TestCase):
         r=AvaOfficeReadModel(self.db)
         self.assertEqual(r.executive_summary()['role'],'CEO / Executive Orchestrator')
         self.assertEqual(len(r.team(limit=10)),1); self.assertEqual(len(r.assignments(limit=10)),1); self.assertEqual(len(r.executive_reports(attention_only=True,limit=10)),1)
-    def test_edge1_executive_ui_is_read_only(self):
+    def test_edge1_executive_ui_is_read_only_except_bounded_workflow_delegation(self):
         root=Path(__file__).parents[1]/'src/web/edge1-ops/ava'
         html=(root/'index.html').read_text(); js=(root/'app.js').read_text()
         self.assertIn('Executive orchestrator',html); self.assertIn("AVA's Team",html); self.assertIn('Executive Inbox',html)
-        self.assertIn('/edge1-ops/ava-office/api/',js); self.assertNotIn("method:'POST'",js); self.assertNotIn('method: "POST"',js)
+        self.assertIn('/edge1-ops/ava-office/api/',js)
+        self.assertIn('/edge1-ops/ava-dispatch/api/workflows',js)
+        self.assertIn("method:'POST'",js)
+        self.assertNotIn('/edge1-ops/ava-dispatch/api/actions',js)
+        self.assertNotIn('edge1_agent_exec',js)
+        self.assertNotIn('unrestricted_shell',js)
+        self.assertNotIn('/shell',js.lower())
 
 if __name__=='__main__': unittest.main()
