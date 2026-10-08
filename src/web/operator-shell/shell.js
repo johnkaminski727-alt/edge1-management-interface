@@ -169,16 +169,18 @@
     collapse.title = "Collapse toolbar";
     let collapsed = false;
     try { collapsed = localStorage.getItem(collapseKey) === "1"; } catch (_) {}
-    const applyCollapsed = (value) => {
+    // A page may start compact regardless of the remembered shared preference.
+    if (script.dataset.railDefault === "collapsed") collapsed = true;
+    const applyCollapsed = (value, persist = true) => {
       collapsed = Boolean(value);
       document.documentElement.classList.toggle("wwcx-shell-collapsed", collapsed);
       collapse.textContent = collapsed ? "›" : "‹";
       collapse.setAttribute("aria-expanded", String(!collapsed));
       collapse.setAttribute("aria-label", collapsed ? "Expand Edge1 toolbar" : "Collapse Edge1 toolbar");
       collapse.title = collapsed ? "Expand toolbar" : "Collapse toolbar";
-      try { localStorage.setItem(collapseKey, collapsed ? "1" : "0"); } catch (_) {}
+      if (persist) { try { localStorage.setItem(collapseKey, collapsed ? "1" : "0"); } catch (_) {} }
     };
-    applyCollapsed(collapsed);
+    applyCollapsed(collapsed, false);
     collapse.addEventListener("click", () => applyCollapsed(!collapsed));
     brandWrap.append(collapse);
 
