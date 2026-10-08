@@ -121,6 +121,10 @@ def process(root, security, drafts, policy_config=None):
                 catch_all=recipient.rsplit('@',1)[-1] in (policy_config or {}).get('catch_all_domains',[])
                 if allowed and not catch_all and recipient not in {a.lower() for a in allowed} and decision['state']=='released':
                     decision['state']='quarantine';decision['reasons'].append('unregistered_catch_all_recipient_review')
+            # Provider Junk is never promoted to Inbox merely because a fresh scan is clean.
+            # It remains in the Mail Room Junk review queue until an operator releases it.
+            if item.get('source')=='microsoft-graph-outlook' and item.get('provider_folder_class')=='junk' and decision['state']=='released':
+                decision['state']='junk';decision['reasons'].append('provider_junk_review')
             if item.get('normalization',{}).get('import_security_hold') and not reviewed_clean:
                 reason=item['normalization'].get('import_hold_reason','historical_attachment_review_required')
                 if reason not in {'encrypted_pdf_requires_local_unlock','encrypted_zip_requires_local_unlock','scan_size_limit_requires_review'}:reason='historical_attachment_review_required'

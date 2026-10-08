@@ -234,7 +234,16 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                     if date.fromisoformat(requested).isoformat() != requested: raise ValueError("Invalid report date")
                     data = json.loads((Path("/var/lib/wwcx-mail-room-reports") / (requested + ".json")).read_text())
                 elif route == "status":
-                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": send_enabled(), "security_gate_enabled":security_required(), "updates":update_health()}
+                    outlook_status = None
+                    outlook_status_path = Path('/var/lib/wwcx-mail-room/outlook-graph/status.json')
+                    if outlook_status_path.is_file() and not outlook_status_path.is_symlink():
+                        try:
+                            candidate = json.loads(outlook_status_path.read_text())
+                            if isinstance(candidate, dict) and candidate.get('contract') == 'wwcx.outlook-graph-sync-status.v1':
+                                outlook_status = candidate
+                        except (OSError, ValueError):
+                            outlook_status = {'error': {'type': 'StatusUnavailable', 'message': 'Outlook sync status is unreadable'}}
+                    data = {"correspondence": mail.correspondence_status(), "provider_connected": os.getenv("WWCX_MAIL_PROVIDER_CONNECTED") == "true", "send_enabled": send_enabled(), "security_gate_enabled":security_required(), "updates":update_health(), "outlook_sync": outlook_status}
                 elif route.startswith('security/') and security:
                     message_id=unquote(route[9:]); review_record(message_id)
                     data=security.get(message_id)

@@ -1,0 +1,23 @@
+[Unit]
+Description=Read-only Microsoft Graph Outlook intake for Edge1 Mail Room
+After=network-online.target wwcx-mail-security-scan.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wwcx-mail-gateway
+Group=wwcx-mail-gateway
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B tools/messaging/outlook_graph_mail_import.py sync --max-pages 40 --max-messages 1000
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/wwcx/outlook-graph-mail.json
+ReadWritePaths=/var/lib/wwcx-mail-room /var/lib/wwcx-mail-gateway/inbound
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=512M
+CPUQuota=40%
+TimeoutStartSec=1800
