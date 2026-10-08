@@ -38,6 +38,10 @@ class UnifiedContactsMaintenanceUiTests(unittest.TestCase):
         self.assertIn('button.dataset.maintenancePointType', APP)
         self.assertIn('Created from Contacts maintenance identity-resolution review', APP)
 
+    def test_contact_editor_uses_current_render_path(self):
+        self.assertNotIn('renderContactManager', APP)
+        self.assertIn('await renderDetail(selected);', APP)
+
     def test_maintenance_styles_exist(self):
         self.assertIn('.maintenance-review-card', CSS)
         self.assertIn('.maintenance-actions', CSS)

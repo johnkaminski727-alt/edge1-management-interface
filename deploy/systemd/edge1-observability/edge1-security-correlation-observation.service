@@ -5,6 +5,7 @@ After=crowdsec.service
 [Service]
 Type=oneshot
 User=root
+ExecStartPre=/usr/bin/python3 /opt/edge1-management-interface/server/security_operations_exporter.py
 ExecStart=/usr/local/sbin/edge1-security-correlation-observation
 NoNewPrivileges=true
 ProtectSystem=strict

@@ -94,7 +94,7 @@ def main() -> int:
         if item.get("palette") and availability != "accepted_live":
             fail(f"palette module is not accepted live: {module_id}")
 
-    if "operations-center" not in ids or "/edge1-status/" not in browser_routes:
+    if "operations-center" not in ids or "/edge1-ops/status/" not in browser_routes:
         fail("canonical Operations Center is missing")
     if "security-console" not in ids or "wwcx-ai" not in ids:
         fail("staged Security Console and WW.CX AI evidence entries are required")

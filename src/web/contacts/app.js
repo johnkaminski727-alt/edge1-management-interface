@@ -3619,9 +3619,8 @@ async function handleContactEditorSubmit(event) {
 
       if (selected) {
         state.selected = selected;
+        await renderDetail(selected);
       }
-
-      renderContactManager();
 
       editorMessage(
         "Contacts merged successfully.",
@@ -3684,9 +3683,8 @@ async function handleContactEditorSubmit(event) {
 
       if (selected) {
         state.selected = selected;
+        await renderDetail(selected);
       }
-
-      renderContactManager();
 
       if (pointFailure) {
         editorMessage(
