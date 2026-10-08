@@ -33,7 +33,7 @@ READABLE_AUTHORITATIVE_SCOPES = {"local_native", "production_native"}
 # plain-text projection; it grants no authentication, release, or attachment trust.
 LINK_STRIPPED_NEWSLETTER_SENDERS = frozenset({'chilliwackbc430@email.wbu.com'})
 LINK_REMOVAL_NOTICE = '[Newsletter web links removed. Original email preserved in the private archive.]'
-NEWSLETTER_WEB_URL = re.compile(r'(?:https?://|www\.)[^\s<>"\\)\]]+', re.IGNORECASE)
+NEWSLETTER_WEB_URL = re.compile(r'(?:https?://|www\.)[^\s<>"\\)\]]*', re.IGNORECASE)
 
 
 def strip_newsletter_links(sender: str, body: str, direction: str = 'inbound') -> str:

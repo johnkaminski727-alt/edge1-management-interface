@@ -5,7 +5,7 @@ from mail_correspondence_store import MailCorrespondenceStore,strip_newsletter_l
 from mail_room_security import SecurityStore
 class NewsletterLinks(unittest.TestCase):
  def test_scoped_idempotent_and_keeps_text(self):
-  body='Save on seeds! (HTTPS://cl.exct.net/?qs=abc)\nVisit www.wbu.com/store\nCall 604-792-1239.'
+  body='Save on seeds! (HTTPS://cl.exct.net/?qs=abc)\nVisit www.wbu.com/store\nCall 604-792-1239. https://\n'
   clean=strip_newsletter_links('ChilliwackBC430@email.wbu.com',body)
   self.assertNotRegex(clean,r'(?i)https?://|www\.')
   self.assertIn('Save on seeds!',clean);self.assertIn('604-792-1239',clean)
