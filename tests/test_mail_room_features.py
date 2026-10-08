@@ -35,6 +35,16 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(self.source.read_bytes()).hexdigest(),before)
         for invalid in [{'room':'someone-else'},{'domain':'external.test'},{'offset':'10001'}]:
             with self.assertRaises(ValueError):self.ids(**invalid)
+    def test_source_filter_combines_with_domain_and_keeps_authority_scope(self):
+        with sqlite3.connect(self.source) as db:
+            db.execute("UPDATE correspondence SET source='privateemail-historical-import'")
+            db.execute("UPDATE correspondence SET source='edge1-mail-gateway-smtp' WHERE message_id='<company@test>'")
+        self.assertEqual(self.ids(source='privateemail-historical-import'),{'<private@test>'})
+        self.assertEqual(self.ids(source='edge1-mail-gateway-smtp',domain='omegafx.com'),{'<company@test>'})
+        self.assertEqual(self.ids(source='privateemail-historical-import',domain='omegafx.com'),set())
+        self.assertEqual(self.ids(source="' OR 1=1 --"),set())
+        self.assertEqual(self.ids(source=''),{'<private@test>','<company@test>'})
+
     def test_signatures_and_preparation_invalidated_on_edit(self):
         self.features.signature({'address':'john@omegafx.com','signature':{'signer_name':'John','signer_title':'Operator','mailing_address':'Configured address'}})
         option=next(i for i in self.features.options()['senders'] if i['address']=='john@omegafx.com')

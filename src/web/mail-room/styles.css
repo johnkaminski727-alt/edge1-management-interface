@@ -144,3 +144,5 @@ footer{font-size:12px;color:var(--muted);padding:10px 0}
 .security-reason-notice{margin:12px 0;padding:12px 14px;background:#fff4df;border-left:4px solid #a45a00;border-radius:4px;color:#513600}.security-reason-notice p{margin:6px 0 0}.message .hold-reason{grid-column:1 / -1;font-size:.82rem;line-height:1.4;color:#814600;white-space:normal;margin-top:4px}
 
 .security-reason-notice p,.security-reason-notice .small{color:#513600}.message .hold-reason{color:#efc16b}
+
+.mail-scope{margin-bottom:12px}.mail-scope label{min-width:0}.mail-scope select{width:100%;min-width:0}

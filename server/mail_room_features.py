@@ -65,11 +65,13 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
         return {'saved': True}
 
     def messages(self, q):
-        allowed = {'q', 'recipient', 'offset', 'domain', 'folder', 'room', 'tag'}
+        allowed = {'q', 'recipient', 'offset', 'domain', 'folder', 'room', 'tag', 'source'}
         if set(q) - allowed or any(len(v) != 1 for v in q.values()):
             raise ValueError('Invalid filters')
         get = lambda k, default='': q.get(k, [default])[0]
         query, recipient, domain, folder, room, tag = [get(k, default) for k, default in [('q', ''), ('recipient', ''), ('domain', ''), ('folder', 'inbox'), ('room', 'all'), ('tag', '')]]
+        source = get('source')
+        if len(source)>120 or any(ord(c)<32 for c in source): raise ValueError('Invalid source filter')
         offset = int(get('offset', '0'))
         if len(query) > 200 or any(ord(c) < 32 for c in query) or len(recipient) > 320 or (recipient and '@' not in recipient) or not 0 <= offset <= 10000 or len(tag) > 40 or domain not in ['', *self.identities.get('domains', {})] or folder not in {'inbox','archive','unread','all','quarantine','junk','pending','trash'} or room not in {'all','private','shared'}:
             raise ValueError('Invalid filters')
@@ -83,6 +85,8 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
         where = ["m.source_authoritative=1", "m.source_scope IN ('local_native','production_native')"]
         values = []
         where.append(("" if folder == "trash" else "NOT ") + "EXISTS (SELECT 1 FROM message_trash t WHERE t.message_id=m.message_id)")
+        if source:
+            where.append('m.source=?'); values.append(source)
         if query:
             where.append('(instr(lower(m.subject),lower(?))>0 OR instr(lower(m.sender),lower(?))>0)'); values += [query, query]
         if recipient:

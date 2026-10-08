@@ -204,7 +204,8 @@
     if(!canLeave())return;
     mode="inbox";offset=0;$("search").hidden=false;
     for(const name of views)$(name).classList.toggle("active",name==="inbox");
-    $("search").reset();$("search").elements.folder.value=folder;
+    const domain=$("domain").value,source=$("mail-source").value;
+    $("search").reset();$("domain").value=domain;$("mail-source").value=source;$("search").elements.folder.value=folder;
     updateFilterCount();return load();
   }
   function folderContext(){
@@ -214,10 +215,11 @@
     const descriptions={trash:"Deleted from Mail Room views. Restore returns a message to its previous folder; security holds remain active.",inbox:"Only cleared messages appear here. Quarantine, Junk, Pending checks and Import holds are outside this inbox.",unread:"Only unread, cleared messages appear here. Held messages are in the review queues above.",archive:"Archived, cleared messages. Held messages are in separate review queues.",all:"All cleared messages, including archived mail. This does not include quarantine, junk, pending checks or import holds.",quarantine:"Outside the inbox. Open a message, review its plain text, then release it if the security checks allow.",junk:"Outside the inbox. Open a legitimate message and choose Not spam.",pending:"Outside the inbox while security checks finish. Incomplete checks cannot be overridden."};
     target.replaceChildren(element("strong",f.options[f.selectedIndex].textContent),element("p",descriptions[folder]||"","small"));
     const domain=$("domain").value;if(domain)target.append(element("p","Filtered to "+domain,"small"));
+    const source=$("mail-source");if(source.value)target.append(element("p","Source: "+source.options[source.selectedIndex].textContent,"small"));
   }
   function renderReviewQueues(report){
     const target=$("review-queues"),q=report.backlog||{},counts=q.classification_counts||{};
-    target.replaceChildren(element("strong","Review queues"));target.title="These messages are outside the inbox. Shortcuts clear your search filters.";
+    target.replaceChildren(element("strong","Review queues"));target.title="These messages are outside the inbox. Shortcuts keep your selected domain and source.";
     const bar=element("div","","review-shortcuts");
     for(const [folder,label,count] of [["quarantine","Quarantine",counts.quarantine||0],["junk","Junk",counts.junk||0],["pending","Pending checks",q.pending_or_unchecked||0]]){
       const b=element("button",label+" ("+count+")");b.type="button";b.onclick=safely(()=>reviewFolder(folder));bar.append(b);
