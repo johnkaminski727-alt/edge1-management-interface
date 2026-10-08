@@ -49,6 +49,25 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual([m['message_id'] for m in features.messages({'folder':['all']})['messages']],[self.ids[0]])
         self.assertEqual([m['message_id'] for m in features.messages({'folder':['junk']})['messages']],[self.ids[1]])
         self.assertEqual([m['message_id'] for m in features.messages({'folder':['pending']})['messages']],[self.ids[2]])
+    def test_trash_restore_preserves_security_and_source(self):
+        prefs=DraftStore(self.root/'trash-drafts.sqlite3')
+        features=MailRoomFeatures(prefs,self.path,{'domains':{'ww.cx':{}}})
+        states=['released','junk','quarantine']
+        for mid,state in zip(self.ids,states):
+            self.security.write(mid,'a'*64,{**CLEAN,'state':state})
+            features.flags({'message_id':mid,'archived':True,'deleted':True})
+        for folder in ['inbox','archive','all','junk','quarantine','pending']:
+            self.assertEqual(features.messages({'folder':[folder]})['messages'],[])
+        trash=features.messages({'folder':['trash']})['messages']
+        self.assertEqual(len(trash),3)
+        self.assertTrue(all(m['deleted'] and 'body_text' not in m for m in trash))
+        features.flags({'message_id':self.ids[1],'deleted':False})
+        self.assertEqual([m['message_id'] for m in features.messages({'folder':['junk']})['messages']],[self.ids[1]])
+        with self.security.connect() as db:
+            self.assertEqual([db.execute('SELECT state FROM decisions WHERE message_hash=?',(message_hash(mid),)).fetchone()[0] for mid in self.ids],states)
+        with sqlite3.connect(self.path) as db:self.assertEqual(db.execute('SELECT count(*) FROM correspondence').fetchone()[0],3)
+        with self.assertRaises(ValueError):features.flags({'message_id':self.ids[0],'deleted':'true'})
+
     def test_phishing_report_survives_rescans_and_related_holds(self):
         for mid in self.ids[:2]:self.security.write(mid,'a'*64,CLEAN,[('url','shared-link-hash')])
         result=self.security.action(self.ids[0],'phishing',True)

@@ -13,6 +13,7 @@ class MailRoomFeatures:
         self.identities = identities or {}
         with store.connect() as db:
             db.executescript('''
+CREATE TABLE IF NOT EXISTS message_trash (message_id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS message_flags (message_id TEXT PRIMARY KEY, is_read INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, tags TEXT NOT NULL DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS signatures (address TEXT PRIMARY KEY, payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS preparations (draft_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated TEXT NOT NULL);
@@ -47,9 +48,9 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
         return {'saved': True}
 
     def flags(self, data):
-        if not isinstance(data, dict) or set(data) - {'message_id', 'is_read', 'archived', 'tags'} or not isinstance(data.get('message_id'), str) or len(data['message_id']) > 998:
+        if not isinstance(data, dict) or set(data) - {'message_id', 'is_read', 'archived', 'tags', 'deleted'} or not isinstance(data.get('message_id'), str) or len(data['message_id']) > 998:
             raise ValueError('Invalid message flags')
-        for key in ['is_read', 'archived']:
+        for key in ['is_read', 'archived', 'deleted']:
             if key in data and type(data[key]) is not bool:
                 raise ValueError('Invalid flag')
         if 'tags' in data and (not isinstance(data['tags'], list) or len(data['tags']) > 12 or any(not isinstance(t, str) or not 1 <= len(t.strip()) <= 40 or any(ord(c) < 32 for c in t) for t in data['tags'])):
@@ -58,6 +59,9 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
             old = db.execute('SELECT is_read,archived,tags FROM message_flags WHERE message_id=?', (data['message_id'],)).fetchone() or (0, 0, '[]')
             values = (data['message_id'], int(data.get('is_read', bool(old[0]))), int(data.get('archived', bool(old[1]))), json.dumps(data.get('tags', json.loads(old[2]))))
             db.execute('INSERT INTO message_flags VALUES (?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET is_read=excluded.is_read,archived=excluded.archived,tags=excluded.tags', values)
+            if 'deleted' in data:
+                if data['deleted']: db.execute('INSERT OR IGNORE INTO message_trash VALUES (?)', (data['message_id'],))
+                else: db.execute('DELETE FROM message_trash WHERE message_id=?', (data['message_id'],))
         return {'saved': True}
 
     def messages(self, q):
@@ -67,7 +71,7 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
         get = lambda k, default='': q.get(k, [default])[0]
         query, recipient, domain, folder, room, tag = [get(k, default) for k, default in [('q', ''), ('recipient', ''), ('domain', ''), ('folder', 'inbox'), ('room', 'all'), ('tag', '')]]
         offset = int(get('offset', '0'))
-        if len(query) > 200 or any(ord(c) < 32 for c in query) or len(recipient) > 320 or (recipient and '@' not in recipient) or not 0 <= offset <= 10000 or len(tag) > 40 or domain not in ['', *self.identities.get('domains', {})] or folder not in {'inbox','archive','unread','all','quarantine','junk','pending'} or room not in {'all','private','shared'}:
+        if len(query) > 200 or any(ord(c) < 32 for c in query) or len(recipient) > 320 or (recipient and '@' not in recipient) or not 0 <= offset <= 10000 or len(tag) > 40 or domain not in ['', *self.identities.get('domains', {})] or folder not in {'inbox','archive','unread','all','quarantine','junk','pending','trash'} or room not in {'all','private','shared'}:
             raise ValueError('Invalid filters')
         if not self.source_path or not self.source_path.is_file():
             raise RuntimeError('Mail source unavailable')
@@ -78,6 +82,7 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
         private_json = json.dumps(private)
         where = ["m.source_authoritative=1", "m.source_scope IN ('local_native','production_native')"]
         values = []
+        where.append(("" if folder == "trash" else "NOT ") + "EXISTS (SELECT 1 FROM message_trash t WHERE t.message_id=m.message_id)")
         if query:
             where.append('(instr(lower(m.subject),lower(?))>0 OR instr(lower(m.sender),lower(?))>0)'); values += [query, query]
         if recipient:
@@ -92,7 +97,7 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
             if folder in {'junk','quarantine','pending'}:
                 state = "coalesce((SELECT state FROM mail_security.decisions s WHERE s.message_hash=mail_hash(m.message_id)),'pending')"
                 where.append(state + '=?'); values.append(folder)
-            else:
+            elif folder != 'trash':
                 where.append(release_clause('m'))
         elif folder == 'quarantine': where.append("json_extract(a.payload,'$.quarantined')=1")
         if folder == 'unread': where.append('coalesce(f.is_read,0)=0')
@@ -117,7 +122,7 @@ CREATE TABLE IF NOT EXISTS attachment_checks (message_hash TEXT PRIMARY KEY, arc
             rows = db.execute('SELECT m.message_id,m.thread_id,m.sender,m.recipients_json,m.subject,m.occurred_at,m.direction,m.source,m.source_scope,coalesce(f.is_read,0) AS is_read,coalesce(f.archived,0) AS archived,coalesce(f.tags,\'[]\') AS tags FROM mail_source.correspondence m LEFT JOIN message_flags f ON m.message_id=f.message_id LEFT JOIN attachment_checks a ON a.message_hash=message_hash(m.message_id) WHERE ' + ' AND '.join(where) + ' ORDER BY julianday(m.occurred_at) DESC,m.message_id DESC LIMIT 26 OFFSET ?', (*values, offset)).fetchall()
         messages = []
         for r in rows[:25]:
-            d = dict(r); d['recipients'] = json.loads(d.pop('recipients_json')); d['tags'] = json.loads(d['tags']); d['is_read'] = bool(d['is_read']); d['archived'] = bool(d['archived']); d['provenance'] = {'source': d.pop('source'), 'scope': d.pop('source_scope'), 'authoritative': True}; messages.append(d)
+            d = dict(r); d['deleted'] = folder == 'trash'; d['recipients'] = json.loads(d.pop('recipients_json')); d['tags'] = json.loads(d['tags']); d['is_read'] = bool(d['is_read']); d['archived'] = bool(d['archived']); d['provenance'] = {'source': d.pop('source'), 'scope': d.pop('source_scope'), 'authoritative': True}; messages.append(d)
         return {'messages': messages, 'has_more': len(rows)>25, 'offset': offset, 'content_is_untrusted': True, 'send_authorized': False}
 
     def record_preparation(self, draft_id, result, updated):

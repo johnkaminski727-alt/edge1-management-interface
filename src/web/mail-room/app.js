@@ -134,6 +134,16 @@
       });actions.append(b);
     }
   }
+  function deleteAction(m,bar){
+    const button=element("button",m.deleted?"Restore":"Delete");
+    button.title=m.deleted?"Restore to its previous folder":"Move this message to Trash";
+    button.onclick=safely(async()=>{
+      if(!m.deleted&&!window.confirm("Move this message to Trash? You can restore it later."))return;
+      button.disabled=true;
+      try{await request("flags",{message_id:m.message_id,deleted:!m.deleted});current_actions=null;$("reading").replaceChildren(element("h2",m.deleted?"Message restored":"Message moved to Trash"));showReader(false);await load();say(m.deleted?"Restored to its previous folder. Security findings still apply.":"Moved to Trash. You can restore it from the Folder filter.");}
+      finally{button.disabled=false;}
+    });bar.append(button);
+  }
   async function openMessage(m){
     if(!canLeave())return;const current=++generation;
     const decision=await request("security/"+encodeURIComponent(m.message_id));
@@ -146,7 +156,7 @@
         if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
         const result=await request("review",{message_id:m.message_id,acknowledged:true});
         const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;bar.dataset.plainTextReviewed="true";for(const button of bar.querySelectorAll("[data-review-release]")){button.disabled=!(decision.scan_complete&&!decision.hard_block&&decision.operator_report!=="confirmed_phishing");button.title=button.disabled?"Security findings still require separate review":"Move this reviewed message to the inbox";}
-      });bar.append(review);$("reading").append(element("p","This message is outside the inbox. Choose Not spam to review this message. After reading its plain text, click Not spam again to move it to the inbox. Blocked attachments, confirmed phishing and incomplete checks require separate review.","notice"));securityActions(m,bar,decision,()=>review.onclick());say("Held mail stays outside AVA and the normal inbox.");return;
+      });bar.append(review);deleteAction(m,bar);$("reading").append(element("p","This message is outside the inbox. Choose Not spam to review this message. After reading its plain text, click Not spam again to move it to the inbox. Blocked attachments, confirmed phishing and incomplete checks require separate review.","notice"));securityActions(m,bar,decision,()=>review.onclick());say("Held mail stays outside AVA and the normal inbox.");return;
     }
     say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
     clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);
@@ -157,7 +167,7 @@
     reply.title="Draft a reply (r)";archive.title="Archive (e)";
     const replyData=()=>({to:[(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1]],subject:/^re:/i.test(m.subject)?m.subject:"Re: "+m.subject,original_recipient:m.recipients.length===1?m.recipients[0]:"",thread_id:m.thread_id,source_message_id:m.message_id,in_reply_to:m.message_id});
     reply.onclick=()=>showEditor(replyData());archive.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,archived:!m.archived});await load();say(m.archived?"Moved to inbox.":"Archived in Mail Room. Source mail is retained.");});read.onclick=safely(async()=>{await request("flags",{message_id:m.message_id,is_read:false});await load();say("Marked unread.");});tag.onclick=safely(async()=>{const text=window.prompt("Tags, separated by commas",(m.tags||[]).join(", "));if(text===null)return;await request("flags",{message_id:m.message_id,tags:text.split(",").map(t=>t.trim()).filter(Boolean)});await load();say("Tags saved.");});
-    bar.append(reply,archive,read,tag,element("span","","sep"));securityActions(m,bar,decision);current_actions={reply,archive};
+    bar.append(reply,archive,read,tag,element("span","","sep"));securityActions(m,bar,decision);deleteAction(m,bar);current_actions={reply,archive};
     const sec=section("Security details");securityDetails(decision,sec);
     const box=section("AVA assistance");box.append(element("p","Ask AVA’s configured model to review this thread. Suggestions stay editable; nothing is sent or applied automatically."));const summary=element("button","Summarize thread"),suggest=element("button","Suggest reply"),output=element("pre",""),use=element("button","Use suggestion in a draft");use.hidden=true;
     for(const [b,operation] of [[summary,"summary"],[suggest,"reply"]])b.onclick=safely(async()=>{summary.disabled=suggest.disabled=true;use.hidden=true;output.textContent="AVA is reviewing the thread…";try{const d=await request("assist",{operation,thread_id:m.thread_id});output.textContent=d.text+(d.truncated_context?"\n\nOnly the latest bounded excerpts were reviewed.":"");use.hidden=operation!=="reply";use.onclick=()=>showEditor({...replyData(),body:d.text});}finally{summary.disabled=suggest.disabled=false;}});
@@ -179,7 +189,7 @@
     const target=$("folder-context");target.hidden=mode!=="inbox";
     if(target.hidden)return;
     const f=$("search").elements.folder, folder=f.value;
-    const descriptions={inbox:"Only cleared messages appear here. Quarantine, Junk, Pending checks and Import holds are outside this inbox.",unread:"Only unread, cleared messages appear here. Held messages are in the review queues above.",archive:"Archived, cleared messages. Held messages are in separate review queues.",all:"All cleared messages, including archived mail. This does not include quarantine, junk, pending checks or import holds.",quarantine:"Outside the inbox. Open a message, review its plain text, then release it if the security checks allow.",junk:"Outside the inbox. Open a legitimate message and choose Not spam.",pending:"Outside the inbox while security checks finish. Incomplete checks cannot be overridden."};
+    const descriptions={trash:"Deleted from Mail Room views. Restore returns a message to its previous folder; security holds remain active.",inbox:"Only cleared messages appear here. Quarantine, Junk, Pending checks and Import holds are outside this inbox.",unread:"Only unread, cleared messages appear here. Held messages are in the review queues above.",archive:"Archived, cleared messages. Held messages are in separate review queues.",all:"All cleared messages, including archived mail. This does not include quarantine, junk, pending checks or import holds.",quarantine:"Outside the inbox. Open a message, review its plain text, then release it if the security checks allow.",junk:"Outside the inbox. Open a legitimate message and choose Not spam.",pending:"Outside the inbox while security checks finish. Incomplete checks cannot be overridden."};
     target.replaceChildren(element("strong",f.options[f.selectedIndex].textContent),element("p",descriptions[folder]||"","small"));
     const domain=$("domain").value;if(domain)target.append(element("p","Filtered to "+domain,"small"));
   }
