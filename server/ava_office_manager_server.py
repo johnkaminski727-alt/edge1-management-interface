@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -147,6 +149,34 @@ class AvaOfficeReadModel:
                 out.append(item)
         return out
 
+    @staticmethod
+    def _loopback_health(url: str) -> dict[str, Any]:
+        try:
+            with urllib.request.urlopen(url, timeout=2) as response:
+                raw=response.read(65537)
+            if len(raw)>65536:
+                raise AvaOfficeReadError("connector health response too large")
+            value=json.loads(raw.decode("utf-8"))
+            if not isinstance(value, dict):
+                raise AvaOfficeReadError("connector health response invalid")
+            return {"reachable": True, "status": str(value.get("status", "ok")), "detail": value}
+        except (OSError, urllib.error.URLError, json.JSONDecodeError, AvaOfficeReadError) as exc:
+            return {"reachable": False, "status": "unavailable", "detail": {"error": type(exc).__name__}}
+
+    def tools_connectors(self) -> dict[str, Any]:
+        gateway=self._loopback_health("http://127.0.0.1:8787/healthz")
+        broker=self._loopback_health("http://127.0.0.1:8118/healthz")
+        items=[
+            {"id":"edge1_mcp_read","name":"Edge1 MCP Read","kind":"tool","transport":"MCP via AVA Operator Broker","authority":"observe","exposed":True,"status":"healthy" if gateway["reachable"] and broker["reachable"] else "unavailable","replacement":None,"notes":"Authoritative Edge1 read access through edge1-operator-mcp; no bearer token enters model context."},
+            {"id":"business159_connector_read","name":"Business159 Connector Read","kind":"tool","transport":"Authenticated hosting connector","authority":"observe","exposed":True,"status":"healthy" if broker["reachable"] else "unavailable","replacement":None,"notes":"Brokered Business159 operational reads. Current transport is not locally callable MCP."},
+            {"id":"ava_operator_broker","name":"AVA Operator Broker","kind":"service","transport":"Loopback HTTP 127.0.0.1:8118","authority":"broker","exposed":False,"status":"healthy" if broker["reachable"] else "unavailable","replacement":None,"notes":"Owns privileged transport credentials; secrets are never exposed to AVA."},
+            {"id":"bigbird_ai_gateway","name":"AVA / Big Bird Gateway","kind":"service","transport":"Loopback HTTP 127.0.0.1:8787","authority":"read-only conversational gateway","exposed":False,"status":"healthy" if gateway["reachable"] else "unavailable","replacement":None,"notes":"Current gateway version: "+str(gateway.get("detail",{}).get("version","unknown"))},
+            {"id":"ava_operations_reader","name":"AVA Operations Reader","kind":"retired integration","transport":"Legacy Operations API adapter","authority":"retired","exposed":False,"status":"retired","replacement":"edge1_mcp_read","notes":"Retained only for rollback/audit; not exposed to AVA."},
+            {"id":"legacy_gateway_patchers","name":"Legacy AVA Gateway Patchers","kind":"retired tooling","transport":"v0.3.x live patch scripts","authority":"retired","exposed":False,"status":"retired","replacement":"0.4.3-mcp gateway deployment","notes":"Install scripts now fail closed instead of modifying the current gateway."},
+            {"id":"direct_model_actions","name":"Direct Model Action / Shell Tools","kind":"removed exposure","transport":"None","authority":"executive workflows only","exposed":False,"status":"removed","replacement":"AVA Executive Dispatcher","notes":"Routine mutations are dispatched through typed workflows; shell/action tools are not advertised to AVA chat."},
+        ]
+        return {"items":items,"gateway":gateway,"broker":broker,"conversational_mutations":False,"generic_shell_exposed":False}
+
     def instructions(self, *, limit: int = 100) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -217,6 +247,9 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/ava-office/workflows":
                 limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
                 self._json(200, {"items": self.read_model.workflows(limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/tools":
+                self._json(200, self.read_model.tools_connectors())
                 return
             if parsed.path == "/api/ava-office/work-items":
                 state = query.get("state", [None])[0]
