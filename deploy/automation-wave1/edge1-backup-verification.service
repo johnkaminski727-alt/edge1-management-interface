@@ -11,4 +11,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/www/edge1-status/backup-verification /var/lib/bigbird-ai-library
+ReadWritePaths=/var/www/edge1-status/backup-verification /var/www/edge1-status/disaster-recovery /var/lib/bigbird-ai-library

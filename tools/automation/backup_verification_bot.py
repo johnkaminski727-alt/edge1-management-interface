@@ -45,6 +45,26 @@ def build():
     return {'contract':'wwcx.backup-verification.v2','generated_at':utcnow(),'state':state,'backup_job':job,'remote_backup_snapshot':{'present':dr.get('remote_present'),'checksum_verified':dr.get('remote_checksum_verified'),'latest':dr.get('latest_remote'),'evidence_age_hours':round(dh,1) if dh is not None else None,'fresh':snapshot_fresh},'mail_restore_rehearsal':{'state':rec.get('state','not_rehearsed'),'completed_at':rec.get('completed_at'),'age_hours':round(rh,1) if rh is not None else None,'fresh':rehearsal_ok,'production_restored':rec.get('production_restored',False)},'general_restore_rehearsal':{'state':general.get('state','not_rehearsed'),'completed_at':general.get('generated_at'),'age_hours':round(gh,1) if gh is not None else None,'fresh':general_ok,'passed':(general.get('summary') or {}).get('passed'),'configured':(general.get('summary') or {}).get('configured'),'production_restored':general.get('production_restore_performed',False)},'database_integrity':checks,'local_recovery_secret_key_present':dr.get('local_recovery_secret_key_present'),'recovery_key_policy':dr.get('recovery_key_policy'),'production_restore_performed':False,'secrets_exposed':False}
 def md(d):
     return f"# Backup & Restore Verification\n\nGenerated: {d['generated_at']}\n\nOverall: **{d['state']}**\n\n- Off-site backup fresh and checksum verified: **{d['backup_job']['success']}**\n- Mail restore rehearsal fresh: **{d['mail_restore_rehearsal']['fresh']}**\n- General database restore rehearsal fresh: **{d['general_restore_rehearsal']['fresh']}**\n- Database integrity: `{json.dumps({k:v['state'] for k,v in d['database_integrity'].items()},sort_keys=True)}`\n- Production restore performed: **False**\n- Recovery secrets exposed: **False**\n"
+def publish_disaster_recovery(d):
+    # Keep the operator Disaster Recovery page synchronized with the same verified
+    # backup evidence used by this job. Never publish recovery secrets.
+    current=load(DR)
+    job=d.get('backup_job') or {}
+    if job.get('success'):
+        current.update({
+            'checked_utc': utcnow(),
+            'latest_remote': job.get('verified_archive'),
+            'remote_present': True,
+            'remote_checksum_verified': bool(job.get('sha256_recorded')),
+            'age_seconds': 0,
+            'local_recovery_secret_key_present': bool(d.get('local_recovery_secret_key_present')),
+            'recovery_key_policy': d.get('recovery_key_policy') or 'private key should be held and tested off-host',
+        })
+    DR.parent.mkdir(parents=True,exist_ok=True)
+    DR.parent.chmod(0o755)
+    DR.write_text(json.dumps(current,indent=2)+'\n')
+    DR.chmod(0o644)
+
 def main():
-    d=build(); STATUS.parent.mkdir(parents=True,exist_ok=True); STATUS.write_text(json.dumps(d,indent=2)+'\n'); STATUS.chmod(0o644); upsert_library_document(LIB,ROOT,'operations/backup-verification/current.md','Backup & Restore Verification',md(d)); print(json.dumps({'state':d['state'],'backup_job_verified':d['backup_job']['success'],'mail_rehearsal_fresh':d['mail_restore_rehearsal']['fresh'],'general_rehearsal_fresh':d['general_restore_rehearsal']['fresh']},sort_keys=True))
+    d=build(); STATUS.parent.mkdir(parents=True,exist_ok=True); STATUS.write_text(json.dumps(d,indent=2)+'\n'); STATUS.chmod(0o644); publish_disaster_recovery(d); upsert_library_document(LIB,ROOT,'operations/backup-verification/current.md','Backup & Restore Verification',md(d)); print(json.dumps({'state':d['state'],'backup_job_verified':d['backup_job']['success'],'mail_rehearsal_fresh':d['mail_restore_rehearsal']['fresh'],'general_rehearsal_fresh':d['general_restore_rehearsal']['fresh']},sort_keys=True))
 if __name__=='__main__': main()
