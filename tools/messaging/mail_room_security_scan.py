@@ -118,6 +118,10 @@ def process(root, security, drafts, policy_config=None):
                 catch_all=recipient.rsplit('@',1)[-1] in (policy_config or {}).get('catch_all_domains',[])
                 if allowed and not catch_all and recipient not in {a.lower() for a in allowed} and decision['state']=='released':
                     decision['state']='quarantine';decision['reasons'].append('unregistered_catch_all_recipient_review')
+            if item.get('normalization',{}).get('import_security_hold'):
+                reason=item['normalization'].get('import_hold_reason','historical_attachment_review_required')
+                if reason not in {'encrypted_pdf_requires_local_unlock','encrypted_zip_requires_local_unlock','scan_size_limit_requires_review'}:reason='historical_attachment_review_required'
+                decision={**decision,'state':'quarantine','hard_block':True,'scan_complete':False,'reasons':list(dict.fromkeys(decision.get('reasons',[])+[reason]))}
             security.write(mid,digest,decision,indicators)
             with sqlite3.connect(drafts,timeout=15) as db:
                 payload={'attachments':attachments,'downloads_enabled':False,'quarantined':decision['state']=='quarantine','scanner_ready':scanner_ready(),'checked_at':time.time(),'indexed':True}

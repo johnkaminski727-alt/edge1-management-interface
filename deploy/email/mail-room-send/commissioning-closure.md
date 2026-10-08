@@ -32,3 +32,23 @@ Deployment: immutable intake/security release copies, a scanner unit override an
 Postfix's archive pipe path. Backups and closure evidence remain private on Edge1.
 External production DNS rollback was not performed. Historical files that fail the
 whole-message scan remain preserved in import holds and are not force-released.
+
+## Follow-up acceptance — 2026-10-08
+
+Seven individually reviewed Namecheap order/setup messages were released through the
+existing fingerprint-bound operator-review action. Sender-wide trust was not changed.
+
+Ten previous import holds are now visible in Quarantine with safely extracted text.
+The original attachment bytes remain blocked: six encrypted PDFs, one encrypted ZIP,
+and three ClamAV scan-size-limit findings. These findings are not a claim of confirmed
+infection. Metadata records `import_security_hold` so a later clean scan cannot bypass
+attachment review. Raw archives and provider originals remain unchanged.
+
+`privateemail_visible_scan_holds.py` projects these reviewed scan holds;
+`privateemail_repair_history.py --receipt-metadata-only` fetches only their provider
+receipt dates under read-only IMAP selection and UIDVALIDITY verification.
+
+Validation: 18 regression tests plus archive-first acceptance. All copied historical
+messages are accounted for as imported, visible quarantine, duplicate or preserved
+original-provider-folder archives. Live public DNS rollback remains unperformed;
+the existing isolated transaction rehearsal does not establish provider permissions.

@@ -48,10 +48,11 @@ def projection(raw,account,internal_date):
 
 
 def main():
+    receipt_only='--receipt-metadata-only' in sys.argv
     counts=collections.Counter();grouped={}
     for path in ROOT.glob('*/*/*.json'):
         item=json.loads(path.read_text())
-        if item.get('projection',{}).get('reason')=='LocalMailSourceError':
+        if item.get('projection',{}).get('reason')==('malware_scan_not_clean' if receipt_only else 'LocalMailSourceError'):
             grouped.setdefault(item['account'],{}).setdefault((item['folder'],item['uidvalidity']),[]).append((path,item))
     store=MailCorrespondenceStore(DB,source='privateemail-historical-import',source_authoritative=True,source_scope='local_native')
     for account,folders in grouped.items():
@@ -76,6 +77,9 @@ def main():
                         dates[uid.decode()]=datetime.strptime(date.decode().strip(),'%d-%b-%Y %H:%M:%S %z').isoformat()
                 for path,item in items:
                     try:
+                        if receipt_only:
+                            if item['uid'] not in dates:raise ValueError('provider_receipt_date_required')
+                            item['provider_internaldate']=dates[item['uid']];save(path,item);counts['receipt_metadata_recovered']+=1;continue
                         raw=path.with_suffix('.eml').read_bytes()
                         if hashlib.sha256(raw).hexdigest()!=item['sha256']:raise ValueError('integrity_failure')
                         data,changes=projection(raw,account,dates.get(item['uid']))
@@ -90,7 +94,7 @@ def main():
             if client:
                 try:client.logout()
                 except Exception:pass
-    save(ROOT/'legacy-header-repair-report.json',{'counts':dict(counts),'provider_mutations':False,'originals_modified':False})
+    save(ROOT/('receipt-metadata-repair-report.json' if receipt_only else 'legacy-header-repair-report.json'),{'counts':dict(counts),'provider_mutations':False,'originals_modified':False})
     print(json.dumps(dict(counts)))
 
 if __name__=='__main__':main()

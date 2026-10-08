@@ -57,6 +57,19 @@ class ClosureTests(unittest.TestCase):
                 process(root/'archive',security,root/'drafts',{'allowed_recipients':['contact@creekco.ca'],'catch_all_domains':['creekco.ca']})
             self.assertEqual(security.get('<creekco.ca@example.test>')['state'],'released')
             self.assertEqual(security.get('<outside.test@example.test>')['state'],'quarantine')
+    def test_archived_attachment_holds_cannot_be_released_by_clean_rescan(self):
+        from tools.messaging.mail_room_security_scan import process
+        from server.mail_room_security import SecurityStore
+        from unittest.mock import patch
+        import hashlib
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t);directory=root/'archive'/'creekco.ca'/'queue';directory.mkdir(parents=True);raw=self.raw();mid='<closure@example.test>'
+            (directory/'message.eml').write_bytes(raw)
+            (directory/'metadata.json').write_text(json.dumps({'domain':'creekco.ca','envelope_recipient':'one@creekco.ca','rfc822_sha256':hashlib.sha256(raw).hexdigest(),'normalization':{'message_id_sha256':hashlib.sha256(mid.encode()).hexdigest(),'import_security_hold':True}}))
+            store=SecurityStore(root/'security'/'db');clean={'state':'released','reasons':['checks_passed'],'scan_complete':True,'hard_block':False}
+            with patch('tools.messaging.mail_room_security_scan.inspect',return_value=(clean,[],[])),patch('tools.messaging.mail_room_security_scan.scanner_ready',return_value=True):process(root/'archive',store,root/'drafts',{'catch_all_domains':['creekco.ca']})
+            result=store.get(mid);self.assertEqual(result['state'],'quarantine');self.assertTrue(result['hard_block']);self.assertFalse(result['scan_complete'])
+            with self.assertRaises(ValueError):store.action(mid,'release')
     def test_matching_deliveries_merge_but_changed_content_does_not(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);db=root/'db';archives=root/'archive';directory=archives/'creekco.ca'/'queue';directory.mkdir(parents=True)
