@@ -314,7 +314,16 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                     result = send_draft(data)
                 elif self.path == PREFIX + "flags" and features:
                     if not isinstance(data, dict): raise ValueError("Invalid flags")
-                    mail.correspondence_message(message_id=data.get("message_id", ""))
+                    if set(data) == {'message_id', 'deleted'}:
+                        # Organizing held mail needs existence, not permission to read its body.
+                        from server.mail_correspondence_store import MailCorrespondenceStore
+                        canonical=MailCorrespondenceStore._message_id(data['message_id'])
+                        if not features.source_path: raise ValueError('Mail source unavailable')
+                        with sqlite3.connect('file:'+str(features.source_path)+'?mode=ro',uri=True) as db:
+                            exists=db.execute("SELECT 1 FROM correspondence WHERE message_id=? AND source_authoritative=1 AND source_scope IN ('local_native','production_native')",(canonical,)).fetchone()
+                        if not exists: raise ValueError('Message unavailable')
+                    else:
+                        mail.correspondence_message(message_id=data.get("message_id", ""))
                     result = features.flags(data)
                 elif self.path == PREFIX + "signature" and features:
                     result = features.signature(data)
@@ -332,6 +341,8 @@ def make_handler(mail, store, proxy_key, features=None, assistant=None, security
                     self.reply(400, {"error": str(exc) if isinstance(exc, ValueError) else "Draft not found"}); return
                 self.reply(400, {"error": "Security action unavailable or release blocked. Complete checks and no hard security finding are required." if self.path in {PREFIX+'security-action',PREFIX+'review'} else "Invalid draft request"})
             except Exception:
+                if self.path == PREFIX + "flags":
+                    self.reply(503, {"error": "Message organization could not be saved. Please retry."}); return
                 self.reply(503 if self.path == PREFIX + "assist" else 422, {"error": "AVA is unavailable; no draft was changed." if self.path == PREFIX + "assist" else "Preparation could not complete. Check required signature, sender and recipient fields. Draft remains saved; nothing sent."})
 
     return Handler
