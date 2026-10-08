@@ -1,12 +1,20 @@
 #!/bin/sh
 set -eu
 MODE=dry-run
-[ "${1:-}" = "--apply" ] && MODE=apply
+WITH_ADMIN_SYNC=0
+for arg in "$@"; do
+  case "$arg" in
+    --apply) MODE=apply ;;
+    --with-admin-sync) WITH_ADMIN_SYNC=1 ;;
+    *) echo "usage: $0 [--apply] [--with-admin-sync]" >&2; exit 2 ;;
+  esac
+done
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 VERSION=$(git -c safe.directory="$ROOT" -C "$ROOT" rev-parse HEAD 2>/dev/null || printf source)
 TARGET="/opt/wwcx-ava-operator-broker/releases/$VERSION"
-printf 'mode=%s\nsource=%s\ntarget=%s\n' "$MODE" "$ROOT" "$TARGET"
+printf 'mode=%s\nsource=%s\ntarget=%s\nadmin_sync=%s\n' "$MODE" "$ROOT" "$TARGET" "$WITH_ADMIN_SYNC"
 [ "$MODE" = apply ] || exit 0
+[ "$(id -u)" -eq 0 ] || { echo "--apply requires root" >&2; exit 3; }
 install -d -m 0755 /opt/wwcx-ava-operator-broker/releases /etc/ava-operator /var/log/wwcx-ava-operator-broker
 install -d -m 0700 /var/lib/wwcx-ava-operator-broker /var/lib/wwcx-ava-operator-broker/shell-gates
 if [ ! -f /etc/ava-operator/broker-token ]; then
@@ -34,5 +42,9 @@ until curl -fsS http://127.0.0.1:8118/healthz; do
   [ "$i" -ge 20 ] && exit 1
   sleep 0.25
 done
-systemctl enable wwcx-ava-admin-functions-sync.service >/dev/null
-systemctl restart wwcx-ava-admin-functions-sync.service
+if [ "$WITH_ADMIN_SYNC" -eq 1 ]; then
+  systemctl enable wwcx-ava-admin-functions-sync.service >/dev/null
+  systemctl restart wwcx-ava-admin-functions-sync.service
+else
+  systemctl disable --now wwcx-ava-admin-functions-sync.service >/dev/null 2>&1 || true
+fi

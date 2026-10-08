@@ -1,7 +1,7 @@
 [Unit]
 Description=Edge1 Ava / Big Bird read-only AI gateway
-After=network-online.target edge1-operations-api.service edge1-private-library-search.service
-Wants=network-online.target
+After=network-online.target edge1-operations-api.service edge1-private-library-search.service wwcx-ava-operator-broker.service
+Wants=network-online.target wwcx-ava-operator-broker.service
 
 [Service]
 Type=simple

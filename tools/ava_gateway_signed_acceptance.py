@@ -8,6 +8,7 @@ Library evidence. It also verifies unsigned and replayed requests fail closed.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import hmac
 import json
@@ -86,7 +87,51 @@ def signed_headers(body: bytes, key_id: str, secret: str, nonce: str) -> dict[st
     }
 
 
+
+def mcp_accept(env: dict[str, str]) -> None:
+    request_id = "mcp-acceptance-" + secrets.token_hex(8)
+    payload = {
+        "request_id": request_id,
+        "user": {
+            "id": "edge1-mcp-acceptance",
+            "role": "internal_viewer",
+            "scopes": ["chat:general", "edge1:status:read"],
+        },
+        "message": "Use the Edge1 MCP connector to report the current Edge1 health status in one short sentence.",
+        "include_edge1_status": True,
+        "include_messaging_status": False,
+        "include_library": False,
+        "include_documentation": False,
+        "library_collections": [],
+        "include_communications": False,
+        "communications_groups": [],
+        "include_contacts": False,
+        "include_telephony": False,
+        "include_web": False,
+        "visual_request": {"mode": "none", "size": "1024x1024", "source_kind": "", "source_id": ""},
+    }
+    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    nonce = secrets.token_hex(16)
+    headers = signed_headers(body, env["BB_RELAY_KEY_ID"], env["BB_RELAY_SECRET"], nonce)
+    status, result = request(body, headers)
+    if status != 200:
+        die(f"MCP signed request returned HTTP {status}: {result.get('detail','unexpected_gateway_response')}")
+    if result.get("mcp_connector") != "enabled":
+        die("MCP connector was not enabled for edge1:status:read")
+    used = result.get("mcp_tools_used")
+    if not isinstance(used, list) or "edge1_mcp_read" not in used:
+        die("model did not invoke edge1_mcp_read")
+    if result.get("mcp_shell_hosts") not in ([], None):
+        die("MCP shell unexpectedly enabled during read-only acceptance")
+    answer = result.get("answer")
+    if not isinstance(answer, str) or not answer.strip():
+        die("MCP-backed response returned no answer")
+    print(f"signed MCP read: PASS ({len(used)} tool call(s), {len(answer.strip())} answer chars)")
+
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mcp", action="store_true", help="also run the live Edge1 MCP tool-call acceptance")
+    args = parser.parse_args()
     if os.geteuid() != 0:
         die("run with sudo/root so the protected gateway environment can be read")
     env = load_env()
@@ -151,6 +196,9 @@ def main() -> int:
     if replay_status != 401:
         die(f"replayed nonce returned HTTP {replay_status}, expected 401")
     print("nonce replay rejection: PASS (401)")
+
+    if args.mcp:
+        mcp_accept(env)
 
     print("AVA SIGNED GATEWAY ACCEPTANCE: PASS")
     return 0

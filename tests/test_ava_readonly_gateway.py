@@ -80,6 +80,56 @@ class AvaReadonlyGatewayTests(unittest.TestCase):
         self.assertEqual(int(status), 502)
         self.assertIn("operations", result["detail"])
 
+    def test_mcp_tools_require_internal_viewer_and_operator_read_scope(self):
+        module = self.load()
+        tools, executor, shells = module._operator_access({"user": {"role": "internal_viewer", "scopes": []}})
+        self.assertEqual(tools, [])
+        self.assertIsNone(executor)
+        self.assertEqual(shells, set())
+        tools, executor, shells = module._operator_access({"user": {"role": "external", "scopes": ["operator:read"]}})
+        self.assertEqual(tools, [])
+        self.assertIsNone(executor)
+        self.assertEqual(shells, set())
+
+    def test_operator_read_exposes_only_mcp_read_tools_by_default(self):
+        module = self.load()
+        payload={"user":{"role":"internal_viewer","scopes":["operator:read"]}}
+        tools, executor, shells = module._operator_access(payload)
+        self.assertEqual({item["name"] for item in tools}, {"edge1_mcp_read", "business159_mcp_read"})
+        self.assertTrue(callable(executor))
+        self.assertEqual(shells, set())
+
+    def test_existing_edge1_status_scope_maps_to_edge1_mcp_only(self):
+        module = self.load()
+        payload={"user":{"role":"internal_viewer","scopes":["edge1:status:read"]}}
+        tools, executor, shells = module._operator_access(payload)
+        self.assertEqual({item["name"] for item in tools}, {"edge1_mcp_read"})
+        self.assertTrue(callable(executor))
+        self.assertEqual(shells, set())
+        with self.assertRaises(module.OperatorGatewayError):
+            executor("business159_mcp_read", {"resource":"health"})
+
+    def test_conversational_mcp_never_exposes_direct_action_or_shell_tools(self):
+        module = self.load()
+        tools, _, shells = module._operator_access({"user":{"role":"internal_viewer","scopes":["operator:read","operator:actions:routine","operator:shell:escape"]}})
+        names={item["name"] for item in tools}
+        self.assertEqual(names, {"edge1_mcp_read", "business159_mcp_read"})
+        self.assertEqual(shells, set())
+
+    def test_tool_loop_returns_semantic_answer_and_records_mcp_tool(self):
+        module = self.load()
+        module.OPENAI_API_KEY = "configured"
+        first={"id":"resp-1","output":[{"type":"function_call","call_id":"call-1","name":"edge1_mcp_read","arguments":"{\"resource\":\"health\"}"}]}
+        second={"id":"resp-2","output_text":"{\"answer\":\"Edge1 is healthy.\",\"ui_effects\":[]}","output":[]}
+        executor=mock.Mock(return_value={"status":"completed","result":{"status":"healthy"}})
+        with mock.patch.object(module,"_openai_response",side_effect=[first,second]) as provider:
+            answer,effects,used=module._call_openai_with_operator_tools("Check Edge1","",[{"type":"function","name":"edge1_mcp_read","parameters":{"type":"object"}}],executor)
+        self.assertEqual(answer,"Edge1 is healthy.")
+        self.assertEqual(effects,[])
+        self.assertEqual(used,["edge1_mcp_read"])
+        executor.assert_called_once_with("edge1_mcp_read",{"resource":"health"})
+        self.assertEqual(provider.call_count,2)
+
 class AvaSemanticIntentEnvelopeTests(unittest.TestCase):
     def load(self):
         old = dict(os.environ)

@@ -1,8 +1,8 @@
 [Unit]
-Description=WW.CX Ava authenticated operator broker
-After=network-online.target edge1-agent-shell.service business159-secure-mcp-tunnel.service
-Wants=network-online.target
-Requires=edge1-agent-shell.service business159-secure-mcp-tunnel.service
+Description=WW.CX Ava authenticated MCP operator broker
+After=network-online.target edge1-operator-mcp.service edge1-agent-shell.service business159-secure-mcp-tunnel.service
+Wants=network-online.target edge1-agent-shell.service business159-secure-mcp-tunnel.service
+Requires=edge1-operator-mcp.service
 
 [Service]
 Type=simple

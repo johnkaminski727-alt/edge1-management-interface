@@ -1,5 +1,7 @@
 # Ava Operations Reader
 
+> **Retired compatibility integration.** This adapter is no longer exposed to AVA. It has been superseded by the authenticated AVA MCP Operator Broker (`wwcx-ava-operator-broker`) and the scoped `edge1_mcp_read` / `business159_mcp_read` tools. The code remains only for rollback, tests, and historical audit.
+
 The Ava Operations Reader is a fail-closed, read-only profile over the existing
 BigBird–Edge1 control-plane broker. It does not duplicate SSH or operator
 credentials and it does not expose arbitrary shell, paths, URLs, services,
