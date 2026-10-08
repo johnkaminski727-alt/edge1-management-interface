@@ -167,7 +167,7 @@ def ensure_source(db,s,ts):
 def ensure_catalog_source(db,s,ts):
  db.execute('''INSERT INTO library_sources(id,provider,name,source_type,locator,runtime_access,enabled,authority,default_action,copy_policy,classification,sensitivity,created_at,updated_at,last_status)
  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
- ON CONFLICT(id) DO UPDATE SET provider=excluded.provider,name=excluded.name,source_type=excluded.source_type,locator=excluded.locator,runtime_access=excluded.runtime_access,enabled=excluded.enabled,copy_policy=excluded.copy_policy,classification=excluded.classification,sensitivity=excluded.sensitivity,updated_at=excluded.updated_at,last_status=excluded.last_status''',
+ ON CONFLICT(id) DO UPDATE SET provider=excluded.provider,name=excluded.name,source_type=excluded.source_type,locator=excluded.locator,runtime_access=excluded.runtime_access,enabled=excluded.enabled,copy_policy=excluded.copy_policy,classification=excluded.classification,sensitivity=excluded.sensitivity,updated_at=excluded.updated_at''',
  (s['id'],s['provider'],s['name'],s.get('source_type','unknown'),s.get('locator',''),s.get('runtime_access','unknown'),1 if s.get('enabled',True) else 0,s.get('authority'),s.get('default_action'),s.get('copy_policy','reference'),s.get('classification','internal'),s.get('sensitivity','normal'),ts,ts,'deferred' if s.get('runtime_access')=='connector_required' else 'available'))
 
 
@@ -179,7 +179,8 @@ def bootstrap_source_registry(db,ts):
 
 
 def upsert_item(db, source_id, provider, external_id, title, ts, **kw):
- iid=sid(provider,external_id)
+ existing=db.execute('SELECT id FROM library_items WHERE source_id=? AND external_id=?',(source_id,external_id)).fetchone()
+ iid=existing[0] if existing else sid(source_id,external_id)
  db.execute('''INSERT INTO library_items(id,source_id,external_id,parent_external_id,item_type,title,original_name,source_url,source_path,mime_type,size_bytes,provider_created_at,provider_modified_at,revision_id,content_sha256,local_path,evidence_source_document_id,library_document_id,copy_state,sync_state,first_seen_at,last_seen_at,indexed_at)
  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
  ON CONFLICT(id) DO UPDATE SET title=excluded.title,original_name=COALESCE(excluded.original_name,library_items.original_name),source_url=COALESCE(excluded.source_url,library_items.source_url),source_path=COALESCE(excluded.source_path,library_items.source_path),mime_type=COALESCE(excluded.mime_type,library_items.mime_type),size_bytes=COALESCE(excluded.size_bytes,library_items.size_bytes),provider_modified_at=COALESCE(excluded.provider_modified_at,library_items.provider_modified_at),revision_id=COALESCE(excluded.revision_id,library_items.revision_id),content_sha256=COALESCE(excluded.content_sha256,library_items.content_sha256),local_path=COALESCE(excluded.local_path,library_items.local_path),evidence_source_document_id=COALESCE(excluded.evidence_source_document_id,library_items.evidence_source_document_id),library_document_id=COALESCE(excluded.library_document_id,library_items.library_document_id),copy_state=excluded.copy_state,sync_state=excluded.sync_state,last_seen_at=excluded.last_seen_at''',
@@ -224,7 +225,20 @@ def bootstrap_evidence(db,ts):
  for r in rows:
   source_id=evidence_source_id(db,r)
   provider=db.execute('SELECT provider FROM library_sources WHERE id=?',(source_id,)).fetchone()[0]
-  ext=f"source_document:{r['id']}"; local=None
+  ref=str(r['source_reference'] or '')
+  ext=ref.split(':',1)[1] if ref.startswith('gdrive:') else f"source_document:{r['id']}"
+  # If evidence was catalogued before the provider bridge exposed its real external ID,
+  # preserve the established item ID and downstream links, merge the transient provider row,
+  # then promote the evidence row to the real provider identifier.
+  oldrow=db.execute("SELECT id,external_id FROM library_items WHERE source_id=? AND evidence_source_document_id=? ORDER BY CASE WHEN external_id LIKE 'source_document:%' THEN 0 ELSE 1 END,id LIMIT 1",(source_id,r['id'])).fetchone()
+  target=db.execute('SELECT id FROM library_items WHERE source_id=? AND external_id=?',(source_id,ext)).fetchone()
+  if oldrow and target and oldrow['id']!=target['id']:
+   # Keep the evidence-backed item because it may already own accounting/domain/library links.
+   db.execute('DELETE FROM library_items WHERE id=?',(target['id'],))
+   target=None
+  if oldrow and oldrow['external_id']!=ext:
+   db.execute('UPDATE library_items SET external_id=? WHERE id=?',(ext,oldrow['id']))
+  local=None
   if r['sha256']:
    root=Path('/var/lib/edge1-evidence-intake/objects')/r['sha256'][:2]/r['sha256']
    if root.is_dir():
@@ -272,6 +286,6 @@ def render_status(db,ts):
 def main():
  ap=argparse.ArgumentParser(); ap.add_argument('--db',default=str(CATALOG)); args=ap.parse_args(); ts=now(); p=Path(args.db); p.parent.mkdir(parents=True,exist_ok=True)
  with sqlite3.connect(p) as db:
-  db.row_factory=sqlite3.Row; db.executescript(SCHEMA); a=bootstrap_registry(db,ts); sr=bootstrap_source_registry(db,ts); b=bootstrap_evidence(db,ts); c=link_library_documents(db,ts); db.commit(); result=render_status(db,ts)
+  db.row_factory=sqlite3.Row; db.execute('PRAGMA foreign_keys=ON'); db.executescript(SCHEMA); a=bootstrap_registry(db,ts); sr=bootstrap_source_registry(db,ts); b=bootstrap_evidence(db,ts); c=link_library_documents(db,ts); db.commit(); result=render_status(db,ts)
  print(json.dumps({'contact_sources_registered':a,'library_sources_registered':sr,'evidence_items':b,'library_documents':c,'status':result},sort_keys=True))
 if __name__=='__main__': main()

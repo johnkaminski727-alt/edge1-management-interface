@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Library provider bridges every 30 minutes
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=30min
+RandomizedDelaySec=3m
+Persistent=true
+Unit=edge1-library-provider-poll.service
+[Install]
+WantedBy=timers.target

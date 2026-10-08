@@ -74,3 +74,23 @@ A provider adapter should:
 9. never delete or alter the upstream provider unless a separate explicit action is authorized.
 
 Connector-required sources remain `deferred` until a server-side bridge is available. Deferred is a normal source state, not a failed sync.
+
+## Library Sources & Intake UI
+
+The authenticated operator surface is `/edge1-ops/status/library-sources/`.
+
+Its loopback-only backend listens on `127.0.0.1:8800` and is exposed only through the existing authenticated Edge1 session at `/edge1-ops/library-sources/api/`. Browser actions are allow-listed; the API does not accept arbitrary shell commands.
+
+Views include Sources, Documents, Accounting, and Sync History. Bounded controls can refresh the catalog, check provider bridge snapshots, reindex approved preserved evidence, run accounting extraction, and run evidence/contact intake.
+
+## Provider bridge contract
+
+External providers that do not yet have a server-native credential use a normalized snapshot at:
+
+`/var/lib/edge1-evidence-intake/provider-bridge/<source-id>/snapshot.json`
+
+Contract: `edge1.provider-bridge-snapshot.v1`.
+
+The provider poller runs every 30 minutes. A missing connector snapshot is `deferred`, not a health failure. A present snapshot is reconciled idempotently into `library_items`, with source-scoped external identity, provider metadata, domain-processing state, and an audited `library_sync_runs` record.
+
+Current seeded bridges include Airtable Operations People, Airtable Operations Organizations, Google Drive SaskTel evidence, Dropbox Documents and Filing, and Dropbox Trademark Filing - CIPO. Server-native OAuth/provider adapters can later replace the snapshot producer without changing the catalog or UI contract.

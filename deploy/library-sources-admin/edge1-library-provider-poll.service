@@ -1,0 +1,17 @@
+[Unit]
+Description=Edge1 Library provider/bridge poller
+After=edge1-library-source-catalog.service
+Wants=edge1-library-source-catalog.service
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/private_library/provider_poll.py --all
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/bigbird-ai-library/catalog /var/lib/edge1-evidence-intake/provider-bridge

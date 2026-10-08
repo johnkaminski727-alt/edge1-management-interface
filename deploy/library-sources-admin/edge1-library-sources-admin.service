@@ -1,0 +1,21 @@
+[Unit]
+Description=Edge1 Library Sources authenticated admin API
+After=network.target edge1-library-source-catalog.service
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/edge1-management-interface
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/server/library_sources_admin.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/bigbird-ai-library/catalog /var/lib/edge1-evidence-intake/provider-bridge /run
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+[Install]
+WantedBy=multi-user.target

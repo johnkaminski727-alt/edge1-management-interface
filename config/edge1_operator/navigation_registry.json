@@ -111,6 +111,26 @@
       "theme": "inherit"
     },
     {
+      "id": "library-sources",
+      "label": "Library & Sources",
+      "section": "Intelligence",
+      "sort_order": 6,
+      "browser_route": "/edge1-ops/status/library-sources/",
+      "candidate_route": "/edge1-ops/status/library-sources/",
+      "runtime_route": "/edge1-ops/status/library-sources/",
+      "availability": "accepted_live",
+      "authorization": "authenticated_admin",
+      "description": "Unified Private Library source catalog, connector/bridge state, evidence indexing and accounting intake.",
+      "palette": true,
+      "toolbox": true,
+      "evidence_status": "live_catalog_and_provider_sync",
+      "menu_visibility": "primary",
+      "dashboard_visibility": true,
+      "enabled": true,
+      "icon": "link",
+      "theme": "inherit"
+    },
+    {
       "id": "operations-center",
       "label": "Operations Center",
       "section": "Operations",
