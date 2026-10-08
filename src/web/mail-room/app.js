@@ -153,6 +153,9 @@
       finally{button.disabled=false;}
     });bar.append(button);
   }
+  function heldReviewText(text){
+    return String(text||"(No plain-text body)").replace(/(?:https?:\/\/|www\.)[^\s<>"'\)\]]*/gi,"[Web link removed]");
+  }
   async function openMessage(m){
     if(!canLeave())return;const current=++generation;
     const decision=await request("security/"+encodeURIComponent(m.message_id));
@@ -161,11 +164,21 @@
       clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);current_actions=null;
       const head=element("div","","reading-head"),bar=element("div","","toolbar");head.append(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender),bar,securityBadges(decision),securityReasonNotice(decision));$("reading").replaceChildren(head);
       const sec=section("Security details",true);securityDetails(decision,sec);$("reading").append(sec);
-      const review=element("button","Review plain text without AVA");review.onclick=safely(async()=>{
-        if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
-        const result=await request("review",{message_id:m.message_id,acknowledged:true});
-        const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;bar.dataset.plainTextReviewed="true";for(const button of bar.querySelectorAll("[data-review-release]")){button.disabled=!(decision.scan_complete&&!decision.hard_block&&decision.operator_report!=="confirmed_phishing");button.title=button.disabled?"Security findings still require separate review":"Move this reviewed message to the inbox";}
-      });bar.append(review);deleteAction(m,bar);$("reading").append(element("p","This message is outside the inbox. Choose Not spam to review this message. After reading its plain text, click Not spam again to move it to the inbox. Blocked attachments, confirmed phishing and incomplete checks require separate review.","notice"));securityActions(m,bar,decision,()=>review.onclick());say("Held mail stays outside AVA and the normal inbox.");return;
+      const body=element("section","","thread-message");body.append(element("h3","Message text"),element("p","Loading stripped text for manual review…","small"));head.after(body);
+      const review=element("button","Retry loading message text");review.hidden=true;
+      review.onclick=safely(async()=>{
+        review.disabled=true;
+        try{
+          const result=await request("review",{message_id:m.message_id,acknowledged:true});
+          if(current!==generation)return;
+          body.replaceChildren(element("h3","Message text"),element("p","Web links and graphics removed. Attachments remain blocked. This is a manual review; the message remains held.","small"),element("div",heldReviewText(result.message.body_text),"mail-text"));
+          review.hidden=true;bar.dataset.plainTextReviewed="true";
+          for(const button of bar.querySelectorAll("[data-review-release]")){button.disabled=!(decision.scan_complete&&!decision.hard_block&&decision.operator_report!=="confirmed_phishing");button.title=button.disabled?"Security findings still require separate review":"Move this reviewed message to the inbox";}
+        }catch(e){if(current===generation){body.replaceChildren(element("h3","Message text unavailable"),element("p",e.message,"notice"));review.hidden=false;}throw e;}
+        finally{review.disabled=false;}
+      });bar.append(review);deleteAction(m,bar);
+      $("reading").append(element("p","Review the stripped text above. Not spam or Release after review moves an eligible message to the inbox. Blocked attachments, confirmed phishing and incomplete checks still require separate review.","notice"));
+      securityActions(m,bar,decision,()=>review.onclick());say("Held mail stays outside AVA and the normal inbox.");await review.onclick();return;
     }
     say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
     clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);
