@@ -52,3 +52,18 @@ Validation: 18 regression tests plus archive-first acceptance. All copied histor
 messages are accounted for as imported, visible quarantine, duplicate or preserved
 original-provider-folder archives. Live public DNS rollback remains unperformed;
 the existing isolated transaction rehearsal does not establish provider permissions.
+
+## DNS rollback rehearsal — 2026-10-08
+
+`tools/messaging/mail_dns_rollback_rehearsal.py` validated disposable historical
+MX rollback candidates and exact return to Edge1 for all five domains with
+`named-checkzone`. An unrelated TXT record survived each change. Live MX was
+queried before and after and stayed `10 mail.ww.cx.` for every domain.
+This is an isolated MX-record rehearsal, not a complete zone restoration or
+provider mutation-permission test. No public records changed and no mail was sent.
+
+Production rollback remains unverified. SCG's historical baseline has no MX and
+is not a usable fallback. OmegaFX's historical cPanel MX conflicts with the later
+PrivateEmail account history. Verify provider routing, fallback recipient/catch-all
+coverage and write permissions before using either as an emergency destination.
+The existing per-domain rollback gates remain `not_verified`.
