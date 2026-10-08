@@ -2,6 +2,7 @@
 """Loopback-only server entrypoint for the Edge1 Security authentication adapter."""
 from __future__ import annotations
 
+import dataclasses
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -82,6 +83,24 @@ def build_adapter() -> Edge1SecurityAuthHttpAdapter:
     ))
     gateway_config = GatewayConfig.from_path(gateway_config_path)
     http_config = HttpAdapterConfig.from_path(http_config_path)
+
+    credentials_directory = os.environ.get(
+        "CREDENTIALS_DIRECTORY",
+        "",
+    ).strip()
+
+    if credentials_directory:
+        credential_path = (
+            Path(credentials_directory)
+            / "operations_api_secret"
+        )
+
+        if credential_path.is_file():
+            http_config = dataclasses.replace(
+                http_config,
+                operations_secret_path=credential_path,
+            )
+
     gateway = Edge1SecurityAuthGateway(gateway_config)
     return Edge1SecurityAuthHttpAdapter(
         http_config,
