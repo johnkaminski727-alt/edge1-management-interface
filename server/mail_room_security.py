@@ -35,8 +35,8 @@ def message_hash(message_id):
 
 def decision_fingerprint(decision, *, legacy=False):
     # Human release is bound to reviewed findings, never future changed findings.
-    # URIBL_BLOCKED means the lookup provider denied a query, not a URL threat.
-    symbols=[s for s in decision.get('symbols',[]) if legacy or s != 'URIBL_BLOCKED']
+    # These symbols mean a lookup provider denied a query, not a URL threat.
+    symbols=[s for s in decision.get('symbols',[]) if legacy or s not in {'URIBL_BLOCKED','DBL_PROHIBIT'}]
     facts={'state':decision['state'],'reasons':sorted(decision.get('reasons',[])),'symbols':sorted(symbols)}
     return hashlib.sha256(json.dumps(facts,sort_keys=True).encode()).hexdigest()
 
@@ -45,9 +45,9 @@ def reviewed_release_matches(override, decision):
     if override == 'reviewed_release:'+decision_fingerprint(decision):
         return True
     # Migrate existing approvals only when all findings match, allowing this
-    # one diagnostic to have appeared/disappeared during periodic rescanning.
-    symbols=[s for s in decision.get('symbols',[]) if s != 'URIBL_BLOCKED']
-    variants=[{**decision,'symbols':symbols},{**decision,'symbols':symbols+['URIBL_BLOCKED']}]
+    # lookup availability diagnostics to have appeared/disappeared during periodic rescanning.
+    symbols=[s for s in decision.get('symbols',[]) if s not in {'URIBL_BLOCKED','DBL_PROHIBIT'}]
+    variants=[{**decision,'symbols':symbols+extra} for extra in [[],['URIBL_BLOCKED'],['DBL_PROHIBIT'],['URIBL_BLOCKED','DBL_PROHIBIT']]]
     return any(override == 'reviewed_release:'+decision_fingerprint(v,legacy=True) for v in variants)
 
 

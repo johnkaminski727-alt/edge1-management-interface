@@ -107,7 +107,7 @@ class SecurityTests(unittest.TestCase):
         held={**CLEAN,'state':'quarantine','reasons':['phishing_or_sender_authentication_failure'],'symbols':['PHISHING']}
         self.security.write(self.ids[0],'a'*64,held)
         self.security.action(self.ids[0],'release')
-        self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_BLOCKED']})
+        self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_BLOCKED','DBL_PROHIBIT']})
         self.assertEqual(self.security.get(self.ids[0])['state'],'released')
         self.security.write(self.ids[0],'a'*64,held)
         self.assertEqual(self.security.get(self.ids[0])['state'],'released')
@@ -121,7 +121,7 @@ class SecurityTests(unittest.TestCase):
             self.security.write(self.ids[0],'a'*64,held)
             with self.security.connect() as db:
                 db.execute('UPDATE decisions SET override=? WHERE message_hash=?',('reviewed_release:'+decision_fingerprint(old,legacy=True),message_hash(self.ids[0])))
-            self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_BLOCKED']})
+            self.security.write(self.ids[0],'a'*64,{**held,'symbols':['PHISHING','URIBL_BLOCKED','DBL_PROHIBIT']})
             self.assertEqual(self.security.get(self.ids[0])['state'],'released')
             self.security.write(self.ids[0],'a'*64,{**held,'hard_block':True})
             self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
@@ -129,6 +129,22 @@ class SecurityTests(unittest.TestCase):
             self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
         self.security.write(self.ids[0],'b'*64,held)
         self.assertTrue(self.security.get(self.ids[0])['hard_block'])
+
+    def test_reviewed_import_scan_closes_hold_only_with_fresh_clean_evidence(self):
+        from tools.messaging.mail_room_security_scan import process
+        root=self.root/'archive';directory=root/'day'/'message';directory.mkdir(parents=True)
+        (directory/'message.eml').write_bytes(RAW)
+        digest=hashlib.sha256(RAW).hexdigest()
+        (directory/'metadata.json').write_text(json.dumps({'rfc822_sha256':digest,'normalization':{'message_id_sha256':message_hash(self.ids[0]),'import_security_hold':True,'import_hold_reason':'scan_size_limit_requires_review'}}))
+        drafts=self.root/'checks.sqlite3'
+        with patch('tools.messaging.mail_room_security_scan.reviewed_scan',return_value=True), patch('tools.messaging.mail_room_security_scan.scanner_ready',return_value=True), patch('tools.messaging.mail_room_security_scan.inspect',side_effect=lambda *a,**k:inspect(*a,**k,spam_scan=lambda *a:{'score':0,'symbols':{}})):
+            process(root,self.security,drafts)
+        self.assertEqual(self.security.get(self.ids[0])['state'],'released')
+        with self.security.connect() as db:db.execute('UPDATE decisions SET checked=0')
+        with patch('tools.messaging.mail_room_security_scan.reviewed_scan',return_value=True), patch('tools.messaging.mail_room_security_scan.scanner_ready',return_value=False), patch('tools.messaging.mail_room_security_scan.scan_bytes',return_value='unscanned_blocked'), patch('tools.messaging.mail_room_security_scan.inspect',side_effect=lambda *a,**k:inspect(*a,**k,spam_scan=lambda *a:{'score':0,'symbols':{}})):
+            process(root,self.security,drafts)
+        self.assertTrue(self.security.get(self.ids[0])['hard_block'])
+        self.assertEqual(self.security.get(self.ids[0])['state'],'quarantine')
 
     def test_authentication_and_scan_failures(self):
         clean={'score':0,'symbols':{},'action':'no action'}

@@ -25,6 +25,7 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT))
 from server.mail_room_security import archive_message_id, SecurityStore, classify, rspamd_scan, message_hash, verified_local_submission
 from tools.messaging.mail_room_attachment_scan import scan_bytes, scanner_ready
+from tools.messaging.mail_room_reviewed_scan import reviewed_scan
 
 BLOCKED_EXTENSIONS={'.exe','.com','.scr','.bat','.cmd','.ps1','.vbs','.js','.jse','.wsf','.msi','.hta','.lnk','.iso','.img','.docm','.xlsm','.pptm','.xlam','.xll'}
 
@@ -109,16 +110,18 @@ def process(root, security, drafts, policy_config=None):
             mid=archive_message_id(raw,item)
             key=message_hash(mid)
             if key!=item.get('normalization',{}).get('message_id_sha256'): continue
+            reviewed_clean=False
             if invalid:
                 decision={'state':'quarantine','reasons':['archive_integrity_or_size_failure'],'scan_complete':False,'hard_block':True,'authentication':{'status':'not_verified'}}; attachments=[]; indicators=[]
             else:
-                decision,attachments,indicators=inspect(raw,item.get('transport'),item.get('domain',''),policy_config)
+                reviewed_clean=scanner_ready() and reviewed_scan(raw)
+                decision,attachments,indicators=inspect(raw,item.get('transport'),item.get('domain',''),policy_config,scan=(lambda data: 'clean_download_disabled') if reviewed_clean else scan_bytes)
                 allowed=(policy_config or {}).get('allowed_recipients',[])
                 recipient=item.get('envelope_recipient','').lower()
                 catch_all=recipient.rsplit('@',1)[-1] in (policy_config or {}).get('catch_all_domains',[])
                 if allowed and not catch_all and recipient not in {a.lower() for a in allowed} and decision['state']=='released':
                     decision['state']='quarantine';decision['reasons'].append('unregistered_catch_all_recipient_review')
-            if item.get('normalization',{}).get('import_security_hold'):
+            if item.get('normalization',{}).get('import_security_hold') and not reviewed_clean:
                 reason=item['normalization'].get('import_hold_reason','historical_attachment_review_required')
                 if reason not in {'encrypted_pdf_requires_local_unlock','encrypted_zip_requires_local_unlock','scan_size_limit_requires_review'}:reason='historical_attachment_review_required'
                 decision={**decision,'state':'quarantine','hard_block':True,'scan_complete':False,'reasons':list(dict.fromkeys(decision.get('reasons',[])+[reason]))}

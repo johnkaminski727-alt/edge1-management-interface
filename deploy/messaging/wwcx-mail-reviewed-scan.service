@@ -1,0 +1,17 @@
+[Unit]
+Description=Refresh bounded scans for explicitly reviewed archived mail
+After=network.target
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 -B /opt/wwcx-email/releases/mail-security-bounded-review-20261008T0715Z/tools/messaging/mail_room_reviewed_scan_refresh.py
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/wwcx/mail-reviewed-scans
+MemoryMax=1G
+CPUQuota=50%
+TimeoutStartSec=600
