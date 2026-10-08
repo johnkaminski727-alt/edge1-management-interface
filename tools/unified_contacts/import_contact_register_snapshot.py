@@ -23,14 +23,19 @@ def sha256(path: Path):
 
 
 def provenance(db, source):
+    source_document_id=source.get('source_document_id')
+    if source_document_id is not None:
+        row=db.execute('SELECT id FROM source_documents WHERE id=?',(int(source_document_id),)).fetchone()
+        if row is None: raise RuntimeError('source_document_id does not exist')
     rows=db.execute("""SELECT id FROM provenance_records WHERE source_kind=? AND source_name=?
-        AND COALESCE(source_reference,'')=? AND COALESCE(extraction_method,'')=? ORDER BY id""",
-        (source['source_kind'],source['source_name'],source.get('source_reference',''),source.get('extraction_method',''))).fetchall()
+        AND COALESCE(source_reference,'')=? AND COALESCE(extraction_method,'')=?
+        AND COALESCE(source_document_id,0)=COALESCE(?,0) ORDER BY id""",
+        (source['source_kind'],source['source_name'],source.get('source_reference',''),source.get('extraction_method',''),source_document_id)).fetchall()
     if len(rows)>1: raise RuntimeError('ambiguous provenance')
     if rows: return rows[0][0],False
-    cur=db.execute("""INSERT INTO provenance_records(source_kind,source_name,source_reference,
-        extraction_method,verification_status,notes) VALUES(?,?,?,?,?,?)""",
-        (source['source_kind'],source['source_name'],source.get('source_reference'),source.get('extraction_method'),
+    cur=db.execute("""INSERT INTO provenance_records(source_document_id,source_kind,source_name,source_reference,
+        extraction_method,verification_status,notes) VALUES(?,?,?,?,?,?,?)""",
+        (source_document_id,source['source_kind'],source['source_name'],source.get('source_reference'),source.get('extraction_method'),
          source.get('verification_status','document_sourced'),'Evidence-backed contact register import.'))
     return cur.lastrowid,True
 
