@@ -76,20 +76,34 @@
     if(decision.operator_report)container.append(element("p",decision.operator_report==="phishing"?"Reported phishing · Awaiting confirmation":decision.operator_report==="confirmed_phishing"?"Confirmed phishing":decision.operator_report.startsWith("reviewed_release:")?"Released after manual review":"Operator classification: "+decision.operator_report.replaceAll("_"," ")));
     container.append(element("p", "State: "+decision.state),element("p", "Sender: "+(decision.authentication?.status||"not_verified").replaceAll("_"," ")),element("p", "SPF: "+(decision.authentication?.spf||"not verified")+" · DKIM: "+(decision.authentication?.dkim||"not verified")+" · DMARC: "+(decision.authentication?.dmarc||"not verified")),element("p", (decision.reasons||[]).join(" · ").replaceAll("_"," ")),element("p", "Domain authentication does not verify the person or guarantee safe content.", "small"));
   }
-  function securityActions(m, container, decision){
+  function securityActions(m, container, decision, reviewPlainText=null){
     const actions=container;
+    const canRelease=Boolean(decision?.scan_complete&&!decision?.hard_block&&decision?.operator_report!=="confirmed_phishing");
+    const releaseBlock=decision?.hard_block?"Attachments or other hard security findings require separate review.":decision?.operator_report==="confirmed_phishing"?"Confirmed phishing cannot be released here.":"Security checks have not completed.";
     for(const [label,action] of [["Spam","spam"],["Not spam","not_spam"],["Report phishing","phishing"],...(decision?.state==="quarantine"?[["Confirm phishing","confirmed_phishing"],["Release after review","release"]]:[])]){
       const b=element("button",label);b.type="button";
-      if(action==="release"){b.disabled=true;b.dataset.reviewRelease="true";b.title="Review the plain text first";}
+      if(action==="release"){b.disabled=true;b.dataset.reviewRelease="true";b.title=canRelease?"Review the plain text first":releaseBlock;}
+      if(action==="not_spam"&&decision?.state!=="released"){
+        b.disabled=!canRelease;b.title=canRelease?(decision.state==="quarantine"?"Review this message, then move it to the inbox":"Move this message to the inbox"):releaseBlock;
+      }
       b.onclick=safely(async()=>{
-        if(action==="release"&&!window.confirm("Release this message to the inbox and AVA after your review? Malware and incomplete checks cannot be overridden."))return;
+        let requestedAction=action;
+        if(action==="not_spam"&&decision?.state==="quarantine"){
+          if(container.dataset.plainTextReviewed!=="true"){
+            if(reviewPlainText)await reviewPlainText();
+            if(container.dataset.plainTextReviewed==="true"){b.textContent="Not spam · Move to inbox";say("Review the message text below, then click Not spam again to move it to the inbox.");}
+            return;
+          }
+          requestedAction="release";
+        }
+        if(requestedAction==="release"&&!window.confirm("Move this reviewed message to the inbox and make it available to AVA? Blocked attachments and incomplete checks cannot be overridden."))return;
         let interacted=false;
         if(action==="phishing"){
           if(!window.confirm("Report this message as suspected phishing and move it to quarantine? Related messages may also be held for review."))return;
           interacted=window.confirm("Did you click a link, enter credentials, or open an attachment from this message? OK records an interaction; Cancel records no interaction.");
         }
         if(action==="confirmed_phishing"&&!window.confirm("Record this as confirmed phishing? Ordinary release will remain blocked."))return;
-        const result=await request("security-action",{message_id:m.message_id,action,interacted,reviewed:action==="release"});
+        const result=await request("security-action",{message_id:m.message_id,action:requestedAction,interacted,reviewed:requestedAction==="release"});
         $("reading").replaceChildren(element("h2","Message moved to "+result.state));await load();
         say(interacted?"Phishing reported. Stop interacting with the message. If you entered a password, change it through the service’s known website and revoke active sessions; if you opened a file, arrange a device security check.":"Security classification saved. Related messages flagged: "+result.related_flagged);
       });actions.append(b);
@@ -106,8 +120,8 @@
       const review=element("button","Review plain text without AVA");review.onclick=safely(async()=>{
         if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
         const result=await request("review",{message_id:m.message_id,acknowledged:true});
-        const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;for(const button of bar.querySelectorAll("[data-review-release]")){button.disabled=false;button.title="Release after your review; security checks still apply";}
-      });bar.append(review);$("reading").append(element("p","This message is outside the inbox. First review plain text, then choose Release after review if it is legitimate. Malware findings and incomplete checks remain blocked.","notice"));securityActions(m,bar,decision);say("Held mail stays outside AVA and the normal inbox.");return;
+        const body=element("section","","thread-message");renderMail(result.message,body);$("reading").append(body);review.disabled=true;bar.dataset.plainTextReviewed="true";for(const button of bar.querySelectorAll("[data-review-release]")){button.disabled=!(decision.scan_complete&&!decision.hard_block&&decision.operator_report!=="confirmed_phishing");button.title=button.disabled?"Security findings still require separate review":"Move this reviewed message to the inbox";}
+      });bar.append(review);$("reading").append(element("p","This message is outside the inbox. Choose Not spam to review this message. After reading its plain text, click Not spam again to move it to the inbox. Blocked attachments, confirmed phishing and incomplete checks require separate review.","notice"));securityActions(m,bar,decision,()=>review.onclick());say("Held mail stays outside AVA and the normal inbox.");return;
     }
     say("Opening thread…");const data=await request("thread/"+encodeURIComponent(m.thread_id));if(current!==generation||!canLeave())return;
     clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);
