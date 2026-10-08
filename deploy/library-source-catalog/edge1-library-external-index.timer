@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Private Library external index every two hours
+
+[Timer]
+OnBootSec=16min
+OnUnitActiveSec=2h
+RandomizedDelaySec=5m
+Persistent=true
+Unit=edge1-library-external-index.service
+
+[Install]
+WantedBy=timers.target

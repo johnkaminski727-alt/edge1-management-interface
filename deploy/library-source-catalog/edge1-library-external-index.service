@@ -1,0 +1,20 @@
+[Unit]
+Description=Edge1 Private Library external evidence indexer
+After=edge1-library-source-catalog.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/opt/edge1-management-interface/.venv-evidence-extractor/bin/python -B /opt/edge1-management-interface/tools/private_library/index_preserved_evidence.py --limit 500
+UMask=0027
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/var/lib/bigbird-ai-library /var/www/edge1-status/library-external-index

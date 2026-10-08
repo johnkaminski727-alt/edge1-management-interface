@@ -1,0 +1,127 @@
+{
+  "contract": "edge1.private-library-source-registry.v1",
+  "updated_at": "2026-10-08",
+  "sources": [
+    {
+      "id": "google-drive-sasktel-evidence",
+      "provider": "google-drive",
+      "name": "Google Drive — SaskTel Evidence Archive",
+      "source_type": "folder",
+      "locator": "gdrive-folder:1t3CW9Pzl77r06ez5JBEMGpn82Drse4BK",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "evidence",
+      "classification": "private",
+      "sensitivity": "financial",
+      "domains": ["contacts", "accounting", "filing"],
+      "rules": ["preserve_original_bytes", "retain_provider_id", "hash_before_processing", "no_remote_delete"]
+    },
+    {
+      "id": "dropbox-documents-filing",
+      "provider": "dropbox",
+      "name": "Dropbox — Documents and Filing",
+      "source_type": "folder",
+      "locator": "ns:11167831811//Documents and Filing",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "cache",
+      "classification": "private",
+      "sensitivity": "normal",
+      "domains": ["contacts", "accounting", "filing"],
+      "rules": ["retain_provider_id", "preserve_financial_evidence", "no_remote_delete"]
+    },
+    {
+      "id": "dropbox-personal-documents",
+      "provider": "dropbox",
+      "name": "Dropbox — Personal Documents",
+      "source_type": "folder",
+      "locator": "ns:11167831811//Personal Documents",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "reference",
+      "classification": "restricted",
+      "sensitivity": "personal",
+      "domains": ["filing"],
+      "rules": ["restricted_handling", "no_contact_autopromotion", "no_remote_delete"]
+    },
+    {
+      "id": "dropbox-trademark-cipo",
+      "provider": "dropbox",
+      "name": "Dropbox — Trademark Filing - CIPO",
+      "source_type": "folder",
+      "locator": "ns:11167831811//Trademark Filing - CIPO",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "evidence",
+      "classification": "private",
+      "sensitivity": "legal",
+      "domains": ["contacts", "filing"],
+      "rules": ["preserve_original_bytes", "retain_provider_id", "no_remote_delete"]
+    },
+    {
+      "id": "dropbox-edge1-recovery",
+      "provider": "dropbox",
+      "name": "Dropbox — Edge1 Recovery",
+      "source_type": "folder",
+      "locator": "ns:11167831811//Edge1-Recovery",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "reference",
+      "classification": "restricted",
+      "sensitivity": "infrastructure",
+      "domains": ["filing"],
+      "rules": ["restricted_handling", "never_index_secrets", "no_remote_delete"]
+    },
+    {
+      "id": "airtable-operations-people",
+      "provider": "airtable",
+      "name": "Airtable Operations Registry — People & Contacts",
+      "source_type": "table",
+      "locator": "airtable:appWawSpmzIKFCo05/tblZCCrdVHXfynqNL",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "cache",
+      "classification": "private",
+      "sensitivity": "contacts",
+      "domains": ["contacts", "filing"]
+    },
+    {
+      "id": "airtable-operations-organizations",
+      "provider": "airtable",
+      "name": "Airtable Operations Registry — Organizations",
+      "source_type": "table",
+      "locator": "airtable:appWawSpmzIKFCo05/tbliJXx44snu4Rljr",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "cache",
+      "classification": "private",
+      "sensitivity": "contacts",
+      "domains": ["contacts", "filing"]
+    },
+    {
+      "id": "chatgpt-library",
+      "provider": "chatgpt-library",
+      "name": "ChatGPT Library",
+      "source_type": "library",
+      "locator": "chatgpt-library:/",
+      "runtime_access": "connector_required",
+      "enabled": true,
+      "copy_policy": "reference",
+      "classification": "private",
+      "sensitivity": "mixed",
+      "domains": ["contacts", "accounting", "filing"]
+    }
+  ],
+  "excluded_sources": [
+    {
+      "provider": "dropbox",
+      "locator": "ns:11167831811//Keys",
+      "reason": "credential and cryptographic secret material"
+    },
+    {
+      "provider": "dropbox",
+      "locator": "ns:11167831811//2FA Recovery Codes",
+      "reason": "authentication recovery secrets"
+    }
+  ]
+}
