@@ -123,7 +123,7 @@ def process(root, security, drafts, policy_config=None):
                     decision['state']='quarantine';decision['reasons'].append('unregistered_catch_all_recipient_review')
             # Provider Junk is never promoted to Inbox merely because a fresh scan is clean.
             # It remains in the Mail Room Junk review queue until an operator releases it.
-            if item.get('source')=='microsoft-graph-outlook' and item.get('provider_folder_class')=='junk' and decision['state']=='released':
+            if item.get('source') in {'microsoft-graph-outlook','google-gmail-api'} and item.get('provider_folder_class')=='junk' and decision['state']=='released':
                 decision['state']='junk';decision['reasons'].append('provider_junk_review')
             if item.get('normalization',{}).get('import_security_hold') and not reviewed_clean:
                 reason=item['normalization'].get('import_hold_reason','historical_attachment_review_required')
