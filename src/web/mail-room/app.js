@@ -3,6 +3,15 @@
   const $ = id => document.getElementById(id), api = "./api/", views=["inbox","drafts","activity","daily","filtering","readiness"];
   const DEFAULT_MAILING_ADDRESS="PO Box 333\nInvermay, Saskatchewan S0A 1M0"; // shared by every sending organization
   let sendEnabled=false,prepared=null,selectedKey="",current_actions=null,listItems=[],mode="inbox",offset=0,more=false,draftId=null,metadata={},dirty=false,generation=0,editorSession=0,saving=false,autosave=null,senders=null;
+  // Cache list labels briefly; opening/releasing a message always checks live state.
+  const reasonCache=new Map();
+  async function listSecurityDecision(mid){
+    const cached=reasonCache.get(mid);
+    if(cached&&Date.now()-cached.at<60000)return cached.decision;
+    const decision=await request('security/'+encodeURIComponent(mid));
+    if(reasonCache.size>=200)reasonCache.delete(reasonCache.keys().next().value);
+    reasonCache.set(mid,{at:Date.now(),decision});return decision;
+  }
   function say(text){$("feedback").textContent=text;}
   async function request(path,data){
     const r=await fetch(api+path,{credentials:"same-origin",cache:"no-store",...(data===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-Mail-Room-Request":"1"},body:JSON.stringify(data)})});
@@ -129,7 +138,7 @@
         }
         if(action==="confirmed_phishing"&&!window.confirm("Record this as confirmed phishing? Ordinary release will remain blocked."))return;
         const result=await request("security-action",{message_id:m.message_id,action:requestedAction,interacted,reviewed:requestedAction==="release"});
-        $("reading").replaceChildren(element("h2","Message moved to "+result.state));await load();
+        reasonCache.clear();$("reading").replaceChildren(element("h2","Message moved to "+result.state));await load();
         say(interacted?"Phishing reported. Stop interacting with the message. If you entered a password, change it through the service’s known website and revoke active sessions; if you opened a file, arrange a device security check.":"Security classification saved. Related messages flagged: "+result.related_flagged);
       });actions.append(b);
     }
@@ -268,7 +277,7 @@
     listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":({sent:"Sent",sending:"Sending…",send_outcome_unknown:"Send outcome unknown — check before retrying"}[m.state]||"Prepared · not sent"),"who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
     if(mode==='inbox'&&['quarantine','junk','pending'].includes(filters.get('folder'))){
       const queue=items.map((m,i)=>({m,b:listItems[i]}));
-      const worker=async()=>{while(queue.length&&current===generation){const {m,b}=queue.shift(),note=element('div','Checking hold reason…','hold-reason');b.append(note);try{const d=await request('security/'+encodeURIComponent(m.message_id));if(current===generation)note.textContent=securityReasons(d).join(' · ');}catch(e){if(current===generation)note.textContent='Reason unavailable · Open message to retry';}}};
+      const worker=async()=>{while(queue.length&&current===generation){const {m,b}=queue.shift(),note=element('div','Checking hold reason…','hold-reason');b.append(note);try{const d=await listSecurityDecision(m.message_id);if(current===generation)note.textContent=securityReasons(d).join(' · ');}catch(e){if(current===generation)note.textContent='Reason unavailable · Open message to retry';}}};
       await Promise.all(Array.from({length:Math.min(4,queue.length)},worker));
       if(current!==generation)return;
     }

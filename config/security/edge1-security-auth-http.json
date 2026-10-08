@@ -29,7 +29,7 @@
     "maximum_body_bytes": 20000,
     "exchange_requests": 10,
     "exchange_window_seconds": 600,
-    "session_requests": 120,
+    "session_requests": 600,
     "session_window_seconds": 60,
     "action_requests": 6,
     "action_window_seconds": 60,
