@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, hashlib, json, sqlite3
+import argparse, hashlib, json, os, sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,6 +68,17 @@ def poll_one(db, source):
       (finished,status,stats['scanned'],stats['new_items'],stats['changed_items'],stats['preserved'],stats['indexed'],stats['deferred'],stats['errors'],json.dumps(detail,sort_keys=True),run_id))
     return {'source_id':sid,'status':status,**stats,'detail':detail}
 
+def submit_workflow_if_changed(out, generated, inbox=Path('/var/lib/wwcx-ava-office-manager/workflow-inbox')):
+    changed=sum(int(x.get('new_items') or 0)+int(x.get('changed_items') or 0) for x in out)
+    if changed<=0 or any(x.get('status')=='failed' for x in out): return None
+    inbox.mkdir(parents=True,exist_ok=True)
+    trigger_ref='library-provider-delta:'+hashlib.sha256(json.dumps([(x['source_id'],x.get('new_items',0),x.get('changed_items',0),x.get('detail',{}).get('snapshot_generated_at')) for x in out],sort_keys=True).encode()).hexdigest()
+    request={'workflow_id':'provider-evidence-processing','trigger_type':'library-provider-change','trigger_ref':trigger_ref,'requested_by':'edge1-library-provider-poll','priority':'normal','detail':{'changed_items':changed,'generated_at':generated}}
+    target=inbox/(hashlib.sha256(trigger_ref.encode()).hexdigest()+'.json')
+    if not target.exists() and not target.with_suffix('.processed').exists():
+        target.write_text(json.dumps(request,indent=2,sort_keys=True)+'\n'); os.chmod(target,0o640)
+    return target
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--source'); ap.add_argument('--all',action='store_true'); ap.add_argument('--db',default=str(CATALOG)); a=ap.parse_args()
     if not a.source and not a.all: ap.error('use --source ID or --all')
@@ -78,6 +89,9 @@ def main():
             if not rows: raise SystemExit('unknown source')
         else: rows=db.execute('SELECT * FROM library_sources ORDER BY provider,name').fetchall()
         out=[poll_one(db,r) for r in rows]; db.commit()
-    print(json.dumps({'contract':'edge1.library-provider-poll.v1','generated_at':now(),'results':out},sort_keys=True))
+    generated=now()
+    payload={'contract':'edge1.library-provider-poll.v1','generated_at':generated,'results':out}
+    submit_workflow_if_changed(out,generated)
+    print(json.dumps(payload,sort_keys=True))
     return 1 if any(x['status']=='failed' for x in out) else 0
 if __name__=='__main__': raise SystemExit(main())

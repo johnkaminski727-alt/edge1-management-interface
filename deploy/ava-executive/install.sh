@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 ROOT=/opt/edge1-management-interface
 SITE=/etc/nginx/sites-enabled/edge1-private.conf
-for f in tools/automation/ava_executive_orchestrator.py src/web/edge1-ops/ava/index.html src/web/edge1-ops/ava/app.js src/web/edge1-ops/ava/styles.css deploy/ava-executive/edge1-ava-executive.service deploy/ava-executive/edge1-ava-executive.path deploy/ava-executive/edge1-ava-executive.timer deploy/ava-executive/edge1-ava-office-api.location.conf; do test -s "$ROOT/$f" || { echo "missing $f" >&2; exit 1; }; done
-install -d -o wwadmin -g wwadmin -m 0750 /var/lib/wwcx-ava-office-manager /var/lib/wwcx-ava-office-manager/report-inbox
+for f in tools/automation/ava_executive_orchestrator.py tools/automation/ava_workflow_dispatcher.py server/ava_dispatch_admin.py config/ava-executive-capabilities.json src/web/edge1-ops/ava/index.html src/web/edge1-ops/ava/app.js src/web/edge1-ops/ava/styles.css deploy/ava-executive/edge1-ava-executive.service deploy/ava-executive/edge1-ava-executive.path deploy/ava-executive/edge1-ava-executive.timer deploy/ava-executive/edge1-ava-dispatch-admin.service deploy/ava-executive/edge1-ava-workflow-dispatcher.service deploy/ava-executive/edge1-ava-workflow-dispatcher.path deploy/ava-executive/edge1-ava-workflow-dispatcher.timer deploy/ava-executive/edge1-ava-office-api.location.conf; do test -s "$ROOT/$f" || { echo "missing $f" >&2; exit 1; }; done
+install -d -o wwadmin -g wwadmin -m 0750 /var/lib/wwcx-ava-office-manager /var/lib/wwcx-ava-office-manager/report-inbox /var/lib/wwcx-ava-office-manager/workflow-inbox
 install -d -o wwadmin -g wwadmin -m 0755 /var/www/edge1-status/ava
 install -m 0644 "$ROOT/src/web/edge1-ops/ava/index.html" /var/www/edge1-status/ava/index.html
 install -m 0644 "$ROOT/src/web/edge1-ops/ava/app.js" /var/www/edge1-status/ava/app.js
@@ -11,6 +11,10 @@ install -m 0644 "$ROOT/src/web/edge1-ops/ava/styles.css" /var/www/edge1-status/a
 install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-executive.service" /etc/systemd/system/edge1-ava-executive.service
 install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-executive.path" /etc/systemd/system/edge1-ava-executive.path
 install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-executive.timer" /etc/systemd/system/edge1-ava-executive.timer
+install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-dispatch-admin.service" /etc/systemd/system/edge1-ava-dispatch-admin.service
+install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-workflow-dispatcher.service" /etc/systemd/system/edge1-ava-workflow-dispatcher.service
+install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-workflow-dispatcher.path" /etc/systemd/system/edge1-ava-workflow-dispatcher.path
+install -m 0644 "$ROOT/deploy/ava-executive/edge1-ava-workflow-dispatcher.timer" /etc/systemd/system/edge1-ava-workflow-dispatcher.timer
 python3 - "$SITE" "$ROOT/deploy/ava-executive/edge1-ava-office-api.location.conf" <<'PY'
 from pathlib import Path
 import sys
@@ -22,7 +26,7 @@ if 'location ^~ /edge1-ops/ava-office/api/' not in text:
 PY
 nginx -t
 systemctl daemon-reload
-systemctl enable --now edge1-ava-executive.path edge1-ava-executive.timer
-systemctl start edge1-ava-executive.service
+systemctl enable --now edge1-ava-dispatch-admin.service edge1-ava-executive.path edge1-ava-executive.timer edge1-ava-workflow-dispatcher.path edge1-ava-workflow-dispatcher.timer
+systemctl start edge1-ava-executive.service edge1-ava-workflow-dispatcher.service
 systemctl reload nginx
 echo 'AVA Executive orchestration layer installed.'

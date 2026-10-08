@@ -56,3 +56,33 @@ Nginx exposes these through the existing authenticated Edge1 session under `/edg
 ## Safety boundary
 
 AVA Executive does not execute arbitrary shell commands, accept credentials in reports, or supersede Operations API, Security Auth, source registries, Contacts gates, evidence policy, or provider-specific controls. It is an orchestration and executive state layer over those control planes.
+
+## Executive Dispatcher and Workflow Engine
+
+AVA also owns a bounded workflow dispatcher. The capability contract is stored in `config/ava-executive-capabilities.json`. Workflow requests are written to `/var/lib/wwcx-ava-office-manager/workflow-inbox/` and are consumed by `edge1-ava-workflow-dispatcher.path` immediately, with `edge1-ava-workflow-dispatcher.timer` as a five-minute reconciliation fallback.
+
+The dispatcher accepts only autonomous capabilities explicitly present in the registry. Current transports are loopback HTTP JSON actions. Non-loopback endpoints, unknown transports, unknown capabilities and capabilities above the assigned team member's AVA authority ceiling fail closed. Workflow requests cannot contain an arbitrary command, unit name or executable path.
+
+`edge1-ava-dispatch-admin.service` is the privileged bounded service-action broker. It exposes only a compiled allow-list of existing Edge1 service actions on `127.0.0.1:8801`; callers cannot supply commands, arguments, paths, environment variables or unit names. The existing Library Sources admin broker remains responsible for Library/evidence/accounting actions on `127.0.0.1:8800`.
+
+Workflow runs and steps are durable in the Ava Office database. Each step records its capability, responsible team member, dependencies, attempt count, state, timestamps and bounded result/error metadata. The Ava Office read API exposes `/api/ava-office/workflows`, and the Edge1 AVA Executive Office has a Workflows view.
+
+The initial autonomous workflows are:
+
+- Provider Evidence Processing: provider poll -> catalog refresh -> evidence search indexing -> Contacts/evidence intake and Accounting extraction.
+- Local Evidence Processing: catalog refresh -> evidence indexing -> Contacts/evidence intake and Accounting extraction.
+- Spamhaus Maintenance Recovery: retry the existing Spamhaus AUTO-FIX service.
+- Suricata Maintenance Recovery: retry the existing Suricata AUTO-FIX service.
+- Automation Health Recovery: bounded service self-heal -> Automation Watchdog re-audit.
+- Released Mail Processing: Contacts extraction and document filing -> accounting intake.
+- Executive Reporting Cycle: evidence/backup verification -> AVA daily/weekly briefing generation.
+
+External provider polling submits Provider Evidence Processing only when a provider run reports new or changed items. Continuing team-attention episodes use one stable attention work item; mapped remediation is submitted once per attention episode rather than on every check-in.
+
+## Retry and escalation policy
+
+Registered capability failures receive a bounded retry on a later dispatcher cycle (default two attempts total). A policy/authority block stops immediately. Exhausted retries move the associated AVA work item to owner review rather than looping indefinitely.
+
+For team-attention remediation, a successful maintenance command does not by itself close the incident. The attention item waits for a fresh healthy team report; the Executive Orchestrator closes it only after the bot's health state actually recovers.
+
+This keeps AVA highly autonomous for routine backend coordination while preserving explicit escalation for ambiguity, persistent failure and restricted operations.

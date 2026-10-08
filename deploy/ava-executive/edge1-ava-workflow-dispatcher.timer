@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodic AVA workflow dispatcher reconciliation
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=edge1-ava-workflow-dispatcher.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=Wake AVA workflow dispatcher on new workflow requests
+
+[Path]
+PathChanged=/var/lib/wwcx-ava-office-manager/workflow-inbox
+PathExistsGlob=/var/lib/wwcx-ava-office-manager/workflow-inbox/*.json
+Unit=edge1-ava-workflow-dispatcher.service
+
+[Install]
+WantedBy=multi-user.target

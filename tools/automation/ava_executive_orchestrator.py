@@ -9,7 +9,9 @@ from server.ava_office_manager import OfficeManagerStore, OfficeManagerError, ut
 DB=Path('/var/lib/wwcx-ava-office-manager/office-manager.sqlite3')
 INVENTORY=Path('/var/www/edge1-status/automation-center/inventory.json')
 INBOX=Path('/var/lib/wwcx-ava-office-manager/report-inbox')
+WORKFLOW_INBOX=Path('/var/lib/wwcx-ava-office-manager/workflow-inbox')
 STATUS=Path('/var/www/edge1-status/ava/executive-status.json')
+CAPABILITY_REGISTRY=ROOT/'config/ava-executive-capabilities.json'
 ATTN={'attention','failed','error','critical','degraded','unhealthy'}
 
 def slug(v:str)->str:
@@ -87,6 +89,29 @@ def ensure_attention_work(store:OfficeManagerStore, member_id:str, timer:dict[st
     store.create_assignment(member_id=member_id,objective='Investigate and report the condition that triggered this AVA executive attention item.',priority='high' if report['severity']=='high' else 'normal',work_item_id=item['id'],state='review',actor='ava-executive')
     return True
 
+def attention_work_id(store:OfficeManagerStore, member_id:str)->str|None:
+    with store.connect() as c:
+        row=c.execute("SELECT id FROM work_items WHERE source_ref=? AND state NOT IN ('completed','cancelled') ORDER BY created_at_utc LIMIT 1",('ava-attention:'+member_id,)).fetchone()
+    return str(row['id']) if row else None
+
+def submit_attention_workflow(store:OfficeManagerStore, member_id:str, work_item_id:str)->bool:
+    if not CAPABILITY_REGISTRY.is_file(): return False
+    try: data=json.loads(CAPABILITY_REGISTRY.read_text())
+    except Exception: return False
+    workflow_id=str((data.get('attention_workflows') or {}).get(member_id) or '')
+    if not workflow_id: return False
+    trigger_ref=f'team-attention:{member_id}:{work_item_id}'
+    with store.connect() as c:
+        try: exists=c.execute('SELECT 1 FROM executive_workflow_runs WHERE workflow_id=? AND trigger_ref=?',(workflow_id,trigger_ref)).fetchone()
+        except Exception: exists=None
+    if exists: return False
+    WORKFLOW_INBOX.mkdir(parents=True,exist_ok=True)
+    name=hashlib.sha256(trigger_ref.encode()).hexdigest()+'.json'; target=WORKFLOW_INBOX/name
+    if target.exists() or target.with_suffix('.processed').exists(): return False
+    target.write_text(json.dumps({'workflow_id':workflow_id,'trigger_type':'team-attention','trigger_ref':trigger_ref,'requested_by':'ava-executive','priority':'high','work_item_id':work_item_id},indent=2,sort_keys=True)+'\n')
+    os.chmod(target,0o640)
+    return True
+
 def process_direct_inbox(store:OfficeManagerStore)->int:
     INBOX.mkdir(parents=True,exist_ok=True); n=0
     for p in sorted(INBOX.glob('*.json'))[:200]:
@@ -103,26 +128,43 @@ def process_direct_inbox(store:OfficeManagerStore)->int:
             p.rename(p.with_suffix('.error'))
     return n
 
+def dispatch_capabilities()->dict[str,list[str]]:
+    out:dict[str,list[str]]={}
+    if CAPABILITY_REGISTRY.is_file():
+        try:
+            data=json.loads(CAPABILITY_REGISTRY.read_text())
+            for cap in data.get('capabilities',[]):
+                member=str(cap.get('team_member') or '')
+                cid=str(cap.get('id') or '')
+                if member and cid: out.setdefault(member,[]).append(cid)
+        except Exception:
+            pass
+    return out
+
 def run(db:Path=DB)->dict[str,Any]:
     store=OfficeManagerStore(db)
+    dispatched=dispatch_capabilities()
     data=json.loads(INVENTORY.read_text()) if INVENTORY.is_file() else {'timers':[]}
-    registered=reports=new_reports=attention=work_created=0
+    registered=reports=new_reports=attention=work_created=workflows_submitted=0
     for timer in data.get('timers',[]):
         if not timer.get('custom'): continue
         name=str(timer.get('description') or timer.get('timer') or 'Automation bot')
         mid=slug(str((timer.get('bot_status') or {}).get('slug') or timer.get('service') or timer.get('timer')))
         level=str(timer.get('action_level') or 'READ-ONLY'); state=health_of(timer); dept=department(name+' '+mid)
-        store.upsert_team_member(member_id=mid,display_name=name,department=dept,role=name,service_unit=timer.get('service'),timer_unit=timer.get('timer'),action_level=level,authority_ceiling=ceiling(level),capabilities=[f"automation.{mid}.observe"],health_state=state,metadata={'timer_enabled':timer.get('enabled'),'timer_state':timer.get('state'),'last_result':timer.get('last_result'),'next_run':timer.get('next_run')})
+        store.upsert_team_member(member_id=mid,display_name=name,department=dept,role=name,service_unit=timer.get('service'),timer_unit=timer.get('timer'),action_level=level,authority_ceiling=ceiling(level),capabilities=[f"automation.{mid}.observe",*sorted(dispatched.get(mid,[]))],health_state=state,metadata={'timer_enabled':timer.get('enabled'),'timer_state':timer.get('state'),'last_result':timer.get('last_result'),'next_run':timer.get('next_run')})
         registered+=1
         b=timer.get('bot_status') or {}; detail={'timer':timer.get('timer'),'service':timer.get('service'),'action_level':level,'last_result':timer.get('last_result'),'summary':b.get('summary') or {},'status_url':b.get('status_url')}
         sev=severity(timer,state); attn=state in ATTN or sev in {'high','critical'}
         rep=store.record_team_report(member_id=mid,report_type='automation-checkin',health_state=state,summary=f"{name}: {state}",detail=detail,source_ref=source_ref(timer),needs_attention=attn,severity=sev)
         reports+=1; new_reports+=1 if rep.get('new') else 0; attention+=1 if attn else 0
         if ensure_attention_work(store,mid,timer,rep): work_created+=1
+        if attn:
+            wid=attention_work_id(store,mid)
+            if wid and submit_attention_workflow(store,mid,wid): workflows_submitted+=1
     direct=process_direct_inbox(store)
     with store.connect() as c:
         team=int(c.execute('SELECT count(*) FROM executive_team_members WHERE active=1').fetchone()[0]); open_assign=int(c.execute("SELECT count(*) FROM executive_assignments WHERE state NOT IN ('completed','cancelled')").fetchone()[0]); open_work=int(c.execute("SELECT count(*) FROM work_items WHERE state NOT IN ('completed','cancelled')").fetchone()[0]); needs=int(c.execute("SELECT count(*) FROM executive_team_members WHERE active=1 AND health_state IN ('attention','failed','error','critical','degraded','unhealthy')").fetchone()[0])
-    out={'contract':'wwcx.ava-executive-orchestrator.v1','generated_at':utc_now(),'team_members':team,'registered_this_run':registered,'reports_seen':reports,'new_reports':new_reports,'direct_reports_processed':direct,'attention_reports_total':needs,'attention_checkins_this_run':attention,'open_assignments':open_assign,'open_work_items':open_work,'work_items_created':work_created,'audit_chain_valid':store.verify_audit_chain(),'execution_authority_expanded':False}
+    out={'contract':'wwcx.ava-executive-orchestrator.v1','generated_at':utc_now(),'team_members':team,'registered_this_run':registered,'reports_seen':reports,'new_reports':new_reports,'direct_reports_processed':direct,'attention_reports_total':needs,'attention_checkins_this_run':attention,'open_assignments':open_assign,'open_work_items':open_work,'work_items_created':work_created,'workflows_submitted':workflows_submitted,'audit_chain_valid':store.verify_audit_chain(),'execution_authority_expanded':False}
     STATUS.parent.mkdir(parents=True,exist_ok=True); STATUS.write_text(json.dumps(out,indent=2,sort_keys=True)+'\n'); os.chmod(STATUS,0o644)
     return out
 

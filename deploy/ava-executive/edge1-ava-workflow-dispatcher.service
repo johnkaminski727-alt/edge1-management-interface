@@ -1,0 +1,19 @@
+[Unit]
+Description=AVA Executive bounded workflow dispatcher
+After=network-online.target edge1-library-sources-admin.service edge1-ava-dispatch-admin.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wwadmin
+Group=wwadmin
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/tools/automation/ava_workflow_dispatcher.py
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wwcx-ava-office-manager /var/www/edge1-status/ava
+RestrictAddressFamilies=AF_UNIX AF_INET
+UMask=0027

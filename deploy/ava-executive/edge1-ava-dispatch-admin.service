@@ -1,0 +1,21 @@
+[Unit]
+Description=AVA Executive bounded service action broker
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/edge1-management-interface
+ExecStart=/usr/bin/python3 -B /opt/edge1-management-interface/server/ava_dispatch_admin.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+[Install]
+WantedBy=multi-user.target

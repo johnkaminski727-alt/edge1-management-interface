@@ -335,6 +335,39 @@ class OfficeManagerStore:
                     UNIQUE(member_id,source_ref)
                 );
                 CREATE INDEX IF NOT EXISTS idx_exec_reports_attention ON executive_reports(needs_attention,severity,created_at_utc);
+                CREATE TABLE IF NOT EXISTS executive_workflow_runs(
+                    id TEXT PRIMARY KEY,
+                    workflow_id TEXT NOT NULL,
+                    trigger_type TEXT NOT NULL,
+                    trigger_ref TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    requested_by TEXT NOT NULL,
+                    work_item_id TEXT REFERENCES work_items(id) ON DELETE SET NULL,
+                    created_at_utc TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL,
+                    completed_at_utc TEXT,
+                    error_summary TEXT,
+                    UNIQUE(workflow_id,trigger_ref)
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_workflow_runs_state ON executive_workflow_runs(state,updated_at_utc);
+                CREATE TABLE IF NOT EXISTS executive_workflow_steps(
+                    id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL REFERENCES executive_workflow_runs(id) ON DELETE CASCADE,
+                    step_key TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    member_id TEXT REFERENCES executive_team_members(member_id) ON DELETE SET NULL,
+                    state TEXT NOT NULL,
+                    depends_on_json TEXT NOT NULL DEFAULT '[]',
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    started_at_utc TEXT,
+                    finished_at_utc TEXT,
+                    result_json TEXT,
+                    error_summary TEXT,
+                    created_at_utc TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL,
+                    UNIQUE(run_id,step_key)
+                );
+                CREATE INDEX IF NOT EXISTS idx_exec_workflow_steps_run_state ON executive_workflow_steps(run_id,state,step_key);
                 """
             )
         if str(self.path) != ":memory:" and self.path.exists():

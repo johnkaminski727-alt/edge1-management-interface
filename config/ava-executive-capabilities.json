@@ -1,0 +1,521 @@
+{
+  "contract": "wwcx.ava-executive-capabilities.v1",
+  "default_timeout_seconds": 180,
+  "default_max_attempts": 2,
+  "capabilities": [
+    {
+      "id": "library.provider.poll_all",
+      "team_member": "edge1-library-provider-poll",
+      "authority": "prepare",
+      "autonomous": true,
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8800/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "poll-all"
+      },
+      "success_statuses": [
+        200
+      ],
+      "description": "Poll all currently bridged Private Library providers."
+    },
+    {
+      "id": "library.catalog.refresh",
+      "team_member": "edge1-library-source-catalog",
+      "authority": "prepare",
+      "autonomous": true,
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8800/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "refresh-catalog"
+      },
+      "success_statuses": [
+        200
+      ],
+      "description": "Reconcile the Unified Private Library Source Catalog."
+    },
+    {
+      "id": "library.evidence.index",
+      "team_member": "edge1-library-external-index",
+      "authority": "prepare",
+      "autonomous": true,
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8800/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "reindex-evidence"
+      },
+      "success_statuses": [
+        200
+      ],
+      "description": "Project approved preserved evidence into Private Library search."
+    },
+    {
+      "id": "evidence.contacts.intake",
+      "team_member": "edge1-evidence-contacts-intake",
+      "authority": "prepare",
+      "autonomous": true,
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8800/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "run-intake"
+      },
+      "success_statuses": [
+        200
+      ],
+      "description": "Run verified evidence intake, Contacts extraction and safe downstream promotion."
+    },
+    {
+      "id": "accounting.extract",
+      "team_member": "edge1-library-accounting-extract",
+      "authority": "prepare",
+      "autonomous": true,
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8800/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "extract-accounting"
+      },
+      "success_statuses": [
+        200
+      ],
+      "description": "Extract evidence-backed bookkeeping facts without posting financial transactions."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "security.spamhaus.refresh",
+      "team_member": "edge1-spamhaus-refresh",
+      "authority": "routine",
+      "body": {
+        "action": "security-spamhaus-refresh"
+      },
+      "description": "Run the existing Spamhaus refresh maintenance service."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "security.suricata.update",
+      "team_member": "wwcx-suricata-update",
+      "authority": "routine",
+      "body": {
+        "action": "security-suricata-update"
+      },
+      "description": "Run the existing Suricata rules maintenance service."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "automation.self_heal",
+      "team_member": "service-self-heal",
+      "authority": "routine",
+      "body": {
+        "action": "automation-self-heal"
+      },
+      "description": "Run the bounded allowlisted service self-healing bot."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "mail.document.filing",
+      "team_member": "document-filing",
+      "authority": "prepare",
+      "body": {
+        "action": "mail-document-filing"
+      },
+      "description": "File and stage analyzed Mail Room documents."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "mail.contacts.intake",
+      "team_member": "edge1-mail-contact-intake",
+      "authority": "prepare",
+      "body": {
+        "action": "mail-contact-intake"
+      },
+      "description": "Extract contact evidence from released Mail Room messages."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "accounting.intake",
+      "team_member": "accounting-intake",
+      "authority": "prepare",
+      "body": {
+        "action": "accounting-intake"
+      },
+      "description": "Refresh staged accounting intake from eligible documents."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "report.daily.generate",
+      "team_member": "edge1-ava-daily-briefing",
+      "authority": "observe",
+      "body": {
+        "action": "report-daily-briefing"
+      },
+      "description": "Generate AVA daily operations briefing."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "report.weekly.generate",
+      "team_member": "executive-briefing",
+      "authority": "observe",
+      "body": {
+        "action": "report-weekly-briefing"
+      },
+      "description": "Generate AVA weekly executive briefing."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "automation.watchdog.run",
+      "team_member": "automation-watchdog",
+      "authority": "observe",
+      "body": {
+        "action": "automation-watchdog"
+      },
+      "description": "Run the automation watchdog audit."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "evidence.integrity.audit",
+      "team_member": "evidence-integrity",
+      "authority": "observe",
+      "body": {
+        "action": "evidence-integrity"
+      },
+      "description": "Run evidence integrity audit."
+    },
+    {
+      "transport": "http_json",
+      "endpoint": "http://127.0.0.1:8801/api/actions",
+      "method": "POST",
+      "headers": {
+        "Origin": "https://edge1.ww.cx",
+        "Content-Type": "application/json"
+      },
+      "success_statuses": [
+        200
+      ],
+      "autonomous": true,
+      "id": "backup.verify",
+      "team_member": "backup-verification",
+      "authority": "observe",
+      "body": {
+        "action": "backup-verification"
+      },
+      "description": "Run backup and restore posture verification."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "provider-evidence-processing",
+      "name": "Provider Evidence Processing",
+      "autonomous": true,
+      "trigger": "library-provider-change",
+      "description": "Bring changed external-source material through catalog, evidence search, Contacts and accounting processing.",
+      "steps": [
+        {
+          "id": "poll",
+          "capability": "library.provider.poll_all",
+          "depends_on": []
+        },
+        {
+          "id": "catalog",
+          "capability": "library.catalog.refresh",
+          "depends_on": [
+            "poll"
+          ]
+        },
+        {
+          "id": "index",
+          "capability": "library.evidence.index",
+          "depends_on": [
+            "catalog"
+          ]
+        },
+        {
+          "id": "contacts",
+          "capability": "evidence.contacts.intake",
+          "depends_on": [
+            "catalog"
+          ]
+        },
+        {
+          "id": "accounting",
+          "capability": "accounting.extract",
+          "depends_on": [
+            "catalog"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "local-evidence-processing",
+      "name": "Local Evidence Processing",
+      "autonomous": true,
+      "trigger": "evidence-arrived",
+      "description": "Process newly preserved local evidence without requiring a provider poll.",
+      "steps": [
+        {
+          "id": "catalog",
+          "capability": "library.catalog.refresh",
+          "depends_on": []
+        },
+        {
+          "id": "index",
+          "capability": "library.evidence.index",
+          "depends_on": [
+            "catalog"
+          ]
+        },
+        {
+          "id": "contacts",
+          "capability": "evidence.contacts.intake",
+          "depends_on": [
+            "catalog"
+          ]
+        },
+        {
+          "id": "accounting",
+          "capability": "accounting.extract",
+          "depends_on": [
+            "catalog"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "security-spamhaus-recovery",
+      "name": "Spamhaus Maintenance Recovery",
+      "autonomous": true,
+      "trigger": "team-attention",
+      "description": "Retry the existing Spamhaus refresh through its bounded maintenance service.",
+      "steps": [
+        {
+          "id": "retry",
+          "capability": "security.spamhaus.refresh",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "security-suricata-recovery",
+      "name": "Suricata Maintenance Recovery",
+      "autonomous": true,
+      "trigger": "team-attention",
+      "description": "Retry the existing Suricata update through its bounded maintenance service.",
+      "steps": [
+        {
+          "id": "retry",
+          "capability": "security.suricata.update",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "automation-health-recovery",
+      "name": "Automation Health Recovery",
+      "autonomous": true,
+      "trigger": "team-attention",
+      "description": "Run bounded service self-healing and then re-audit automation health.",
+      "steps": [
+        {
+          "id": "self-heal",
+          "capability": "automation.self_heal",
+          "depends_on": []
+        },
+        {
+          "id": "watchdog",
+          "capability": "automation.watchdog.run",
+          "depends_on": [
+            "self-heal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mail-release-processing",
+      "name": "Released Mail Processing",
+      "autonomous": true,
+      "trigger": "mail-released",
+      "description": "Extract contacts, file documents, then refresh accounting intake from released mail.",
+      "steps": [
+        {
+          "id": "contacts",
+          "capability": "mail.contacts.intake",
+          "depends_on": []
+        },
+        {
+          "id": "filing",
+          "capability": "mail.document.filing",
+          "depends_on": []
+        },
+        {
+          "id": "accounting",
+          "capability": "accounting.intake",
+          "depends_on": [
+            "filing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "executive-reporting-cycle",
+      "name": "Executive Reporting Cycle",
+      "autonomous": true,
+      "trigger": "executive-reporting",
+      "description": "Refresh evidence/backup posture and generate executive briefings.",
+      "steps": [
+        {
+          "id": "evidence",
+          "capability": "evidence.integrity.audit",
+          "depends_on": []
+        },
+        {
+          "id": "backup",
+          "capability": "backup.verify",
+          "depends_on": []
+        },
+        {
+          "id": "daily",
+          "capability": "report.daily.generate",
+          "depends_on": [
+            "evidence",
+            "backup"
+          ]
+        },
+        {
+          "id": "weekly",
+          "capability": "report.weekly.generate",
+          "depends_on": [
+            "evidence",
+            "backup"
+          ]
+        }
+      ]
+    }
+  ],
+  "attention_workflows": {
+    "edge1-spamhaus-refresh": "security-spamhaus-recovery",
+    "wwcx-suricata-update": "security-suricata-recovery",
+    "automation-watchdog": "automation-health-recovery"
+  }
+}

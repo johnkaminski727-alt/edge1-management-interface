@@ -136,6 +136,17 @@ class AvaOfficeReadModel:
             d=dict(row); d['needs_attention']=bool(d['needs_attention']); out.append(d)
         return out
 
+    def workflows(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            runs=conn.execute("SELECT id,workflow_id,trigger_type,trigger_ref,state,requested_by,work_item_id,created_at_utc,updated_at_utc,completed_at_utc,error_summary FROM executive_workflow_runs ORDER BY created_at_utc DESC LIMIT ?",(limit,)).fetchall()
+            out=[]
+            for row in runs:
+                item=dict(row)
+                steps=conn.execute("SELECT step_key,capability,member_id,state,attempt_count,started_at_utc,finished_at_utc,error_summary FROM executive_workflow_steps WHERE run_id=? ORDER BY created_at_utc,step_key",(item['id'],)).fetchall()
+                item['steps']=[dict(s) for s in steps]
+                out.append(item)
+        return out
+
     def instructions(self, *, limit: int = 100) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -202,6 +213,10 @@ class AvaOfficeHandler(BaseHTTPRequestHandler):
                 limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
                 attention = query.get("attention", ["0"])[0] in {"1","true","yes"}
                 self._json(200, {"items": self.read_model.executive_reports(attention_only=attention, limit=limit)})
+                return
+            if parsed.path == "/api/ava-office/workflows":
+                limit = self.read_model._limit(query.get("limit", [None])[0], default=100)
+                self._json(200, {"items": self.read_model.workflows(limit=limit)})
                 return
             if parsed.path == "/api/ava-office/work-items":
                 state = query.get("state", [None])[0]
