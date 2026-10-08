@@ -6,7 +6,7 @@ const fn=source.slice(source.indexOf('  function securityActions('),source.index
 async function fixture(decision){
  const calls=[],buttons=[],messages=[];let reviews=0;
  const container={dataset:{},append:b=>buttons.push(b)};
- const sandbox={element:(tag,label)=>({textContent:label,dataset:{}}),safely:fn=>fn,window:{confirm:()=>true},request:async(path,data)=>{calls.push({path,data});return {state:'released',related_flagged:0}},$:()=>({replaceChildren(){}}),load:async()=>{},say:m=>messages.push(m)};
+ const sandbox={reasonCache:new Map(),element:(tag,label)=>({textContent:label,dataset:{}}),safely:fn=>fn,window:{confirm:()=>true},request:async(path,data)=>{calls.push({path,data});return {state:'released',related_flagged:0}},$:()=>({replaceChildren(){}}),load:async()=>{},say:m=>messages.push(m)};
  vm.createContext(sandbox);vm.runInContext(fn,sandbox);
  sandbox.securityActions({message_id:'<test@example.test>'},container,decision,async()=>{reviews++;container.dataset.plainTextReviewed='true'});
  return {calls,buttons,messages,get reviews(){return reviews}};
