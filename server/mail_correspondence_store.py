@@ -29,6 +29,25 @@ SOURCE_SCOPES = {"synthetic", "local_native", "production_native", "legacy_unsco
 READABLE_AUTHORITATIVE_SCOPES = {"local_native", "production_native"}
 
 
+# Operator-requested, exact newsletter identity. This changes only the indexed
+# plain-text projection; it grants no authentication, release, or attachment trust.
+LINK_STRIPPED_NEWSLETTER_SENDERS = frozenset({'chilliwackbc430@email.wbu.com'})
+LINK_REMOVAL_NOTICE = '[Newsletter web links removed. Original email preserved in the private archive.]'
+NEWSLETTER_WEB_URL = re.compile(r'(?:https?://|www\.)[^\s<>"\\)\]]+', re.IGNORECASE)
+
+
+def strip_newsletter_links(sender: str, body: str, direction: str = 'inbound') -> str:
+    if direction != 'inbound' or sender.casefold() not in LINK_STRIPPED_NEWSLETTER_SENDERS:
+        return body
+    if body.startswith(LINK_REMOVAL_NOTICE):
+        body = body[len(LINK_REMOVAL_NOTICE):].lstrip('\n')
+    text = NEWSLETTER_WEB_URL.sub('', body)
+    text = re.sub(r'\(\s*\)|\[\s*\]', '', text)
+    text = re.sub(r'[ \t]+\n', '\n', text)
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return LINK_REMOVAL_NOTICE + '\n\n' + text
+
+
 class CorrespondenceStoreError(RuntimeError):
     pass
 
@@ -237,6 +256,8 @@ class MailCorrespondenceStore:
         recipients = self._addresses(payload.get("recipients"), "recipients", 100)
         subject = self._text(payload.get("subject"), "subject", MAX_SUBJECT_CHARS)
         body_text = self._text(payload.get("body_text"), "body_text", MAX_BODY_CHARS)
+        body_text = strip_newsletter_links(sender, body_text, direction)
+        body_text = self._text(body_text, "body_text", MAX_BODY_CHARS)
         references_raw = payload.get("references", [])
         if not isinstance(references_raw, list) or len(references_raw) > 100:
             raise CorrespondenceStoreError("references exceeds safe bounds")
