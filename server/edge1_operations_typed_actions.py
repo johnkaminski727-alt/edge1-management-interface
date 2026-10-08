@@ -1340,7 +1340,10 @@ def _validate_contacts_maintenance_identity_disposition(parameters: dict[str, An
     note=parameters.get("note","")
     if not isinstance(note,str):
         raise TypedActionValidationError("maintenance identity note must be text")
-    return {"maintenance_item_id":item_id,"disposition":disposition,"note":note.strip()[:1000]}
+    key=parameters.get("idempotency_key")
+    if not isinstance(key,str) or not IDEMPOTENCY.fullmatch(key):
+        raise TypedActionValidationError("idempotency_key format is invalid")
+    return {"maintenance_item_id":item_id,"disposition":disposition,"note":note.strip()[:1000],"idempotency_key":key}
 
 
 def contacts_maintenance_identity_disposition(parameters: dict[str, Any], *, actor=None, **kwargs) -> dict[str, Any]:
