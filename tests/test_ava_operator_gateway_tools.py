@@ -9,7 +9,7 @@ class Tests(unittest.TestCase):
     def test_read_tools_are_mcp_typed_and_legacy_names_are_not_advertised(self):
         defs=tools.tool_definitions()
         names={x['name'] for x in defs}
-        self.assertEqual(names,{'edge1_mcp_read','business159_mcp_read'})
+        self.assertEqual(names,{'edge1_mcp_read','business159_connector_read'})
         self.assertFalse(names & set(tools.LEGACY_TOOL_ALIASES))
         for item in defs:
             self.assertEqual(item['type'],'function')
@@ -23,12 +23,12 @@ class Tests(unittest.TestCase):
     def test_shell_tools_absent_by_default_and_independent(self):
         self.assertNotIn('edge1_mcp_shell',{x['name'] for x in tools.tool_definitions()})
         self.assertIn('edge1_mcp_shell',{x['name'] for x in tools.tool_definitions(shell_hosts={'edge1'})})
-        self.assertNotIn('business159_mcp_shell',{x['name'] for x in tools.tool_definitions(shell_hosts={'edge1'})})
-        self.assertIn('business159_mcp_shell',{x['name'] for x in tools.tool_definitions(shell_hosts={'business159'})})
+        self.assertNotIn('business159_operator_shell',{x['name'] for x in tools.tool_definitions(shell_hosts={'edge1'})})
+        self.assertIn('business159_operator_shell',{x['name'] for x in tools.tool_definitions(shell_hosts={'business159'})})
 
     def test_business159_read_maps_to_broker_capability(self):
         with mock.patch.object(tools,'broker_call',return_value={'status':'completed'}) as call:
-            out=tools.execute_tool('business159_mcp_read',{'resource':'git'})
+            out=tools.execute_tool('business159_connector_read',{'resource':'git'})
         self.assertEqual(out['status'],'completed')
         call.assert_called_once_with('business159.read.git')
 

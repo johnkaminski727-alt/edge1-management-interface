@@ -358,7 +358,7 @@ def _operator_access(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], Any
     if not full_operator_read:
         tools = [tool for tool in tools if tool.get("name") == "edge1_mcp_read"]
     else:
-        tools = [tool for tool in tools if tool.get("name") in {"edge1_mcp_read", "business159_mcp_read"}]
+        tools = [tool for tool in tools if tool.get("name") in {"edge1_mcp_read", "business159_connector_read"}]
     allowed_names = {str(tool.get("name")) for tool in tools}
     def execute(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if name not in allowed_names:

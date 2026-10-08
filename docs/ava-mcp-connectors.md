@@ -15,7 +15,7 @@ The AVA Operator Broker listens only on loopback (`127.0.0.1:8118`) and owns the
 The normal AVA conversational tool catalog exposes only:
 
 - `edge1_mcp_read` — bounded current Edge1 identity, health, inventory, service, network, disk, Big Bird, Operations API, repository and approved configuration state.
-- `business159_mcp_read` — bounded Business159 operational reads through the broker. The Business159 backend remains the existing authenticated hosting-principal path until its secure tunnel exposes a local callable MCP client endpoint.
+- `business159_connector_read` — bounded Business159 operational reads through the broker. The Business159 backend remains the existing authenticated hosting-principal path until its secure tunnel exposes a local callable MCP client endpoint.
 
 The older model-facing names (`edge1_operator_read`, `business159_operator_read`) remain accepted only as internal compatibility aliases and are not advertised to AVA.
 
@@ -34,7 +34,7 @@ This keeps conversational retrieval separate from backend mutation authority.
 ## Scope mapping
 
 - Existing trusted `edge1:status:read` requests expose only `edge1_mcp_read`.
-- Trusted internal `operator:read` requests expose `edge1_mcp_read` and `business159_mcp_read`.
+- Trusted internal `operator:read` requests expose `edge1_mcp_read` and `business159_connector_read`.
 - External/non-internal requests receive no MCP tools.
 - `operator:actions:routine` and `operator:shell:escape` do not add conversational tools; backend actions are handled by AVA Executive.
 

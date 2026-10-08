@@ -95,7 +95,7 @@ class AvaReadonlyGatewayTests(unittest.TestCase):
         module = self.load()
         payload={"user":{"role":"internal_viewer","scopes":["operator:read"]}}
         tools, executor, shells = module._operator_access(payload)
-        self.assertEqual({item["name"] for item in tools}, {"edge1_mcp_read", "business159_mcp_read"})
+        self.assertEqual({item["name"] for item in tools}, {"edge1_mcp_read", "business159_connector_read"})
         self.assertTrue(callable(executor))
         self.assertEqual(shells, set())
 
@@ -107,13 +107,13 @@ class AvaReadonlyGatewayTests(unittest.TestCase):
         self.assertTrue(callable(executor))
         self.assertEqual(shells, set())
         with self.assertRaises(module.OperatorGatewayError):
-            executor("business159_mcp_read", {"resource":"health"})
+            executor("business159_connector_read", {"resource":"health"})
 
     def test_conversational_mcp_never_exposes_direct_action_or_shell_tools(self):
         module = self.load()
         tools, _, shells = module._operator_access({"user":{"role":"internal_viewer","scopes":["operator:read","operator:actions:routine","operator:shell:escape"]}})
         names={item["name"] for item in tools}
-        self.assertEqual(names, {"edge1_mcp_read", "business159_mcp_read"})
+        self.assertEqual(names, {"edge1_mcp_read", "business159_connector_read"})
         self.assertEqual(shells, set())
 
     def test_tool_loop_returns_semantic_answer_and_records_mcp_tool(self):
