@@ -140,3 +140,5 @@ footer{font-size:12px;color:var(--muted);padding:10px 0}
 .folder-context p{font-size:11px;line-height:1.35;margin:3px 0 0}
 @media(min-width:901px){main{height:100dvh;display:flex;flex-direction:column}.workspace{flex:1;height:auto;min-height:300px}main>header,main>footer,#feedback{flex:none}}
 @media(max-width:900px){.queue-updated{display:none}.review-queues{gap:6px}.review-shortcuts{flex-basis:100%}}
+
+.security-reason-notice{margin:12px 0;padding:12px 14px;background:#fff4df;border-left:4px solid #a45a00;border-radius:4px;color:#513600}.security-reason-notice p{margin:6px 0 0}.message .hold-reason{grid-column:1 / -1;font-size:.82rem;line-height:1.4;color:#814600;white-space:normal;margin-top:4px}

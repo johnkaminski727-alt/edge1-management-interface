@@ -66,6 +66,31 @@
     const meta=element("div","","mail-meta");meta.append(element("p","From: "+m.sender),element("p","To: "+(m.recipients||[]).join(", ")));
     const email=(m.sender.match(/<([^<>]+)>/)||[null,m.sender])[1];const link=element("a","Find sender in Contacts");link.href="/edge1-ops/contacts/?q="+encodeURIComponent(email);link.target="_blank";link.rel="noopener";meta.append(link);a.append(meta,element("div",m.body_text||"(No plain-text body)","mail-text"));container.append(a);
   }
+  function securityReasons(decision){
+    const reasons=decision.reasons||[],symbols=new Set(decision.symbols||[]),labels=[];
+    const add=text=>{if(!labels.includes(text))labels.push(text);};
+    if(decision.operator_report==='confirmed_phishing')add('Confirmed phishing attempt');
+    else if(decision.operator_report==='phishing')add('Reported phishing · Requires review');
+    const names={encrypted_pdf_requires_local_unlock:'Encrypted PDF · Cannot fully scan',encrypted_zip_requires_local_unlock:'Encrypted ZIP · Cannot fully scan',scan_size_limit_requires_review:'Scan size limit exceeded',message_size_limit:'Message too large to scan',attachment_security_block:'Attachment or message blocked by security scan',attachment_or_message_security_block:'Attachment or message blocked by security scan',attachment_scan_incomplete:'Attachment scan incomplete',historical_attachment_review_required:'Historical attachment requires review',protected_display_name_impersonation:'Possible sender impersonation',lookalike_managed_domain:'Suspicious lookalike sending domain',reply_to_domain_differs:'Reply address uses a different domain',high_spam_score:'High spam score',likely_spam:'Likely spam',malformed_or_excessive_mime:'Malformed message or too many message parts',archive_integrity_or_size_failure:'Archive integrity or size check failed',conflicting_message_id:'Conflicting message identity',filter_rejected_before_all_checks:'Filter blocked message before checks completed',security_scan_unavailable:'Security scanner unavailable',awaiting_security_checks:'Waiting for security checks',authentication_check_unavailable:'Sender authentication check unavailable',temporary_filter_hold:'Temporary filter hold',unregistered_catch_all_recipient_review:'Receiving address requires review'};
+    for(const reason of reasons){
+      if(reason==='checks_passed')continue;
+      if(reason==='phishing_or_sender_authentication_failure'){
+        let found=false;
+        if(symbols.has('PHISHING')||symbols.has('PHISHING_DUMMY')){add('Suspected phishing · Suspicious link finding');found=true;}
+        if(symbols.has('DMARC_POLICY_REJECT')||symbols.has('DMARC_POLICY_QUARANTINE')||decision.authentication?.dmarc==='fail'){add('Sending domain authentication failed (DMARC)');found=true;}
+        if(!found)add('Suspected phishing or sender authentication failure');
+      }else add(names[reason]||('Security finding: '+reason.replaceAll('_',' ')));
+    }
+    if(!labels.length)add(decision.state==='pending'?'Waiting for security checks':decision.state==='junk'?'Marked as spam':decision.state==='quarantine'?'Held for security review':'Security checks passed');
+    return labels;
+  }
+  function securityReasonNotice(decision){
+    const box=element('div','','security-reason-notice');
+    box.append(element('strong',decision.state==='quarantine'?'Why this message is quarantined':decision.state==='junk'?'Why this message is in Junk':'Security check status'));
+    for(const label of securityReasons(decision))box.append(element('p',label));
+    if(decision.hard_block||!decision.scan_complete)box.append(element('p','Moving to the inbox is blocked until the outstanding security checks or attachment review are resolved.','small'));
+    return box;
+  }
   function securityBadges(decision){
     const auth=decision.authentication||{},row=element("div","","security-badges"),state=v=>/^pass/i.test(v||"")?" pass":/fail|reject/i.test(v||"")?" fail":"";
     row.append(element("span","Security: "+decision.state,"badge"+(decision.state==="released"?" pass":" fail")));
@@ -115,7 +140,7 @@
     if(current!==generation)return;
     if(decision.state!=="released"){
       clearTimeout(autosave);$("editor").hidden=true;dirty=false;showReader(true);current_actions=null;
-      const head=element("div","","reading-head"),bar=element("div","","toolbar");head.append(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender),bar,securityBadges(decision));$("reading").replaceChildren(head);
+      const head=element("div","","reading-head"),bar=element("div","","toolbar");head.append(element("h2",m.subject||"(No subject)"),element("p","From: "+m.sender),bar,securityBadges(decision),securityReasonNotice(decision));$("reading").replaceChildren(head);
       const sec=section("Security details",true);securityDetails(decision,sec);$("reading").append(sec);
       const review=element("button","Review plain text without AVA");review.onclick=safely(async()=>{
         if(!window.confirm("Display potentially malicious correspondence as plain text for manual review? Attachments and AVA remain unavailable."))return;
@@ -231,6 +256,12 @@
     }
     const result=await request(mode==="inbox"?"messages?"+filters:mode==="drafts"?"drafts":"activity");if(current!==generation)return;const items=mode==="inbox"?result.messages:mode==="drafts"?result.drafts:result.events;more=!!result.has_more;$("list").replaceChildren();
     listItems=[];for(const m of items){const b=element("button","","message"+(!m.is_read&&mode==="inbox"?" unread":""));const when=m.occurred_at||m.updated;b.title=new Date(when).toLocaleString();b.append(element("div",mode==="inbox"?senderName(m.sender):mode==="drafts"?"Saved draft":({sent:"Sent",sending:"Sending…",send_outcome_unknown:"Send outcome unknown — check before retrying"}[m.state]||"Prepared · not sent"),"who"),element("div",shortDate(when),"when"),element("div",m.subject||"(No subject)","subject"));if(m.tags?.length)b.append(element("div",m.tags.join(" · "),"tags"));b.dataset.key=m.message_id||m.id||m.draft_id||"";b.onclick=safely(()=>{select(b);return mode==="inbox"?openMessage(m):request("draft/"+(m.id||m.draft_id)).then(d=>{showReader(true);showEditor(d.payload,d.id);});});listItems.push(b);$("list").append(b);}
+    if(mode==='inbox'&&['quarantine','junk','pending'].includes(filters.get('folder'))){
+      const queue=items.map((m,i)=>({m,b:listItems[i]}));
+      const worker=async()=>{while(queue.length&&current===generation){const {m,b}=queue.shift(),note=element('div','Checking hold reason…','hold-reason');b.append(note);try{const d=await request('security/'+encodeURIComponent(m.message_id));if(current===generation)note.textContent=securityReasons(d).join(' · ');}catch(e){if(current===generation)note.textContent='Reason unavailable · Open message to retry';}}};
+      await Promise.all(Array.from({length:Math.min(4,queue.length)},worker));
+      if(current!==generation)return;
+    }
     const keep=listItems.find(b=>b.dataset.key&&b.dataset.key===selectedKey);if(keep)keep.classList.add("selected");
     if(!items.length)$("list").append(element("p",mode==="inbox"?"No matching messages in this folder. Check the review queues above for mail outside the inbox.":mode==="drafts"?"No saved drafts yet.":"No message activity yet."));
     $("previous").disabled=offset===0||mode!=="inbox";$("next").disabled=!more||mode!=="inbox";$("page").textContent=mode==="inbox"?"Page "+(offset/25+1):"Latest 100";

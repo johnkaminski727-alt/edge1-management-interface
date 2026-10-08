@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('src/web/mail-room/app.js','utf8');
+const sandbox={element:(tag,text,className)=>({tag,text,className,children:[],append(...nodes){this.children.push(...nodes)}})};
+vm.createContext(sandbox);vm.runInContext(source.slice(source.indexOf('  function securityReasons('),source.indexOf('  function securityBadges(')),sandbox);
+const labels=d=>Array.from(sandbox.securityReasons({state:'quarantine',scan_complete:true,...d}));
+assert.deepEqual(labels({reasons:['phishing_or_sender_authentication_failure'],symbols:['PHISHING']}),['Suspected phishing · Suspicious link finding']);
+assert.deepEqual(labels({reasons:['phishing_or_sender_authentication_failure'],symbols:['DMARC_POLICY_REJECT']}),['Sending domain authentication failed (DMARC)']);
+assert.equal(labels({reasons:['phishing_or_sender_authentication_failure'],symbols:['PHISHING','DMARC_POLICY_REJECT']}).length,2);
+for(const reason of ['encrypted_pdf_requires_local_unlock','encrypted_zip_requires_local_unlock','scan_size_limit_requires_review','attachment_security_block'])assert.doesNotMatch(labels({reasons:[reason]}).join(' '),/malware detected|confirmed phishing/i);
+assert.match(labels({operator_report:'confirmed_phishing',reasons:['checks_passed']})[0],/Confirmed phishing/);
+assert.match(labels({reasons:['future_unknown_reason']})[0],/future unknown reason/);
+const notice=sandbox.securityReasonNotice({state:'quarantine',hard_block:true,scan_complete:false,reasons:['encrypted_pdf_requires_local_unlock']});
+assert.match(notice.children[0].text,/Why this message is quarantined/);assert.match(notice.children.at(-1).text,/Moving to the inbox is blocked/);
+console.log('Quarantine reason mappings passed: phishing/auth separation, operator reports, scan holds and safe fallback.');
