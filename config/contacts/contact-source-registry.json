@@ -129,6 +129,23 @@
         "never_promote_weak_sender_inference_without_evidence"
       ],
       "runtime_access": "connector_required"
+    },
+    {
+      "id": "google-drive-sasktel-evidence",
+      "name": "Google Drive — SaskTel Evidence Archive",
+      "kind": "google_drive_folder",
+      "locator": "gdrive-folder:1t3CW9Pzl77r06ez5JBEMGpn82Drse4BK",
+      "authority": "documentary_evidence_and_contact_coordinates",
+      "ingestion": "enabled",
+      "default_action": "AUTO_STAGE",
+      "rules": [
+        "preserve_original_bytes",
+        "sha256_before_import",
+        "retain_drive_file_id",
+        "verified_drive_copy_may_supply_document_sourced_facts",
+        "no_destructive_merge"
+      ],
+      "runtime_access": "connector_required"
     }
   ]
 }
