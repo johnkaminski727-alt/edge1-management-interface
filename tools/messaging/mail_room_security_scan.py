@@ -23,7 +23,7 @@ from difflib import SequenceMatcher
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT))
-from server.mail_room_security import archive_message_id, SecurityStore, classify, rspamd_scan, message_hash
+from server.mail_room_security import archive_message_id, SecurityStore, classify, rspamd_scan, message_hash, verified_local_submission
 from tools.messaging.mail_room_attachment_scan import scan_bytes, scanner_ready
 
 BLOCKED_EXTENSIONS={'.exe','.com','.scr','.bat','.cmd','.ps1','.vbs','.js','.jse','.wsf','.msi','.hta','.lnk','.iso','.img','.docm','.xlsm','.pptm','.xlam','.xll'}
@@ -63,7 +63,7 @@ def inspect(raw, transport=None, domain='', policy_config=None, scan=scan_bytes,
         if len(sender)==1 and sender[0][1].lower() in {s.lower() for s in trusted} and 'DMARC_POLICY_ALLOW' in result['symbols'] and 'R_DKIM_ALLOW' in result['symbols']:
             # Small scoring adjustment only; phishing/authentication/file holds remain authoritative.
             result={**result,'score':result['score']-2}
-        decision=classify(result,[whole,*[a['state'] for a in attachments]],transport=transport,domain=domain,policy=policy_config)
+        decision=classify(result,[whole,*[a['state'] for a in attachments]],transport=transport,domain=domain,policy=policy_config,verified_local=(len(sender)==1 and verified_local_submission(transport,sender[0][1],policy_config)))
         protected={'john kaminski','spirit creek gardens','creekco','omegafx','ww.cx'}
         managed={'ww.cx','creekco.ca','spiritcreekgardens.com','scgardens.ca','omegafx.com'}
         if len(sender)==1:

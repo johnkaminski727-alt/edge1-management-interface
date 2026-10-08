@@ -168,7 +168,19 @@ def rspamd_scan(raw, transport=None):
     return result
 
 
-def classify(result, attachment_states, *, transport=None, domain='', policy=None):
+def verified_local_submission(transport, sender, policy):
+    """Trust private MTA evidence and approved local services, never mail headers alone."""
+    if not transport or transport.get('source') != 'postfix_pipe': return False
+    try:
+        if not ipaddress.ip_address(transport.get('client_ip', '')).is_loopback: return False
+    except ValueError: return False
+    address=sender.strip().lower()
+    if not re.fullmatch(r'[^@\s<>]+@[^@\s<>]+', address): return False
+    return (transport.get('envelope_sender', '').strip().lower() == address
+            and address.rsplit('@', 1)[1] in (policy or {}).get('local_submission_domains', []))
+
+
+def classify(result, attachment_states, *, transport=None, domain='', policy=None, verified_local=False):
     policy=policy or DEFAULT_POLICY
     limits={**DEFAULT_POLICY,**policy,**policy.get('domains',{}).get(domain,{})}
     symbols=set(result['symbols']); reasons=[]
@@ -190,7 +202,9 @@ def classify(result, attachment_states, *, transport=None, domain='', policy=Non
     elif result.get('is_skipped'): state='quarantine'; reasons.append('filter_rejected_before_all_checks'); incomplete=True
     elif symbols & {'R_SPF_DNSFAIL','DKIM_TEMPFAIL','DMARC_DNSFAIL'}: state='pending'; reasons.append('authentication_check_unavailable'); incomplete=True
     elif phishing: state='quarantine'; reasons.append('phishing_or_sender_authentication_failure')
+    elif result.get('action') == 'quarantine': state='quarantine'; reasons.append('filter_quarantine')
     elif result['score']>=limits['quarantine_score']: state='quarantine'; reasons.append('high_spam_score')
+    elif verified_local and result.get('action') not in {'reject','soft reject','greylist','quarantine'} and not symbols & {'GTUBE','GTUBE_REJECT','SPAM_TEST'}: reasons.append('verified_local_submission')
     elif result['score']>=limits['junk_score'] or result.get('action') in {'add header','rewrite subject','reject'}: state='junk'; reasons.append('likely_spam')
     elif result.get('action') in {'soft reject','greylist'}: state='pending'; reasons.append('temporary_filter_hold')
     return {'state':state,'score':result['score'],'reasons':reasons or ['checks_passed'], 'symbols':sorted(symbols)[:128], 'authentication':auth,'scan_complete':not incomplete,'hard_block':blocked,'downloads_enabled':False}
