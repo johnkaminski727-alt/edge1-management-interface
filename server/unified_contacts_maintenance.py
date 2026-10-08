@@ -227,6 +227,11 @@ class UnifiedContactsMaintenance:
                     named_local = bool(
                         re.fullmatch(r"[a-z][a-z'-]{1,40}\.[a-z][a-z'-]{1,40}", local)
                     )
+                    suggested_person_name = (
+                        " ".join(part.title() for part in local.split("."))
+                        if named_local
+                        else None
+                    )
                     service_local = local in {"support", "service", "customerservice", "customercare"}
                     priority = 40 + min(message_count, 20)
                     if r["proposed_entity_name"]:
@@ -243,9 +248,13 @@ class UnifiedContactsMaintenance:
                         "action_level": "AUTO_STAGE",
                         "review_priority": priority,
                         "normalized_value": r["sender_email"],
-                        "title": r["proposed_entity_name"] or r["sender_domain"],
+                        "title": r["proposed_entity_name"] or suggested_person_name or r["sender_domain"],
                         "review_summary": f"{r['sender_email']} · {message_count} messages · corroborated contact evidence",
                     })
+                    if suggested_person_name and message_count >= 2 and r["matched_entity_id"] is None:
+                        item["suggested_canonical_name"] = suggested_person_name
+                        item["suggested_entity_type"] = "person"
+                        item["promotion_ready"] = True
                     try:
                         evidence = json.loads(r["evidence_json"] or "{}")
                     except (TypeError, json.JSONDecodeError):

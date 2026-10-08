@@ -1647,10 +1647,23 @@ function maintenanceActionButtons(row) {
     (row.maintenance_kind === "finding" &&
       ["phone", "email"].includes(row.candidate_type));
 
+  if (
+    row.maintenance_kind === "discovery" &&
+    row.promotion_ready &&
+    row.suggested_canonical_name &&
+    !row.matched_entity_id
+  ) {
+    buttons.push(`
+      <button type="button" class="primary" data-maintenance-action="promote-discovery" data-maintenance-item-id="${escapeHtml(row.maintenance_item_id)}" data-maintenance-name="${escapeHtml(row.suggested_canonical_name)}" data-maintenance-entity-type="${escapeHtml(row.suggested_entity_type || "person")}">
+        Create contact from evidence
+      </button>
+    `);
+  }
+
   if (creatableCandidate && !row.matched_entity_id) {
     buttons.push(`
-      <button type="button" class="secondary" data-maintenance-action="create-contact" data-maintenance-name="${escapeHtml(row.proposed_entity_name || "")}" data-maintenance-value="${escapeHtml(row.normalized_value || "")}" data-maintenance-point-type="${escapeHtml(row.candidate_type || (row.maintenance_kind === "discovery" ? "email" : "phone"))}" data-maintenance-confidence="${escapeHtml(row.confidence || "unverified")}">
-        Create warranted contact
+      <button type="button" class="secondary" data-maintenance-action="create-contact" data-maintenance-name="${escapeHtml(row.suggested_canonical_name || row.proposed_entity_name || "")}" data-maintenance-value="${escapeHtml(row.normalized_value || "")}" data-maintenance-point-type="${escapeHtml(row.candidate_type || (row.maintenance_kind === "discovery" ? "email" : "phone"))}" data-maintenance-confidence="${escapeHtml(row.confidence || "unverified")}">
+        ${row.maintenance_kind === "discovery" && row.promotion_ready ? "Edit before creating" : "Create warranted contact"}
       </button>
     `);
   }
@@ -2204,6 +2217,30 @@ document.addEventListener("click", async (event) => {
       await refreshContactManager();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Unable to update phone-number disposition.");
+    } finally {
+      button.disabled = false;
+    }
+    return;
+  }
+
+  if (action === "promote-discovery") {
+    event.preventDefault();
+    const discoveryId = Number(button.dataset.maintenanceItemId || 0);
+    const canonicalName = String(button.dataset.maintenanceName || "").trim();
+    const entityType = String(button.dataset.maintenanceEntityType || "person");
+    if (!Number.isInteger(discoveryId) || discoveryId < 1 || !canonicalName) return;
+    if (!window.confirm(`Create ${canonicalName} from this corroborated discovery evidence? Existing contacts will be reconciled first.`)) return;
+    button.disabled = true;
+    try {
+      await submitContactMutation("discovery.promote", {
+        discovery_id: discoveryId,
+        entity_type: entityType,
+        canonical_name: canonicalName,
+      });
+      state.selected = null;
+      await refreshContactManager();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to create contact from discovery evidence.");
     } finally {
       button.disabled = false;
     }
