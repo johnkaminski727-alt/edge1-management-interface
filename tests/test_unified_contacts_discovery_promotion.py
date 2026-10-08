@@ -95,6 +95,36 @@ class UnifiedContactsDiscoveryPromotionTests(unittest.TestCase):
         self.assertTrue(replay['already_promoted'])
         self.assertEqual(replay['entity_id'], entity['id'])
 
+    def test_invalid_secondary_phone_does_not_block_verified_identity(self):
+        maint = sqlite3.connect(self.maintenance)
+        row = maint.execute(
+            'SELECT evidence_json FROM contact_discovery_queue WHERE id=1'
+        ).fetchone()
+        evidence = json.loads(row[0])
+        evidence['coordinates'].append({
+            'candidate_id': 999,
+            'type': 'phone',
+            'value': 'not-a-phone',
+            'display': 'not-a-phone',
+            'confidence': 'medium',
+            'source_kind': 'message_body',
+            'source_reference': 'body',
+        })
+        maint.execute(
+            'UPDATE contact_discovery_queue SET evidence_json=? WHERE id=1',
+            (json.dumps(evidence),),
+        )
+        maint.commit(); maint.close()
+
+        result = actions.contacts_discovery_promote({
+            'discovery_id': 1,
+            'entity_type': 'organization',
+            'canonical_name': 'Hart Family Veterinary Clinic',
+            'idempotency_key': 'discovery-promote-test-invalid-phone',
+        })
+        self.assertTrue(result['entity_created'])
+        self.assertEqual(result['contact_points_promoted'], 2)
+
 
 if __name__ == '__main__':
     unittest.main()

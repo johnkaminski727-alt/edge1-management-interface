@@ -1,0 +1,11 @@
+[Unit]
+Description=Run verified Contacts autopromotion after maintenance cycles
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:50:00 UTC
+RandomizedDelaySec=5m
+Persistent=true
+Unit=edge1-contacts-verified-autopromote.service
+
+[Install]
+WantedBy=timers.target

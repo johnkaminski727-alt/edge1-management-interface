@@ -1018,10 +1018,19 @@ def contacts_discovery_promote(parameters: dict[str, Any]) -> dict[str, Any]:
             ).strip()
             if not raw_value:
                 continue
-            normalized, _ = normalize_contact_point(
-                point_type,
-                raw_value,
-            )
+            try:
+                normalized, _ = normalize_contact_point(
+                    point_type,
+                    raw_value,
+                )
+            except ContactsCrudError:
+                if (
+                    point_type == "email"
+                    and raw_value.casefold()
+                    == str(discovery["sender_email"]).casefold()
+                ):
+                    raise
+                continue
             point_key = (point_type, normalized)
             if point_key in seen:
                 continue
