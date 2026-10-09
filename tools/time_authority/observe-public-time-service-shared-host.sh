@@ -10,6 +10,7 @@ OBSERVER_HOST=${WWCX_PUBLIC_TIME_OBSERVER_HOST:-business159.web-hosting.com}
 NTP_HISTORY=${WWCX_PUBLIC_TIME_NTP_HISTORY:-$PRIVATE_DIR/public-service-measurements.jsonl}
 NTP_CURRENT=${WWCX_PUBLIC_TIME_NTP_CURRENT:-$PRIVATE_DIR/public-service-current.jsonl}
 NTS_CURRENT=${WWCX_PUBLIC_TIME_NTS_CURRENT:-$PRIVATE_DIR/public-nts-current.json}
+NTS_SECONDARY_CURRENT=${WWCX_PUBLIC_TIME_NTS_SECONDARY_CURRENT:-$PRIVATE_DIR/public-nts-secondary-current.json}
 PUBLIC_STATUS=${WWCX_PUBLIC_TIME_STATUS:-$PUBLIC_DIR/public-status.json}
 EXPECTED_FILE=${WWCX_PUBLIC_TIME_NTS_EXPECTED_FILE:-$ROOT/nts-expected}
 
@@ -31,6 +32,14 @@ NTS_RC=0
   --port 4460 \
   --output "$NTS_CURRENT" >/dev/null || NTS_RC=$?
 
+NTS_SECONDARY_RC=0
+"$PYTHON_BIN" "$ROOT/nts_ke_probe.py" \
+  --observer-id "$OBSERVER_ID" \
+  --observer-host "$OBSERVER_HOST" \
+  --server-name ntp2.ww.cx \
+  --port 4460 \
+  --output "$NTS_SECONDARY_CURRENT" >/dev/null || NTS_SECONDARY_RC=$?
+
 NTS_EXPECTED=0
 if [ -r "$EXPECTED_FILE" ]; then
   NTS_EXPECTED=$(cat "$EXPECTED_FILE" 2>/dev/null || printf '0')
@@ -43,6 +52,7 @@ esac
 "$PYTHON_BIN" "$ROOT/build_public_time_status.py" \
   --ntp-current "$NTP_CURRENT" \
   --nts-current "$NTS_CURRENT" \
+  --nts-secondary-current "$NTS_SECONDARY_CURRENT" \
   --output "$PUBLIC_STATUS" \
   --observer-id "$OBSERVER_ID" \
   --observer-host "$OBSERVER_HOST" \

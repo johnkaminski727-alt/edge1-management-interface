@@ -9,6 +9,15 @@
       "port": 123,
       "expected_stratum_min": 1,
       "expected_stratum_max": 15
+    },
+    {
+      "source_id": "wwcx-public-ntp2",
+      "server_name": "ntp2.ww.cx",
+      "provider": "WW.CX",
+      "region": "Edge2 Toronto public service",
+      "port": 123,
+      "expected_stratum_min": 1,
+      "expected_stratum_max": 15
     }
   ]
 }
