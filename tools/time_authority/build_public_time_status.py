@@ -29,6 +29,27 @@ def load_last_json(path: Path) -> Optional[Dict[str, Any]]:
     return last
 
 
+def load_json_records(path: Path):
+    records = []
+    if not path.is_file():
+        return records
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        value = json.loads(line)
+        if isinstance(value, dict):
+            records.append(value)
+    return records
+
+
+def find_server(records, host):
+    for record in records:
+        if record.get("server_name") == host:
+            return record
+    return None
+
+
 def bounded_ntp(record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     result = {
         "reachable": False,
@@ -80,6 +101,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ntp-current", type=Path, required=True)
     parser.add_argument("--nts-current", type=Path, required=True)
+    parser.add_argument("--nts-secondary-current", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--observer-id", default="business159")
     parser.add_argument("--observer-host", default="business159.web-hosting.com")
@@ -89,8 +111,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    ntp_record = load_last_json(args.ntp_current)
+    ntp_records = load_json_records(args.ntp_current)
+    ntp_record = find_server(ntp_records, "ntp.ww.cx") or (ntp_records[0] if ntp_records else None)
+    ntp_secondary = find_server(ntp_records, "ntp2.ww.cx")
     nts_record = load_last_json(args.nts_current)
+    nts_secondary = load_last_json(args.nts_secondary_current) if args.nts_secondary_current else None
 
     payload = {
         "schema_version": SCHEMA_VERSION,
@@ -107,6 +132,10 @@ def main() -> int:
         },
         "ntp": bounded_ntp(ntp_record),
         "nts": bounded_nts(nts_record, args.nts_expected),
+        "endpoints": {
+            "primary": {"host": "ntp.ww.cx", "role": "primary", "ntp": bounded_ntp(ntp_record), "nts": bounded_nts(nts_record, args.nts_expected)},
+            "secondary": {"host": "ntp2.ww.cx", "role": "secondary", "ntp": bounded_ntp(ntp_secondary), "nts": bounded_nts(nts_secondary, True)},
+        },
     }
     write_atomic(args.output, payload)
     print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
