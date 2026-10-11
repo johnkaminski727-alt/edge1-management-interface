@@ -68,13 +68,18 @@ class BootPreflightTests(unittest.TestCase):
             self.check()
 
     def test_stale_feed_rejected(self):
-        stamp = int((dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=73)).timestamp())
-        (self.stage / "drop_v6.json").write_text(
-            '{"cidr":"2001:4860::/32"}\n' + '{"timestamp":' + str(stamp) + '}\n'
-        )
-        self.rehash()
-        with self.assertRaisesRegex(ValueError, "age"):
-            self.check()
+        # IPv4 window is 72 h; IPv6 is 14 days because Spamhaus publishes it less often.
+        for name, cidr, hours in (("drop_v4.json", "8.8.8.0/24", 73),
+                                  ("drop_v6.json", "2001:4860::/32", 15 * 24)):
+            with self.subTest(feed=name):
+                self.setUp()
+                stamp = int((dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=hours)).timestamp())
+                (self.stage / name).write_text(
+                    '{"cidr":"' + cidr + '"}\n' + '{"timestamp":' + str(stamp) + '}\n'
+                )
+                self.rehash()
+                with self.assertRaisesRegex(ValueError, "age"):
+                    self.check()
 
     def test_wrong_candidate_rejected_even_if_rehashed(self):
         (self.stage / "spamhaus-candidate.nft").write_text("table inet wrong {}\n")

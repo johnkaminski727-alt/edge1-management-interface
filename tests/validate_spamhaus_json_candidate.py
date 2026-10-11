@@ -73,6 +73,21 @@ class SpamhausCandidateTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     MODULE.parse_feed(path, 4, self.now)
 
+    def test_ipv6_allows_longer_publication_age(self):
+        def v6(age_hours):
+            return self.feed("v6.json", [
+                {"cidr": "2001:4860::/32"},
+                {"timestamp": self.timestamp - age_hours * 3600},
+            ])
+        MODULE.parse_feed(v6(6 * 24), 6, self.now)
+        with self.assertRaises(ValueError):
+            MODULE.parse_feed(v6(15 * 24), 6, self.now)
+        v4 = self.feed("v4.json", [
+            {"cidr": "8.8.8.0/24"}, {"timestamp": self.timestamp - 6 * 24 * 3600},
+        ])
+        with self.assertRaises(ValueError):
+            MODULE.parse_feed(v4, 4, self.now)
+
     def test_missing_and_duplicate_metadata_rejected(self):
         for metadata in ([], [
             {"timestamp": self.timestamp}, {"timestamp": self.timestamp}
