@@ -16,25 +16,7 @@ nft list chain ip crowdsec edge1-enforce-input >/dev/null
 nft list chain ip6 crowdsec6 edge1-enforce-input >/dev/null
 nft list set ip crowdsec crowdsec-blacklists >/dev/null
 
-if nft list chain ip crowdsec edge1-enforce-forward >/dev/null 2>&1; then
-    echo "STOP: Forwarding chain already exists."
-    exit 1
-fi
-
-nft -c -f "$F"
-
-recover() {
-    status=$?
-    trap - EXIT
-    if [ "$status" -ne 0 ]; then
-        "$R" || true
-    fi
-    exit "$status"
-}
-trap recover EXIT
-
-nft -f "$F"
-
+verify() {
 python3 - <<'PY'
 import json
 import subprocess
@@ -59,3 +41,28 @@ for rule in rules:
 
 print("PASS: Persistent forwarding hook and rules installed")
 PY
+}
+
+# 2026-10-11: idempotent - an existing, verified forwarding chain is accepted
+# instead of failing the unit on restart (it used to STOP here).
+if nft list chain ip crowdsec edge1-enforce-forward >/dev/null 2>&1; then
+    echo "Forwarding chain already exists; verifying."
+    verify
+    exit 0
+fi
+
+nft -c -f "$F"
+
+recover() {
+    status=$?
+    trap - EXIT
+    if [ "$status" -ne 0 ]; then
+        "$R" || true
+    fi
+    exit "$status"
+}
+trap recover EXIT
+
+nft -f "$F"
+
+verify

@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 CONFIG=/etc/edge1/crowdsec/enforce.nft
+VERIFY=/usr/local/sbin/edge1-crowdsec-verify.py
 
 systemctl is-active --quiet ufw.service
 systemctl is-active --quiet wg-quick@wg0.service
@@ -9,33 +10,14 @@ systemctl is-active --quiet edge1-crowdsec-bootstrap.service
 ip link show dev wg0 >/dev/null
 
 # Verify the bootstrap tables and management guards before activation.
-python3 - <<'PY'
-import json
-import subprocess
-
-for family, table, blacklist in (
-    ("ip", "crowdsec", "crowdsec-blacklists"),
-    ("ip6", "crowdsec6", "crowdsec6-blacklists"),
-):
-    data = json.loads(subprocess.check_output(
-        ["nft", "-j", "list", "table", family, table],
-        text=True
-    ))["nftables"]
-    chains = [x["chain"] for x in data if "chain" in x]
-    rules = [x["rule"] for x in data if "rule" in x]
-    sets = [
-        x["set"] for x in data
-        if "set" in x and x["set"]["name"] == blacklist
-    ]
-
-    assert len(chains) == 1, "Unexpected existing chain"
-    assert chains[0]["name"] == "edge1-guard"
-    assert "hook" not in chains[0]
-    assert len(rules) == 3
-    assert len(sets) == 1
-    assert "timeout" in sets[0].get("flags", [])
-    print(f"PASS: {family} bootstrap state")
-PY
+# 2026-10-11: idempotent - if both input hooks are already installed and
+# verified, do not add them a second time.
+STATE=$("$VERIFY" enforce-pre)
+if [ "$STATE" = ALREADY_INSTALLED ]; then
+    "$VERIFY" enforce-post
+    echo "PASS: Both enforcement hooks already installed"
+    exit 0
+fi
 
 cleanup() {
     echo "Enforcement activation failed; removing staged hooks"
@@ -52,28 +34,7 @@ trap cleanup ERR
 # The bouncer is managed separately.
 nft -f "$CONFIG"
 
-python3 - <<'PY'
-import json
-import subprocess
-
-for family, table in (
-    ("ip", "crowdsec"),
-    ("ip6", "crowdsec6"),
-):
-    data = json.loads(subprocess.check_output(
-        ["nft", "-j", "list", "table", family, table],
-        text=True
-    ))["nftables"]
-    chains = [x["chain"] for x in data if "chain" in x]
-    guards = [c for c in chains if c["name"] == "edge1-guard"]
-    hooks = [c for c in chains if c["name"] == "edge1-enforce-input"]
-
-    assert len(guards) == 1
-    assert len(hooks) == 1
-    assert hooks[0].get("hook") == "input"
-    assert hooks[0].get("prio") == -10
-    print(f"PASS: {family} enforcement hook installed")
-PY
+"$VERIFY" enforce-post
 
 trap - ERR
 echo "PASS: Both enforcement hooks installed"
