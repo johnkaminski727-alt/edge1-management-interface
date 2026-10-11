@@ -1,0 +1,38 @@
+[Unit]
+Description=WW.CX Business159 Claude connector gateway (bounded operator, OAuth + TOTP)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/business159-claude-gateway/totp-secret
+
+[Service]
+Type=simple
+User=business159-operator
+Group=business159-operator
+Environment=B159_GATEWAY_ISSUER=https://mcp-b159.ww.cx
+Environment=B159_GATEWAY_HOST=127.0.0.1
+Environment=B159_GATEWAY_PORT=8150
+Environment=NODE_OPTIONS=--jitless
+EnvironmentFile=-/etc/business159-operator/runtime-policy
+ExecStart=/usr/bin/python3 /opt/business159-claude-gateway/business159_claude_gateway.py
+Restart=on-failure
+RestartSec=5
+StateDirectory=business159-claude-gateway
+StateDirectoryMode=0700
+LogsDirectory=business159-claude-gateway
+LogsDirectoryMode=0750
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/business159-claude-gateway /etc/business159-operator /usr/local/libexec/business159-tunnel /opt/business159-claude-gateway /opt/edge1-management-interface
+ReadWritePaths=/var/lib/business159-operator
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
