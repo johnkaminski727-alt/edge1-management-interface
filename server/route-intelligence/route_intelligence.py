@@ -152,6 +152,9 @@ class H(BaseHTTPRequestHandler):
  def sendj(self,code,obj):
   b=json.dumps(obj,separators=(',',':')).encode();self.send_response(code);self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b)
  def do_GET(self):
+  # Defence in depth (ENG-023, 2026-10-11): besides the bind address and the
+  # wg-edge2 UFW rule, only answer Edge2, Edge1 itself and loopback.
+  if self.client_address[0] not in ('10.78.0.1','10.78.0.2','127.0.0.1'):return self.sendj(403,{'error':'forbidden'})
   p=urlparse(self.path)
   if p.path=='/healthz':return self.sendj(200,{'ok':True,'service':'route-intelligence','mode':'resolution_only','database':stats()})
   if p.path=='/v1/resolve':

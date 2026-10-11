@@ -1,0 +1,20 @@
+{
+  "contract": "wwcx.api-surface-accepted.v1",
+  "note": "Operator-approved (2026-10-11, ENG-023) non-loopback listeners. An entry only downgrades the finding while the live checks hold: the listening socket is bound to exactly bind_address (never a wildcard), and /etc/ufw/user.rules contains ufw_rule verbatim. If either check fails the listener is reported as high again.",
+  "approved_by": "Operator (John), implemented by Claude Code (Opus 5.5)",
+  "approved_at": "2026-10-11",
+  "accepted": [
+    {"port": 8129, "service": "ava-lily-intake.service", "bind_address": "10.78.0.2",
+     "ufw_rule": "-A ufw-user-input -i wg-edge2 -p tcp -d 10.78.0.2 --dport 8129 -s 10.78.0.1 -j ACCEPT",
+     "reason": "Edge2 -> Edge1 private intake over wg-edge2 only; requests carry an HMAC X-Lily-Signature."},
+    {"port": 8134, "service": "edge1-telemetry-receiver.service", "bind_address": "10.78.0.2",
+     "ufw_rule": "-A ufw-user-input -i wg-edge2 -p tcp -d 10.78.0.2 --dport 8134 -s 10.78.0.1 -j ACCEPT",
+     "reason": "Edge2 signed telephony telemetry; app rejects clients other than 10.78.0.1 and verifies nonce + signature."},
+    {"port": 8140, "service": "edge1-route-intelligence.service", "bind_address": "10.78.0.2",
+     "ufw_rule": "-A ufw-user-input -i wg-edge2 -p tcp -d 10.78.0.2 --dport 8140 -s 10.78.0.1 -j ACCEPT",
+     "reason": "Read-only route resolver for Edge2; app limited to 10.78.0.1/10.78.0.2/127.0.0.1 (added 2026-10-11)."},
+    {"port": 8143, "service": "edge1-messaging-live.service", "bind_address": "10.78.0.2",
+     "ufw_rule": "-A ufw-user-input -i wg-edge2 -p tcp -d 10.78.0.2 --dport 8143 -s 10.78.0.1 -j ACCEPT",
+     "reason": "Edge2 signed SMS/MMS events; app rejects clients other than Edge2 and verifies a cryptographic signature."}
+  ]
+}
