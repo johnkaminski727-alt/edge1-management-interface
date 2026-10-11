@@ -12,6 +12,10 @@ on:
       - 'skills/wwcx-release-operator/**'
       - 'tests/validate_business159_operator.py'
       - 'tests/test_business159_secure_mcp_tunnel_assets.py'
+      - 'server/business159_claude_gateway.py'
+      - 'deploy/business159-claude-gateway/**'
+      - 'tests/test_business159_claude_gateway.py'
+      - 'tests/fixtures/fake_business159_mcp.py'
       - '.github/workflows/business159-operator.yml'
   push:
     branches: [main]
@@ -25,6 +29,10 @@ on:
       - 'skills/wwcx-release-operator/**'
       - 'tests/validate_business159_operator.py'
       - 'tests/test_business159_secure_mcp_tunnel_assets.py'
+      - 'server/business159_claude_gateway.py'
+      - 'deploy/business159-claude-gateway/**'
+      - 'tests/test_business159_claude_gateway.py'
+      - 'tests/fixtures/fake_business159_mcp.py'
       - '.github/workflows/business159-operator.yml'
 
 permissions:
@@ -57,6 +65,10 @@ jobs:
         run: |
           python3 tests/test_business159_secure_mcp_tunnel_assets.py
           for f in deploy/business159-tunnel/*.sh deploy/business159-tunnel/ssh; do sh -n "$f"; done
+      - name: Claude connector gateway
+        run: |
+          python3 tests/test_business159_claude_gateway.py
+          sh -n deploy/business159-claude-gateway/install-business159-claude-gateway.sh
       - name: Validate Skill packages statically
         run: |
           python3 - <<'PY'
