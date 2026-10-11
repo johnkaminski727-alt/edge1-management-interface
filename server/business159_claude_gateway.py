@@ -13,12 +13,12 @@ Boundaries enforced here, independent of the client:
 * Only allow-listed tools are listed or callable. business159_deploy is forced
   to dry-run. The child environment pins every Business159 mutation gate to 0.
 * /mcp and /token only accept Anthropic's published outbound range (also
-  enforced by the Apache vhost). The browser-facing /authorize page is open but
+  enforced by the nginx site). The browser-facing /authorize page is open but
   requires a fresh TOTP code, with replay protection and a failure lockout.
 * Secrets are read from root-owned files; only SHA-256 digests of the client
   secret and of issued tokens are stored.
 
-Standard library only. Listens on loopback; Apache terminates TLS.
+Standard library only. Listens on loopback; nginx terminates TLS.
 """
 from __future__ import annotations
 

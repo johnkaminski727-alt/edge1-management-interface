@@ -5,7 +5,7 @@ connector. It is a separate route from the ChatGPT Secure MCP Tunnel, which is
 unchanged.
 
 ```text
-claude.ai ──https──▶ mcp-b159.ww.cx (Edge1 Apache, TLS)
+claude.ai ──https──▶ mcp-b159.ww.cx (Edge1 nginx, TLS)
                         │  /mcp and /token: Anthropic outbound range only
                         ▼
               business159-claude-gateway (127.0.0.1:8150, business159-operator)
@@ -28,7 +28,7 @@ claude.ai ──https──▶ mcp-b159.ww.cx (Edge1 Apache, TLS)
   `BUSINESS159_ENABLE_RAW_SHELL` are pinned to `0`, whatever the runtime policy says.
 - **Network:** `/mcp` and `/token` accept only `160.79.104.0/21`
   ([Anthropic outbound IPs](https://platform.claude.com/docs/en/api/ip-addresses)),
-  in Apache and again in the gateway. Apache drops any client-supplied
+  in nginx and again in the gateway. nginx overwrites any client-supplied
   `X-Forwarded-For`. All other paths are 404. The gateway listens on loopback only.
 - **Sign-in:** `/authorize` needs a fresh 6-digit TOTP code. Codes cannot be reused,
   and five wrong codes lock sign-in for 15 minutes. There is no dynamic client
@@ -56,8 +56,12 @@ clone in the operator's home directory. It copies the gateway to
 3. Dry run: `sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh`
 4. Apply: `sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh --apply`
    - Generates the client ID, client secret and TOTP secret, and prints them **once**.
-   - Starts the service, issues the certificate (`certbot --apache`, existing ACME
-     account), enables the Apache site and runs postflight checks.
+   - Starts the service, then adds the nginx site in two steps: an HTTP-only
+     site for the ACME challenge (`certbot --webroot`, existing ACME account,
+     renewals reload nginx), then the full HTTPS site. Each step runs
+     `nginx -t` and rolls back on failure. The site binds to the same address as
+     `edge1.ww.cx`; existing sites and the default server are untouched.
+   - Runs postflight checks, including that `edge1.ww.cx` still answers.
 5. In an authenticator (e.g. Yubico Authenticator → Add account), enter the TOTP
    secret or scan the QR code (shown when `qrencode` is installed).
 6. claude.ai → Customize → Connectors → Add custom connector:
@@ -79,7 +83,7 @@ clone in the operator's home directory. It copies the gateway to
 ## Rollback
 
 `--disable` removes the public site and stops the service. To remove it completely,
-also delete `/etc/apache2/sites-available/mcp-b159.ww.cx.conf`,
+also delete `/etc/nginx/sites-available/mcp-b159.ww.cx.conf`, `/var/www/b159-claude-acme`,
 `/etc/systemd/system/business159-claude-gateway.service`,
 `/opt/business159-claude-gateway` and `/etc/business159-claude-gateway`, then `systemctl daemon-reload`. The ChatGPT
 tunnel and the Business159 runtime are not modified by install or rollback.
