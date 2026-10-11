@@ -1,0 +1,17 @@
+[Unit]
+Description=Edge1 CrowdSec WireGuard IPv4 forwarding protection
+Requires=ufw.service wg-quick@wg0.service wireguard-nat.service
+Requires=crowdsec-firewall-bouncer.service edge1-crowdsec-enforce.service
+After=ufw.service wg-quick@wg0.service wireguard-nat.service
+After=crowdsec-firewall-bouncer.service edge1-crowdsec-enforce.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/edge1-crowdsec-forward
+ExecStop=/root/edge1-crowdsec-forward-rollback.sh
+TimeoutStartSec=90
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

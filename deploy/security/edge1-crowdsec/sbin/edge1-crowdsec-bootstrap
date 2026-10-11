@@ -1,0 +1,54 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+CONFIG=/etc/edge1/crowdsec/bootstrap.nft
+
+# Refuse to run before the primary firewall and VPN are active.
+systemctl is-active --quiet ufw.service
+systemctl is-active --quiet wg-quick@wg0.service
+ip link show dev wg0 >/dev/null
+
+# Both tables must exist together, or neither may exist.
+V4=no
+V6=no
+nft list table ip crowdsec >/dev/null 2>&1 && V4=yes
+nft list table ip6 crowdsec6 >/dev/null 2>&1 && V6=yes
+
+if [ "$V4" != "$V6" ]; then
+    echo "STOP: Partial CrowdSec table state."
+    exit 1
+fi
+
+if [ "$V4" = no ]; then
+    nft -f "$CONFIG"
+    echo "Both isolated CrowdSec tables created."
+fi
+
+# Verify the resulting state without printing blacklist addresses.
+python3 - <<'PY'
+import json
+import subprocess
+
+for family, table, name in (
+    ("ip", "crowdsec", "crowdsec-blacklists"),
+    ("ip6", "crowdsec6", "crowdsec6-blacklists"),
+):
+    data = json.loads(subprocess.check_output(
+        ["nft", "-j", "list", "table", family, table],
+        text=True
+    ))["nftables"]
+
+    chains = [x["chain"] for x in data if "chain" in x]
+    sets = [x["set"] for x in data if "set" in x
+            and x["set"]["name"] == name]
+    rules = [x["rule"] for x in data if "rule" in x]
+
+    assert len(chains) == 1
+    assert chains[0]["name"] == "edge1-guard"
+    assert "hook" not in chains[0]
+    assert len(sets) == 1
+    assert "timeout" in sets[0].get("flags", [])
+    assert len(rules) == 3
+
+    print(f"PASS: {family} isolated guard and set verified")
+PY

@@ -1,0 +1,13 @@
+add table ip crowdsec
+add set ip crowdsec crowdsec-blacklists { type ipv4_addr; flags timeout; }
+add chain ip crowdsec edge1-guard
+add rule ip crowdsec edge1-guard iifname "wg0" return
+add rule ip crowdsec edge1-guard udp dport 51820 return
+add rule ip crowdsec edge1-guard ip saddr @crowdsec-blacklists counter drop
+
+add table ip6 crowdsec6
+add set ip6 crowdsec6 crowdsec6-blacklists { type ipv6_addr; flags timeout; }
+add chain ip6 crowdsec6 edge1-guard
+add rule ip6 crowdsec6 edge1-guard iifname "wg0" return
+add rule ip6 crowdsec6 edge1-guard udp dport 51820 return
+add rule ip6 crowdsec6 edge1-guard ip6 saddr @crowdsec6-blacklists counter drop

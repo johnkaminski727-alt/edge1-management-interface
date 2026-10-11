@@ -1,0 +1,9 @@
+# Edge1 CrowdSec enforcement.
+# Install only after both isolated bootstrap tables exist.
+# The existing edge1-guard chains exempt wg0 and UDP/51820.
+
+add chain ip crowdsec edge1-enforce-input { type filter hook input priority -10; policy accept; }
+add rule ip crowdsec edge1-enforce-input jump edge1-guard
+
+add chain ip6 crowdsec6 edge1-enforce-input { type filter hook input priority -10; policy accept; }
+add rule ip6 crowdsec6 edge1-enforce-input jump edge1-guard
