@@ -1,0 +1,40 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+CONFIG=/etc/edge1/crowdsec/enforce.nft
+VERIFY=/usr/local/sbin/edge1-crowdsec-verify.py
+
+systemctl is-active --quiet ufw.service
+systemctl is-active --quiet wg-quick@wg0.service
+systemctl is-active --quiet edge1-crowdsec-bootstrap.service
+ip link show dev wg0 >/dev/null
+
+# Verify the bootstrap tables and management guards before activation.
+# 2026-10-11: idempotent - if both input hooks are already installed and
+# verified, do not add them a second time.
+STATE=$("$VERIFY" enforce-pre)
+if [ "$STATE" = ALREADY_INSTALLED ]; then
+    "$VERIFY" enforce-post
+    echo "PASS: Both enforcement hooks already installed"
+    exit 0
+fi
+
+cleanup() {
+    echo "Enforcement activation failed; removing staged hooks"
+    for spec in "ip crowdsec" "ip6 crowdsec6"; do
+        if nft list chain $spec edge1-enforce-input >/dev/null 2>&1; then
+            nft flush chain $spec edge1-enforce-input
+            nft delete chain $spec edge1-enforce-input
+        fi
+    done
+}
+trap cleanup ERR
+
+# This only installs the two input hooks.
+# The bouncer is managed separately.
+nft -f "$CONFIG"
+
+"$VERIFY" enforce-post
+
+trap - ERR
+echo "PASS: Both enforcement hooks installed"

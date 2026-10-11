@@ -1,0 +1,30 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+CONFIG=/etc/edge1/crowdsec/bootstrap.nft
+
+# Refuse to run before the primary firewall and VPN are active.
+systemctl is-active --quiet ufw.service
+systemctl is-active --quiet wg-quick@wg0.service
+ip link show dev wg0 >/dev/null
+
+# Both tables must exist together, or neither may exist.
+V4=no
+V6=no
+nft list table ip crowdsec >/dev/null 2>&1 && V4=yes
+nft list table ip6 crowdsec6 >/dev/null 2>&1 && V6=yes
+
+if [ "$V4" != "$V6" ]; then
+    echo "STOP: Partial CrowdSec table state."
+    exit 1
+fi
+
+if [ "$V4" = no ]; then
+    nft -f "$CONFIG"
+    echo "Both isolated CrowdSec tables created."
+fi
+
+# Verify the resulting state without printing blacklist addresses.
+# 2026-10-11: shared verifier accepts an already-enforced state, so a
+# restart of this unit no longer fails (it used to require exactly one chain).
+/usr/local/sbin/edge1-crowdsec-verify.py bootstrap

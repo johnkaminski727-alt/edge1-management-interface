@@ -1,0 +1,14 @@
+[Unit]
+Description=Prepare isolated Edge1 CrowdSec firewall tables
+Requires=ufw.service wg-quick@wg0.service
+After=ufw.service wg-quick@wg0.service
+Before=crowdsec-firewall-bouncer.service
+ConditionPathExists=/etc/edge1/crowdsec/bootstrap.nft
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/edge1-crowdsec-bootstrap
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

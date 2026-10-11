@@ -14,6 +14,10 @@ from pathlib import Path
 MAX_FEED_BYTES = 8 * 1024 * 1024
 MAX_RECORDS = 100_000
 MAX_FEED_AGE = dt.timedelta(hours=72)
+# Spamhaus republishes the short IPv6 DROP list far less often than IPv4
+# (often ~weekly), so a single 72 h window rejected every refresh once the
+# IPv6 file aged out - and with it the fresh IPv4 list (2026-10-11).
+MAX_FEED_AGE_BY_FAMILY = {4: MAX_FEED_AGE, 6: dt.timedelta(days=14)}
 CLOCK_SKEW = dt.timedelta(minutes=15)
 
 
@@ -53,7 +57,7 @@ def parse_feed(path: Path, family: int, now: dt.datetime | None = None) -> tuple
         raise ValueError("Expected nonempty feed and exactly one metadata timestamp")
     published = dt.datetime.fromtimestamp(timestamps[0], dt.timezone.utc)
     age = current - published
-    if age < -CLOCK_SKEW or age > MAX_FEED_AGE:
+    if age < -CLOCK_SKEW or age > MAX_FEED_AGE_BY_FAMILY[family]:
         raise ValueError("Feed publication age outside permitted window")
     collapsed = list(ipaddress.collapse_addresses(networks))
     return collapsed, len(networks)

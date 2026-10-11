@@ -1,0 +1,5 @@
+add chain ip crowdsec edge1-enforce-forward { type filter hook forward priority -10; policy accept; }
+
+add rule ip crowdsec edge1-enforce-forward iifname "wg0" oifname "ens3" ip daddr @crowdsec-blacklists counter drop
+
+add rule ip crowdsec edge1-enforce-forward iifname "ens3" oifname "wg0" ip saddr @crowdsec-blacklists counter drop

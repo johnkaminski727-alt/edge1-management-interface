@@ -1,0 +1,68 @@
+#!/bin/bash
+set -Eeuo pipefail
+
+F=/etc/edge1/crowdsec/forward.nft
+R=/root/edge1-crowdsec-forward-rollback.sh
+
+test "$(sysctl -n net.ipv4.ip_forward)" = 1
+ip link show dev wg0 >/dev/null
+ip link show dev ens3 >/dev/null
+
+for service in ufw wg-quick@wg0 wireguard-nat crowdsec crowdsec-firewall-bouncer edge1-crowdsec-enforce; do
+    systemctl is-active --quiet "$service"
+done
+
+nft list chain ip crowdsec edge1-enforce-input >/dev/null
+nft list chain ip6 crowdsec6 edge1-enforce-input >/dev/null
+nft list set ip crowdsec crowdsec-blacklists >/dev/null
+
+verify() {
+python3 - <<'PY'
+import json
+import subprocess
+
+data = json.loads(subprocess.check_output(
+    ["nft", "-j", "list", "chain", "ip",
+     "crowdsec", "edge1-enforce-forward"],
+    text=True
+))["nftables"]
+
+chains = [x["chain"] for x in data if "chain" in x]
+rules = [x["rule"] for x in data if "rule" in x]
+
+assert len(chains) == 1
+assert chains[0].get("hook") == "forward"
+assert chains[0].get("prio") == -10
+assert len(rules) == 2
+
+for rule in rules:
+    assert any("drop" in item for item in rule["expr"])
+    assert any("counter" in item for item in rule["expr"])
+
+print("PASS: Persistent forwarding hook and rules installed")
+PY
+}
+
+# 2026-10-11: idempotent - an existing, verified forwarding chain is accepted
+# instead of failing the unit on restart (it used to STOP here).
+if nft list chain ip crowdsec edge1-enforce-forward >/dev/null 2>&1; then
+    echo "Forwarding chain already exists; verifying."
+    verify
+    exit 0
+fi
+
+nft -c -f "$F"
+
+recover() {
+    status=$?
+    trap - EXIT
+    if [ "$status" -ne 0 ]; then
+        "$R" || true
+    fi
+    exit "$status"
+}
+trap recover EXIT
+
+nft -f "$F"
+
+verify
