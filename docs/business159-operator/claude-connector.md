@@ -43,18 +43,24 @@ claude.ai ──https──▶ mcp-b159.ww.cx (Edge1 Apache, TLS)
 ## Install
 
 Prerequisites: the Business159 Secure MCP Tunnel assets are installed
-(`business159-operator`, `/etc/business159-operator`, the libexec wrapper), and
-`/opt/edge1-management-interface` is at a commit containing this change.
+(`business159-operator`, `/etc/business159-operator`, the libexec wrapper, and
+`business159-live-shell` under `/opt/edge1-management-interface`).
+
+The installer runs from any checkout that contains this change, such as a fresh
+clone in the operator's home directory. It copies the gateway to
+`/opt/business159-claude-gateway/` and never updates the shared
+`/opt/edge1-management-interface` checkout, which may be on a working branch.
 
 1. DNS: add an `A` record `mcp-b159.ww.cx` pointing to the same address as `edge1.ww.cx`.
-2. Dry run: `sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh`
-3. Apply: `sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh --apply`
+2. Fresh checkout: `git clone --depth 1 https://github.com/johnkaminski727-alt/edge1-management-interface ~/b159-claude-gateway && cd ~/b159-claude-gateway`
+3. Dry run: `sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh`
+4. Apply: `sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh --apply`
    - Generates the client ID, client secret and TOTP secret, and prints them **once**.
    - Starts the service, issues the certificate (`certbot --apache`, existing ACME
      account), enables the Apache site and runs postflight checks.
-4. In an authenticator (e.g. Yubico Authenticator → Add account), enter the TOTP
+5. In an authenticator (e.g. Yubico Authenticator → Add account), enter the TOTP
    secret or scan the QR code (shown when `qrencode` is installed).
-5. claude.ai → Customize → Connectors → Add custom connector:
+6. claude.ai → Customize → Connectors → Add custom connector:
    URL `https://mcp-b159.ww.cx/mcp`; Advanced settings → client ID and secret.
    Connect, then enter the authenticator code on the sign-in page.
 
@@ -74,8 +80,8 @@ Prerequisites: the Business159 Secure MCP Tunnel assets are installed
 
 `--disable` removes the public site and stops the service. To remove it completely,
 also delete `/etc/apache2/sites-available/mcp-b159.ww.cx.conf`,
-`/etc/systemd/system/business159-claude-gateway.service` and
-`/etc/business159-claude-gateway`, then `systemctl daemon-reload`. The ChatGPT
+`/etc/systemd/system/business159-claude-gateway.service`,
+`/opt/business159-claude-gateway` and `/etc/business159-claude-gateway`, then `systemctl daemon-reload`. The ChatGPT
 tunnel and the Business159 runtime are not modified by install or rollback.
 
 ## Later stages (not enabled)

@@ -13,7 +13,7 @@ Environment=B159_GATEWAY_HOST=127.0.0.1
 Environment=B159_GATEWAY_PORT=8150
 Environment=NODE_OPTIONS=--jitless
 EnvironmentFile=-/etc/business159-operator/runtime-policy
-ExecStart=/usr/bin/python3 /opt/edge1-management-interface/server/business159_claude_gateway.py
+ExecStart=/usr/bin/python3 /opt/business159-claude-gateway/business159_claude_gateway.py
 Restart=on-failure
 RestartSec=5
 StateDirectory=business159-claude-gateway
@@ -24,7 +24,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadOnlyPaths=/etc/business159-claude-gateway /etc/business159-operator /usr/local/libexec/business159-tunnel /opt/edge1-management-interface
+ReadOnlyPaths=/etc/business159-claude-gateway /etc/business159-operator /usr/local/libexec/business159-tunnel /opt/business159-claude-gateway /opt/edge1-management-interface
 ReadWritePaths=/var/lib/business159-operator
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=true

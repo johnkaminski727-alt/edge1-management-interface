@@ -12,7 +12,11 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-OPT_ROOT=/opt/edge1-management-interface
+# The gateway runs from its own directory so the shared engineering checkout
+# (/opt/edge1-management-interface, which may be on a working branch with live
+# edits) is only read, never updated, by this installer.
+GATEWAY_DIR=/opt/business159-claude-gateway
+LIVE_SHELL_ENTRY=/opt/edge1-management-interface/tools/mcp/business159-live-shell/src/index.js
 DEPLOY=$ROOT/deploy/business159-claude-gateway
 SERVICE=business159-claude-gateway.service
 SERVICE_USER=business159-operator
@@ -65,14 +69,18 @@ ok "required commands present"
 id "$SERVICE_USER" >/dev/null 2>&1 || fail "$SERVICE_USER account missing (install the Business159 secure MCP tunnel first)"
 [ -x "$CHILD" ] || fail "bounded Business159 server wrapper missing: $CHILD"
 [ -r /etc/business159-operator/ssh_config ] || fail "Business159 SSH config missing"
+[ -r "$LIVE_SHELL_ENTRY" ] || fail "business159-live-shell source missing: $LIVE_SHELL_ENTRY"
 ok "bounded business159-live-shell runtime present (shared with the ChatGPT tunnel)"
 
-[ -r "$OPT_ROOT/$GATEWAY_SRC" ] || fail "$OPT_ROOT/$GATEWAY_SRC missing: update the $OPT_ROOT checkout to a commit that contains the gateway"
-if [ "$ROOT" != "$OPT_ROOT" ]; then
-    cmp -s "$ROOT/$GATEWAY_SRC" "$OPT_ROOT/$GATEWAY_SRC" || fail "$OPT_ROOT/$GATEWAY_SRC differs from $ROOT; update $OPT_ROOT first"
+[ -r "$ROOT/$GATEWAY_SRC" ] || fail "$ROOT/$GATEWAY_SRC missing: run this installer from a checkout that contains the gateway"
+python3 - "$ROOT/$GATEWAY_SRC" <<'PY' || fail "gateway does not compile"
+import sys
+compile(open(sys.argv[1], encoding='utf-8').read(), sys.argv[1], 'exec')
+PY
+if [ -r "$GATEWAY_DIR/business159_claude_gateway.py" ] && ! cmp -s "$ROOT/$GATEWAY_SRC" "$GATEWAY_DIR/business159_claude_gateway.py"; then
+    echo "note: $GATEWAY_DIR will be updated from $ROOT"
 fi
-python3 -m py_compile "$OPT_ROOT/$GATEWAY_SRC" || fail "gateway does not compile"
-ok "gateway source at $OPT_ROOT"
+ok "gateway source in $ROOT (installs to $GATEWAY_DIR)"
 
 if ss -ltn 2>/dev/null | grep -q "127.0.0.1:$PORT "; then
     systemctl is-active --quiet "$SERVICE" || fail "port $PORT is in use by something else"
@@ -117,6 +125,10 @@ if [ -n "$NEW_CLIENT_SECRET$NEW_TOTP" ] && [ -f /var/lib/business159-claude-gate
     echo "Credentials changed: existing Claude tokens revoked."
 fi
 ok "credentials in $ETC_DIR"
+
+install -d -o root -g root -m 0755 "$GATEWAY_DIR"
+install -o root -g root -m 0644 "$ROOT/$GATEWAY_SRC" "$GATEWAY_DIR/business159_claude_gateway.py"
+ok "gateway installed to $GATEWAY_DIR"
 
 install -o root -g root -m 0644 "$DEPLOY/business159-claude-gateway.service" "$UNIT"
 systemctl daemon-reload
