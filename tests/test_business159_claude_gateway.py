@@ -230,5 +230,89 @@ class GatewayFlowTests(unittest.TestCase):
         self.assertNotIn(tokens['access_token'], json.dumps(state), 'tokens must be stored as digests only')
 
 
+class HttpUpstreamTests(GatewayFlowTests):
+    """Full Agent Shell connector mode: HTTP upstream, every tool allowed."""
+
+    def setUp(self):
+        sys.path.insert(0, str(ROOT / 'tests/fixtures'))
+        import fake_agent_shell_http
+        self.upstream_token = secrets.token_urlsafe(16)
+        self.upstream = fake_agent_shell_http.make_server(self.upstream_token)
+        threading.Thread(target=self.upstream.serve_forever, daemon=True).start()
+        super().setUp()
+        token_file = Path(self.tmp.name) / 'upstream-token'
+        token_file.write_text(self.upstream_token)
+        self.server.shutdown()
+        self.server.server_close()
+        self.cfg.upstream_url = f'http://127.0.0.1:{self.upstream.server_address[1]}/mcp'
+        self.cfg.upstream_token_file = token_file
+        self.cfg.tools = None
+        self.cfg.resource_name = 'Edge1 Agent Shell (root)'
+        self.cfg.refresh_ttl = 7 * 86400
+        self.gw = gwmod.Gateway(self.cfg)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), gwmod.make_handler(self.gw))
+        self.base = f'http://127.0.0.1:{self.server.server_address[1]}'
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def tearDown(self):
+        super().tearDown()
+        self.upstream.shutdown()
+        self.upstream.server_close()
+
+    def test_full_flow_allowlist_and_policy(self):
+        token = self.tokens()['access_token']
+        status, headers, body = self.rpc(token, {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}})
+        self.assertEqual(status, 200)
+        self.assertEqual(headers['Mcp-Session-Id'], 'upstream-session-1')
+        session = headers['Mcp-Session-Id']
+        status, _, _ = self.rpc(token, {'jsonrpc': '2.0', 'method': 'notifications/initialized'}, session)
+        self.assertEqual(status, 202)
+        status, _, body = self.rpc(token, {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'}, session)
+        names = {t['name'] for t in json.loads(body)['result']['tools']}
+        self.assertIn('edge1_agent_exec', names, 'full mode must list every upstream tool')
+        status, _, body = self.rpc(token, {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call',
+                                           'params': {'name': 'edge1_agent_exec', 'arguments': {'command': 'cat /etc/secret-marker'}}}, session)
+        self.assertEqual(status, 200)
+        result = json.loads(json.loads(body)['result']['content'][0]['text'])
+        self.assertEqual(result['called'], 'edge1_agent_exec')
+        # Upstream received the gateway's bearer and the client's session, never the Claude token.
+        forwarded = [s for s in self.upstream.seen if 'msg' in s]
+        self.assertTrue(all(s['session'] in (None, 'upstream-session-1') for s in forwarded))
+        audit = [json.loads(l) for l in self.cfg.audit_log.read_text().splitlines()]
+        call = [a for a in audit if a['event'] == 'tool_call'][0]
+        self.assertEqual(call['tool'], 'edge1_agent_exec')
+        self.assertEqual(call['args'], ['command'])
+        self.assertNotIn('secret-marker', self.cfg.audit_log.read_text(), 'command values must not be audited')
+        status, _, _ = self.call('DELETE', '/mcp', headers={'Authorization': f'Bearer {token}', 'Mcp-Session-Id': session})
+        self.assertEqual(status, 204)
+        self.assertIn({'delete': 'upstream-session-1'}, self.upstream.seen)
+
+    def test_stale_upstream_token_is_502_not_401(self):
+        token = self.tokens()['access_token']
+        self.gw.upstream_token = 'stale-token'
+        status, _, body = self.rpc(token, {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}})
+        self.assertEqual(status, 502)
+        self.assertIn('re-run the installer', json.loads(body)['error']['message'])
+
+    def test_upstream_must_be_loopback(self):
+        self.cfg.upstream_url = 'http://203.0.113.9:8114/mcp'
+        with self.assertRaises(SystemExit):
+            gwmod.Gateway(self.cfg)
+
+    def test_refresh_ttl_is_configurable(self):
+        tokens = self.tokens()
+        state = json.loads((self.cfg.state_dir / 'state.json').read_text())
+        exp = list(state['refresh'].values())[0]['exp']
+        self.assertLessEqual(exp - time.time(), 7 * 86400 + 5)
+
+    def test_consent_page_names_the_connector(self):
+        verifier = secrets.token_urlsafe(48)
+        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
+        query = urllib.parse.urlencode({'response_type': 'code', 'client_id': self.client_id, 'redirect_uri': REDIRECT,
+                                        'code_challenge': challenge, 'code_challenge_method': 'S256'})
+        status, _, page = self.call('GET', '/authorize?' + query, ip=OTHER_IP)
+        self.assertIn(b'Edge1 Agent Shell (root)', page)
+
+
 if __name__ == '__main__':
     unittest.main()

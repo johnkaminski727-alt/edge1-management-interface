@@ -16,6 +16,8 @@ on:
       - 'deploy/business159-claude-gateway/**'
       - 'tests/test_business159_claude_gateway.py'
       - 'tests/fixtures/fake_business159_mcp.py'
+      - 'tests/fixtures/fake_agent_shell_http.py'
+      - 'deploy/edge1-claude-gateway/**'
       - '.github/workflows/business159-operator.yml'
   push:
     branches: [main]
@@ -33,6 +35,8 @@ on:
       - 'deploy/business159-claude-gateway/**'
       - 'tests/test_business159_claude_gateway.py'
       - 'tests/fixtures/fake_business159_mcp.py'
+      - 'tests/fixtures/fake_agent_shell_http.py'
+      - 'deploy/edge1-claude-gateway/**'
       - '.github/workflows/business159-operator.yml'
 
 permissions:

@@ -99,7 +99,15 @@ class Config:
     child_command: tuple[str, ...] = ('/usr/local/libexec/business159-tunnel/business159-live-shell.sh',)
     allowed_cidrs: tuple[str, ...] = ANTHROPIC_OUTBOUND
     redirect_uris: tuple[str, ...] = DEFAULT_REDIRECT_URIS
-    tools: frozenset[str] = STAGE1_TOOLS
+    # None means every upstream tool is listed and callable (used for the
+    # operator-approved full Agent Shell connectors); a set is an allowlist.
+    tools: frozenset[str] | None = STAGE1_TOOLS
+    # HTTP upstream mode: forward MCP to a loopback Streamable HTTP server and
+    # add its bearer token here, instead of starting a stdio child per session.
+    upstream_url: str = ''
+    upstream_token_file: Path | None = None
+    resource_name: str = 'Business159 bounded operator (WW.CX)'
+    consent_html: str = 'the <strong>Business159 bounded operator</strong> (read-only tools and deploy dry-run)'
     access_ttl: int = 3600
     refresh_ttl: int = 30 * 86400
     code_ttl: int = 120
@@ -129,6 +137,16 @@ class Config:
             cfg.child_command = tuple(json.loads(env['B159_GATEWAY_CHILD']))
         if env.get('B159_GATEWAY_ALLOWED_CIDRS') is not None:
             cfg.allowed_cidrs = tuple(c for c in env['B159_GATEWAY_ALLOWED_CIDRS'].split(',') if c.strip())
+        if env.get('B159_GATEWAY_TOOLS'):
+            raw = env['B159_GATEWAY_TOOLS'].strip()
+            cfg.tools = None if raw == '*' else frozenset(t.strip() for t in raw.split(',') if t.strip())
+        cfg.upstream_url = env.get('B159_GATEWAY_UPSTREAM_URL', cfg.upstream_url)
+        if env.get('B159_GATEWAY_UPSTREAM_TOKEN_FILE'):
+            cfg.upstream_token_file = Path(env['B159_GATEWAY_UPSTREAM_TOKEN_FILE'])
+        cfg.resource_name = env.get('B159_GATEWAY_RESOURCE_NAME', cfg.resource_name)
+        if env.get('B159_GATEWAY_CONSENT'):
+            cfg.consent_html = html.escape(env['B159_GATEWAY_CONSENT'])
+        cfg.refresh_ttl = int(env.get('B159_GATEWAY_REFRESH_TTL', cfg.refresh_ttl))
         return cfg
 
 
@@ -375,6 +393,8 @@ class SessionPool:
 def tool_policy(cfg: Config, params: dict) -> str | None:
     """Return a refusal reason, or None when the call may proceed."""
     name = params.get('name')
+    if cfg.tools is None:
+        return None if isinstance(name, str) else 'Tool name is required.'
     if not isinstance(name, str) or name in NEVER_TOOLS or name not in cfg.tools:
         return f'Tool {name!r} is not enabled on the Claude connector (stage 1: read-only and deploy dry-run).'
     if name in DRY_RUN_ONLY_TOOLS:
@@ -386,6 +406,8 @@ def tool_policy(cfg: Config, params: dict) -> str | None:
 
 def filter_tools_list(cfg: Config, response: dict) -> dict:
     result = response.get('result')
+    if cfg.tools is None:
+        return response
     if isinstance(result, dict) and isinstance(result.get('tools'), list):
         result['tools'] = [t for t in result['tools'] if isinstance(t, dict) and t.get('name') in cfg.tools and t.get('name') not in NEVER_TOOLS]
     return response
@@ -402,6 +424,11 @@ class Gateway:
         self.totp = TotpGuard(cfg, read_secret(cfg.etc_dir / 'totp-secret'), self.store)
         self.audit = Audit(cfg.audit_log)
         self.pool = SessionPool(cfg)
+        self.upstream_token = read_secret(cfg.upstream_token_file) if cfg.upstream_url and cfg.upstream_token_file else ''
+        if cfg.upstream_url:
+            parsed = urllib.parse.urlsplit(cfg.upstream_url)
+            if parsed.scheme != 'http' or parsed.hostname not in ('127.0.0.1', '::1', 'localhost'):
+                raise SystemExit('upstream must be a loopback http:// URL')
         self.networks = [ipaddress.ip_network(c.strip()) for c in cfg.allowed_cidrs]
         self.pending: dict[str, dict] = {}
         self.codes: dict[str, dict] = {}
@@ -426,7 +453,7 @@ class Gateway:
             'resource': self.cfg.resource,
             'authorization_servers': [self.cfg.issuer],
             'bearer_methods_supported': ['header'],
-            'resource_name': 'Business159 bounded operator (WW.CX)',
+            'resource_name': self.cfg.resource_name,
         }
 
     def authorization_server_metadata(self) -> dict:
@@ -568,18 +595,100 @@ class Gateway:
             response = filter_tools_list(self.cfg, response)
         return response
 
+    # -- HTTP upstream mode --
+    def upstream_request(self, method: str, body: bytes, session_id: str, protocol: str) -> tuple[int, dict[str, str], bytes]:
+        import http.client
+        parsed = urllib.parse.urlsplit(self.cfg.upstream_url)
+        conn = http.client.HTTPConnection(parsed.hostname, parsed.port or 80, timeout=self.cfg.call_timeout)
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
+            'Authorization': 'Bearer ' + self.upstream_token,
+        }
+        if session_id:
+            headers['Mcp-Session-Id'] = session_id
+        if protocol:
+            headers['MCP-Protocol-Version'] = protocol
+        try:
+            conn.request(method, parsed.path or '/', body=body or None, headers=headers)
+            resp = conn.getresponse()
+            data = resp.read()
+            return resp.status, {k.lower(): v for k, v in resp.getheaders()}, data
+        finally:
+            conn.close()
+
+    @staticmethod
+    def upstream_messages(content_type: str, data: bytes) -> list[dict]:
+        if not data.strip():
+            return []
+        if content_type.startswith('text/event-stream'):
+            messages, buf = [], []
+            for line in data.decode('utf-8', 'replace').splitlines() + ['']:
+                if line.startswith('data:'):
+                    buf.append(line[5:].lstrip())
+                elif not line and buf:
+                    try:
+                        messages.append(json.loads('\n'.join(buf)))
+                    except ValueError:
+                        pass
+                    buf = []
+            return [m for m in messages if isinstance(m, dict)]
+        parsed = json.loads(data)
+        return parsed if isinstance(parsed, list) else [parsed]
+
+    def forward_http(self, message: dict, ip: str, session_id: str, protocol: str) -> tuple[int, dict | None, dict[str, str]]:
+        method = message.get('method')
+        name = None
+        arg_keys: list[str] = []
+        if method == 'tools/call':
+            params = message.get('params') or {}
+            name = params.get('name')
+            arg_keys = sorted(params['arguments'].keys()) if isinstance(params.get('arguments'), dict) else []
+            refusal = tool_policy(self.cfg, params)
+            if refusal:
+                self.audit.write('tool_blocked', ip=ip, session=session_id[:8], tool=name, args=arg_keys)
+                return 200, {'jsonrpc': '2.0', 'id': message.get('id'), 'result': {'content': [{'type': 'text', 'text': refusal}], 'isError': True}}, {}
+        started = time.monotonic()
+        status, headers, data = self.upstream_request('POST', json.dumps(message).encode(), session_id, protocol)
+        if status in (401, 403):
+            # The gateway's own upstream credential was refused (for example a
+            # rotated Agent Shell token). Never surface this as a 401: Claude
+            # would treat it as its own sign-in failing.
+            self.audit.write('upstream_auth_failed', ip=ip, status=status)
+            return 502, {'jsonrpc': '2.0', 'id': message.get('id'),
+                         'error': {'code': -32603, 'message': 'Gateway could not authenticate to the upstream operator; re-run the installer on the server.'}}, {}
+        out_headers = {'Mcp-Session-Id': headers['mcp-session-id']} if headers.get('mcp-session-id') else {}
+        if method == 'initialize':
+            self.audit.write('session_start', ip=ip, session=(headers.get('mcp-session-id') or 'stateless')[:8])
+        if 'id' not in message or status == 202:
+            return 202, None, out_headers
+        messages = self.upstream_messages(headers.get('content-type', ''), data) if data else []
+        response = next((m for m in messages if m.get('id') == message.get('id') and 'method' not in m), None)
+        if response is None:
+            response = {'jsonrpc': '2.0', 'id': message.get('id'),
+                        'error': {'code': -32603, 'message': f'Upstream returned HTTP {status} without a response'}}
+            if status < 400:
+                status = 502
+        if method == 'tools/call':
+            result = response.get('result') or {}
+            self.audit.write('tool_call', ip=ip, session=session_id[:8], tool=name, args=arg_keys,
+                             ms=int((time.monotonic() - started) * 1000), is_error=bool(result.get('isError') or response.get('error')))
+        if method == 'tools/list':
+            response = filter_tools_list(self.cfg, response)
+        return status, response, out_headers
+
 
 # ------------------------------------------------------------- HTTP ---------
 
 AUTHORIZE_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Business159 connector sign-in</title>
+<title>{name} sign-in</title>
 <style>body{{font:16px system-ui,sans-serif;max-width:26rem;margin:3rem auto;padding:0 1rem;color:#1b1b1b}}
 input{{font:inherit;font-size:1.6rem;letter-spacing:.3em;width:100%;padding:.4rem;box-sizing:border-box}}
 button{{font:inherit;margin-top:1rem;padding:.6rem 1.2rem;background:#01453a;color:#fff;border:0;border-radius:6px}}
 .err{{color:#a40000}} small{{color:#555}}</style></head><body>
-<h1>Business159 connector</h1>
-<p>Claude is asking to use the <strong>Business159 bounded operator</strong> (read-only tools and deploy dry-run).</p>
+<h1>{name}</h1>
+<p>Claude is asking to use {consent}.</p>
 {error}
 <form method="post" action="/authorize">
 <input type="hidden" name="pending" value="{pending}">
@@ -668,7 +777,8 @@ def make_handler(gw: Gateway):
 
         def authorize_page(self, pending: str, error: str = '') -> None:
             error_html = f'<p class="err">{html.escape(error)}</p>' if error else ''
-            body = AUTHORIZE_PAGE.format(pending=html.escape(pending), error=error_html).encode()
+            body = AUTHORIZE_PAGE.format(pending=html.escape(pending), error=error_html,
+                                         name=html.escape(gw.cfg.resource_name), consent=gw.cfg.consent_html).encode()
             self.send(200, body, 'text/html; charset=utf-8', headers={
                 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://claude.ai https://claude.com; frame-ancestors 'none'",
                 'X-Frame-Options': 'DENY',
@@ -701,7 +811,13 @@ def make_handler(gw: Gateway):
             if not self.mcp_guard():
                 return
             sid = self.headers.get('Mcp-Session-Id', '')
-            gw.pool.drop(sid)
+            if gw.cfg.upstream_url:
+                try:
+                    gw.upstream_request('DELETE', b'', sid, self.headers.get('MCP-Protocol-Version', ''))
+                except OSError:
+                    pass
+            else:
+                gw.pool.drop(sid)
             self.send(204)
 
         def token(self) -> None:
@@ -755,6 +871,14 @@ def make_handler(gw: Gateway):
                 return self.send_json(400, {'jsonrpc': '2.0', 'id': None, 'error': {'code': -32600, 'message': 'Batches are not supported'}})
             ip = self.client_ip()
             sid = self.headers.get('Mcp-Session-Id', '')
+            if gw.cfg.upstream_url:
+                try:
+                    status, response, headers = gw.forward_http(message, ip, sid, self.headers.get('MCP-Protocol-Version', ''))
+                except (OSError, ValueError):
+                    return self.send_json(502, {'jsonrpc': '2.0', 'id': message.get('id'), 'error': {'code': -32603, 'message': 'Upstream operator unavailable'}})
+                if response is None:
+                    return self.send(202, headers=headers)
+                return self.send_json(status, response, headers=headers)
             headers: dict[str, str] = {}
             if message.get('method') == 'initialize':
                 session = gw.pool.create()
