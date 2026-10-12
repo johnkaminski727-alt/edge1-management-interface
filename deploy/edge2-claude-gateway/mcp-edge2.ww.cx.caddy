@@ -1,0 +1,54 @@
+# BEGIN edge2-claude-gateway (managed by install-edge2-claude-gateway.sh)
+# Public front for the Edge2 Agent Shell Claude connector gateway (127.0.0.1:8151).
+# Only the OAuth and MCP paths are proxied; everything else is 404.
+# /mcp and /token are limited to Anthropic's published outbound range
+# (https://platform.claude.com/docs/en/api/ip-addresses). /authorize is opened
+# by the operator's own browser and is protected by the TOTP step.
+mcp-edge2.ww.cx {
+	request_body {
+		max_size 1MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	@not_anthropic not remote_ip 160.79.104.0/21
+	@oauth_meta path_regexp ^/\.well-known/oauth-(authorization-server|protected-resource(/mcp)?)$
+
+	handle /mcp {
+		respond @not_anthropic 403
+		reverse_proxy 127.0.0.1:8151 {
+			header_up X-Forwarded-For {remote_host}
+			flush_interval -1
+			transport http {
+				read_timeout 200s
+			}
+		}
+	}
+	handle /token {
+		respond @not_anthropic 403
+		reverse_proxy 127.0.0.1:8151 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	handle /authorize {
+		reverse_proxy 127.0.0.1:8151 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	handle @oauth_meta {
+		reverse_proxy 127.0.0.1:8151 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+	handle {
+		respond 404
+	}
+
+	log {
+		output file /var/log/caddy/mcp-edge2-access.log
+	}
+}
+# END edge2-claude-gateway
