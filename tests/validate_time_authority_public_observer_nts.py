@@ -153,9 +153,9 @@ def validate_hostname_helper() -> None:
 def main() -> int:
     source = json.loads(read(SOURCE))
     assert source["schema_version"] == 1
-    assert len(source["sources"]) == 1
-    item = source["sources"][0]
-    assert item["source_id"] == "wwcx-public-ntp"
+    by_id = {s["source_id"]: s for s in source["sources"]}
+    assert len(by_id) == len(source["sources"])
+    item = by_id["wwcx-public-ntp"]
     assert item["server_name"] == "ntp.ww.cx"
     assert item["port"] == 123
     assert item["expected_stratum_min"] == 1
