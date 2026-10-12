@@ -1,0 +1,44 @@
+[Unit]
+Description=WW.CX Edge1 Agent Shell Claude connector gateway (operator-approved full access, OAuth + TOTP)
+After=network-online.target edge1-agent-shell.service
+Wants=network-online.target
+ConditionPathExists=/etc/edge1-claude-gateway/totp-secret
+
+[Service]
+Type=simple
+User=edge1-claude-gw
+Group=edge1-claude-gw
+Environment=B159_GATEWAY_ISSUER=https://mcp-edge1.ww.cx
+Environment=B159_GATEWAY_HOST=127.0.0.1
+Environment=B159_GATEWAY_PORT=8151
+Environment=B159_GATEWAY_ETC=/etc/edge1-claude-gateway
+Environment=B159_GATEWAY_STATE=/var/lib/edge1-claude-gateway
+Environment=B159_GATEWAY_AUDIT_LOG=/var/log/edge1-claude-gateway/audit.jsonl
+Environment=B159_GATEWAY_UPSTREAM_URL=http://127.0.0.1:8114/mcp
+Environment=B159_GATEWAY_UPSTREAM_TOKEN_FILE=/etc/edge1-claude-gateway/upstream-token
+Environment=B159_GATEWAY_TOOLS=*
+Environment=B159_GATEWAY_REFRESH_TTL=604800
+Environment="B159_GATEWAY_RESOURCE_NAME=Edge1 Agent Shell (root)"
+Environment="B159_GATEWAY_CONSENT=the Edge1 Agent Shell with FULL ROOT ACCESS: shell commands, file edits and service control on Edge1"
+ExecStart=/usr/bin/python3 /opt/edge1-claude-gateway/business159_claude_gateway.py
+Restart=on-failure
+RestartSec=5
+StateDirectory=edge1-claude-gateway
+StateDirectoryMode=0700
+LogsDirectory=edge1-claude-gateway
+LogsDirectoryMode=0750
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/edge1-claude-gateway /opt/edge1-claude-gateway
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
