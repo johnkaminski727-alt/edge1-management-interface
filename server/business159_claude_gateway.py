@@ -12,6 +12,8 @@ Boundaries enforced here, independent of the client:
   is never contacted.
 * Only allow-listed tools are listed or callable. business159_deploy is forced
   to dry-run. The child environment pins every Business159 mutation gate to 0.
+  An operator may opt in to full access (B159_GATEWAY_ACCESS=full): every
+  tool, including business159_exec and deploy apply, with every gate set to 1.
 * /mcp and /token only accept Anthropic's published outbound range (also
   enforced by the nginx site). The browser-facing /authorize page is open but
   requires a fresh TOTP code, with replay protection and a failure lockout.
@@ -80,6 +82,7 @@ CHILD_POLICY_ENV = {
     'BUSINESS159_ALLOW_FILESYSTEM': '0',
     'BUSINESS159_ENABLE_RAW_SHELL': '0',
 }
+FULL_ACCESS_CHILD_POLICY_ENV = {k: '1' for k in CHILD_POLICY_ENV}
 
 DEFAULT_REDIRECT_URIS = (
     'https://claude.ai/api/mcp/auth_callback',
@@ -108,6 +111,8 @@ class Config:
     upstream_token_file: Path | None = None
     resource_name: str = 'Business159 bounded operator (WW.CX)'
     consent_html: str = 'the <strong>Business159 bounded operator</strong> (read-only tools and deploy dry-run)'
+    # Operator-approved full access: all tools, mutation gates open in the child.
+    full_access: bool = False
     access_ttl: int = 3600
     refresh_ttl: int = 30 * 86400
     code_ttl: int = 120
@@ -147,6 +152,13 @@ class Config:
         if env.get('B159_GATEWAY_CONSENT'):
             cfg.consent_html = html.escape(env['B159_GATEWAY_CONSENT'])
         cfg.refresh_ttl = int(env.get('B159_GATEWAY_REFRESH_TTL', cfg.refresh_ttl))
+        access = env.get('B159_GATEWAY_ACCESS', 'read-only').strip()
+        if access not in ('read-only', 'full'):
+            raise ValueError(f'B159_GATEWAY_ACCESS must be read-only or full, not {access!r}')
+        if access == 'full':
+            cfg.full_access = True
+            cfg.tools = None
+            cfg.consent_html = 'the <strong>Business159 operator</strong> with <strong>full account access</strong> (shell, file changes and deploys)'
         return cfg
 
 
@@ -275,7 +287,7 @@ class ChildSession:
         self.id = session_id
         self.cfg = cfg
         env = {k: v for k, v in os.environ.items() if not k.startswith('B159_GATEWAY_')}
-        env.update(CHILD_POLICY_ENV)
+        env.update(FULL_ACCESS_CHILD_POLICY_ENV if cfg.full_access else CHILD_POLICY_ENV)
         self.proc = subprocess.Popen(
             list(cfg.child_command), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, env=env, bufsize=0,

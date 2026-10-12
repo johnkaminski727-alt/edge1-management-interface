@@ -6,6 +6,8 @@
 #   sudo sh install-business159-claude-gateway.sh --apply --rotate-client-secret
 #   sudo sh install-business159-claude-gateway.sh --apply --rotate-totp
 #   sudo sh install-business159-claude-gateway.sh --disable  # take the connector offline
+#   sudo sh install-business159-claude-gateway.sh --apply --full-access  # operator-approved shell + deploys
+#   sudo sh install-business159-claude-gateway.sh --apply --read-only    # back to stage 1
 #
 # Secrets are generated on Edge1 and printed once. Only the client secret's
 # SHA-256 is stored. Nothing secret is written to the repository.
@@ -36,12 +38,15 @@ GATEWAY_SRC=server/business159_claude_gateway.py
 MODE=dry-run
 ROTATE_CLIENT=0
 ROTATE_TOTP=0
+ACCESS=keep
 for arg in "$@"; do
     case "$arg" in
         --apply) MODE=apply ;;
         --disable) MODE=disable ;;
         --rotate-client-secret) ROTATE_CLIENT=1 ;;
         --rotate-totp) ROTATE_TOTP=1 ;;
+        --full-access) ACCESS=full ;;
+        --read-only) ACCESS=read-only ;;
         *) echo "unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
@@ -165,6 +170,14 @@ install -o root -g root -m 0644 "$ROOT/$GATEWAY_SRC" "$GATEWAY_DIR/business159_c
 ok "gateway installed to $GATEWAY_DIR"
 
 install -o root -g root -m 0644 "$DEPLOY/business159-claude-gateway.service" "$UNIT"
+ACCESS_DROPIN=/etc/systemd/system/$SERVICE.d/20-access.conf
+case "$ACCESS" in
+    full) install -d -m 0755 "$(dirname "$ACCESS_DROPIN")"
+          printf '[Service]\nEnvironment=B159_GATEWAY_ACCESS=full\n' > "$ACCESS_DROPIN"
+          ok "access: FULL (shell, file changes and deploys); undo with --apply --read-only" ;;
+    read-only) rm -f "$ACCESS_DROPIN"; ok "access: read-only (stage 1)" ;;
+    keep) [ -f "$ACCESS_DROPIN" ] && ok "access: unchanged (full)" || ok "access: unchanged (read-only)" ;;
+esac
 systemctl daemon-reload
 systemd-analyze verify "$UNIT"
 systemctl enable "$SERVICE" >/dev/null 2>&1

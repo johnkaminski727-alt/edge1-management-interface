@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import os
 import secrets
 import sys
 import tempfile
@@ -48,6 +49,25 @@ class TotpTests(unittest.TestCase):
         self.assertIsNotNone(gwmod.tool_policy(cfg, {'name': 'business159_exec'}))
         self.assertIsNotNone(gwmod.tool_policy(cfg, {'name': 'business159.mailbox_create'}))
         self.assertIsNotNone(gwmod.tool_policy(cfg, {'name': 'business159_fs_apply'}))
+
+    def test_access_modes(self):
+        from unittest import mock
+        def load(access=None):
+            env = {k: v for k, v in os.environ.items() if not k.startswith('B159_GATEWAY_')}
+            if access is not None:
+                env['B159_GATEWAY_ACCESS'] = access
+            with mock.patch.dict(os.environ, env, clear=True):
+                return gwmod.Config.from_env()
+        self.assertFalse(load().full_access)
+        with self.assertRaises(ValueError):
+            load('root')
+        cfg = load('full')
+        self.assertTrue(cfg.full_access)
+        self.assertIsNone(cfg.tools)
+        self.assertIsNone(gwmod.tool_policy(cfg, {'name': 'business159_exec'}))
+        self.assertIsNone(gwmod.tool_policy(cfg, {'name': 'business159_deploy', 'arguments': {'dryRun': False}}))
+        self.assertEqual(set(gwmod.FULL_ACCESS_CHILD_POLICY_ENV.values()), {'1'})
+        self.assertEqual(set(gwmod.FULL_ACCESS_CHILD_POLICY_ENV), set(gwmod.CHILD_POLICY_ENV))
 
     def test_stage1_allowlist_matches_live_shell_source(self):
         source = (ROOT / 'tools/mcp/business159-live-shell/src/index.js').read_text(encoding='utf-8')

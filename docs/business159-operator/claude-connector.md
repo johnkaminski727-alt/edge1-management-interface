@@ -88,11 +88,26 @@ also delete `/etc/nginx/sites-available/mcp-b159.ww.cx.conf`, `/var/www/b159-cla
 `/opt/business159-claude-gateway` and `/etc/business159-claude-gateway`, then `systemctl daemon-reload`. The ChatGPT
 tunnel and the Business159 runtime are not modified by install or rollback.
 
-## Later stages (not enabled)
+## Full access (operator-approved)
 
-Stage 2 (deploy apply with an exact commit) and stage 3 (staged `public_html`
-writes) need a deliberate change to `STAGE1_TOOLS` / `DRY_RUN_ONLY_TOOLS`, and the
-runtime policy validator, plus review. Raw shell stays off this route.
+On 2026-10-12 the operator chose full access for this connector, so Claude can
+deploy, fix drift and reconcile the server with Git without an SSH session in
+between. It is opt-in and reversible:
+
+```sh
+sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh --apply --full-access
+sudo sh deploy/business159-claude-gateway/install-business159-claude-gateway.sh --apply --read-only   # back to stage 1
+```
+
+`--full-access` writes `/etc/systemd/system/business159-claude-gateway.service.d/20-access.conf`
+(`B159_GATEWAY_ACCESS=full`). The gateway then lists every tool, including
+`business159_exec`, `business159_fs_*` and deploy apply, and starts each child
+with all three `BUSINESS159_*` mutation gates set to `1`. Everything else is
+unchanged: TOTP sign-in, Anthropic-only `/mcp` and `/token`, the audit log, and
+the off switches below. Keep the connector's tools on **Needs approval**.
+
+Anyone who can sign in to this connector can change anything the `wwcxjywl`
+account can, including `public_html`, mail and the store's private config.
 
 ## Validation
 
